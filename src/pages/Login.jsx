@@ -61,12 +61,12 @@ export default function Login() {
           </div>
 
           <Card className="w-full max-w-md border border-white/10 bg-white text-slate-900 shadow-2xl">
-            <CardHeader className="space-y-4">
-              <div className="flex items-center justify-center rounded-xl bg-white p-4 shadow-sm">
+            <CardHeader className="space-y-5">
+              <div className="flex items-center justify-center rounded-2xl bg-white px-6 py-5 shadow-md ring-1 ring-slate-200/70">
                 <img
                   src="/Logo%20von%20AVO%20Kopie.png"
                   alt="AVO Logistics"
-                  className="h-16 w-auto object-contain"
+                  className="h-24 w-auto object-contain drop-shadow-sm"
                 />
               </div>
               <CardTitle className="flex items-center justify-center gap-2 text-[#1e3a5f]">
