@@ -63,7 +63,11 @@ export default function Login() {
           <Card className="w-full max-w-md border border-white/10 bg-white text-slate-900 shadow-2xl">
             <CardHeader className="space-y-4">
               <div className="flex items-center justify-center rounded-xl bg-white p-4 shadow-sm">
-                <img src="/logo.svg" alt="AVO Logistics" className="h-14 w-auto object-contain" />
+                <img
+                  src="/Logo%20von%20AVO%20Kopie.png"
+                  alt="AVO Logistics"
+                  className="h-16 w-auto object-contain"
+                />
               </div>
               <CardTitle className="flex items-center justify-center gap-2 text-[#1e3a5f]">
                 <Lock className="w-5 h-5" />
