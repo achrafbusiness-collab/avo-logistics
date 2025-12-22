@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { appClient } from '@/api/appClient';
 import { Link } from 'react-router-dom';
@@ -7,19 +7,48 @@ import {
   Truck, 
   Users, 
   ClipboardCheck, 
-  Clock,
   ArrowRight,
   TrendingUp,
   AlertCircle,
-  CheckCircle2
+  CheckCircle2,
+  Calendar,
+  Route
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import StatusBadge from '@/components/ui/StatusBadge';
-import { format } from 'date-fns';
+import { format, subDays } from 'date-fns';
 import { de } from 'date-fns/locale';
 
+const mapSlots = [
+  { x: 12, y: 20 },
+  { x: 28, y: 35 },
+  { x: 45, y: 22 },
+  { x: 62, y: 40 },
+  { x: 78, y: 26 },
+  { x: 22, y: 62 },
+  { x: 40, y: 70 },
+  { x: 58, y: 62 },
+  { x: 74, y: 72 },
+];
+
+const toDateKey = (value) => {
+  if (!value) return null;
+  if (typeof value === 'string') {
+    return value.includes('T') ? value.split('T')[0] : value.slice(0, 10);
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return format(date, 'yyyy-MM-dd');
+};
+
 export default function Dashboard() {
+  const todayKey = format(new Date(), 'yyyy-MM-dd');
+  const [dateFrom, setDateFrom] = useState(todayKey);
+  const [dateTo, setDateTo] = useState(todayKey);
+  const [selectedOrderId, setSelectedOrderId] = useState(null);
+
   const { data: orders = [], isLoading: ordersLoading } = useQuery({
     queryKey: ['orders'],
     queryFn: () => appClient.entities.Order.list('-created_date', 100),
@@ -40,16 +69,22 @@ export default function Dashboard() {
     queryFn: () => appClient.entities.Customer.list('-created_date', 100),
   });
 
-  // Heute-Filter
-  const today = new Date().toISOString().split('T')[0];
-  const todayOrders = orders.filter(o => {
-    const orderDate = o.created_date?.split('T')[0];
-    return orderDate === today;
-  });
+  const rangeOrders = useMemo(() => {
+    if (!dateFrom && !dateTo) return orders;
+    const start = dateFrom && dateTo && dateFrom > dateTo ? dateTo : dateFrom;
+    const end = dateFrom && dateTo && dateFrom > dateTo ? dateFrom : dateTo;
+    return orders.filter((order) => {
+      const orderDate = toDateKey(order.pickup_date) || toDateKey(order.dropoff_date) || toDateKey(order.created_date);
+      if (!orderDate) return false;
+      if (start && orderDate < start) return false;
+      if (end && orderDate > end) return false;
+      return true;
+    });
+  }, [orders, dateFrom, dateTo]);
 
-  // Kundenstatistik für heute
+  // Kundenstatistik im Zeitraum
   const customerStats = {};
-  todayOrders.forEach(order => {
+  rangeOrders.forEach(order => {
     if (order.customer_id) {
       customerStats[order.customer_id] = (customerStats[order.customer_id] || 0) + 1;
     }
@@ -58,35 +93,54 @@ export default function Dashboard() {
   const topCustomer = customers.find(c => c.id === topCustomerId);
   const topCustomerCount = topCustomerId ? customerStats[topCustomerId] : 0;
 
-  // Aktive Fahrer heute (mit Aufträgen)
-  const todayDriverIds = new Set(todayOrders.map(o => o.assigned_driver_id).filter(Boolean));
-  const activeDriversToday = todayDriverIds.size;
+  // Aktive Fahrer im Zeitraum (mit Aufträgen)
+  const rangeDriverIds = new Set(rangeOrders.map(o => o.assigned_driver_id).filter(Boolean));
+  const activeDriversRange = rangeDriverIds.size;
 
   const stats = {
     totalOrders: orders.length,
-    activeOrders: orders.filter(o => ['new', 'assigned', 'accepted', 'pickup_started', 'in_transit', 'delivery_started'].includes(o.status)).length,
-    completedOrders: orders.filter(o => o.status === 'completed').length,
+    activeOrders: rangeOrders.filter(o => ['new', 'assigned', 'accepted', 'pickup_started', 'in_transit', 'delivery_started'].includes(o.status)).length,
+    completedOrders: rangeOrders.filter(o => o.status === 'completed').length,
     activeDrivers: drivers.filter(d => d.status === 'active').length,
-    pendingOrders: orders.filter(o => o.status === 'new').length,
-    todayOrders: todayOrders.length,
-    activeDriversToday: activeDriversToday,
+    pendingOrders: rangeOrders.filter(o => o.status === 'new').length,
+    rangeOrders: rangeOrders.length,
+    activeDriversRange: activeDriversRange,
     topCustomer: topCustomer,
     topCustomerCount: topCustomerCount,
   };
 
-  const recentOrders = orders.slice(0, 5);
+  const recentOrders = rangeOrders.slice(0, 8);
+  const mappedRoutes = useMemo(() => {
+    return rangeOrders.map((order, index) => {
+      const start = mapSlots[index % mapSlots.length];
+      const end = mapSlots[(index + 3) % mapSlots.length];
+      return { order, start, end };
+    });
+  }, [rangeOrders]);
+
+  useEffect(() => {
+    if (!mappedRoutes.length) {
+      setSelectedOrderId(null);
+      return;
+    }
+    if (!selectedOrderId || !mappedRoutes.some(route => route.order.id === selectedOrderId)) {
+      setSelectedOrderId(mappedRoutes[0].order.id);
+    }
+  }, [mappedRoutes, selectedOrderId]);
+
+  const selectedRoute = mappedRoutes.find(route => route.order.id === selectedOrderId);
 
   const StatCard = ({ title, value, icon: Icon, color, subtext }) => (
-    <Card className="relative overflow-hidden group hover:shadow-lg transition-shadow">
-      <div className={`absolute top-0 right-0 w-32 h-32 transform translate-x-8 -translate-y-8 ${color} rounded-full opacity-10 group-hover:opacity-20 transition-opacity`} />
+    <Card className="relative overflow-hidden border border-slate-200/70 bg-white shadow-sm">
+      <div className={`absolute top-0 right-0 h-24 w-24 translate-x-6 -translate-y-6 ${color} rounded-full opacity-10`} />
       <CardContent className="p-6">
-        <div className="flex items-start justify-between">
+        <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-sm font-medium text-gray-500 mb-1">{title}</p>
-            <p className="text-3xl font-bold text-gray-900">{value}</p>
-            {subtext && <p className="text-xs text-gray-500 mt-1">{subtext}</p>}
+            <p className="text-sm font-medium text-slate-500 mb-1">{title}</p>
+            <p className="text-3xl font-semibold text-slate-900">{value}</p>
+            {subtext && <p className="text-xs text-slate-500 mt-1">{subtext}</p>}
           </div>
-          <div className={`p-3 rounded-xl ${color} bg-opacity-20`}>
+          <div className={`p-3 rounded-xl ${color} bg-opacity-15`}>
             <Icon className={`w-6 h-6 ${color.replace('bg-', 'text-')}`} />
           </div>
         </div>
@@ -94,13 +148,25 @@ export default function Dashboard() {
     </Card>
   );
 
+  const setTodayRange = () => {
+    setDateFrom(todayKey);
+    setDateTo(todayKey);
+  };
+
+  const setLastSevenDays = () => {
+    const end = new Date();
+    const start = subDays(end, 6);
+    setDateFrom(format(start, 'yyyy-MM-dd'));
+    setDateTo(format(end, 'yyyy-MM-dd'));
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-gray-500">Übersicht aller Aktivitäten</p>
+          <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
+          <p className="text-slate-500">Übersicht aller Aktivitäten und Routen</p>
         </div>
         <Link to={createPageUrl('Orders') + '?new=true'}>
           <Button className="bg-[#1e3a5f] hover:bg-[#2d5a8a]">
@@ -110,18 +176,51 @@ export default function Dashboard() {
         </Link>
       </div>
 
+      <Card className="border border-slate-200/70 bg-white shadow-sm">
+        <CardContent className="flex flex-col gap-4 p-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex items-center gap-3 text-slate-700">
+            <Calendar className="w-5 h-5 text-[#1e3a5f]" />
+            <div>
+              <p className="text-sm font-medium">Zeitraum auswählen</p>
+              <p className="text-xs text-slate-500">Daten nach Abhol- oder Erstellungsdatum</p>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <Input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className="w-40"
+            />
+            <span className="text-slate-400">bis</span>
+            <Input
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              className="w-40"
+            />
+            <Button variant="outline" size="sm" onClick={setTodayRange}>
+              Heute
+            </Button>
+            <Button variant="outline" size="sm" onClick={setLastSevenDays}>
+              Letzte 7 Tage
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard 
-          title="Aufträge heute" 
-          value={stats.todayOrders} 
+          title="Aufträge im Zeitraum" 
+          value={stats.rangeOrders} 
           icon={Truck}
           color="bg-blue-500"
-          subtext={`${stats.activeOrders} aktiv insgesamt`}
+          subtext={`${stats.activeOrders} aktiv`}
         />
         <StatCard 
-          title="Aktive Fahrer heute" 
-          value={stats.activeDriversToday} 
+          title="Aktive Fahrer im Zeitraum" 
+          value={stats.activeDriversRange} 
           icon={Users}
           color="bg-green-500"
           subtext={`${stats.activeDrivers} Fahrer verfügbar`}
@@ -144,10 +243,13 @@ export default function Dashboard() {
 
       {/* Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Recent Orders */}
-        <Card className="lg:col-span-2">
+        {/* Map Overview */}
+        <Card className="lg:col-span-2 border border-slate-200/70 bg-white shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between pb-4">
-            <CardTitle className="text-lg font-semibold">Aktuelle Aufträge</CardTitle>
+            <div>
+              <CardTitle className="text-lg font-semibold text-slate-900">Tagesrouten & Übersicht</CardTitle>
+              <p className="text-sm text-slate-500">Klicke auf einen Auftrag, um die Route zu sehen</p>
+            </div>
             <Link to={createPageUrl('Orders')}>
               <Button variant="ghost" size="sm">
                 Alle anzeigen
@@ -159,13 +261,13 @@ export default function Dashboard() {
             {ordersLoading ? (
               <div className="space-y-4">
                 {[1, 2, 3].map(i => (
-                  <div key={i} className="h-16 bg-gray-100 rounded-lg animate-pulse" />
+                  <div key={i} className="h-16 bg-slate-100 rounded-lg animate-pulse" />
                 ))}
               </div>
-            ) : recentOrders.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                <Truck className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                <p>Noch keine Aufträge vorhanden</p>
+            ) : rangeOrders.length === 0 ? (
+              <div className="text-center py-8 text-slate-500">
+                <Truck className="w-12 h-12 mx-auto mb-3 text-slate-300" />
+                <p>Keine Aufträge im gewählten Zeitraum</p>
                 <Link to={createPageUrl('Orders') + '?new=true'}>
                   <Button variant="outline" size="sm" className="mt-3">
                     Ersten Auftrag erstellen
@@ -173,28 +275,97 @@ export default function Dashboard() {
                 </Link>
               </div>
             ) : (
-              <div className="space-y-3">
-                {recentOrders.map((order) => (
-                  <Link 
-                    key={order.id} 
-                    to={createPageUrl('Orders') + `?id=${order.id}`}
-                    className="flex items-center justify-between p-4 rounded-lg border border-gray-100 hover:border-gray-200 hover:bg-gray-50 transition-all group"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 bg-[#1e3a5f]/10 rounded-lg flex items-center justify-center">
-                        <Truck className="w-5 h-5 text-[#1e3a5f]" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-gray-900">{order.order_number}</p>
-                        <p className="text-sm text-gray-500">{order.license_plate} • {order.vehicle_brand} {order.vehicle_model}</p>
-                      </div>
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                <div className="relative min-h-[280px] rounded-2xl bg-slate-950 p-4 text-white shadow-inner">
+                  <div className="absolute inset-0 rounded-2xl bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.25),_transparent_55%)]" />
+                  <div className="absolute inset-0 rounded-2xl bg-[radial-gradient(circle_at_bottom,_rgba(15,23,42,0.8),_transparent_65%)]" />
+                  <div className="relative flex items-center gap-2 text-sm text-white/70">
+                    <Route className="w-4 h-4" />
+                    Routenansicht
+                  </div>
+                  <div className="relative mt-4 h-48 rounded-xl border border-white/10 bg-white/5">
+                    <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+                      {selectedRoute && (
+                        <line
+                          x1={selectedRoute.start.x}
+                          y1={selectedRoute.start.y}
+                          x2={selectedRoute.end.x}
+                          y2={selectedRoute.end.y}
+                          stroke="rgba(59,130,246,0.8)"
+                          strokeWidth="1.5"
+                          strokeDasharray="4 3"
+                        />
+                      )}
+                    </svg>
+                    {mappedRoutes.map((route) => (
+                      <button
+                        key={route.order.id}
+                        type="button"
+                        onClick={() => setSelectedOrderId(route.order.id)}
+                        className={`absolute h-3 w-3 rounded-full border ${
+                          route.order.id === selectedOrderId
+                            ? 'border-blue-200 bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.8)]'
+                            : 'border-white/60 bg-white/40'
+                        }`}
+                        style={{
+                          left: `${route.start.x}%`,
+                          top: `${route.start.y}%`,
+                          transform: 'translate(-50%, -50%)',
+                        }}
+                        aria-label={`Route ${route.order.order_number}`}
+                      />
+                    ))}
+                    {selectedRoute && (
+                      <div
+                        className="absolute h-4 w-4 rounded-full border border-blue-200 bg-blue-400 shadow-[0_0_12px_rgba(59,130,246,0.8)]"
+                        style={{
+                          left: `${selectedRoute.end.x}%`,
+                          top: `${selectedRoute.end.y}%`,
+                          transform: 'translate(-50%, -50%)',
+                        }}
+                      />
+                    )}
+                  </div>
+                  {selectedRoute && (
+                    <div className="relative mt-4 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm">
+                      <p className="font-semibold">{selectedRoute.order.order_number}</p>
+                      <p className="text-white/70">
+                        {selectedRoute.order.pickup_city || 'Start'} → {selectedRoute.order.dropoff_city || 'Ziel'}
+                      </p>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <StatusBadge status={order.status} />
-                      <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-gray-600 transition-colors" />
-                    </div>
-                  </Link>
-                ))}
+                  )}
+                </div>
+
+                <div className="space-y-3">
+                  {recentOrders.map((order) => (
+                    <button
+                      key={order.id}
+                      type="button"
+                      onClick={() => setSelectedOrderId(order.id)}
+                      className={`w-full text-left flex items-center justify-between gap-4 rounded-xl border px-4 py-3 transition-all ${
+                        order.id === selectedOrderId
+                          ? 'border-blue-200 bg-blue-50'
+                          : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-[#1e3a5f]/10 flex items-center justify-center">
+                          <Truck className="w-5 h-5 text-[#1e3a5f]" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-slate-900">{order.order_number}</p>
+                          <p className="text-sm text-slate-500">
+                            {order.pickup_city || 'Start'} → {order.dropoff_city || 'Ziel'}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <StatusBadge status={order.status} />
+                        <ArrowRight className="w-4 h-4 text-slate-400" />
+                      </div>
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
           </CardContent>
@@ -204,8 +375,8 @@ export default function Dashboard() {
         <div className="space-y-6">
           {/* Pending Orders Alert */}
           {stats.pendingOrders > 0 && (
-            <Card className="border-orange-200 bg-orange-50">
-              <CardContent className="p-4">
+          <Card className="border-orange-200 bg-orange-50">
+            <CardContent className="p-4">
                 <div className="flex items-start gap-3">
                   <AlertCircle className="w-5 h-5 text-orange-600 mt-0.5" />
                   <div>

@@ -51,7 +51,7 @@ export default function Layout({ children, currentPageName }) {
   const [isDriver, setIsDriver] = useState(false);
   const [darkMode, setDarkMode] = useState(() => {
     const saved = localStorage.getItem('avo-dark-mode');
-    return saved ? JSON.parse(saved) : false;
+    return saved ? JSON.parse(saved) : true;
   });
 
   useEffect(() => {
@@ -165,23 +165,25 @@ export default function Layout({ children, currentPageName }) {
         w-64 text-white
         transform transition-transform duration-300 ease-in-out
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-        ${darkMode ? 'bg-gray-900' : 'bg-[#1e3a5f]'}
+        ${darkMode ? 'bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950' : 'bg-[#1e3a5f]'}
       `}>
-        <div className={`flex items-center justify-between p-4 border-b ${darkMode ? 'border-gray-800' : 'border-white/10'}`}>
+        <div className={`flex items-center justify-between p-4 border-b ${darkMode ? 'border-slate-800' : 'border-white/10'}`}>
           <div className="flex items-center gap-3">
-            <img 
-              src="/logo.svg"
-              alt="AVO Logistics"
-              className="h-10 w-auto object-contain"
-            />
+            <div className="flex items-center justify-center rounded-xl bg-white p-2 shadow-sm">
+              <img 
+                src="/Logo%20von%20AVO%20Kopie.png"
+                alt="AVO Logistics"
+                className="h-9 w-auto object-contain"
+              />
+            </div>
             <div>
               <h1 className="font-bold text-lg">AVO Logistics System AI</h1>
-              <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-white/60'}`}>Achraf Bolakhrif</p>
+              <p className={`text-xs ${darkMode ? 'text-slate-400' : 'text-white/60'}`}>Achraf Bolakhrif</p>
             </div>
           </div>
           <button 
             onClick={() => setSidebarOpen(false)}
-            className={`lg:hidden p-1 rounded ${darkMode ? 'hover:bg-gray-800' : 'hover:bg-white/10'}`}
+            className={`lg:hidden p-1 rounded ${darkMode ? 'hover:bg-slate-800' : 'hover:bg-white/10'}`}
           >
             <X className="w-5 h-5" />
           </button>
@@ -198,8 +200,8 @@ export default function Layout({ children, currentPageName }) {
                 className={`
                   flex items-center gap-3 px-4 py-3 rounded-lg transition-all
                   ${isActive 
-                    ? darkMode ? 'bg-gray-800 text-white' : 'bg-white/20 text-white'
-                    : darkMode ? 'text-gray-400 hover:bg-gray-800 hover:text-white' : 'text-white/70 hover:bg-white/10 hover:text-white'}
+                    ? darkMode ? 'bg-slate-800 text-white' : 'bg-white/20 text-white'
+                    : darkMode ? 'text-slate-300 hover:bg-slate-800 hover:text-white' : 'text-white/70 hover:bg-white/10 hover:text-white'}
                 `}
               >
                 <item.icon className="w-5 h-5" />
@@ -210,18 +212,18 @@ export default function Layout({ children, currentPageName }) {
         </nav>
 
         {user && (
-          <div className={`absolute bottom-0 left-0 right-0 p-4 border-t ${darkMode ? 'border-gray-800' : 'border-white/10'}`}>
+          <div className={`absolute bottom-0 left-0 right-0 p-4 border-t ${darkMode ? 'border-slate-800' : 'border-white/10'}`}>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${darkMode ? 'hover:bg-gray-800' : 'hover:bg-white/10'}`}>
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${darkMode ? 'bg-gray-800' : 'bg-white/20'}`}>
+                <button className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${darkMode ? 'hover:bg-slate-800' : 'hover:bg-white/10'}`}>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${darkMode ? 'bg-slate-800' : 'bg-white/20'}`}>
                     <User className="w-4 h-4" />
                   </div>
                   <div className="flex-1 text-left">
                     <p className="text-sm font-medium truncate">{user.full_name || 'Admin'}</p>
-                    <p className={`text-xs truncate ${darkMode ? 'text-gray-400' : 'text-white/60'}`}>{user.email}</p>
+                    <p className={`text-xs truncate ${darkMode ? 'text-slate-400' : 'text-white/60'}`}>{user.email}</p>
                   </div>
-                  <ChevronDown className={`w-4 h-4 ${darkMode ? 'text-gray-400' : 'text-white/60'}`} />
+                  <ChevronDown className={`w-4 h-4 ${darkMode ? 'text-slate-400' : 'text-white/60'}`} />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
@@ -247,13 +249,13 @@ export default function Layout({ children, currentPageName }) {
       <div className="flex-1 flex flex-col min-h-screen">
         {/* Top Bar */}
         <header className={`border-b px-4 py-3 flex items-center justify-between lg:px-6 ${
-          darkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'
+          darkMode ? 'bg-slate-950/95 border-slate-800 backdrop-blur' : 'bg-white border-gray-200'
         }`}>
           <button 
             onClick={() => setSidebarOpen(true)}
-            className={`lg:hidden p-2 rounded-lg ${darkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'}`}
+            className={`lg:hidden p-2 rounded-lg ${darkMode ? 'hover:bg-slate-800' : 'hover:bg-gray-100'}`}
           >
-            <Menu className={`w-5 h-5 ${darkMode ? 'text-gray-300' : ''}`} />
+            <Menu className={`w-5 h-5 ${darkMode ? 'text-slate-200' : ''}`} />
           </button>
           
           <div className="flex-1 lg:flex-none" />
@@ -263,7 +265,7 @@ export default function Layout({ children, currentPageName }) {
               variant="ghost"
               size="sm"
               onClick={() => setDarkMode(!darkMode)}
-              className={darkMode ? 'text-gray-300 hover:bg-gray-800' : ''}
+              className={darkMode ? 'text-slate-200 hover:bg-slate-800' : ''}
             >
               {darkMode ? (
                 <>
@@ -277,7 +279,7 @@ export default function Layout({ children, currentPageName }) {
                 </>
               )}
             </Button>
-            <span className={`text-sm hidden sm:block ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+            <span className={`text-sm hidden sm:block ${darkMode ? 'text-slate-400' : 'text-gray-500'}`}>
               {new Date().toLocaleDateString('de-DE', { 
                 weekday: 'long', 
                 day: 'numeric', 
@@ -289,8 +291,12 @@ export default function Layout({ children, currentPageName }) {
         </header>
 
         {/* Page Content */}
-        <main className={`flex-1 p-4 lg:p-6 overflow-auto ${darkMode ? 'bg-gray-950' : ''}`}>
-          {children}
+        <main className={`flex-1 p-4 lg:p-6 overflow-auto ${darkMode ? 'bg-slate-950' : 'bg-slate-50'}`}>
+          <div className={`min-h-full rounded-3xl p-4 lg:p-6 shadow-sm ${
+            darkMode ? 'bg-white text-slate-900' : 'bg-white'
+          }`}>
+            {children}
+          </div>
         </main>
       </div>
     </div>
