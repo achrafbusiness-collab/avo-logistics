@@ -1,0 +1,332 @@
+import React, { useState, useEffect } from 'react';
+import { appClient } from '@/api/appClient';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { 
+  User, 
+  Save,
+  X,
+  Loader2,
+  Upload,
+  FileText,
+  CreditCard
+} from 'lucide-react';
+
+const defaultFormData = {
+  first_name: '',
+  last_name: '',
+  email: '',
+  phone: '',
+  address: '',
+  city: '',
+  postal_code: '',
+  country: 'Deutschland',
+  nationality: '',
+  status: 'active',
+  license_front: '',
+  license_back: '',
+  id_card_front: '',
+  id_card_back: '',
+  license_expiry: '',
+  notes: '',
+};
+
+const buildFormData = (driverData) => {
+  if (!driverData || typeof driverData !== 'object') {
+    return { ...defaultFormData };
+  }
+
+  const normalized = { ...driverData };
+  Object.entries(defaultFormData).forEach(([key, defaultValue]) => {
+    normalized[key] = driverData[key] ?? defaultValue;
+  });
+
+  return normalized;
+};
+
+export default function DriverForm({ driver, onSave, onCancel }) {
+  const [formData, setFormData] = useState(() => ({ ...defaultFormData }));
+
+  const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState({});
+
+  useEffect(() => {
+    setFormData(buildFormData(driver));
+  }, [driver]);
+
+  const handleChange = (field, value) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleFileUpload = async (field, file) => {
+    if (!file) return;
+    setUploading(prev => ({ ...prev, [field]: true }));
+    try {
+      const { file_url } = await appClient.integrations.Core.UploadFile({ file });
+      handleChange(field, file_url);
+    } catch (error) {
+      console.error('Upload failed:', error);
+    } finally {
+      setUploading(prev => ({ ...prev, [field]: false }));
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await onSave(formData);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const FileUploadField = ({ label, field, icon: Icon }) => (
+    <div className="space-y-2">
+      <Label>{label}</Label>
+      <div className="flex items-center gap-3">
+        {formData[field] ? (
+          <div className="flex items-center gap-2 flex-1 p-3 bg-green-50 border border-green-200 rounded-lg">
+            <Icon className="w-5 h-5 text-green-600" />
+            <span className="text-sm text-green-800 truncate flex-1">Dokument hochgeladen</span>
+            <a 
+              href={formData[field]} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-blue-600 hover:underline text-sm"
+            >
+              Anzeigen
+            </a>
+            <Button 
+              type="button"
+              variant="ghost" 
+              size="sm"
+              onClick={() => handleChange(field, '')}
+            >
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
+        ) : (
+          <label className="flex items-center gap-2 flex-1 p-3 border-2 border-dashed border-gray-200 rounded-lg cursor-pointer hover:border-[#1e3a5f] hover:bg-gray-50 transition-all">
+            {uploading[field] ? (
+              <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+            ) : (
+              <Upload className="w-5 h-5 text-gray-400" />
+            )}
+            <span className="text-sm text-gray-500">
+              {uploading[field] ? 'Hochladen...' : 'Klicken zum Hochladen'}
+            </span>
+            <input 
+              type="file"
+              accept="image/*,.pdf"
+              className="hidden"
+              onChange={(e) => handleFileUpload(field, e.target.files[0])}
+              disabled={uploading[field]}
+            />
+          </label>
+        )}
+      </div>
+    </div>
+  );
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between border-b">
+          <CardTitle>{driver ? 'Fahrer bearbeiten' : 'Neuer Fahrer'}</CardTitle>
+          <div className="flex gap-2">
+            <Button type="button" variant="outline" onClick={onCancel}>
+              <X className="w-4 h-4 mr-2" />
+              Abbrechen
+            </Button>
+            <Button type="submit" disabled={saving} className="bg-[#1e3a5f] hover:bg-[#2d5a8a]">
+              {saving ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Save className="w-4 h-4 mr-2" />
+              )}
+              Speichern
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="p-6 space-y-8">
+          {/* Personal Info */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 text-[#1e3a5f]">
+              <User className="w-5 h-5" />
+              <h3 className="font-semibold">Persönliche Daten</h3>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label>Vorname *</Label>
+                <Input 
+                  value={formData.first_name}
+                  onChange={(e) => handleChange('first_name', e.target.value)}
+                  placeholder="Vorname"
+                  required
+                />
+              </div>
+              <div>
+                <Label>Nachname *</Label>
+                <Input 
+                  value={formData.last_name}
+                  onChange={(e) => handleChange('last_name', e.target.value)}
+                  placeholder="Nachname"
+                  required
+                />
+              </div>
+              <div>
+                <Label>E-Mail *</Label>
+                <Input 
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => handleChange('email', e.target.value)}
+                  placeholder="fahrer@email.com"
+                  required
+                />
+              </div>
+              <div>
+                <Label>Telefon *</Label>
+                <Input 
+                  value={formData.phone}
+                  onChange={(e) => handleChange('phone', e.target.value)}
+                  placeholder="+49 ..."
+                  required
+                />
+              </div>
+              <div className="md:col-span-2">
+                <Label>Adresse</Label>
+                <Input 
+                  value={formData.address}
+                  onChange={(e) => handleChange('address', e.target.value)}
+                  placeholder="Straße und Hausnummer"
+                />
+              </div>
+              <div>
+                <Label>Postleitzahl</Label>
+                <Input 
+                  value={formData.postal_code}
+                  onChange={(e) => handleChange('postal_code', e.target.value)}
+                  placeholder="PLZ"
+                />
+              </div>
+              <div>
+                <Label>Stadt</Label>
+                <Input 
+                  value={formData.city}
+                  onChange={(e) => handleChange('city', e.target.value)}
+                  placeholder="Stadt"
+                />
+              </div>
+              <div>
+                <Label>Land</Label>
+                <Input 
+                  value={formData.country}
+                  onChange={(e) => handleChange('country', e.target.value)}
+                  placeholder="Deutschland"
+                />
+              </div>
+              <div>
+                <Label>Staatsangehörigkeit</Label>
+                <Input 
+                  value={formData.nationality}
+                  onChange={(e) => handleChange('nationality', e.target.value)}
+                  placeholder="z.B. Deutsch"
+                />
+              </div>
+              <div>
+                <Label>Status</Label>
+                <Select value={formData.status} onValueChange={(v) => handleChange('status', v)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Aktiv</SelectItem>
+                    <SelectItem value="inactive">Inaktiv</SelectItem>
+                    <SelectItem value="pending">Ausstehend</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* License Documents */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 text-[#1e3a5f]">
+              <FileText className="w-5 h-5" />
+              <h3 className="font-semibold">Führerschein</h3>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FileUploadField 
+                label="Führerschein Vorderseite"
+                field="license_front"
+                icon={CreditCard}
+              />
+              <FileUploadField 
+                label="Führerschein Rückseite"
+                field="license_back"
+                icon={CreditCard}
+              />
+            </div>
+            <div className="md:w-1/2">
+              <Label>Führerschein gültig bis</Label>
+              <Input 
+                type="date"
+                value={formData.license_expiry}
+                onChange={(e) => handleChange('license_expiry', e.target.value)}
+              />
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* ID Documents */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 text-[#1e3a5f]">
+              <CreditCard className="w-5 h-5" />
+              <h3 className="font-semibold">Personalausweis</h3>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FileUploadField 
+                label="Ausweis Vorderseite"
+                field="id_card_front"
+                icon={CreditCard}
+              />
+              <FileUploadField 
+                label="Ausweis Rückseite"
+                field="id_card_back"
+                icon={CreditCard}
+              />
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Notes */}
+          <div>
+            <Label>Notizen</Label>
+            <Textarea 
+              value={formData.notes}
+              onChange={(e) => handleChange('notes', e.target.value)}
+              placeholder="Interne Notizen zum Fahrer..."
+              rows={3}
+            />
+          </div>
+        </CardContent>
+      </Card>
+    </form>
+  );
+}
