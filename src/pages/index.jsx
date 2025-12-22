@@ -24,7 +24,11 @@ import AIImport from "./AIImport";
 
 import AVOAI from "./AVOAI";
 
-import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
+import Login from "./Login";
+
+import { BrowserRouter as Router, Route, Routes, useLocation, Navigate } from 'react-router-dom';
+import { createPageUrl } from '@/utils';
+import { appClient } from '@/api/appClient';
 
 const PAGES = {
     
@@ -70,13 +74,28 @@ function _getCurrentPage(url) {
 // Create a wrapper component that uses useLocation inside the Router context
 function PagesContent() {
     const location = useLocation();
+    const isLoginRoute = location.pathname.toLowerCase() === '/login';
+    const currentUser = appClient.auth.getCurrentUser();
     const currentPage = _getCurrentPage(location.pathname);
+
+    if (isLoginRoute) {
+        return (
+            <Routes>
+                <Route path="/login" element={<Login />} />
+                <Route path="*" element={<Navigate to="/login" replace />} />
+            </Routes>
+        );
+    }
+
+    if (!currentUser) {
+        return <Navigate to="/login" replace />;
+    }
     
     return (
         <Layout currentPageName={currentPage}>
             <Routes>            
                 
-                    <Route path="/" element={<AppConnection />} />
+                    <Route path="/" element={<Navigate to={createPageUrl('Dashboard')} replace />} />
                 
                 
                 <Route path="/AppConnection" element={<AppConnection />} />

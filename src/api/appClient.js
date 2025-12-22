@@ -170,38 +170,74 @@ const Core = {
   UploadPrivateFile: async () => ({ ok: false, message: 'Private Uploads sind im lokalen Modus deaktiviert.' }),
 };
 
-const defaultUser = {
-  id: 'user_admin',
-  email: 'admin@local',
-  full_name: 'Admin',
-  role: 'admin',
-};
+const demoUsers = [
+  {
+    id: 'admin_avo',
+    email: 'admin@avo-logistics.app',
+    password: 'admin123',
+    full_name: 'Admin',
+    role: 'admin',
+  },
+  {
+    id: 'staff_avo',
+    email: 'mitarbeiter@avo-logistics.app',
+    password: 'mitarbeiter123',
+    full_name: 'Mitarbeiter',
+    role: 'staff',
+  },
+];
 
 const authKey = `${storagePrefix}user`;
+const readValue = (key) => {
+  if (!storage) {
+    return memoryStore.get(key) || null;
+  }
+  return storage.getItem(key);
+};
+const writeValue = (key, value) => {
+  if (!storage) {
+    memoryStore.set(key, value);
+    return;
+  }
+  storage.setItem(key, value);
+};
+const removeValue = (key) => {
+  if (!storage) {
+    memoryStore.delete(key);
+    return;
+  }
+  storage.removeItem(key);
+};
+const getStoredUser = () => {
+  const raw = readValue(authKey);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch (error) {
+    return null;
+  }
+};
+
 const auth = {
-  me: async () => {
-    if (storage) {
-      const raw = storage.getItem(authKey);
-      if (raw) {
-        try {
-          return JSON.parse(raw);
-        } catch (error) {
-          return defaultUser;
-        }
-      }
-      storage.setItem(authKey, JSON.stringify(defaultUser));
+  getCurrentUser: () => getStoredUser(),
+  me: async () => getStoredUser(),
+  login: async ({ email, password }) => {
+    const identifier = String(email || '').trim().toLowerCase();
+    const secret = String(password || '');
+    const user = demoUsers.find((candidate) => candidate.email.toLowerCase() === identifier);
+    if (!user || user.password !== secret) {
+      throw new Error('Ungültige E-Mail oder Passwort.');
     }
-    return defaultUser;
+    const { password: _password, ...safeUser } = user;
+    writeValue(authKey, JSON.stringify(safeUser));
+    return safeUser;
   },
   logout: () => {
-    if (storage) {
-      storage.removeItem(authKey);
-    }
+    removeValue(authKey);
   },
   setUser: (user) => {
-    if (storage) {
-      storage.setItem(authKey, JSON.stringify(user));
-    }
+    if (!user) return;
+    writeValue(authKey, JSON.stringify(user));
   },
 };
 

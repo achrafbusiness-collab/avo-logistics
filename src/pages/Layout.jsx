@@ -70,9 +70,14 @@ export default function Layout({ children, currentPageName }) {
   const loadUser = async () => {
     try {
       const currentUser = await appClient.auth.me();
+      if (!currentUser) {
+        setUser(null);
+        setIsDriver(false);
+        return;
+      }
       setUser(currentUser);
-      // Check if user is a driver (role = 'user' means driver in this system)
-      setIsDriver(currentUser.role === 'user');
+      // Driver role uses the minimal layout.
+      setIsDriver(currentUser.role === 'driver');
     } catch (e) {
       console.log('Not logged in');
     }
@@ -80,6 +85,7 @@ export default function Layout({ children, currentPageName }) {
 
   const handleLogout = () => {
     appClient.auth.logout();
+    window.location.href = createPageUrl('Login');
   };
 
   // Driver-specific pages get minimal layout
