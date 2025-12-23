@@ -17,7 +17,6 @@ import {
 import {
   UserPlus,
   Users,
-  Shield,
   Loader2,
   CheckCircle2,
   AlertCircle,
@@ -62,6 +61,8 @@ const buildProfileForm = (profile) => ({
   employment_type: profile?.employment_type || "",
   address: profile?.address || "",
   phone: profile?.phone || "",
+  id_front_url: profile?.id_front_url || "",
+  id_back_url: profile?.id_back_url || "",
   is_active: profile?.is_active ?? true,
   permissions: {
     ...defaultPermissions,
@@ -77,12 +78,11 @@ export default function TeamAVO() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [inviting, setInviting] = useState(false);
+  const [uploadingId, setUploadingId] = useState({ front: false, back: false });
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("minijobber");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-
-  const isAdmin = currentUser?.role === "admin";
 
   const selectedProfile = useMemo(
     () => profiles.find((profile) => profile.id === selectedId),
@@ -97,16 +97,15 @@ export default function TeamAVO() {
         setLoading(false);
         return;
       }
-      const { data, error: fetchError } = await supabase
-        .from("profiles")
-        .select("*")
-        .order("created_at", { ascending: true });
-      if (!fetchError) {
+      try {
+        const data = await fetchProfiles();
         setProfiles(data || []);
         if (data?.length) {
           setSelectedId(data[0].id);
           setForm(buildProfileForm(data[0]));
         }
+      } catch (err) {
+        setError(err?.message || "Konnte Profile nicht laden.");
       }
       setLoading(false);
     };
@@ -134,12 +133,64 @@ export default function TeamAVO() {
   };
 
   const refreshProfiles = async () => {
-    const { data } = await supabase.from("profiles").select("*").order("created_at", { ascending: true });
-    setProfiles(data || []);
-    if (data?.length) {
-      const next = data.find((item) => item.id === selectedId) || data[0];
-      setSelectedId(next.id);
-      setForm(buildProfileForm(next));
+    try {
+      const data = await fetchProfiles();
+      setProfiles(data || []);
+      if (data?.length) {
+        const next = data.find((item) => item.id === selectedId) || data[0];
+        setSelectedId(next.id);
+        setForm(buildProfileForm(next));
+      }
+    } catch (err) {
+      setError(err?.message || "Konnte Profile nicht laden.");
+    }
+  };
+
+  const getAuthToken = async () => {
+    const { data } = await supabase.auth.getSession();
+    return data?.session?.access_token || null;
+  };
+
+  const fetchProfiles = async () => {
+    const token = await getAuthToken();
+    if (!token) {
+      throw new Error("Nicht angemeldet.");
+    }
+    const response = await fetch("/api/admin/list-profiles", {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    const payload = await response.json();
+    if (!response.ok || !payload?.ok) {
+      throw new Error(payload?.error || "Profile konnten nicht geladen werden.");
+    }
+    return payload.data || [];
+  };
+
+  const uploadIdDocument = async (side, file) => {
+    if (!selectedProfile) {
+      setError("Bitte zuerst ein Profil auswählen.");
+      return;
+    }
+    if (!file) return;
+    const ext = file.name.split(".").pop() || "png";
+    const path = `${selectedProfile.id}/${side}-${Date.now()}.${ext}`;
+    setUploadingId((prev) => ({ ...prev, [side]: true }));
+    setError("");
+    try {
+      const { error: uploadError } = await supabase.storage
+        .from("employee-ids")
+        .upload(path, file, { upsert: true });
+      if (uploadError) {
+        throw new Error(uploadError.message);
+      }
+      const { data } = supabase.storage.from("employee-ids").getPublicUrl(path);
+      handleFormChange(side === "front" ? "id_front_url" : "id_back_url", data.publicUrl);
+    } catch (err) {
+      setError(err?.message || "Upload fehlgeschlagen.");
+    } finally {
+      setUploadingId((prev) => ({ ...prev, [side]: false }));
     }
   };
 
@@ -152,8 +203,7 @@ export default function TeamAVO() {
     setError("");
     setMessage("");
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData?.session?.access_token;
+      const token = await getAuthToken();
       if (!token) {
         throw new Error("Nicht angemeldet.");
       }
@@ -203,16 +253,27 @@ export default function TeamAVO() {
         employment_type: form.employment_type,
         address: form.address,
         phone: form.phone,
+        id_front_url: form.id_front_url,
+        id_back_url: form.id_back_url,
         permissions: form.permissions,
         is_active: form.is_active,
         updated_at: new Date().toISOString(),
       };
-      const { error: updateError } = await supabase
-        .from("profiles")
-        .update(updates)
-        .eq("id", selectedProfile.id);
-      if (updateError) {
-        throw new Error(updateError.message);
+      const token = await getAuthToken();
+      if (!token) {
+        throw new Error("Nicht angemeldet.");
+      }
+      const response = await fetch("/api/admin/update-profile", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ id: selectedProfile.id, updates }),
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload?.ok) {
+        throw new Error(payload?.error || "Speichern fehlgeschlagen.");
       }
       setMessage("Profil gespeichert.");
       await refreshProfiles();
@@ -228,17 +289,6 @@ export default function TeamAVO() {
       <div className="flex items-center justify-center py-20 text-slate-500">
         <Loader2 className="h-6 w-6 animate-spin" />
       </div>
-    );
-  }
-
-  if (!isAdmin) {
-    return (
-      <Card className="border border-slate-200 bg-white">
-        <CardContent className="py-12 text-center text-slate-600">
-          <Shield className="mx-auto mb-3 h-10 w-10 text-slate-300" />
-          Zugriff verweigert. Nur Admins können Team AVO verwalten.
-        </CardContent>
-      </Card>
     );
   }
 
@@ -313,23 +363,29 @@ export default function TeamAVO() {
             <CardTitle>Konten</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            {profiles.map((profile) => (
-              <button
-                key={profile.id}
-                type="button"
-                onClick={() => setSelectedId(profile.id)}
-                className={`w-full rounded-lg border px-3 py-2 text-left transition-all ${
-                  selectedId === profile.id
-                    ? "border-blue-200 bg-blue-50"
-                    : "border-slate-200 hover:border-slate-300 hover:bg-slate-50"
-                }`}
-              >
-                <p className="text-sm font-semibold text-slate-900">
-                  {profile.full_name || profile.email}
-                </p>
-                <p className="text-xs text-slate-500">{profile.role || "minijobber"}</p>
-              </button>
-            ))}
+            {profiles.length === 0 ? (
+              <p className="text-sm text-slate-500">
+                Noch keine Profile. Oben kannst du neue Konten einladen.
+              </p>
+            ) : (
+              profiles.map((profile) => (
+                <button
+                  key={profile.id}
+                  type="button"
+                  onClick={() => setSelectedId(profile.id)}
+                  className={`w-full rounded-lg border px-3 py-2 text-left transition-all ${
+                    selectedId === profile.id
+                      ? "border-blue-200 bg-blue-50"
+                      : "border-slate-200 hover:border-slate-300 hover:bg-slate-50"
+                  }`}
+                >
+                  <p className="text-sm font-semibold text-slate-900">
+                    {profile.full_name || profile.email}
+                  </p>
+                  <p className="text-xs text-slate-500">{profile.role || "minijobber"}</p>
+                </button>
+              ))
+            )}
           </CardContent>
         </Card>
 
@@ -392,6 +448,46 @@ export default function TeamAVO() {
               <div className="flex items-center gap-3 pt-4">
                 <Switch checked={form.is_active} onCheckedChange={(value) => handleFormChange("is_active", value)} />
                 <span className="text-sm text-slate-600">Aktiv</span>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Ausweis / Dokumente</CardTitle>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Ausweis Vorderseite</Label>
+                <Input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => uploadIdDocument("front", e.target.files?.[0])}
+                />
+                {uploadingId.front && <p className="text-xs text-slate-500">Upload läuft…</p>}
+                {form.id_front_url && (
+                  <img
+                    src={form.id_front_url}
+                    alt="Ausweis Vorderseite"
+                    className="mt-2 h-32 w-full rounded-lg border object-cover"
+                  />
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label>Ausweis Rückseite</Label>
+                <Input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => uploadIdDocument("back", e.target.files?.[0])}
+                />
+                {uploadingId.back && <p className="text-xs text-slate-500">Upload läuft…</p>}
+                {form.id_back_url && (
+                  <img
+                    src={form.id_back_url}
+                    alt="Ausweis Rückseite"
+                    className="mt-2 h-32 w-full rounded-lg border object-cover"
+                  />
+                )}
               </div>
             </CardContent>
           </Card>

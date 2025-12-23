@@ -23,6 +23,8 @@ create table if not exists public.profiles (
   employment_type text,
   address text,
   phone text,
+  id_front_url text,
+  id_back_url text,
   permissions jsonb default '{}'::jsonb,
   is_active boolean default true,
   created_at timestamptz default now(),
@@ -92,6 +94,20 @@ set role = 'admin',
     permissions = '{"Dashboard":true,"Orders":true,"Drivers":true,"Customers":true,"Checklists":true,"Search":true,"AIImport":true,"AVOAI":true,"AppConnection":true,"TeamAVO":true}'::jsonb
 where email = 'DEINE_EMAIL';
 ```
+
+## 3b) Optional: Ausweis-Dokumente nachrüsten (falls Tabelle schon existiert)
+
+```sql
+alter table public.profiles
+add column if not exists id_front_url text,
+add column if not exists id_back_url text;
+```
+
+## 3c) Storage Bucket für Ausweise
+
+In Supabase -> Storage:
+- Bucket erstellen: `employee-ids`
+- Sichtbarkeit: **public** (einfachste Variante, damit die Vorschau funktioniert)
 
 ## 4) Environment Variables
 

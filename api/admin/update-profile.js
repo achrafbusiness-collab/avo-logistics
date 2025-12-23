@@ -24,6 +24,20 @@ const getBearerToken = (req) => {
 
 const supabaseAdmin = createClient(supabaseUrl || "", serviceRoleKey || "");
 
+const allowedFields = new Set([
+  "full_name",
+  "role",
+  "position",
+  "employment_type",
+  "address",
+  "phone",
+  "permissions",
+  "is_active",
+  "id_front_url",
+  "id_back_url",
+  "updated_at",
+]);
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     res.status(405).json({ ok: false, error: "Method not allowed" });
@@ -48,42 +62,33 @@ export default async function handler(req, res) {
       return;
     }
 
-    const { email, profile, redirectTo } = await readJsonBody(req);
-    if (!email) {
-      res.status(400).json({ ok: false, error: "Missing email" });
+    const body = await readJsonBody(req);
+    const { id, updates } = body || {};
+    if (!id || !updates || typeof updates !== "object") {
+      res.status(400).json({ ok: false, error: "Missing profile id or updates" });
       return;
     }
 
-    const { data: inviteData, error: inviteError } =
-      await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-        redirectTo,
-      });
+    const sanitized = Object.entries(updates).reduce((acc, [key, value]) => {
+      if (allowedFields.has(key)) {
+        acc[key] = value;
+      }
+      return acc;
+    }, {});
 
-    if (inviteError) {
-      res.status(400).json({ ok: false, error: inviteError.message });
+    const { data, error } = await supabaseAdmin
+      .from("profiles")
+      .update(sanitized)
+      .eq("id", id)
+      .select("*")
+      .maybeSingle();
+
+    if (error) {
+      res.status(500).json({ ok: false, error: error.message });
       return;
     }
 
-    const invitedUser = inviteData?.user;
-    if (invitedUser) {
-      const profileData = {
-        id: invitedUser.id,
-        email: invitedUser.email,
-        full_name: profile?.full_name || "",
-        role: profile?.role || "minijobber",
-        position: profile?.position || "",
-        employment_type: profile?.employment_type || "",
-        address: profile?.address || "",
-        phone: profile?.phone || "",
-        permissions: profile?.permissions || {},
-        is_active: profile?.is_active ?? true,
-        updated_at: new Date().toISOString(),
-      };
-
-      await supabaseAdmin.from("profiles").upsert(profileData);
-    }
-
-    res.status(200).json({ ok: true, data: inviteData });
+    res.status(200).json({ ok: true, data });
   } catch (error) {
     res.status(500).json({ ok: false, error: error?.message || "Unknown error" });
   }
