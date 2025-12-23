@@ -125,3 +125,168 @@ VITE_SUPABASE_ANON_KEY=...
 SUPABASE_URL=...
 SUPABASE_SERVICE_ROLE_KEY=...
 ```
+
+## 5) App-Datenbanken (Orders, Drivers, Customers, Checklists, AppSettings)
+
+Run this in Supabase SQL Editor:
+
+```sql
+create extension if not exists "pgcrypto";
+
+create table if not exists public.orders (
+  id uuid primary key default gen_random_uuid(),
+  order_number text,
+  status text,
+  customer_id uuid,
+  customer_name text,
+  customer_email text,
+  customer_phone text,
+  assigned_driver_id uuid,
+  assigned_driver_name text,
+  license_plate text,
+  vehicle_brand text,
+  vehicle_model text,
+  vehicle_color text,
+  vin text,
+  pickup_address text,
+  pickup_city text,
+  pickup_date date,
+  pickup_time text,
+  dropoff_address text,
+  dropoff_city text,
+  dropoff_date date,
+  dropoff_time text,
+  notes text,
+  price numeric,
+  created_date timestamptz default now(),
+  updated_date timestamptz default now()
+);
+
+create table if not exists public.drivers (
+  id uuid primary key default gen_random_uuid(),
+  first_name text,
+  last_name text,
+  email text,
+  phone text,
+  address text,
+  city text,
+  postal_code text,
+  country text,
+  nationality text,
+  status text default 'active',
+  license_front text,
+  license_back text,
+  id_card_front text,
+  id_card_back text,
+  license_expiry date,
+  notes text,
+  created_date timestamptz default now(),
+  updated_date timestamptz default now()
+);
+
+create table if not exists public.customers (
+  id uuid primary key default gen_random_uuid(),
+  customer_number text,
+  type text,
+  company_name text,
+  first_name text,
+  last_name text,
+  email text,
+  phone text,
+  address text,
+  city text,
+  postal_code text,
+  country text,
+  tax_id text,
+  price_per_km numeric,
+  base_price numeric,
+  notes text,
+  status text default 'active',
+  created_date timestamptz default now(),
+  updated_date timestamptz default now()
+);
+
+create table if not exists public.checklists (
+  id uuid primary key default gen_random_uuid(),
+  order_id uuid,
+  order_number text,
+  driver_id uuid,
+  driver_name text,
+  type text,
+  datetime timestamptz,
+  location text,
+  kilometer numeric,
+  fuel_level text,
+  cleanliness_inside text,
+  cleanliness_outside text,
+  accessories jsonb default '{}'::jsonb,
+  damages jsonb default '[]'::jsonb,
+  photos jsonb default '[]'::jsonb,
+  notes text,
+  signature_driver text,
+  signature_customer text,
+  customer_name text,
+  completed boolean default false,
+  created_date timestamptz default now(),
+  updated_date timestamptz default now()
+);
+
+create table if not exists public.app_settings (
+  id uuid primary key default gen_random_uuid(),
+  company_name text,
+  support_phone text,
+  support_email text,
+  emergency_phone text,
+  office_address text,
+  office_hours text,
+  app_version text,
+  instructions text,
+  legal_text text,
+  delivery_legal_text text,
+  created_date timestamptz default now(),
+  updated_date timestamptz default now()
+);
+
+alter table public.orders enable row level security;
+alter table public.drivers enable row level security;
+alter table public.customers enable row level security;
+alter table public.checklists enable row level security;
+alter table public.app_settings enable row level security;
+
+create policy "Orders full access" on public.orders
+for all using (auth.uid() is not null) with check (auth.uid() is not null);
+
+create policy "Drivers full access" on public.drivers
+for all using (auth.uid() is not null) with check (auth.uid() is not null);
+
+create policy "Customers full access" on public.customers
+for all using (auth.uid() is not null) with check (auth.uid() is not null);
+
+create policy "Checklists full access" on public.checklists
+for all using (auth.uid() is not null) with check (auth.uid() is not null);
+
+create policy "App settings full access" on public.app_settings
+for all using (auth.uid() is not null) with check (auth.uid() is not null);
+```
+
+## 6) Storage Buckets (Dokumente & Fotos)
+
+Einmal in Supabase SQL Editor:
+
+```sql
+insert into storage.buckets (id, name, public)
+values ('documents', 'documents', true)
+on conflict (id) do nothing;
+
+insert into storage.buckets (id, name, public)
+values ('employee-ids', 'employee-ids', true)
+on conflict (id) do nothing;
+
+create policy "Documents access" on storage.objects
+for all using (bucket_id = 'documents' and auth.uid() is not null)
+with check (bucket_id = 'documents' and auth.uid() is not null);
+
+create policy "Employee IDs access" on storage.objects
+for all using (bucket_id = 'employee-ids' and auth.uid() is not null)
+with check (bucket_id = 'employee-ids' and auth.uid() is not null);
+```
