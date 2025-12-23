@@ -37,7 +37,6 @@ export default function Dashboard() {
   const [dateFrom, setDateFrom] = useState(todayKey);
   const [dateTo, setDateTo] = useState(todayKey);
   const [selectedOrderId, setSelectedOrderId] = useState(null);
-  const logoUrl = "/Logo%20von%20AVO%20Kopie.png";
 
   const { data: orders = [], isLoading: ordersLoading } = useQuery({
     queryKey: ['orders'],
@@ -165,43 +164,35 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Hero Header */}
-      <div className="relative overflow-hidden rounded-3xl bg-slate-950 text-white shadow-[0_30px_60px_-40px_rgba(15,23,42,0.8)]">
-        <div className="absolute -right-24 -top-24 h-56 w-56 rounded-full bg-blue-500/30 blur-3xl" />
-        <div className="absolute -left-20 -bottom-20 h-56 w-56 rounded-full bg-blue-600/20 blur-3xl" />
-        <div className="relative flex flex-col gap-6 p-6 md:p-8">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex items-center gap-4">
-              <div className="rounded-2xl bg-white p-2 shadow-lg">
-                <img
-                  src={logoUrl}
-                  alt="AVO Logistics"
-                  className="h-14 w-14 object-contain"
-                />
-              </div>
+    <div className="rounded-3xl bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 p-[2px]">
+      <div className="space-y-6 rounded-[22px] bg-gradient-to-br from-white via-slate-50 to-blue-50/70 p-6">
+        {/* Hero Header */}
+        <div className="relative overflow-hidden rounded-3xl bg-slate-950 text-white shadow-[0_30px_60px_-40px_rgba(15,23,42,0.8)]">
+          <div className="absolute -right-24 -top-24 h-56 w-56 rounded-full bg-blue-500/30 blur-3xl" />
+          <div className="absolute -left-20 -bottom-20 h-56 w-56 rounded-full bg-blue-600/20 blur-3xl" />
+          <div className="relative flex flex-col gap-6 p-6 md:p-8">
+            <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <p className="text-sm text-blue-200">AVO Logistics</p>
-                <h1 className="text-3xl font-semibold tracking-tight">Dashboard</h1>
+                <p className="text-xs uppercase tracking-[0.35em] text-blue-200">AVO SYSTEM</p>
+                <h1 className="text-3xl font-semibold tracking-tight mt-2">Dashboard</h1>
                 <p className="text-sm text-slate-300">Übersicht aller Aktivitäten, Aufträge und Routen</p>
               </div>
-            </div>
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs uppercase tracking-wide text-slate-200">
-                Zeitraum: {rangeLabel}
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs uppercase tracking-wide text-slate-200">
+                  Zeitraum: {rangeLabel}
+                </div>
+                <Link to={createPageUrl('Orders') + '?new=true'}>
+                  <Button className="bg-blue-500 text-white hover:bg-blue-600">
+                    <Truck className="w-4 h-4 mr-2" />
+                    Neuer Auftrag
+                  </Button>
+                </Link>
               </div>
-              <Link to={createPageUrl('Orders') + '?new=true'}>
-                <Button className="bg-white text-slate-950 hover:bg-slate-200">
-                  <Truck className="w-4 h-4 mr-2" />
-                  Neuer Auftrag
-                </Button>
-              </Link>
             </div>
           </div>
         </div>
-      </div>
 
-      <Card className="border border-slate-200/70 bg-white shadow-sm">
+      <Card className="border border-slate-200/80 bg-white/90 shadow-[0_20px_40px_-30px_rgba(15,23,42,0.6)]">
         <CardContent className="flex flex-col gap-4 p-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-center gap-3 text-slate-700">
             <Calendar className="w-5 h-5 text-[#1e3a5f]" />
@@ -224,10 +215,20 @@ export default function Dashboard() {
               onChange={(e) => setDateTo(e.target.value)}
               className="w-40"
             />
-            <Button variant="outline" size="sm" onClick={setTodayRange}>
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-slate-300 text-slate-700 hover:bg-slate-900 hover:text-white"
+              onClick={setTodayRange}
+            >
               Heute
             </Button>
-            <Button variant="outline" size="sm" onClick={setLastSevenDays}>
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-slate-300 text-slate-700 hover:bg-slate-900 hover:text-white"
+              onClick={setLastSevenDays}
+            >
               Letzte 7 Tage
             </Button>
           </div>
@@ -269,7 +270,7 @@ export default function Dashboard() {
       {/* Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Map Overview */}
-        <Card className="lg:col-span-2 border border-slate-200/70 bg-white shadow-sm">
+        <Card className="lg:col-span-2 border border-slate-200/80 bg-white/90 shadow-[0_24px_50px_-35px_rgba(15,23,42,0.6)]">
           <CardHeader className="flex flex-row items-center justify-between pb-4">
             <div>
               <CardTitle className="text-lg font-semibold text-slate-900">Tagesrouten & Übersicht</CardTitle>
@@ -371,7 +372,7 @@ export default function Dashboard() {
         <div className="space-y-6">
           {/* Pending Orders Alert */}
           {stats.pendingOrders > 0 && (
-          <Card className="border-blue-200 bg-blue-50">
+          <Card className="border-blue-200 bg-blue-50/90 shadow-[0_16px_30px_-20px_rgba(30,58,95,0.3)]">
             <CardContent className="p-4">
                 <div className="flex items-start gap-3">
                   <AlertCircle className="w-5 h-5 text-blue-700 mt-0.5" />
@@ -392,7 +393,7 @@ export default function Dashboard() {
           )}
 
           {/* Recent Activity */}
-          <Card>
+          <Card className="border border-slate-200/80 bg-white/90 shadow-[0_20px_40px_-30px_rgba(15,23,42,0.55)]">
             <CardHeader className="pb-3">
               <CardTitle className="text-lg font-semibold">Letzte Protokolle</CardTitle>
             </CardHeader>
@@ -429,25 +430,25 @@ export default function Dashboard() {
           </Card>
 
           {/* Quick Links */}
-          <Card>
+          <Card className="border border-slate-200/80 bg-white/90 shadow-[0_20px_40px_-30px_rgba(15,23,42,0.55)]">
             <CardHeader className="pb-3">
               <CardTitle className="text-lg font-semibold">Schnellzugriff</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
               <Link to={createPageUrl('Orders') + '?new=true'} className="block">
-                <Button variant="outline" className="w-full justify-start">
+                <Button variant="outline" className="w-full justify-start border-slate-300 hover:bg-slate-900 hover:text-white">
                   <Truck className="w-4 h-4 mr-2" />
                   Neuer Auftrag
                 </Button>
               </Link>
               <Link to={createPageUrl('Drivers') + '?new=true'} className="block">
-                <Button variant="outline" className="w-full justify-start">
+                <Button variant="outline" className="w-full justify-start border-slate-300 hover:bg-slate-900 hover:text-white">
                   <Users className="w-4 h-4 mr-2" />
                   Fahrer hinzufügen
                 </Button>
               </Link>
               <Link to={createPageUrl('Search')} className="block">
-                <Button variant="outline" className="w-full justify-start">
+                <Button variant="outline" className="w-full justify-start border-slate-300 hover:bg-slate-900 hover:text-white">
                   <ClipboardCheck className="w-4 h-4 mr-2" />
                   Protokolle suchen
                 </Button>
@@ -455,6 +456,7 @@ export default function Dashboard() {
             </CardContent>
           </Card>
         </div>
+      </div>
       </div>
     </div>
   );
