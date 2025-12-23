@@ -92,7 +92,7 @@ export default function AIImport() {
     try {
       const result = await appClient.integrations.Core.InvokeLLM({
         prompt: `Analysiere den folgenden Text (Deutsch) und extrahiere alle Aufträge zur Fahrzeugüberführung.
-Es können ein oder mehrere Aufträge enthalten sein. Gib IMMER eine Liste von Aufträgen zurück (auch wenn es nur 1 Auftrag ist).
+Es können ein oder mehrere Aufträge enthalten sein. Gib IMMER ein Objekt mit dem Feld "orders" zurück.
 
 Text:
 ${emailText}
@@ -119,55 +119,66 @@ Extrahiere diese Felder. Wenn ein Feld nicht gefunden wird, gib "" (leerer Strin
 
 Gib ausschließlich die strukturierten Daten zurück.`,
         response_json_schema: {
-          type: "array",
-          items: {
-            type: "object",
-            additionalProperties: false,
-            properties: {
-              license_plate: { type: ["string", "null"] },
-              vehicle_brand: { type: ["string", "null"] },
-              vehicle_model: { type: ["string", "null"] },
-              vehicle_color: { type: ["string", "null"] },
-              vin: { type: ["string", "null"] },
-              pickup_address: { type: ["string", "null"] },
-              pickup_city: { type: ["string", "null"] },
-              pickup_date: { type: ["string", "null"] },
-              pickup_time: { type: ["string", "null"] },
-              dropoff_address: { type: ["string", "null"] },
-              dropoff_city: { type: ["string", "null"] },
-              dropoff_date: { type: ["string", "null"] },
-              dropoff_time: { type: ["string", "null"] },
-              customer_name: { type: ["string", "null"] },
-              customer_phone: { type: ["string", "null"] },
-              customer_email: { type: ["string", "null"] },
-              notes: { type: ["string", "null"] },
-              price: { type: ["number", "null"] }
-            },
-            required: [
-              "license_plate",
-              "vehicle_brand",
-              "vehicle_model",
-              "vehicle_color",
-              "vin",
-              "pickup_address",
-              "pickup_city",
-              "pickup_date",
-              "pickup_time",
-              "dropoff_address",
-              "dropoff_city",
-              "dropoff_date",
-              "dropoff_time",
-              "customer_name",
-              "customer_phone",
-              "customer_email",
-              "notes",
-              "price"
-            ]
-          }
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            orders: {
+              type: "array",
+              items: {
+                type: "object",
+                additionalProperties: false,
+                properties: {
+                  license_plate: { type: ["string", "null"] },
+                  vehicle_brand: { type: ["string", "null"] },
+                  vehicle_model: { type: ["string", "null"] },
+                  vehicle_color: { type: ["string", "null"] },
+                  vin: { type: ["string", "null"] },
+                  pickup_address: { type: ["string", "null"] },
+                  pickup_city: { type: ["string", "null"] },
+                  pickup_date: { type: ["string", "null"] },
+                  pickup_time: { type: ["string", "null"] },
+                  dropoff_address: { type: ["string", "null"] },
+                  dropoff_city: { type: ["string", "null"] },
+                  dropoff_date: { type: ["string", "null"] },
+                  dropoff_time: { type: ["string", "null"] },
+                  customer_name: { type: ["string", "null"] },
+                  customer_phone: { type: ["string", "null"] },
+                  customer_email: { type: ["string", "null"] },
+                  notes: { type: ["string", "null"] },
+                  price: { type: ["number", "null"] }
+                },
+                required: [
+                  "license_plate",
+                  "vehicle_brand",
+                  "vehicle_model",
+                  "vehicle_color",
+                  "vin",
+                  "pickup_address",
+                  "pickup_city",
+                  "pickup_date",
+                  "pickup_time",
+                  "dropoff_address",
+                  "dropoff_city",
+                  "dropoff_date",
+                  "dropoff_time",
+                  "customer_name",
+                  "customer_phone",
+                  "customer_email",
+                  "notes",
+                  "price"
+                ]
+              }
+            }
+          },
+          required: ["orders"]
         }
       });
 
-      const ordersArray = Array.isArray(result) ? result : [result];
+      const ordersArray = Array.isArray(result)
+        ? result
+        : Array.isArray(result?.orders)
+        ? result.orders
+        : [result];
       const normalized = ordersArray
         .filter(Boolean)
         .map((item) => ({
