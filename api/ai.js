@@ -80,11 +80,8 @@ export default async function handler(req, res) {
         format: {
           type: "json_schema",
           name: "avo_ai_response",
-          json_schema: {
-            name: "avo_ai_response",
-            schema: response_json_schema,
-            strict: false,
-          },
+          schema: response_json_schema,
+          strict: false,
         },
       };
     }
