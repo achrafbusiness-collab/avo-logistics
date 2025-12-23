@@ -24,6 +24,16 @@ import {
   Loader2
 } from 'lucide-react';
 
+const Section = ({ title, icon: Icon, children }) => (
+  <div className="space-y-4">
+    <div className="flex items-center gap-2 text-[#1e3a5f]">
+      <Icon className="w-5 h-5" />
+      <h3 className="font-semibold">{title}</h3>
+    </div>
+    {children}
+  </div>
+);
+
 export default function OrderForm({ order, onSave, onCancel }) {
   const [formData, setFormData] = useState({
     order_number: '',
@@ -127,16 +137,6 @@ export default function OrderForm({ order, onSave, onCancel }) {
       setSaving(false);
     }
   };
-
-  const Section = ({ title, icon: Icon, children }) => (
-    <div className="space-y-4">
-      <div className="flex items-center gap-2 text-[#1e3a5f]">
-        <Icon className="w-5 h-5" />
-        <h3 className="font-semibold">{title}</h3>
-      </div>
-      {children}
-    </div>
-  );
 
   return (
     <form onSubmit={handleSubmit}>
