@@ -150,11 +150,20 @@ const fileToDataUrl = (file) => new Promise((resolve, reject) => {
 });
 
 const Core = {
-  InvokeLLM: async ({ response_json_schema }) => {
-    if (response_json_schema) {
-      return buildSchemaDefaults(response_json_schema);
+  InvokeLLM: async ({ prompt, response_json_schema }) => {
+    if (!prompt) {
+      throw new Error('Es fehlt ein Prompt fuer die AI-Anfrage.');
     }
-    return 'AI ist lokal deaktiviert. Bitte konfiguriere einen eigenen Dienst fuer KI-Funktionen.';
+    const response = await fetch('/api/ai', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt, response_json_schema }),
+    });
+    const payload = await response.json();
+    if (!response.ok || !payload?.ok) {
+      throw new Error(payload?.error || 'AI-Anfrage fehlgeschlagen.');
+    }
+    return payload.data;
   },
   UploadFile: async ({ file }) => {
     if (!file) {
