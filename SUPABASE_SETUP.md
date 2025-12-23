@@ -84,6 +84,35 @@ using (
 );
 ```
 
+## 2b) Optional: Freigabe-Pflicht (Empfohlen)
+
+Wenn neue Konten erst freigegeben werden sollen, setze Standard auf `false`:
+
+```sql
+alter table public.profiles
+alter column is_active set default false;
+
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer
+as $$
+begin
+  insert into public.profiles (id, email, full_name, role, permissions, is_active)
+  values (
+    new.id,
+    new.email,
+    coalesce(new.raw_user_meta_data->>'full_name', ''),
+    'minijobber',
+    '{}'::jsonb,
+    false
+  )
+  on conflict (id) do nothing;
+  return new;
+end;
+$$;
+```
+
 ## 3) Set your first Admin
 
 After you sign up your own account, run:
@@ -125,6 +154,14 @@ VITE_SUPABASE_ANON_KEY=...
 SUPABASE_URL=...
 SUPABASE_SERVICE_ROLE_KEY=...
 ```
+
+## 4b) Eigene Absender-E-Mail (SMTP)
+
+Damit Einladungen von **deiner E-Mail** kommen:
+Supabase -> Authentication -> SMTP Settings:
+- SMTP aktivieren
+- From Name / From Address auf deine Domain (z.B. `noreply@avo-logistics.app`)
+- SPF/DKIM Records bei deinem Domain-Provider setzen (Supabase zeigt dir die Werte)
 
 ## 5) App-Datenbanken (Orders, Drivers, Customers, Checklists, AppSettings)
 

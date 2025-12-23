@@ -75,8 +75,8 @@ export default async function handler(req, res) {
         employment_type: profile?.employment_type || "",
         address: profile?.address || "",
         phone: profile?.phone || "",
-        permissions: profile?.permissions || {},
-        is_active: profile?.is_active ?? true,
+          permissions: profile?.permissions || {},
+          is_active: profile?.is_active ?? false,
         updated_at: new Date().toISOString(),
       };
 

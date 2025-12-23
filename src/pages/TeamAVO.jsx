@@ -220,7 +220,7 @@ export default function TeamAVO() {
           profile: {
             role: inviteRole,
             permissions: defaultPermissions,
-            is_active: true,
+            is_active: false,
           },
         }),
       });
@@ -229,7 +229,7 @@ export default function TeamAVO() {
       if (!response.ok || !payload.ok) {
         throw new Error(payload?.error || "Einladung fehlgeschlagen.");
       }
-      setMessage("Einladung wurde gesendet.");
+      setMessage("Einladung wurde gesendet. Konto wartet auf Freigabe.");
       setInviteEmail("");
       setInviteRole("minijobber");
       await refreshProfiles();
@@ -382,7 +382,10 @@ export default function TeamAVO() {
                   <p className="text-sm font-semibold text-slate-900">
                     {profile.full_name || profile.email}
                   </p>
-                  <p className="text-xs text-slate-500">{profile.role || "minijobber"}</p>
+                  <p className="text-xs text-slate-500">
+                    {profile.role || "minijobber"}
+                    {!profile.is_active ? " • wartend" : ""}
+                  </p>
                 </button>
               ))
             )}

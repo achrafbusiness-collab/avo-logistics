@@ -153,6 +153,14 @@ const profileDefaults = {
   permissions: {},
 };
 
+const ensureActiveProfile = async (profile) => {
+  if (profile && profile.is_active === false) {
+    await supabase.auth.signOut();
+    return false;
+  }
+  return true;
+};
+
 const getProfile = async (userId) => {
   if (!userId) return null;
   const { data, error } = await supabase
@@ -184,12 +192,16 @@ const auth = {
     const { data } = await supabase.auth.getUser();
     if (!data?.user) return null;
     const profile = await getProfile(data.user.id);
+    const active = await ensureActiveProfile(profile);
+    if (!active) return null;
     return buildUser(data.user, profile);
   },
   me: async () => {
     const { data } = await supabase.auth.getUser();
     if (!data?.user) return null;
     const profile = await getProfile(data.user.id);
+    const active = await ensureActiveProfile(profile);
+    if (!active) return null;
     return buildUser(data.user, profile);
   },
   login: async ({ email, password }) => {
@@ -201,6 +213,10 @@ const auth = {
       throw new Error(error.message);
     }
     const profile = await getProfile(data.user.id);
+    const active = await ensureActiveProfile(profile);
+    if (!active) {
+      throw new Error('Konto wartet auf Freigabe durch einen Admin.');
+    }
     return buildUser(data.user, profile);
   },
   logout: async () => {
