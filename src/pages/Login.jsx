@@ -5,24 +5,29 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Lock } from 'lucide-react';
+import { Loader2, Lock, Mail } from 'lucide-react';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [resetSent, setResetSent] = useState(false);
 
   useEffect(() => {
-    const user = appClient.auth.getCurrentUser();
-    if (user) {
-      window.location.href = createPageUrl('Dashboard');
-    }
+    const loadUser = async () => {
+      const user = await appClient.auth.getCurrentUser();
+      if (user) {
+        window.location.href = createPageUrl('Dashboard');
+      }
+    };
+    loadUser();
   }, []);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
     setError('');
+    setResetSent(false);
     setSubmitting(true);
     try {
       await appClient.auth.login({ email, password });
@@ -31,6 +36,24 @@ export default function Login() {
       setError(err?.message || 'Login fehlgeschlagen.');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleReset = async () => {
+    if (!email.trim()) {
+      setError('Bitte E-Mail eingeben, um das Passwort zurückzusetzen.');
+      return;
+    }
+    setError('');
+    setResetSent(false);
+    try {
+      await appClient.auth.resetPassword({
+        email,
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      setResetSent(true);
+    } catch (err) {
+      setError(err?.message || 'Passwort-Reset fehlgeschlagen.');
     }
   };
 
@@ -103,6 +126,11 @@ export default function Login() {
                     {error}
                   </div>
                 )}
+                {resetSent && (
+                  <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+                    Passwort-Link wurde gesendet. Bitte E-Mail prüfen.
+                  </div>
+                )}
                 <Button
                   type="submit"
                   className="w-full bg-[#1e3a5f] hover:bg-[#2d5a8a]"
@@ -110,12 +138,20 @@ export default function Login() {
                 >
                   {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Einloggen'}
                 </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={handleReset}
+                >
+                  <Mail className="w-4 h-4 mr-2" />
+                  Passwort vergessen?
+                </Button>
               </form>
 
               <div className="mt-6 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
-                <p className="font-semibold text-slate-700">Demo-Zugaenge</p>
-                <p>Admin: admin@avo-logistics.app / admin123</p>
-                <p>Mitarbeiter: mitarbeiter@avo-logistics.app / mitarbeiter123</p>
+                <p className="font-semibold text-slate-700">Hinweis</p>
+                <p>Admin-Zugänge werden über Team AVO verwaltet.</p>
               </div>
             </CardContent>
           </Card>

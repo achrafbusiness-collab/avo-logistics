@@ -1,3 +1,5 @@
+import { supabase } from "@/lib/supabaseClient";
+
 const storagePrefix = 'avo:';
 const memoryStore = new Map();
 
@@ -179,74 +181,77 @@ const Core = {
   UploadPrivateFile: async () => ({ ok: false, message: 'Private Uploads sind im lokalen Modus deaktiviert.' }),
 };
 
-const demoUsers = [
-  {
-    id: 'admin_avo',
-    email: 'admin@avo-logistics.app',
-    password: 'admin123',
-    full_name: 'Admin',
-    role: 'admin',
-  },
-  {
-    id: 'staff_avo',
-    email: 'mitarbeiter@avo-logistics.app',
-    password: 'mitarbeiter123',
-    full_name: 'Mitarbeiter',
-    role: 'staff',
-  },
-];
+const profileDefaults = {
+  role: 'minijobber',
+  permissions: {},
+};
 
-const authKey = `${storagePrefix}user`;
-const readValue = (key) => {
-  if (!storage) {
-    return memoryStore.get(key) || null;
-  }
-  return storage.getItem(key);
-};
-const writeValue = (key, value) => {
-  if (!storage) {
-    memoryStore.set(key, value);
-    return;
-  }
-  storage.setItem(key, value);
-};
-const removeValue = (key) => {
-  if (!storage) {
-    memoryStore.delete(key);
-    return;
-  }
-  storage.removeItem(key);
-};
-const getStoredUser = () => {
-  const raw = readValue(authKey);
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw);
-  } catch (error) {
+const getProfile = async (userId) => {
+  if (!userId) return null;
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', userId)
+    .maybeSingle();
+  if (error) {
     return null;
   }
+  return data;
+};
+
+const buildUser = (authUser, profile) => {
+  if (!authUser) return null;
+  const safeProfile = profile || {};
+  return {
+    id: authUser.id,
+    email: authUser.email,
+    full_name: safeProfile.full_name || authUser.user_metadata?.full_name || '',
+    role: safeProfile.role || profileDefaults.role,
+    permissions: safeProfile.permissions || profileDefaults.permissions,
+    ...safeProfile,
+  };
 };
 
 const auth = {
-  getCurrentUser: () => getStoredUser(),
-  me: async () => getStoredUser(),
+  getCurrentUser: async () => {
+    const { data } = await supabase.auth.getUser();
+    if (!data?.user) return null;
+    const profile = await getProfile(data.user.id);
+    return buildUser(data.user, profile);
+  },
+  me: async () => {
+    const { data } = await supabase.auth.getUser();
+    if (!data?.user) return null;
+    const profile = await getProfile(data.user.id);
+    return buildUser(data.user, profile);
+  },
   login: async ({ email, password }) => {
-    const identifier = String(email || '').trim().toLowerCase();
-    const secret = String(password || '');
-    const user = demoUsers.find((candidate) => candidate.email.toLowerCase() === identifier);
-    if (!user || user.password !== secret) {
-      throw new Error('Ungültige E-Mail oder Passwort.');
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    if (error) {
+      throw new Error(error.message);
     }
-    const { password: _password, ...safeUser } = user;
-    writeValue(authKey, JSON.stringify(safeUser));
-    return safeUser;
+    const profile = await getProfile(data.user.id);
+    return buildUser(data.user, profile);
   },
-  logout: () => {
-    removeValue(authKey);
+  logout: async () => {
+    await supabase.auth.signOut();
   },
-  setUser: (user) => {
-    if (!user) return;
-    writeValue(authKey, JSON.stringify(user));
+  resetPassword: async ({ email, redirectTo }) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+    if (error) {
+      throw new Error(error.message);
+    }
+    return true;
+  },
+  updatePassword: async ({ password }) => {
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) {
+      throw new Error(error.message);
+    }
+    return true;
   },
 };
 

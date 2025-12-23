@@ -25,10 +25,15 @@ import AIImport from "./AIImport";
 import AVOAI from "./AVOAI";
 
 import Login from "./Login";
+import ResetPassword from "./ResetPassword";
+import TeamAVO from "./TeamAVO";
+import AccessDenied from "./AccessDenied";
 
 import { BrowserRouter as Router, Route, Routes, useLocation, Navigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { appClient } from '@/api/appClient';
+import { useEffect, useState } from 'react';
+import { hasPageAccess } from "@/lib/accessControl";
 
 const PAGES = {
     
@@ -55,6 +60,8 @@ const PAGES = {
     AIImport: AIImport,
     
     AVOAI: AVOAI,
+
+    TeamAVO: TeamAVO,
     
 }
 
@@ -74,14 +81,37 @@ function _getCurrentPage(url) {
 // Create a wrapper component that uses useLocation inside the Router context
 function PagesContent() {
     const location = useLocation();
-    const isLoginRoute = location.pathname.toLowerCase() === '/login';
-    const currentUser = appClient.auth.getCurrentUser();
+    const normalizedPath = location.pathname.toLowerCase();
+    const isLoginRoute = normalizedPath === '/login';
+    const isResetRoute = normalizedPath === '/reset-password';
     const currentPage = _getCurrentPage(location.pathname);
+    const [currentUser, setCurrentUser] = useState(null);
+    const [authChecked, setAuthChecked] = useState(false);
 
-    if (isLoginRoute) {
+    useEffect(() => {
+        let isMounted = true;
+        const loadUser = async () => {
+            const user = await appClient.auth.getCurrentUser();
+            if (isMounted) {
+                setCurrentUser(user);
+                setAuthChecked(true);
+            }
+        };
+        loadUser();
+        return () => {
+            isMounted = false;
+        };
+    }, [normalizedPath]);
+
+    if (!authChecked) {
+        return null;
+    }
+
+    if (isLoginRoute || isResetRoute) {
         return (
             <Routes>
                 <Route path="/login" element={<Login />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="*" element={<Navigate to="/login" replace />} />
             </Routes>
         );
@@ -89,6 +119,14 @@ function PagesContent() {
 
     if (!currentUser) {
         return <Navigate to="/login" replace />;
+    }
+
+    if (!hasPageAccess(currentUser, currentPage)) {
+        return (
+            <Layout currentPageName={currentPage}>
+                <AccessDenied />
+            </Layout>
+        );
     }
     
     return (

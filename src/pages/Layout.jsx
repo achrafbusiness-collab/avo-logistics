@@ -27,6 +27,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { hasPageAccess } from "@/lib/accessControl";
 
 // Admin pages (full sidebar)
 const adminPages = [
@@ -38,6 +39,7 @@ const adminPages = [
   { name: 'Protokolle', icon: ClipboardList, page: 'Checklists' },
   { name: 'App-Verbindung', icon: User, page: 'AppConnection' },
   { name: 'Suche', icon: Search, page: 'Search' },
+  { name: 'Team AVO', icon: Users, page: 'TeamAVO' },
 ];
 
 // Driver pages (minimal navigation)
@@ -148,6 +150,8 @@ export default function Layout({ children, currentPageName }) {
     );
   }
 
+  const visibleAdminPages = adminPages.filter((item) => hasPageAccess(user, item.page));
+
   // Admin Layout
   return (
     <div className={`min-h-screen flex ${darkMode ? 'bg-gray-950' : 'bg-gray-50'}`}>
@@ -190,7 +194,7 @@ export default function Layout({ children, currentPageName }) {
         </div>
 
         <nav className="p-4 space-y-1">
-          {adminPages.map((item) => {
+          {visibleAdminPages.map((item) => {
             const isActive = currentPageName === item.page;
             return (
               <Link
