@@ -66,7 +66,7 @@ export default function Login() {
                 <img
                   src="/Logo%20von%20AVO%20Kopie.png"
                   alt="AVO Logistics"
-                  className="h-24 w-auto object-contain drop-shadow-sm"
+                  className="h-28 w-auto object-contain drop-shadow-sm"
                 />
               </div>
               <CardTitle className="flex items-center justify-center gap-2 text-[#1e3a5f]">

@@ -18,20 +18,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import StatusBadge from '@/components/ui/StatusBadge';
+import OrdersMap from '@/components/dashboard/OrdersMap';
 import { format, subDays } from 'date-fns';
 import { de } from 'date-fns/locale';
-
-const mapSlots = [
-  { x: 12, y: 20 },
-  { x: 28, y: 35 },
-  { x: 45, y: 22 },
-  { x: 62, y: 40 },
-  { x: 78, y: 26 },
-  { x: 22, y: 62 },
-  { x: 40, y: 70 },
-  { x: 58, y: 62 },
-  { x: 74, y: 72 },
-];
 
 const toDateKey = (value) => {
   if (!value) return null;
@@ -109,26 +98,27 @@ export default function Dashboard() {
     topCustomerCount: topCustomerCount,
   };
 
-  const recentOrders = rangeOrders.slice(0, 8);
-  const mappedRoutes = useMemo(() => {
-    return rangeOrders.map((order, index) => {
-      const start = mapSlots[index % mapSlots.length];
-      const end = mapSlots[(index + 3) % mapSlots.length];
-      return { order, start, end };
+  const mapOrders = useMemo(() => {
+    return rangeOrders.filter((order) => {
+      const pickup = [order.pickup_address, order.pickup_city].filter(Boolean).join(", ").trim();
+      const dropoff = [order.dropoff_address, order.dropoff_city].filter(Boolean).join(", ").trim();
+      return pickup && dropoff;
     });
   }, [rangeOrders]);
 
+  const recentOrders = mapOrders.slice(0, 8);
+
   useEffect(() => {
-    if (!mappedRoutes.length) {
+    if (!mapOrders.length) {
       setSelectedOrderId(null);
       return;
     }
-    if (!selectedOrderId || !mappedRoutes.some(route => route.order.id === selectedOrderId)) {
-      setSelectedOrderId(mappedRoutes[0].order.id);
+    if (!selectedOrderId || !mapOrders.some(order => order.id === selectedOrderId)) {
+      setSelectedOrderId(mapOrders[0].id);
     }
-  }, [mappedRoutes, selectedOrderId]);
+  }, [mapOrders, selectedOrderId]);
 
-  const selectedRoute = mappedRoutes.find(route => route.order.id === selectedOrderId);
+  const selectedOrder = mapOrders.find(order => order.id === selectedOrderId);
 
   const StatCard = ({ title, value, icon: Icon, color, subtext }) => (
     <Card className="relative overflow-hidden border border-slate-200/70 bg-white shadow-sm">
@@ -276,95 +266,66 @@ export default function Dashboard() {
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-                <div className="relative min-h-[280px] rounded-2xl bg-slate-950 p-4 text-white shadow-inner">
-                  <div className="absolute inset-0 rounded-2xl bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.25),_transparent_55%)]" />
-                  <div className="absolute inset-0 rounded-2xl bg-[radial-gradient(circle_at_bottom,_rgba(15,23,42,0.8),_transparent_65%)]" />
-                  <div className="relative flex items-center gap-2 text-sm text-white/70">
-                    <Route className="w-4 h-4" />
-                    Routenansicht
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 text-sm text-slate-500">
+                    <Route className="w-4 h-4 text-[#1e3a5f]" />
+                    Routenansicht (Mapbox)
                   </div>
-                  <div className="relative mt-4 h-48 rounded-xl border border-white/10 bg-white/5">
-                    <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-                      {selectedRoute && (
-                        <line
-                          x1={selectedRoute.start.x}
-                          y1={selectedRoute.start.y}
-                          x2={selectedRoute.end.x}
-                          y2={selectedRoute.end.y}
-                          stroke="rgba(59,130,246,0.8)"
-                          strokeWidth="1.5"
-                          strokeDasharray="4 3"
-                        />
-                      )}
-                    </svg>
-                    {mappedRoutes.map((route) => (
-                      <button
-                        key={route.order.id}
-                        type="button"
-                        onClick={() => setSelectedOrderId(route.order.id)}
-                        className={`absolute h-3 w-3 rounded-full border ${
-                          route.order.id === selectedOrderId
-                            ? 'border-blue-200 bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.8)]'
-                            : 'border-white/60 bg-white/40'
-                        }`}
-                        style={{
-                          left: `${route.start.x}%`,
-                          top: `${route.start.y}%`,
-                          transform: 'translate(-50%, -50%)',
-                        }}
-                        aria-label={`Route ${route.order.order_number}`}
-                      />
-                    ))}
-                    {selectedRoute && (
-                      <div
-                        className="absolute h-4 w-4 rounded-full border border-blue-200 bg-blue-400 shadow-[0_0_12px_rgba(59,130,246,0.8)]"
-                        style={{
-                          left: `${selectedRoute.end.x}%`,
-                          top: `${selectedRoute.end.y}%`,
-                          transform: 'translate(-50%, -50%)',
-                        }}
-                      />
-                    )}
-                  </div>
-                  {selectedRoute && (
-                    <div className="relative mt-4 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm">
-                      <p className="font-semibold">{selectedRoute.order.order_number}</p>
-                      <p className="text-white/70">
-                        {selectedRoute.order.pickup_city || 'Start'} → {selectedRoute.order.dropoff_city || 'Ziel'}
-                      </p>
+                  <OrdersMap
+                    orders={mapOrders}
+                    selectedOrderId={selectedOrderId}
+                    onSelectOrder={setSelectedOrderId}
+                  />
+                  {selectedOrder && (
+                    <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm">
+                      <div className="flex items-center justify-between gap-4">
+                        <div>
+                          <p className="font-semibold text-slate-900">{selectedOrder.order_number}</p>
+                          <p className="text-slate-500">
+                            {selectedOrder.pickup_city || 'Start'} → {selectedOrder.dropoff_city || 'Ziel'}
+                          </p>
+                        </div>
+                        <StatusBadge status={selectedOrder.status} />
+                      </div>
                     </div>
                   )}
                 </div>
 
                 <div className="space-y-3">
-                  {recentOrders.map((order) => (
-                    <button
-                      key={order.id}
-                      type="button"
-                      onClick={() => setSelectedOrderId(order.id)}
-                      className={`w-full text-left flex items-center justify-between gap-4 rounded-xl border px-4 py-3 transition-all ${
-                        order.id === selectedOrderId
-                          ? 'border-blue-200 bg-blue-50'
-                          : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-[#1e3a5f]/10 flex items-center justify-center">
-                          <Truck className="w-5 h-5 text-[#1e3a5f]" />
+                  {recentOrders.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
+                      Fuer die Kartenansicht fehlen Adressen oder Auftraege.
+                    </div>
+                  ) : (
+                    recentOrders.map((order) => (
+                      <button
+                        key={order.id}
+                        type="button"
+                        onClick={() => setSelectedOrderId(order.id)}
+                        className={`w-full text-left flex items-center justify-between gap-4 rounded-xl border px-4 py-3 transition-all ${
+                          order.id === selectedOrderId
+                            ? 'border-blue-200 bg-blue-50'
+                            : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-lg bg-[#1e3a5f]/10 flex items-center justify-center">
+                            <Truck className="w-5 h-5 text-[#1e3a5f]" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-slate-900">{order.order_number}</p>
+                            <p className="text-sm text-slate-500">
+                              {order.pickup_city || 'Start'} → {order.dropoff_city || 'Ziel'}
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-medium text-slate-900">{order.order_number}</p>
-                          <p className="text-sm text-slate-500">
-                            {order.pickup_city || 'Start'} → {order.dropoff_city || 'Ziel'}
-                          </p>
+                        <div className="flex items-center gap-2">
+                          <StatusBadge status={order.status} />
+                          <ArrowRight className="w-4 h-4 text-slate-400" />
                         </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <StatusBadge status={order.status} />
-                        <ArrowRight className="w-4 h-4 text-slate-400" />
-                      </div>
-                    </button>
-                  ))}
+                      </button>
+                    ))
+                  )}
                 </div>
               </div>
             )}

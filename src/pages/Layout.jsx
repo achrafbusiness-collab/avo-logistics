@@ -169,11 +169,11 @@ export default function Layout({ children, currentPageName }) {
       `}>
         <div className={`flex items-center justify-between p-4 border-b ${darkMode ? 'border-slate-800' : 'border-white/10'}`}>
           <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center rounded-xl bg-white p-2 shadow-sm">
+            <div className="flex items-center justify-center rounded-2xl bg-white p-3 shadow-md ring-1 ring-slate-200/70">
               <img 
                 src="/Logo%20von%20AVO%20Kopie.png"
                 alt="AVO Logistics"
-                className="h-9 w-auto object-contain"
+                className="h-12 w-auto object-contain"
               />
             </div>
             <div>
