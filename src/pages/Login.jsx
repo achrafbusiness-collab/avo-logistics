@@ -63,20 +63,22 @@ export default function Login() {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(30,58,95,0.6),_transparent_55%)]" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom,_rgba(15,23,42,0.7),_transparent_60%)]" />
 
-        <div className="relative mx-auto flex min-h-screen w-full max-w-6xl flex-col items-center justify-center gap-10 px-4 py-12 lg:flex-row lg:gap-16">
-          <div className="w-full max-w-lg space-y-6 text-center lg:text-left">
-            <div className="inline-flex items-center gap-3 rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm text-white/80">
-              <span className="h-2 w-2 rounded-full bg-blue-400" />
-              AVO Logistics System
+        <div className="relative mx-auto flex min-h-screen w-full max-w-6xl flex-col items-center justify-center gap-10 px-4 py-12">
+          <div className="w-full max-w-xl space-y-6 text-center">
+            <div className="mx-auto flex items-center justify-center rounded-3xl bg-white p-6 shadow-2xl ring-1 ring-slate-200/70">
+              <img
+                src="/Logo%20von%20AVO%20Kopie.png"
+                alt="AVO Logistics"
+                className="h-36 w-auto object-contain drop-shadow-sm sm:h-44"
+              />
             </div>
             <h1 className="text-4xl font-semibold tracking-tight text-white lg:text-5xl">
-              Willkommen zur Logistik Plattform
+              Herzlich willkommen bei AVO SYSTEMS
             </h1>
             <p className="text-base text-white/70">
-              Verwaltung von Auftraegen, Fahrern und Kunden an einem Ort. Sichere Anmeldung fuer
-              Admins und Mitarbeiter.
+              Fahrzeugüberführung mit System — transparent, effizient und jederzeit kontrollierbar.
             </p>
-            <div className="flex flex-wrap items-center justify-center gap-3 text-sm text-white/70 lg:justify-start">
+            <div className="flex flex-wrap items-center justify-center gap-3 text-sm text-white/70">
               <span className="rounded-full border border-white/15 px-3 py-1">Admin-Zugang</span>
               <span className="rounded-full border border-white/15 px-3 py-1">Mitarbeiter-Zugang</span>
               <span className="rounded-full border border-white/15 px-3 py-1">Live Status</span>
@@ -84,14 +86,7 @@ export default function Login() {
           </div>
 
           <Card className="w-full max-w-md border border-white/10 bg-white text-slate-900 shadow-2xl">
-            <CardHeader className="space-y-5">
-              <div className="flex items-center justify-center rounded-2xl bg-white px-6 py-5 shadow-md ring-1 ring-slate-200/70">
-                <img
-                  src="/Logo%20von%20AVO%20Kopie.png"
-                  alt="AVO Logistics"
-                  className="h-28 w-auto object-contain drop-shadow-sm"
-                />
-              </div>
+            <CardHeader className="space-y-4">
               <CardTitle className="flex items-center justify-center gap-2 text-[#1e3a5f]">
                 <Lock className="w-5 h-5" />
                 Login
