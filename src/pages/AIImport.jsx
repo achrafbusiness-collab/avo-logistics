@@ -125,7 +125,7 @@ Gib nur die strukturierten Daten zurück.`,
         status: 'new'
       });
     } catch (err) {
-      setError('Fehler bei der Analyse. Bitte versuche es erneut.');
+      setError(err?.message || 'Fehler bei der Analyse. Bitte versuche es erneut.');
       console.error(err);
     } finally {
       setAnalyzing(false);

@@ -254,7 +254,7 @@ ANTWORT-REGELN:
     } catch (error) {
       setMessages(prev => [...prev, { 
         role: 'assistant', 
-        content: '❌ Entschuldigung, es gab einen Fehler. Bitte versuche es erneut.' 
+        content: `❌ ${error?.message || 'Entschuldigung, es gab einen Fehler. Bitte versuche es erneut.'}` 
       }]);
     } finally {
       setIsProcessing(false);
