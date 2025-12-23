@@ -154,7 +154,7 @@ export default function Layout({ children, currentPageName }) {
 
   // Admin Layout
   return (
-    <div className={`min-h-screen flex ${darkMode ? 'bg-gray-950' : 'bg-gray-50'}`}>
+    <div className="min-h-screen flex bg-slate-950">
       <style>{`
         :root {
           --primary: #1e3a5f;
@@ -169,21 +169,13 @@ export default function Layout({ children, currentPageName }) {
         w-64 text-white
         transform transition-transform duration-300 ease-in-out
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-        ${darkMode ? 'bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950' : 'bg-[#1e3a5f]'}
+        bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950
       `}>
         <div className={`flex items-center justify-between p-4 border-b ${darkMode ? 'border-slate-800' : 'border-white/10'}`}>
-          <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center rounded-2xl bg-white p-3 shadow-md ring-1 ring-slate-200/70">
-              <img 
-                src="/Logo%20von%20AVO%20Kopie.png"
-                alt="AVO Logistics"
-                className="h-12 w-auto object-contain"
-              />
-            </div>
-            <div>
-              <h1 className="font-bold text-lg">AVO Logistics System AI</h1>
-              <p className={`text-xs ${darkMode ? 'text-slate-400' : 'text-white/60'}`}>Achraf Bolakhrif</p>
-            </div>
+          <div>
+            <p className="text-xs uppercase tracking-[0.35em] text-blue-200">AVO SYSTEM</p>
+            <h1 className="font-semibold text-lg mt-1">Logistics Control</h1>
+            <p className={`text-xs ${darkMode ? 'text-slate-400' : 'text-white/60'}`}>Achraf Bolakhrif</p>
           </div>
           <button 
             onClick={() => setSidebarOpen(false)}
@@ -253,7 +245,7 @@ export default function Layout({ children, currentPageName }) {
       <div className="flex-1 flex flex-col min-h-screen">
         {/* Top Bar */}
         <header className={`border-b px-4 py-3 flex items-center justify-between lg:px-6 ${
-          darkMode ? 'bg-slate-950/95 border-slate-800 backdrop-blur' : 'bg-white border-gray-200'
+          darkMode ? 'bg-slate-950/90 border-slate-800 backdrop-blur' : 'bg-white/90 border-slate-200 backdrop-blur'
         }`}>
           <button 
             onClick={() => setSidebarOpen(true)}
@@ -295,10 +287,8 @@ export default function Layout({ children, currentPageName }) {
         </header>
 
         {/* Page Content */}
-        <main className={`flex-1 p-4 lg:p-6 overflow-auto ${darkMode ? 'bg-slate-950' : 'bg-slate-50'}`}>
-          <div className={`min-h-full rounded-3xl p-4 lg:p-6 shadow-sm ${
-            darkMode ? 'bg-white text-slate-900' : 'bg-white'
-          }`}>
+        <main className="flex-1 p-4 lg:p-6 overflow-auto bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950">
+          <div className="min-h-full rounded-[28px] bg-gradient-to-br from-white via-slate-50 to-blue-50/70 p-5 lg:p-8 shadow-[0_30px_60px_-40px_rgba(15,23,42,0.8)]">
             {children}
           </div>
         </main>

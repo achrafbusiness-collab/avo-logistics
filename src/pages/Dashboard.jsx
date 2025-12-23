@@ -164,33 +164,32 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="rounded-3xl bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 p-[2px]">
-      <div className="space-y-6 rounded-[22px] bg-gradient-to-br from-white via-slate-50 to-blue-50/70 p-6">
-        {/* Hero Header */}
-        <div className="relative overflow-hidden rounded-3xl bg-slate-950 text-white shadow-[0_30px_60px_-40px_rgba(15,23,42,0.8)]">
-          <div className="absolute -right-24 -top-24 h-56 w-56 rounded-full bg-blue-500/30 blur-3xl" />
-          <div className="absolute -left-20 -bottom-20 h-56 w-56 rounded-full bg-blue-600/20 blur-3xl" />
-          <div className="relative flex flex-col gap-6 p-6 md:p-8">
-            <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                <p className="text-xs uppercase tracking-[0.35em] text-blue-200">AVO SYSTEM</p>
-                <h1 className="text-3xl font-semibold tracking-tight mt-2">Dashboard</h1>
-                <p className="text-sm text-slate-300">Übersicht aller Aktivitäten, Aufträge und Routen</p>
+    <div className="space-y-6">
+      {/* Hero Header */}
+      <div className="relative overflow-hidden rounded-3xl bg-slate-950 text-white shadow-[0_30px_60px_-40px_rgba(15,23,42,0.8)]">
+        <div className="absolute -right-24 -top-24 h-56 w-56 rounded-full bg-blue-500/30 blur-3xl" />
+        <div className="absolute -left-20 -bottom-20 h-56 w-56 rounded-full bg-blue-600/20 blur-3xl" />
+        <div className="relative flex flex-col gap-6 p-6 md:p-8">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-[0.35em] text-blue-200">AVO SYSTEM</p>
+              <h1 className="text-3xl font-semibold tracking-tight mt-2">Dashboard</h1>
+              <p className="text-sm text-slate-300">Übersicht aller Aktivitäten, Aufträge und Routen</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs uppercase tracking-wide text-slate-200">
+                Zeitraum: {rangeLabel}
               </div>
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs uppercase tracking-wide text-slate-200">
-                  Zeitraum: {rangeLabel}
-                </div>
-                <Link to={createPageUrl('Orders') + '?new=true'}>
-                  <Button className="bg-blue-500 text-white hover:bg-blue-600">
-                    <Truck className="w-4 h-4 mr-2" />
-                    Neuer Auftrag
-                  </Button>
-                </Link>
-              </div>
+              <Link to={createPageUrl('Orders') + '?new=true'}>
+                <Button className="bg-blue-500 text-white hover:bg-blue-600">
+                  <Truck className="w-4 h-4 mr-2" />
+                  Neuer Auftrag
+                </Button>
+              </Link>
             </div>
           </div>
         </div>
+      </div>
 
       <Card className="border border-slate-200/80 bg-white/90 shadow-[0_20px_40px_-30px_rgba(15,23,42,0.6)]">
         <CardContent className="flex flex-col gap-4 p-4 lg:flex-row lg:items-center lg:justify-between">
@@ -456,7 +455,6 @@ export default function Dashboard() {
             </CardContent>
           </Card>
         </div>
-      </div>
       </div>
     </div>
   );
