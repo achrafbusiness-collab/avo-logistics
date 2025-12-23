@@ -57,6 +57,27 @@ export default function AIImport() {
     return `EU-OA-${year}${month}-${random}`;
   };
 
+  const normalizeExtractedData = (data) => ({
+    license_plate: data?.license_plate || '',
+    vehicle_brand: data?.vehicle_brand || '',
+    vehicle_model: data?.vehicle_model || '',
+    vehicle_color: data?.vehicle_color || '',
+    vin: data?.vin || '',
+    pickup_address: data?.pickup_address || '',
+    pickup_city: data?.pickup_city || '',
+    pickup_date: data?.pickup_date || '',
+    pickup_time: data?.pickup_time || '',
+    dropoff_address: data?.dropoff_address || '',
+    dropoff_city: data?.dropoff_city || '',
+    dropoff_date: data?.dropoff_date || '',
+    dropoff_time: data?.dropoff_time || '',
+    customer_name: data?.customer_name || '',
+    customer_phone: data?.customer_phone || '',
+    customer_email: data?.customer_email || '',
+    notes: data?.notes || '',
+    price: data?.price ?? '',
+  });
+
   const analyzeEmail = async () => {
     if (!emailText.trim()) {
       setError('Bitte E-Mail-Text eingeben');
@@ -68,59 +89,80 @@ export default function AIImport() {
 
     try {
       const result = await appClient.integrations.Core.InvokeLLM({
-        prompt: `Analysiere diese E-Mail und extrahiere die Auftragsinformationen für eine Fahrzeugüberführung.
+        prompt: `Analysiere diese E-Mail (Deutsch) und extrahiere alle Auftragsinformationen für eine Fahrzeugüberführung.
 
 E-Mail:
 ${emailText}
 
-Extrahiere folgende Informationen (falls nicht vorhanden, lasse das Feld leer):
-- Kennzeichen
-- Fahrzeugmarke
-- Fahrzeugmodell
-- Fahrzeugfarbe
-- FIN (Fahrzeug-Identifikationsnummer)
-- Abholadresse (vollständig)
-- Abholort (Stadt)
-- Abholdatum (YYYY-MM-DD Format)
-- Abholzeit (HH:MM Format)
-- Zieladresse (vollständig)
-- Zielort (Stadt)
-- Lieferdatum (YYYY-MM-DD Format)
-- Lieferzeit (HH:MM Format)
-- Kundenname
-- Kundentelefon
-- Kunden E-Mail
-- Besondere Hinweise
-- Preis (nur Zahl)
+Extrahiere diese Felder. Wenn ein Feld nicht gefunden wird, gib "" (leerer String) zurück. Preis darf eine Zahl oder "" sein:
+- license_plate (Kennzeichen)
+- vehicle_brand (Marke)
+- vehicle_model (Modell)
+- vehicle_color (Farbe)
+- vin (FIN/VIN/Fahrzeugnummer)
+- pickup_address (Abholadresse vollständig)
+- pickup_city (Abholort/Stadt)
+- pickup_date (YYYY-MM-DD)
+- pickup_time (HH:MM)
+- dropoff_address (Lieferadresse vollständig)
+- dropoff_city (Zielort/Stadt)
+- dropoff_date (YYYY-MM-DD)
+- dropoff_time (HH:MM)
+- customer_name
+- customer_phone
+- customer_email
+- notes (Besondere Hinweise)
+- price (nur Zahl, sonst "")
 
-Gib nur die strukturierten Daten zurück.`,
+Gib ausschließlich die strukturierten Daten zurück.`,
         response_json_schema: {
           type: "object",
+          additionalProperties: false,
           properties: {
-            license_plate: { type: "string" },
-            vehicle_brand: { type: "string" },
-            vehicle_model: { type: "string" },
-            vehicle_color: { type: "string" },
-            vin: { type: "string" },
-            pickup_address: { type: "string" },
-            pickup_city: { type: "string" },
-            pickup_date: { type: "string" },
-            pickup_time: { type: "string" },
-            dropoff_address: { type: "string" },
-            dropoff_city: { type: "string" },
-            dropoff_date: { type: "string" },
-            dropoff_time: { type: "string" },
-            customer_name: { type: "string" },
-            customer_phone: { type: "string" },
-            customer_email: { type: "string" },
-            notes: { type: "string" },
-            price: { type: "number" }
-          }
+            license_plate: { type: ["string", "null"] },
+            vehicle_brand: { type: ["string", "null"] },
+            vehicle_model: { type: ["string", "null"] },
+            vehicle_color: { type: ["string", "null"] },
+            vin: { type: ["string", "null"] },
+            pickup_address: { type: ["string", "null"] },
+            pickup_city: { type: ["string", "null"] },
+            pickup_date: { type: ["string", "null"] },
+            pickup_time: { type: ["string", "null"] },
+            dropoff_address: { type: ["string", "null"] },
+            dropoff_city: { type: ["string", "null"] },
+            dropoff_date: { type: ["string", "null"] },
+            dropoff_time: { type: ["string", "null"] },
+            customer_name: { type: ["string", "null"] },
+            customer_phone: { type: ["string", "null"] },
+            customer_email: { type: ["string", "null"] },
+            notes: { type: ["string", "null"] },
+            price: { type: ["number", "null"] }
+          },
+          required: [
+            "license_plate",
+            "vehicle_brand",
+            "vehicle_model",
+            "vehicle_color",
+            "vin",
+            "pickup_address",
+            "pickup_city",
+            "pickup_date",
+            "pickup_time",
+            "dropoff_address",
+            "dropoff_city",
+            "dropoff_date",
+            "dropoff_time",
+            "customer_name",
+            "customer_phone",
+            "customer_email",
+            "notes",
+            "price"
+          ]
         }
       });
 
       setExtractedData({
-        ...result,
+        ...normalizeExtractedData(result),
         order_number: generateOrderNumber(),
         status: 'new'
       });
