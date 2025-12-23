@@ -159,6 +159,8 @@ function PagesContent() {
                 <Route path="/AIImport" element={<AIImport />} />
                 
                 <Route path="/AVOAI" element={<AVOAI />} />
+
+                <Route path="/TeamAVO" element={<TeamAVO />} />
                 
             </Routes>
         </Layout>
