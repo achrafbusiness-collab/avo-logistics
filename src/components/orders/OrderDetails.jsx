@@ -1,10 +1,17 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import StatusBadge from '@/components/ui/StatusBadge';
 import { 
   Car, 
@@ -17,10 +24,12 @@ import {
   Phone,
   Mail,
   Trash2,
-  ExternalLink
+  ExternalLink,
+  Loader2
 } from 'lucide-react';
 
-export default function OrderDetails({ order, checklists = [], onEdit, onDelete }) {
+export default function OrderDetails({ order, checklists = [], onEdit, onDelete, drivers = [], onAssignDriver }) {
+  const [assigning, setAssigning] = useState(false);
   const pickupChecklist = checklists.find(c => c.type === 'pickup');
   const dropoffChecklist = checklists.find(c => c.type === 'dropoff');
   const formatDateSafe = (value, pattern) => {
@@ -43,6 +52,17 @@ export default function OrderDetails({ order, checklists = [], onEdit, onDelete 
       </div>
     </div>
   );
+
+  const handleDriverAssign = async (value) => {
+    if (!onAssignDriver) return;
+    const driverId = value === 'none' ? '' : value;
+    setAssigning(true);
+    try {
+      await onAssignDriver(driverId);
+    } finally {
+      setAssigning(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -182,6 +202,39 @@ export default function OrderDetails({ order, checklists = [], onEdit, onDelete 
               </CardTitle>
             </CardHeader>
             <CardContent>
+              <div className="space-y-2 mb-4">
+                <p className="text-sm text-gray-500">Fahrer zuweisen</p>
+                {drivers.length === 0 ? (
+                  <p className="text-sm text-gray-400">Keine aktiven Fahrer vorhanden.</p>
+                ) : (
+                  <Select
+                    value={order.assigned_driver_id || "none"}
+                    onValueChange={handleDriverAssign}
+                    disabled={assigning || !onAssignDriver}
+                  >
+                    <SelectTrigger className="bg-white">
+                      <SelectValue placeholder="Fahrer auswählen..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Kein Fahrer</SelectItem>
+                      {drivers.map((driver) => {
+                        const name = `${driver.first_name || ''} ${driver.last_name || ''}`.trim();
+                        return (
+                          <SelectItem key={driver.id} value={driver.id}>
+                            {name || driver.email || 'Fahrer'}
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                )}
+                {assigning && (
+                  <div className="flex items-center gap-2 text-xs text-gray-500">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    Zuweisung wird gespeichert…
+                  </div>
+                )}
+              </div>
               {order.assigned_driver_id ? (
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-[#1e3a5f] text-white rounded-full flex items-center justify-center font-semibold">

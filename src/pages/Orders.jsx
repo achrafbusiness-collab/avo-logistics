@@ -65,6 +65,11 @@ export default function Orders() {
     queryFn: () => appClient.entities.Checklist.list('-created_date', 1000),
   });
 
+  const { data: drivers = [] } = useQuery({
+    queryKey: ['drivers'],
+    queryFn: () => appClient.entities.Driver.filter({ status: 'active' }),
+  });
+
   const createMutation = useMutation({
     mutationFn: (data) => appClient.entities.Order.create(data),
     onSuccess: () => {
@@ -115,6 +120,22 @@ export default function Orders() {
     } else {
       await createMutation.mutateAsync(data);
     }
+  };
+
+  const handleAssignDriver = async (driverId) => {
+    if (!selectedOrder) return;
+    const driver = drivers.find(d => d.id === driverId);
+    const driverName = driver ? `${driver.first_name || ''} ${driver.last_name || ''}`.trim() : '';
+    const updates = {
+      assigned_driver_id: driverId,
+      assigned_driver_name: driverName,
+    };
+    if (driverId) {
+      updates.status = 'assigned';
+    }
+    const updated = await appClient.entities.Order.update(selectedOrder.id, updates);
+    setSelectedOrder(updated);
+    queryClient.invalidateQueries({ queryKey: ['orders'] });
   };
 
   const filteredOrders = orders.filter(order => {
@@ -181,6 +202,8 @@ export default function Orders() {
         <OrderDetails 
           order={selectedOrder}
           checklists={getOrderChecklists(selectedOrder.id)}
+          drivers={drivers}
+          onAssignDriver={handleAssignDriver}
           onEdit={() => setView('form')}
           onDelete={() => setDeleteConfirmOpen(true)}
         />
