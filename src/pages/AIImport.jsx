@@ -28,7 +28,9 @@ export default function AIImport() {
   const queryClient = useQueryClient();
   const [emailText, setEmailText] = useState('');
   const [analyzing, setAnalyzing] = useState(false);
-  const [extractedData, setExtractedData] = useState(null);
+  const [extractedOrders, setExtractedOrders] = useState([]);
+  const [selectedOrderIndex, setSelectedOrderIndex] = useState(0);
+  const [importSuccess, setImportSuccess] = useState(false);
   const [error, setError] = useState(null);
 
   const { data: drivers = [] } = useQuery({
@@ -45,7 +47,6 @@ export default function AIImport() {
     mutationFn: (data) => appClient.entities.Order.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['orders'] });
-      window.location.href = createPageUrl('Orders');
     },
   });
 
@@ -86,12 +87,14 @@ export default function AIImport() {
 
     setAnalyzing(true);
     setError(null);
+    setImportSuccess(false);
 
     try {
       const result = await appClient.integrations.Core.InvokeLLM({
-        prompt: `Analysiere diese E-Mail (Deutsch) und extrahiere alle Auftragsinformationen für eine Fahrzeugüberführung.
+        prompt: `Analysiere den folgenden Text (Deutsch) und extrahiere alle Aufträge zur Fahrzeugüberführung.
+Es können ein oder mehrere Aufträge enthalten sein. Gib IMMER eine Liste von Aufträgen zurück (auch wenn es nur 1 Auftrag ist).
 
-E-Mail:
+Text:
 ${emailText}
 
 Extrahiere diese Felder. Wenn ein Feld nicht gefunden wird, gib "" (leerer String) zurück. Preis darf eine Zahl oder "" sein:
@@ -116,56 +119,71 @@ Extrahiere diese Felder. Wenn ein Feld nicht gefunden wird, gib "" (leerer Strin
 
 Gib ausschließlich die strukturierten Daten zurück.`,
         response_json_schema: {
-          type: "object",
-          additionalProperties: false,
-          properties: {
-            license_plate: { type: ["string", "null"] },
-            vehicle_brand: { type: ["string", "null"] },
-            vehicle_model: { type: ["string", "null"] },
-            vehicle_color: { type: ["string", "null"] },
-            vin: { type: ["string", "null"] },
-            pickup_address: { type: ["string", "null"] },
-            pickup_city: { type: ["string", "null"] },
-            pickup_date: { type: ["string", "null"] },
-            pickup_time: { type: ["string", "null"] },
-            dropoff_address: { type: ["string", "null"] },
-            dropoff_city: { type: ["string", "null"] },
-            dropoff_date: { type: ["string", "null"] },
-            dropoff_time: { type: ["string", "null"] },
-            customer_name: { type: ["string", "null"] },
-            customer_phone: { type: ["string", "null"] },
-            customer_email: { type: ["string", "null"] },
-            notes: { type: ["string", "null"] },
-            price: { type: ["number", "null"] }
-          },
-          required: [
-            "license_plate",
-            "vehicle_brand",
-            "vehicle_model",
-            "vehicle_color",
-            "vin",
-            "pickup_address",
-            "pickup_city",
-            "pickup_date",
-            "pickup_time",
-            "dropoff_address",
-            "dropoff_city",
-            "dropoff_date",
-            "dropoff_time",
-            "customer_name",
-            "customer_phone",
-            "customer_email",
-            "notes",
-            "price"
-          ]
+          type: "array",
+          items: {
+            type: "object",
+            additionalProperties: false,
+            properties: {
+              license_plate: { type: ["string", "null"] },
+              vehicle_brand: { type: ["string", "null"] },
+              vehicle_model: { type: ["string", "null"] },
+              vehicle_color: { type: ["string", "null"] },
+              vin: { type: ["string", "null"] },
+              pickup_address: { type: ["string", "null"] },
+              pickup_city: { type: ["string", "null"] },
+              pickup_date: { type: ["string", "null"] },
+              pickup_time: { type: ["string", "null"] },
+              dropoff_address: { type: ["string", "null"] },
+              dropoff_city: { type: ["string", "null"] },
+              dropoff_date: { type: ["string", "null"] },
+              dropoff_time: { type: ["string", "null"] },
+              customer_name: { type: ["string", "null"] },
+              customer_phone: { type: ["string", "null"] },
+              customer_email: { type: ["string", "null"] },
+              notes: { type: ["string", "null"] },
+              price: { type: ["number", "null"] }
+            },
+            required: [
+              "license_plate",
+              "vehicle_brand",
+              "vehicle_model",
+              "vehicle_color",
+              "vin",
+              "pickup_address",
+              "pickup_city",
+              "pickup_date",
+              "pickup_time",
+              "dropoff_address",
+              "dropoff_city",
+              "dropoff_date",
+              "dropoff_time",
+              "customer_name",
+              "customer_phone",
+              "customer_email",
+              "notes",
+              "price"
+            ]
+          }
         }
       });
 
-      setExtractedData({
-        ...normalizeExtractedData(result),
-        order_number: generateOrderNumber(),
-        status: 'new'
-      });
+      const ordersArray = Array.isArray(result) ? result : [result];
+      const normalized = ordersArray
+        .filter(Boolean)
+        .map((item) => ({
+          ...normalizeExtractedData(item),
+          order_number: generateOrderNumber(),
+          status: 'new'
+        }));
+
+      if (!normalized.length) {
+        setError('Keine Aufträge im Text erkannt.');
+        setExtractedOrders([]);
+        return;
+      }
+
+      setExtractedOrders(normalized);
+      setSelectedOrderIndex(0);
     } catch (err) {
       setError(err?.message || 'Fehler bei der Analyse. Bitte versuche es erneut.');
       console.error(err);
@@ -175,16 +193,35 @@ Gib ausschließlich die strukturierten Daten zurück.`,
   };
 
   const handleConfirm = async () => {
-    await createOrderMutation.mutateAsync(extractedData);
+    if (!currentOrder) return;
+    const dataToSave = {
+      ...currentOrder,
+      price: currentOrder.price ? parseFloat(currentOrder.price) : null,
+    };
+    await createOrderMutation.mutateAsync(dataToSave);
+    const nextOrders = extractedOrders.filter((_, index) => index !== selectedOrderIndex);
+    setExtractedOrders(nextOrders);
+    if (!nextOrders.length) {
+      setImportSuccess(true);
+      setSelectedOrderIndex(0);
+      return;
+    }
+    setSelectedOrderIndex(Math.min(selectedOrderIndex, nextOrders.length - 1));
   };
 
   const handleCancel = () => {
-    setExtractedData(null);
+    setExtractedOrders([]);
+    setSelectedOrderIndex(0);
     setEmailText('');
+    setImportSuccess(false);
   };
 
   const updateExtractedData = (field, value) => {
-    setExtractedData({ ...extractedData, [field]: value });
+    setExtractedOrders(prev => {
+      const updated = [...prev];
+      updated[selectedOrderIndex] = { ...updated[selectedOrderIndex], [field]: value };
+      return updated;
+    });
   };
 
   const handleDriverChange = (driverId) => {
@@ -208,6 +245,19 @@ Gib ausschließlich die strukturierten Daten zurück.`,
     }
   };
 
+  const removeOrder = (index) => {
+    const nextOrders = extractedOrders.filter((_, idx) => idx !== index);
+    setExtractedOrders(nextOrders);
+    if (!nextOrders.length) {
+      setImportSuccess(false);
+      setSelectedOrderIndex(0);
+      return;
+    }
+    setSelectedOrderIndex(Math.min(index, nextOrders.length - 1));
+  };
+
+  const currentOrder = extractedOrders[selectedOrderIndex];
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
@@ -224,21 +274,21 @@ Gib ausschließlich die strukturierten Daten zurück.`,
         </div>
       </div>
 
-      {!extractedData ? (
+      {!extractedOrders.length ? (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Mail className="w-5 h-5" />
-              E-Mail einfügen
+              Text einfügen
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <Label>E-Mail Inhalt</Label>
+              <Label>Text für den Import</Label>
               <Textarea
                 value={emailText}
                 onChange={(e) => setEmailText(e.target.value)}
-                placeholder="Kopiere hier den kompletten E-Mail-Text mit allen Auftragsinformationen..."
+                placeholder="Füge hier den Text mit einem oder mehreren Aufträgen ein..."
                 rows={15}
                 className="font-mono text-sm"
               />
@@ -272,280 +322,335 @@ Gib ausschließlich die strukturierten Daten zurück.`,
         </Card>
       ) : (
         <div className="space-y-6">
-          <div className="p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2">
-            <CheckCircle2 className="w-5 h-5 text-green-600" />
-            <div>
-              <p className="font-semibold text-green-900">Auftrag erfolgreich extrahiert</p>
-              <p className="text-sm text-green-700">Bitte überprüfe die Daten und bestätige den Import</p>
+          {importSuccess && (
+            <div className="p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2">
+              <CheckCircle2 className="w-5 h-5 text-green-600" />
+              <div>
+                <p className="font-semibold text-green-900">Import abgeschlossen</p>
+                <p className="text-sm text-green-700">Alle Aufträge wurden gespeichert.</p>
+              </div>
             </div>
-          </div>
+          )}
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Auftragsinformationen</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label>Auftragsnummer</Label>
-                  <Input 
-                    value={extractedData.order_number || ''} 
-                    onChange={(e) => updateExtractedData('order_number', e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label>Status</Label>
-                  <Select 
-                    value={extractedData.status || 'new'} 
-                    onValueChange={(value) => updateExtractedData('status', value)}
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-[260px_1fr]">
+            <Card className="h-fit">
+              <CardHeader>
+                <CardTitle>Gefundene Aufträge ({extractedOrders.length})</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {extractedOrders.map((order, index) => (
+                  <button
+                    key={`${order.order_number}-${index}`}
+                    type="button"
+                    onClick={() => setSelectedOrderIndex(index)}
+                    className={`w-full rounded-lg border px-3 py-2 text-left transition-all ${
+                      index === selectedOrderIndex
+                        ? 'border-blue-200 bg-blue-50'
+                        : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                    }`}
                   >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="new">Neu</SelectItem>
-                      <SelectItem value="assigned">Zugewiesen</SelectItem>
-                    </SelectContent>
-                  </Select>
+                    <p className="text-sm font-semibold text-slate-900">
+                      {order.order_number || `Auftrag ${index + 1}`}
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      {order.pickup_city || 'Start'} → {order.dropoff_city || 'Ziel'}
+                    </p>
+                  </button>
+                ))}
+              </CardContent>
+            </Card>
+
+            {currentOrder && (
+              <div className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Auftragsinformationen</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label>Auftragsnummer</Label>
+                        <Input 
+                          value={currentOrder.order_number || ''} 
+                          onChange={(e) => updateExtractedData('order_number', e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label>Status</Label>
+                        <Select 
+                          value={currentOrder.status || 'new'} 
+                          onValueChange={(value) => updateExtractedData('status', value)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="new">Neu</SelectItem>
+                            <SelectItem value="assigned">Zugewiesen</SelectItem>
+                            <SelectItem value="accepted">Angenommen</SelectItem>
+                            <SelectItem value="pickup_started">Übernahme</SelectItem>
+                            <SelectItem value="in_transit">Bearbeitung</SelectItem>
+                            <SelectItem value="delivery_started">Übergabe</SelectItem>
+                            <SelectItem value="completed">Fertig</SelectItem>
+                            <SelectItem value="cancelled">Storniert</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Fahrzeugdaten</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label>Kennzeichen *</Label>
+                        <Input 
+                          value={currentOrder.license_plate || ''} 
+                          onChange={(e) => updateExtractedData('license_plate', e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label>FIN</Label>
+                        <Input 
+                          value={currentOrder.vin || ''} 
+                          onChange={(e) => updateExtractedData('vin', e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label>Marke</Label>
+                        <Input 
+                          value={currentOrder.vehicle_brand || ''} 
+                          onChange={(e) => updateExtractedData('vehicle_brand', e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label>Modell</Label>
+                        <Input 
+                          value={currentOrder.vehicle_model || ''} 
+                          onChange={(e) => updateExtractedData('vehicle_model', e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label>Farbe</Label>
+                        <Input 
+                          value={currentOrder.vehicle_color || ''} 
+                          onChange={(e) => updateExtractedData('vehicle_color', e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Abholung</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="md:col-span-2">
+                        <Label>Abholadresse *</Label>
+                        <Input 
+                          value={currentOrder.pickup_address || ''} 
+                          onChange={(e) => updateExtractedData('pickup_address', e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label>Abholort</Label>
+                        <Input 
+                          value={currentOrder.pickup_city || ''} 
+                          onChange={(e) => updateExtractedData('pickup_city', e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label>Abholdatum</Label>
+                        <Input 
+                          type="date"
+                          value={currentOrder.pickup_date || ''} 
+                          onChange={(e) => updateExtractedData('pickup_date', e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label>Abholzeit</Label>
+                        <Input 
+                          type="time"
+                          value={currentOrder.pickup_time || ''} 
+                          onChange={(e) => updateExtractedData('pickup_time', e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Abgabe</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="md:col-span-2">
+                        <Label>Zieladresse *</Label>
+                        <Input 
+                          value={currentOrder.dropoff_address || ''} 
+                          onChange={(e) => updateExtractedData('dropoff_address', e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label>Zielort</Label>
+                        <Input 
+                          value={currentOrder.dropoff_city || ''} 
+                          onChange={(e) => updateExtractedData('dropoff_city', e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label>Lieferdatum</Label>
+                        <Input 
+                          type="date"
+                          value={currentOrder.dropoff_date || ''} 
+                          onChange={(e) => updateExtractedData('dropoff_date', e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label>Lieferzeit</Label>
+                        <Input 
+                          type="time"
+                          value={currentOrder.dropoff_time || ''} 
+                          onChange={(e) => updateExtractedData('dropoff_time', e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Kunde & Fahrer</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label>Kunde auswählen</Label>
+                        <Select
+                          value={currentOrder.customer_id || "none"}
+                          onValueChange={(value) => handleCustomerChange(value === "none" ? "" : value)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Kunde wählen..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">Kein Kunde</SelectItem>
+                            {customers.map(customer => (
+                              <SelectItem key={customer.id} value={customer.id}>
+                                {customer.company_name || `${customer.first_name} ${customer.last_name}`}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label>Fahrer zuweisen</Label>
+                        <Select
+                          value={currentOrder.assigned_driver_id || "none"}
+                          onValueChange={(value) => handleDriverChange(value === "none" ? "" : value)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Fahrer wählen..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">Kein Fahrer</SelectItem>
+                            {drivers.filter(d => d.status === 'active').map(driver => (
+                              <SelectItem key={driver.id} value={driver.id}>
+                                {driver.first_name} {driver.last_name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label>Kundenname</Label>
+                        <Input 
+                          value={currentOrder.customer_name || ''} 
+                          onChange={(e) => updateExtractedData('customer_name', e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label>Kundentelefon</Label>
+                        <Input 
+                          value={currentOrder.customer_phone || ''} 
+                          onChange={(e) => updateExtractedData('customer_phone', e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label>Kunden E-Mail</Label>
+                        <Input 
+                          type="email"
+                          value={currentOrder.customer_email || ''} 
+                          onChange={(e) => updateExtractedData('customer_email', e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label>Preis (€)</Label>
+                        <Input 
+                          type="number"
+                          step="0.01"
+                          value={currentOrder.price || ''} 
+                          onChange={(e) => updateExtractedData('price', e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Hinweise</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <Textarea 
+                      value={currentOrder.notes || ''} 
+                      onChange={(e) => updateExtractedData('notes', e.target.value)}
+                      rows={4}
+                      placeholder="Besondere Hinweise..."
+                    />
+                  </CardContent>
+                </Card>
+
+                <div className="flex flex-wrap gap-3 justify-end">
+                  <Button 
+                    variant="outline"
+                    onClick={handleCancel}
+                  >
+                    Abbrechen
+                  </Button>
+                  <Button 
+                    variant="outline"
+                    onClick={() => removeOrder(selectedOrderIndex)}
+                  >
+                    Auftrag löschen
+                  </Button>
+                  <Button 
+                    onClick={handleConfirm}
+                    disabled={createOrderMutation.isPending}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    {createOrderMutation.isPending ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Erstelle...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-4 h-4 mr-2" />
+                        Auftrag bestätigen & speichern
+                      </>
+                    )}
+                  </Button>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Fahrzeugdaten</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label>Kennzeichen *</Label>
-                  <Input 
-                    value={extractedData.license_plate || ''} 
-                    onChange={(e) => updateExtractedData('license_plate', e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label>FIN</Label>
-                  <Input 
-                    value={extractedData.vin || ''} 
-                    onChange={(e) => updateExtractedData('vin', e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label>Marke</Label>
-                  <Input 
-                    value={extractedData.vehicle_brand || ''} 
-                    onChange={(e) => updateExtractedData('vehicle_brand', e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label>Modell</Label>
-                  <Input 
-                    value={extractedData.vehicle_model || ''} 
-                    onChange={(e) => updateExtractedData('vehicle_model', e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label>Farbe</Label>
-                  <Input 
-                    value={extractedData.vehicle_color || ''} 
-                    onChange={(e) => updateExtractedData('vehicle_color', e.target.value)}
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Abholung</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="md:col-span-2">
-                  <Label>Abholadresse *</Label>
-                  <Input 
-                    value={extractedData.pickup_address || ''} 
-                    onChange={(e) => updateExtractedData('pickup_address', e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label>Abholort</Label>
-                  <Input 
-                    value={extractedData.pickup_city || ''} 
-                    onChange={(e) => updateExtractedData('pickup_city', e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label>Abholdatum</Label>
-                  <Input 
-                    type="date"
-                    value={extractedData.pickup_date || ''} 
-                    onChange={(e) => updateExtractedData('pickup_date', e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label>Abholzeit</Label>
-                  <Input 
-                    type="time"
-                    value={extractedData.pickup_time || ''} 
-                    onChange={(e) => updateExtractedData('pickup_time', e.target.value)}
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Abgabe</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="md:col-span-2">
-                  <Label>Zieladresse *</Label>
-                  <Input 
-                    value={extractedData.dropoff_address || ''} 
-                    onChange={(e) => updateExtractedData('dropoff_address', e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label>Zielort</Label>
-                  <Input 
-                    value={extractedData.dropoff_city || ''} 
-                    onChange={(e) => updateExtractedData('dropoff_city', e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label>Lieferdatum</Label>
-                  <Input 
-                    type="date"
-                    value={extractedData.dropoff_date || ''} 
-                    onChange={(e) => updateExtractedData('dropoff_date', e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label>Lieferzeit</Label>
-                  <Input 
-                    type="time"
-                    value={extractedData.dropoff_time || ''} 
-                    onChange={(e) => updateExtractedData('dropoff_time', e.target.value)}
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Kunde & Fahrer</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label>Kunde auswählen</Label>
-                  <Select onValueChange={handleCustomerChange}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Kunde wählen..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {customers.map(customer => (
-                        <SelectItem key={customer.id} value={customer.id}>
-                          {customer.company_name || `${customer.first_name} ${customer.last_name}`}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Fahrer zuweisen</Label>
-                  <Select onValueChange={handleDriverChange}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Fahrer wählen..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {drivers.filter(d => d.status === 'active').map(driver => (
-                        <SelectItem key={driver.id} value={driver.id}>
-                          {driver.first_name} {driver.last_name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Kundenname</Label>
-                  <Input 
-                    value={extractedData.customer_name || ''} 
-                    onChange={(e) => updateExtractedData('customer_name', e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label>Kundentelefon</Label>
-                  <Input 
-                    value={extractedData.customer_phone || ''} 
-                    onChange={(e) => updateExtractedData('customer_phone', e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label>Kunden E-Mail</Label>
-                  <Input 
-                    type="email"
-                    value={extractedData.customer_email || ''} 
-                    onChange={(e) => updateExtractedData('customer_email', e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label>Preis (€)</Label>
-                  <Input 
-                    type="number"
-                    step="0.01"
-                    value={extractedData.price || ''} 
-                    onChange={(e) => updateExtractedData('price', parseFloat(e.target.value))}
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Hinweise</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Textarea 
-                value={extractedData.notes || ''} 
-                onChange={(e) => updateExtractedData('notes', e.target.value)}
-                rows={4}
-                placeholder="Besondere Hinweise..."
-              />
-            </CardContent>
-          </Card>
-
-          <div className="flex gap-3 justify-end">
-            <Button 
-              variant="outline"
-              onClick={handleCancel}
-            >
-              Abbrechen
-            </Button>
-            <Button 
-              onClick={handleConfirm}
-              disabled={createOrderMutation.isPending}
-              className="bg-green-600 hover:bg-green-700"
-            >
-              {createOrderMutation.isPending ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Erstelle...
-                </>
-              ) : (
-                <>
-                  <Save className="w-4 h-4 mr-2" />
-                  Auftrag bestätigen & erstellen
-                </>
-              )}
-            </Button>
+            )}
           </div>
         </div>
       )}

@@ -41,7 +41,7 @@ const parseJsonFromText = (text) => {
   try {
     return JSON.parse(text);
   } catch (error) {
-    const match = text.match(/\{[\s\S]*\}/);
+    const match = text.match(/\[[\s\S]*\]|\{[\s\S]*\}/);
     if (match) {
       return JSON.parse(match[0]);
     }
