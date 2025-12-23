@@ -37,6 +37,7 @@ export default function Dashboard() {
   const [dateFrom, setDateFrom] = useState(todayKey);
   const [dateTo, setDateTo] = useState(todayKey);
   const [selectedOrderId, setSelectedOrderId] = useState(null);
+  const logoUrl = "/Logo%20von%20AVO%20Kopie.png";
 
   const { data: orders = [], isLoading: ordersLoading } = useQuery({
     queryKey: ['orders'],
@@ -98,6 +99,19 @@ export default function Dashboard() {
     topCustomerCount: topCustomerCount,
   };
 
+  const rangeLabel = useMemo(() => {
+    const parse = (value) => {
+      if (!value) return null;
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return null;
+      return format(date, 'dd.MM.yyyy', { locale: de });
+    };
+    const fromLabel = parse(dateFrom);
+    const toLabel = parse(dateTo);
+    if (fromLabel && toLabel) return `${fromLabel} – ${toLabel}`;
+    return fromLabel || toLabel || 'Kein Zeitraum';
+  }, [dateFrom, dateTo]);
+
   const mapOrders = useMemo(() => {
     return rangeOrders.filter((order) => {
       const pickup = [order.pickup_address, order.pickup_city].filter(Boolean).join(", ").trim();
@@ -121,7 +135,7 @@ export default function Dashboard() {
   const selectedOrder = mapOrders.find(order => order.id === selectedOrderId);
 
   const StatCard = ({ title, value, icon: Icon, color, subtext }) => (
-    <Card className="relative overflow-hidden border border-slate-200/70 bg-white shadow-sm">
+    <Card className="relative overflow-hidden border border-slate-200/80 bg-white shadow-[0_20px_40px_-30px_rgba(15,23,42,0.6)]">
       <div className={`absolute top-0 right-0 h-24 w-24 translate-x-6 -translate-y-6 ${color} rounded-full opacity-10`} />
       <CardContent className="p-6">
         <div className="flex items-start justify-between gap-3">
@@ -152,18 +166,39 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
-          <p className="text-slate-500">Übersicht aller Aktivitäten und Routen</p>
+      {/* Hero Header */}
+      <div className="relative overflow-hidden rounded-3xl bg-slate-950 text-white shadow-[0_30px_60px_-40px_rgba(15,23,42,0.8)]">
+        <div className="absolute -right-24 -top-24 h-56 w-56 rounded-full bg-blue-500/30 blur-3xl" />
+        <div className="absolute -left-20 -bottom-20 h-56 w-56 rounded-full bg-blue-600/20 blur-3xl" />
+        <div className="relative flex flex-col gap-6 p-6 md:p-8">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-center gap-4">
+              <div className="rounded-2xl bg-white p-2 shadow-lg">
+                <img
+                  src={logoUrl}
+                  alt="AVO Logistics"
+                  className="h-14 w-14 object-contain"
+                />
+              </div>
+              <div>
+                <p className="text-sm text-blue-200">AVO Logistics</p>
+                <h1 className="text-3xl font-semibold tracking-tight">Dashboard</h1>
+                <p className="text-sm text-slate-300">Übersicht aller Aktivitäten, Aufträge und Routen</p>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs uppercase tracking-wide text-slate-200">
+                Zeitraum: {rangeLabel}
+              </div>
+              <Link to={createPageUrl('Orders') + '?new=true'}>
+                <Button className="bg-white text-slate-950 hover:bg-slate-200">
+                  <Truck className="w-4 h-4 mr-2" />
+                  Neuer Auftrag
+                </Button>
+              </Link>
+            </div>
+          </div>
         </div>
-        <Link to={createPageUrl('Orders') + '?new=true'}>
-          <Button className="bg-[#1e3a5f] hover:bg-[#2d5a8a]">
-            <Truck className="w-4 h-4 mr-2" />
-            Neuer Auftrag
-          </Button>
-        </Link>
       </div>
 
       <Card className="border border-slate-200/70 bg-white shadow-sm">
@@ -205,28 +240,28 @@ export default function Dashboard() {
           title="Aufträge im Zeitraum" 
           value={stats.rangeOrders} 
           icon={Truck}
-          color="bg-blue-500"
+          color="bg-blue-600"
           subtext={`${stats.activeOrders} aktiv`}
         />
         <StatCard 
           title="Aktive Fahrer im Zeitraum" 
           value={stats.activeDriversRange} 
           icon={Users}
-          color="bg-green-500"
+          color="bg-slate-900"
           subtext={`${stats.activeDrivers} Fahrer verfügbar`}
         />
         <StatCard 
           title="Top-Kunde heute" 
           value={stats.topCustomerCount} 
           icon={TrendingUp}
-          color="bg-purple-500"
+          color="bg-blue-500"
           subtext={stats.topCustomer ? (stats.topCustomer.company_name || `${stats.topCustomer.first_name} ${stats.topCustomer.last_name}`) : 'Noch keine Aufträge'}
         />
         <StatCard 
           title="Abgeschlossen" 
           value={stats.completedOrders} 
           icon={CheckCircle2}
-          color="bg-orange-500"
+          color="bg-slate-700"
           subtext="Gesamt"
         />
       </div>
@@ -336,17 +371,17 @@ export default function Dashboard() {
         <div className="space-y-6">
           {/* Pending Orders Alert */}
           {stats.pendingOrders > 0 && (
-          <Card className="border-orange-200 bg-orange-50">
+          <Card className="border-blue-200 bg-blue-50">
             <CardContent className="p-4">
                 <div className="flex items-start gap-3">
-                  <AlertCircle className="w-5 h-5 text-orange-600 mt-0.5" />
+                  <AlertCircle className="w-5 h-5 text-blue-700 mt-0.5" />
                   <div>
-                    <p className="font-medium text-orange-900">{stats.pendingOrders} Auftrag{stats.pendingOrders > 1 ? 'e' : ''} warten</p>
-                    <p className="text-sm text-orange-700 mt-1">
+                    <p className="font-medium text-slate-900">{stats.pendingOrders} Auftrag{stats.pendingOrders > 1 ? 'e' : ''} warten</p>
+                    <p className="text-sm text-slate-700 mt-1">
                       Aufträge ohne Fahrerzuweisung
                     </p>
                     <Link to={createPageUrl('Orders') + '?status=new'}>
-                      <Button size="sm" variant="outline" className="mt-3 border-orange-300 text-orange-700 hover:bg-orange-100">
+                      <Button size="sm" variant="outline" className="mt-3 border-blue-200 text-blue-700 hover:bg-blue-100">
                         Jetzt zuweisen
                       </Button>
                     </Link>
