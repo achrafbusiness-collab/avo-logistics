@@ -55,7 +55,8 @@ const normalizeAddress = (order, type) => {
   if (!order) return "";
   const address = type === "pickup" ? order.pickup_address : order.dropoff_address;
   const city = type === "pickup" ? order.pickup_city : order.dropoff_city;
-  return [address, city].filter(Boolean).join(", ").trim();
+  const postal = type === "pickup" ? order.pickup_postal_code : order.dropoff_postal_code;
+  return [address, postal, city].filter(Boolean).join(", ").trim();
 };
 
 const coordKey = (coords) => coords.map((value) => value.toFixed(5)).join(",");

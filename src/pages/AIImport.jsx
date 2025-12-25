@@ -66,10 +66,12 @@ export default function AIImport() {
     vin: data?.vin || '',
     pickup_address: data?.pickup_address || '',
     pickup_city: data?.pickup_city || '',
+    pickup_postal_code: data?.pickup_postal_code || '',
     pickup_date: data?.pickup_date || '',
     pickup_time: data?.pickup_time || '',
     dropoff_address: data?.dropoff_address || '',
     dropoff_city: data?.dropoff_city || '',
+    dropoff_postal_code: data?.dropoff_postal_code || '',
     dropoff_date: data?.dropoff_date || '',
     dropoff_time: data?.dropoff_time || '',
     customer_name: data?.customer_name || '',
@@ -105,10 +107,12 @@ Extrahiere diese Felder. Wenn ein Feld nicht gefunden wird, gib "" (leerer Strin
 - vin (FIN/VIN/Fahrzeugnummer)
 - pickup_address (Abholadresse vollständig)
 - pickup_city (Abholort/Stadt)
+- pickup_postal_code (Postleitzahl Abholung)
 - pickup_date (YYYY-MM-DD)
 - pickup_time (HH:MM)
 - dropoff_address (Lieferadresse vollständig)
 - dropoff_city (Zielort/Stadt)
+- dropoff_postal_code (Postleitzahl Ziel)
 - dropoff_date (YYYY-MM-DD)
 - dropoff_time (HH:MM)
 - customer_name
@@ -135,10 +139,12 @@ Gib ausschließlich die strukturierten Daten zurück.`,
                   vin: { type: ["string", "null"] },
                   pickup_address: { type: ["string", "null"] },
                   pickup_city: { type: ["string", "null"] },
+                  pickup_postal_code: { type: ["string", "null"] },
                   pickup_date: { type: ["string", "null"] },
                   pickup_time: { type: ["string", "null"] },
                   dropoff_address: { type: ["string", "null"] },
                   dropoff_city: { type: ["string", "null"] },
+                  dropoff_postal_code: { type: ["string", "null"] },
                   dropoff_date: { type: ["string", "null"] },
                   dropoff_time: { type: ["string", "null"] },
                   customer_name: { type: ["string", "null"] },
@@ -155,10 +161,12 @@ Gib ausschließlich die strukturierten Daten zurück.`,
                   "vin",
                   "pickup_address",
                   "pickup_city",
+                  "pickup_postal_code",
                   "pickup_date",
                   "pickup_time",
                   "dropoff_address",
                   "dropoff_city",
+                  "dropoff_postal_code",
                   "dropoff_date",
                   "dropoff_time",
                   "customer_name",
@@ -205,6 +213,10 @@ Gib ausschließlich die strukturierten Daten zurück.`,
 
   const handleConfirm = async () => {
     if (!currentOrder) return;
+    if (!currentOrder.pickup_postal_code || !currentOrder.dropoff_postal_code) {
+      setError('Bitte Abhol- und Ziel-PLZ ausfuellen.');
+      return;
+    }
     const dataToSave = {
       ...currentOrder,
       price: currentOrder.price ? parseFloat(currentOrder.price) : null,
@@ -342,6 +354,12 @@ Gib ausschließlich die strukturierten Daten zurück.`,
               </div>
             </div>
           )}
+          {error && (
+            <div className="p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-800">
+              <AlertCircle className="w-5 h-5" />
+              {error}
+            </div>
+          )}
 
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-[260px_1fr]">
             <Card className="h-fit">
@@ -470,10 +488,17 @@ Gib ausschließlich die strukturierten Daten zurück.`,
                         />
                       </div>
                       <div>
-                        <Label>Abholort</Label>
+                        <Label>Abholort *</Label>
                         <Input 
                           value={currentOrder.pickup_city || ''} 
                           onChange={(e) => updateExtractedData('pickup_city', e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label>PLZ Abholung *</Label>
+                        <Input 
+                          value={currentOrder.pickup_postal_code || ''} 
+                          onChange={(e) => updateExtractedData('pickup_postal_code', e.target.value)}
                         />
                       </div>
                       <div>
@@ -510,10 +535,17 @@ Gib ausschließlich die strukturierten Daten zurück.`,
                         />
                       </div>
                       <div>
-                        <Label>Zielort</Label>
+                        <Label>Zielort *</Label>
                         <Input 
                           value={currentOrder.dropoff_city || ''} 
                           onChange={(e) => updateExtractedData('dropoff_city', e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label>PLZ Ziel *</Label>
+                        <Input 
+                          value={currentOrder.dropoff_postal_code || ''} 
+                          onChange={(e) => updateExtractedData('dropoff_postal_code', e.target.value)}
                         />
                       </div>
                       <div>

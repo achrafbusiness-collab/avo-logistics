@@ -187,10 +187,12 @@ create table if not exists public.orders (
   vin text,
   pickup_address text,
   pickup_city text,
+  pickup_postal_code text,
   pickup_date date,
   pickup_time text,
   dropoff_address text,
   dropoff_city text,
+  dropoff_postal_code text,
   dropoff_date date,
   dropoff_time text,
   notes text,
@@ -304,6 +306,14 @@ for all using (auth.uid() is not null) with check (auth.uid() is not null);
 
 create policy "App settings full access" on public.app_settings
 for all using (auth.uid() is not null) with check (auth.uid() is not null);
+```
+
+Wenn Tabellen schon existieren, füge die PLZ-Spalten hinzu:
+
+```sql
+alter table public.orders
+add column if not exists pickup_postal_code text,
+add column if not exists dropoff_postal_code text;
 ```
 
 ## 6) Storage Buckets (Dokumente & Fotos)

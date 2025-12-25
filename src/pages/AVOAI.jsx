@@ -94,6 +94,9 @@ export default function AVOAI() {
             order_number: action.data.order_number || generateOrderNumber(),
             status: action.data.status || 'new'
           };
+          if (!orderData.pickup_postal_code || !orderData.dropoff_postal_code) {
+            return '❌ Bitte Abhol- und Ziel-PLZ angeben, damit der Auftrag korrekt gespeichert wird.';
+          }
           await createOrderMutation.mutateAsync(orderData);
           return `✅ Auftrag ${orderData.order_number} wurde erfolgreich erstellt.`;
 
@@ -213,7 +216,7 @@ ${orders.slice(0, 5).map(o => `- ${o.order_number}: ${o.vehicle_brand} ${o.vehic
 VERFÜGBARE AKTIONEN:
 Du kannst folgende Aktionen durchführen. Wenn der Nutzer eine Aktion möchte, antworte MIT DER AKTION + ERKLÄRUNG:
 
-1. Auftrag erstellen: Antworte mit JSON: {"action":"create_order","data":{"license_plate":"...","vehicle_brand":"...","vehicle_model":"...","pickup_address":"...","dropoff_address":"..."}}
+1. Auftrag erstellen: Antworte mit JSON: {"action":"create_order","data":{"license_plate":"...","vehicle_brand":"...","vehicle_model":"...","pickup_address":"...","pickup_postal_code":"...","pickup_city":"...","dropoff_address":"...","dropoff_postal_code":"...","dropoff_city":"..."}}
 
 2. Fahrer zuweisen: {"action":"assign_driver","order_number":"EU-OA-XXX","driver_name":"Max Mustermann"}
 

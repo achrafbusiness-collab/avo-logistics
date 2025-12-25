@@ -129,7 +129,9 @@ export default function OrderDetails({ order, checklists = [], onEdit, onDelete,
                     Abholung
                   </h4>
                   <p className="font-medium">{order.pickup_address}</p>
-                  <p className="text-sm text-gray-600">{order.pickup_city}</p>
+                  <p className="text-sm text-gray-600">
+                    {[order.pickup_postal_code, order.pickup_city].filter(Boolean).join(' ')}
+                  </p>
                   {pickupDate && (
                     <p className="text-sm text-gray-500 mt-2 flex items-center gap-1">
                       <Calendar className="w-4 h-4" />
@@ -148,7 +150,9 @@ export default function OrderDetails({ order, checklists = [], onEdit, onDelete,
                     Abgabe
                   </h4>
                   <p className="font-medium">{order.dropoff_address}</p>
-                  <p className="text-sm text-gray-600">{order.dropoff_city}</p>
+                  <p className="text-sm text-gray-600">
+                    {[order.dropoff_postal_code, order.dropoff_city].filter(Boolean).join(' ')}
+                  </p>
                   {dropoffDate && (
                     <p className="text-sm text-gray-500 mt-2 flex items-center gap-1">
                       <Calendar className="w-4 h-4" />

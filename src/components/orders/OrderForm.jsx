@@ -46,10 +46,12 @@ export default function OrderForm({ order, onSave, onCancel }) {
     vin: '',
     pickup_address: '',
     pickup_city: '',
+    pickup_postal_code: '',
     pickup_date: '',
     pickup_time: '',
     dropoff_address: '',
     dropoff_city: '',
+    dropoff_postal_code: '',
     dropoff_date: '',
     dropoff_time: '',
     assigned_driver_id: '',
@@ -283,16 +285,26 @@ export default function OrderForm({ order, onSave, onCancel }) {
                 <Input 
                   value={formData.pickup_address}
                   onChange={(e) => handleChange('pickup_address', e.target.value)}
-                  placeholder="Straße, Hausnummer, PLZ"
+                  placeholder="Straße, Hausnummer"
                   required
                 />
               </div>
               <div>
-                <Label>Stadt</Label>
+                <Label>Stadt *</Label>
                 <Input 
                   value={formData.pickup_city}
                   onChange={(e) => handleChange('pickup_city', e.target.value)}
                   placeholder="Stadt"
+                  required
+                />
+              </div>
+              <div>
+                <Label>PLZ *</Label>
+                <Input 
+                  value={formData.pickup_postal_code}
+                  onChange={(e) => handleChange('pickup_postal_code', e.target.value)}
+                  placeholder="Postleitzahl"
+                  required
                 />
               </div>
               <div className="grid grid-cols-2 gap-2">
@@ -326,16 +338,26 @@ export default function OrderForm({ order, onSave, onCancel }) {
                 <Input 
                   value={formData.dropoff_address}
                   onChange={(e) => handleChange('dropoff_address', e.target.value)}
-                  placeholder="Straße, Hausnummer, PLZ"
+                  placeholder="Straße, Hausnummer"
                   required
                 />
               </div>
               <div>
-                <Label>Stadt</Label>
+                <Label>Stadt *</Label>
                 <Input 
                   value={formData.dropoff_city}
                   onChange={(e) => handleChange('dropoff_city', e.target.value)}
                   placeholder="Stadt"
+                  required
+                />
+              </div>
+              <div>
+                <Label>PLZ *</Label>
+                <Input 
+                  value={formData.dropoff_postal_code}
+                  onChange={(e) => handleChange('dropoff_postal_code', e.target.value)}
+                  placeholder="Postleitzahl"
+                  required
                 />
               </div>
               <div className="grid grid-cols-2 gap-2">

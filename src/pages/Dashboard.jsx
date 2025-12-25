@@ -113,8 +113,14 @@ export default function Dashboard() {
 
   const mapOrders = useMemo(() => {
     return rangeOrders.filter((order) => {
-      const pickup = [order.pickup_address, order.pickup_city].filter(Boolean).join(", ").trim();
-      const dropoff = [order.dropoff_address, order.dropoff_city].filter(Boolean).join(", ").trim();
+      const pickup = [order.pickup_address, order.pickup_postal_code, order.pickup_city]
+        .filter(Boolean)
+        .join(", ")
+        .trim();
+      const dropoff = [order.dropoff_address, order.dropoff_postal_code, order.dropoff_city]
+        .filter(Boolean)
+        .join(", ")
+        .trim();
       return pickup && dropoff;
     });
   }, [rangeOrders]);

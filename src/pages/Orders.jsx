@@ -143,6 +143,8 @@ export default function Orders() {
       order.order_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order.license_plate?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order.vehicle_brand?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      order.pickup_postal_code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      order.dropoff_postal_code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order.assigned_driver_name?.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
