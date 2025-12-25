@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import AddressAutocomplete from "@/components/ui/address-autocomplete";
 import {
   Select,
   SelectContent,
@@ -207,9 +208,14 @@ export default function DriverForm({ driver, onSave, onCancel }) {
               </div>
               <div className="md:col-span-2">
                 <Label>Adresse</Label>
-                <Input 
+                <AddressAutocomplete
                   value={formData.address}
-                  onChange={(e) => handleChange('address', e.target.value)}
+                  onChange={(value) => handleChange('address', value)}
+                  onSelect={({ address, city, postalCode }) => {
+                    handleChange('address', address);
+                    if (city) handleChange('city', city);
+                    if (postalCode) handleChange('postal_code', postalCode);
+                  }}
                   placeholder="Straße und Hausnummer"
                 />
               </div>

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import AddressAutocomplete from "@/components/ui/address-autocomplete";
 import {
   Select,
   SelectContent,
@@ -482,9 +483,15 @@ Gib ausschließlich die strukturierten Daten zurück.`,
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="md:col-span-2">
                         <Label>Abholadresse *</Label>
-                        <Input 
-                          value={currentOrder.pickup_address || ''} 
-                          onChange={(e) => updateExtractedData('pickup_address', e.target.value)}
+                        <AddressAutocomplete
+                          value={currentOrder.pickup_address || ''}
+                          onChange={(value) => updateExtractedData('pickup_address', value)}
+                          onSelect={({ address, city, postalCode }) => {
+                            updateExtractedData('pickup_address', address);
+                            if (city) updateExtractedData('pickup_city', city);
+                            if (postalCode) updateExtractedData('pickup_postal_code', postalCode);
+                          }}
+                          placeholder="Straße, Hausnummer"
                         />
                       </div>
                       <div>
@@ -529,9 +536,15 @@ Gib ausschließlich die strukturierten Daten zurück.`,
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="md:col-span-2">
                         <Label>Zieladresse *</Label>
-                        <Input 
-                          value={currentOrder.dropoff_address || ''} 
-                          onChange={(e) => updateExtractedData('dropoff_address', e.target.value)}
+                        <AddressAutocomplete
+                          value={currentOrder.dropoff_address || ''}
+                          onChange={(value) => updateExtractedData('dropoff_address', value)}
+                          onSelect={({ address, city, postalCode }) => {
+                            updateExtractedData('dropoff_address', address);
+                            if (city) updateExtractedData('dropoff_city', city);
+                            if (postalCode) updateExtractedData('dropoff_postal_code', postalCode);
+                          }}
+                          placeholder="Straße, Hausnummer"
                         />
                       </div>
                       <div>

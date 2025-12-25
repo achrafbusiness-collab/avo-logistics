@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import AddressAutocomplete from "@/components/ui/address-autocomplete";
 import {
   Select,
   SelectContent,
@@ -282,9 +283,14 @@ export default function OrderForm({ order, onSave, onCancel }) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="md:col-span-2">
                 <Label>Adresse *</Label>
-                <Input 
+                <AddressAutocomplete
                   value={formData.pickup_address}
-                  onChange={(e) => handleChange('pickup_address', e.target.value)}
+                  onChange={(value) => handleChange('pickup_address', value)}
+                  onSelect={({ address, city, postalCode }) => {
+                    handleChange('pickup_address', address);
+                    if (city) handleChange('pickup_city', city);
+                    if (postalCode) handleChange('pickup_postal_code', postalCode);
+                  }}
                   placeholder="Straße, Hausnummer"
                   required
                 />
@@ -335,9 +341,14 @@ export default function OrderForm({ order, onSave, onCancel }) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="md:col-span-2">
                 <Label>Adresse *</Label>
-                <Input 
+                <AddressAutocomplete
                   value={formData.dropoff_address}
-                  onChange={(e) => handleChange('dropoff_address', e.target.value)}
+                  onChange={(value) => handleChange('dropoff_address', value)}
+                  onSelect={({ address, city, postalCode }) => {
+                    handleChange('dropoff_address', address);
+                    if (city) handleChange('dropoff_city', city);
+                    if (postalCode) handleChange('dropoff_postal_code', postalCode);
+                  }}
                   placeholder="Straße, Hausnummer"
                   required
                 />

@@ -5,6 +5,7 @@ import { createPageUrl } from '@/utils';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import AddressAutocomplete from "@/components/ui/address-autocomplete";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -304,9 +305,18 @@ export default function Customers() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="md:col-span-2">
                     <Label>Straße</Label>
-                    <Input 
+                    <AddressAutocomplete
                       value={formData.address}
-                      onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
+                      onChange={(value) => setFormData(prev => ({ ...prev, address: value }))}
+                      onSelect={({ address, city, postalCode }) => {
+                        setFormData(prev => ({
+                          ...prev,
+                          address,
+                          city: city || prev.city,
+                          postal_code: postalCode || prev.postal_code,
+                        }));
+                      }}
+                      placeholder="Straße, Hausnummer"
                     />
                   </div>
                   <div>
