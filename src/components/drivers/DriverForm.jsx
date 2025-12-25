@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { appClient } from '@/api/appClient';
+import { supabase } from '@/lib/supabaseClient';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
 import { 
   User, 
   Save,
@@ -61,9 +63,16 @@ export default function DriverForm({ driver, onSave, onCancel }) {
 
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState({});
+  const [createLogin, setCreateLogin] = useState(!driver);
+  const [loginResult, setLoginResult] = useState(null);
+  const [loginError, setLoginError] = useState('');
+  const [loginCreating, setLoginCreating] = useState(false);
 
   useEffect(() => {
     setFormData(buildFormData(driver));
+    setCreateLogin(!driver);
+    setLoginResult(null);
+    setLoginError('');
   }, [driver]);
 
   const handleChange = (field, value) => {
@@ -86,11 +95,50 @@ export default function DriverForm({ driver, onSave, onCancel }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
+    setLoginError('');
+    setLoginResult(null);
     try {
       await onSave(formData);
+      if (!driver && createLogin) {
+        setLoginCreating(true);
+        const token = await getAuthToken();
+        if (!token) {
+          throw new Error('Nicht angemeldet.');
+        }
+        const fullName = `${formData.first_name || ''} ${formData.last_name || ''}`.trim();
+        const response = await fetch('/api/admin/create-driver-user', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            email: formData.email,
+            loginUrl: `${window.location.origin}/driver`,
+            profile: {
+              full_name: fullName,
+              phone: formData.phone,
+              permissions: {},
+            },
+          }),
+        });
+        const payload = await response.json();
+        if (!response.ok || !payload?.ok) {
+          throw new Error(payload?.error || 'Login konnte nicht erstellt werden.');
+        }
+        setLoginResult(payload.data || null);
+      }
+    } catch (error) {
+      setLoginError(error?.message || 'Speichern fehlgeschlagen.');
     } finally {
       setSaving(false);
+      setLoginCreating(false);
     }
+  };
+
+  const getAuthToken = async () => {
+    const { data } = await supabase.auth.getSession();
+    return data?.session?.access_token || null;
   };
 
   const FileUploadField = ({ label, field, icon: Icon }) => (
@@ -266,6 +314,53 @@ export default function DriverForm({ driver, onSave, onCancel }) {
               </div>
             </div>
           </div>
+
+          {!driver && (
+            <>
+              <Separator />
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-semibold text-[#1e3a5f]">Login-Zugang erstellen</h3>
+                    <p className="text-sm text-gray-500">
+                      Erzeugt ein temporäres Passwort und sendet es an den Fahrer.
+                    </p>
+                  </div>
+                  <Switch checked={createLogin} onCheckedChange={setCreateLogin} />
+                </div>
+                {loginError && (
+                  <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                    {loginError}
+                  </div>
+                )}
+                {loginResult && (
+                  <div className="space-y-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+                    <p>Login-Zugang wurde erstellt.</p>
+                    <div className="flex items-center gap-2">
+                      <Input value={loginResult.tempPassword || ''} readOnly />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => navigator.clipboard?.writeText(loginResult.tempPassword || '')}
+                      >
+                        Kopieren
+                      </Button>
+                    </div>
+                    {!loginResult.emailSent && (
+                      <p className="text-xs text-emerald-700">
+                        E-Mail konnte nicht gesendet werden. Bitte Passwort manuell weitergeben.
+                      </p>
+                    )}
+                  </div>
+                )}
+                {loginCreating && (
+                  <div className="text-sm text-gray-500">
+                    Login-Daten werden erstellt…
+                  </div>
+                )}
+              </div>
+            </>
+          )}
 
           <Separator />
 
