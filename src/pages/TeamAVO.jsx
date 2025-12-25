@@ -15,11 +15,22 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   UserPlus,
   Users,
   Loader2,
   CheckCircle2,
   AlertCircle,
+  Trash2,
 } from "lucide-react";
 
 const roles = [
@@ -83,6 +94,7 @@ export default function TeamAVO() {
   const [inviteRole, setInviteRole] = useState("minijobber");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
   const selectedProfile = useMemo(
     () => profiles.find((profile) => profile.id === selectedId),
@@ -279,6 +291,41 @@ export default function TeamAVO() {
       await refreshProfiles();
     } catch (err) {
       setError(err?.message || "Speichern fehlgeschlagen.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!selectedProfile) return;
+    setSaving(true);
+    setError("");
+    setMessage("");
+    try {
+      if (selectedProfile.id === currentUser?.id) {
+        throw new Error("Du kannst dein eigenes Konto nicht löschen.");
+      }
+      const token = await getAuthToken();
+      if (!token) {
+        throw new Error("Nicht angemeldet.");
+      }
+      const response = await fetch("/api/admin/delete-user", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ id: selectedProfile.id }),
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload?.ok) {
+        throw new Error(payload?.error || "Loeschen fehlgeschlagen.");
+      }
+      setMessage("Profil wurde geloescht.");
+      setDeleteConfirmOpen(false);
+      await refreshProfiles();
+    } catch (err) {
+      setError(err?.message || "Loeschen fehlgeschlagen.");
     } finally {
       setSaving(false);
     }
@@ -512,7 +559,17 @@ export default function TeamAVO() {
             </CardContent>
           </Card>
 
-          <div className="flex justify-end gap-3">
+          <div className="flex flex-wrap justify-between gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              className="border-red-200 text-red-600 hover:bg-red-50"
+              disabled={!selectedProfile || selectedProfile?.id === currentUser?.id}
+              onClick={() => setDeleteConfirmOpen(true)}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Konto loeschen
+            </Button>
             <Button
               onClick={handleSave}
               disabled={saving || !selectedProfile}
@@ -524,6 +581,26 @@ export default function TeamAVO() {
           </div>
         </div>
       </div>
+
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Konto wirklich loeschen?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Das Profil und der Login-Zugang werden dauerhaft entfernt. Diese Aktion kann nicht rueckgaengig gemacht werden.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700"
+              onClick={handleDelete}
+            >
+              Endgueltig loeschen
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
