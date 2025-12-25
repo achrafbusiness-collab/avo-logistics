@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
 
-const MANDATORY_CHECKS = [
+export const MANDATORY_CHECKS = [
   { id: 'vin_checked', label: 'Fahrgestellnummer (FIN) geprüft', instruction: 'Bitte prüfen Sie jetzt die Fahrgestellnummer am Fahrzeug.' },
   { id: 'odometer_correct', label: 'Kilometerstand korrekt erfasst', instruction: 'Bitte geben Sie den aktuellen Kilometerstand ein.' },
   { id: 'fuel_correct', label: 'Tankinhalt korrekt angegeben', instruction: 'Bitte wählen Sie den aktuellen Tankstand aus.' },
@@ -18,7 +18,7 @@ const MANDATORY_CHECKS = [
   { id: 'signatures_obtained', label: 'Unterschriften eingeholt', instruction: 'Bitte holen Sie die Unterschrift des Kunden ein.' },
 ];
 
-export default function MandatoryChecklist({ checks = {}, onChange, onComplete }) {
+export default function MandatoryChecklist({ checks = {}, onChange, onComplete, readOnly = false }) {
   const [currentCheckIndex, setCurrentCheckIndex] = useState(0);
   
   const currentCheck = MANDATORY_CHECKS[currentCheckIndex];
@@ -27,6 +27,7 @@ export default function MandatoryChecklist({ checks = {}, onChange, onComplete }
   const allYes = MANDATORY_CHECKS.every(check => checks[check.id] === true);
 
   const handleAnswer = (answer) => {
+    if (readOnly) return;
     const newChecks = { ...checks, [currentCheck.id]: answer };
     onChange(newChecks);
     
@@ -52,7 +53,7 @@ export default function MandatoryChecklist({ checks = {}, onChange, onComplete }
   return (
     <div className="space-y-4">
       {/* Current Question */}
-      {!allAnswered && (
+      {!allAnswered && !readOnly && (
         <Card className="border-2 border-blue-500">
           <CardContent className="p-6">
             <div className="space-y-4">

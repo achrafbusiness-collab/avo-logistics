@@ -259,6 +259,7 @@ create table if not exists public.checklists (
   cleanliness_inside text,
   cleanliness_outside text,
   accessories jsonb default '{}'::jsonb,
+  mandatory_checks jsonb default '{}'::jsonb,
   damages jsonb default '[]'::jsonb,
   photos jsonb default '[]'::jsonb,
   notes text,
@@ -314,6 +315,9 @@ Wenn Tabellen schon existieren, füge die PLZ-Spalten hinzu:
 alter table public.orders
 add column if not exists pickup_postal_code text,
 add column if not exists dropoff_postal_code text;
+
+alter table public.checklists
+add column if not exists mandatory_checks jsonb default '{}'::jsonb;
 ```
 
 ## 6) Storage Buckets (Dokumente & Fotos)

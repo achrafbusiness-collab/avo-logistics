@@ -11,20 +11,33 @@ import {
 } from 'lucide-react';
 
 const PHOTO_TYPES = [
-  { id: 'tacho', label: 'Tacho / Kilometerstand', required: true },
-  { id: 'front', label: 'Front', required: true },
-  { id: 'rear', label: 'Heck', required: true },
-  { id: 'driver_side', label: 'Fahrerseite', required: true },
-  { id: 'passenger_side', label: 'Beifahrerseite', required: true },
+  { id: 'front', label: 'Fahrzeug Front', required: true },
+  { id: 'front_left', label: 'Front links', required: true },
+  { id: 'front_right', label: 'Front rechts', required: true },
+  { id: 'wheel_front_right', label: 'Felge vorne rechts', required: true },
+  { id: 'door_passenger', label: 'Beifahrertür', required: true },
+  { id: 'door_rear_right', label: 'Hintere Tür rechts', required: true },
+  { id: 'wheel_rear_right', label: 'Felge hinten rechts', required: true },
+  { id: 'rear', label: 'Fahrzeug hinten', required: true },
+  { id: 'rear_left', label: 'Heck links', required: true },
+  { id: 'wheel_rear_left', label: 'Felge hinten links', required: true },
+  { id: 'door_rear_left', label: 'Hintere Tür links', required: true },
+  { id: 'door_driver', label: 'Fahrertür', required: true },
+  { id: 'wheel_front_left', label: 'Felge vorne links', required: true },
+  { id: 'windshield', label: 'Windschutzscheibe', required: true },
   { id: 'interior_front', label: 'Innenraum vorne', required: true },
-  { id: 'interior_rear', label: 'Innenraum hinten', required: false },
-  { id: 'trunk', label: 'Kofferraum', required: false },
-  { id: 'headlights', label: 'Scheinwerfer', required: false },
+  { id: 'interior_rear', label: 'Innenraum hinten', required: true },
+  { id: 'trunk', label: 'Kofferraum', required: true },
+  { id: 'odometer', label: 'Kilometerstand', required: true },
   { id: 'damage', label: 'Schaden (optional)', required: false },
   { id: 'other', label: 'Sonstiges', required: false },
 ];
 
-export default function PhotoCapture({ photos = [], onChange }) {
+export const REQUIRED_PHOTO_IDS = PHOTO_TYPES.filter((photo) => photo.required).map(
+  (photo) => photo.id
+);
+
+export default function PhotoCapture({ photos = [], onChange, readOnly = false }) {
   const [uploading, setUploading] = useState({});
 
   const handleCapture = async (type, file) => {
@@ -126,18 +139,27 @@ export default function PhotoCapture({ photos = [], onChange }) {
                         alt={photoType.label}
                         className="w-full aspect-video object-cover rounded"
                       />
-                      <Button
-                        size="icon"
-                        variant="destructive"
-                        className="absolute top-1 right-1 w-6 h-6"
-                        onClick={() => removePhoto(photoType.id)}
-                      >
-                        <X className="w-4 h-4" />
-                      </Button>
+                      {!readOnly && (
+                        <Button
+                          size="icon"
+                          variant="destructive"
+                          className="absolute top-1 right-1 w-6 h-6"
+                          onClick={() => removePhoto(photoType.id)}
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      )}
                       <div className="absolute bottom-1 left-1 bg-green-500 text-white text-xs px-2 py-0.5 rounded flex items-center gap-1">
                         <CheckCircle2 className="w-3 h-3" />
                         OK
                       </div>
+                    </div>
+                  ) : readOnly ? (
+                    <div className="flex flex-col items-center justify-center aspect-video bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
+                      <Camera className="w-8 h-8 text-gray-300" />
+                      <span className="text-xs text-gray-400 mt-2 text-center px-2">
+                        {photoType.label}
+                      </span>
                     </div>
                   ) : (
                     <label className={`flex flex-col items-center justify-center aspect-video bg-gray-50 rounded-lg border-2 border-dashed cursor-pointer hover:bg-gray-100 transition-colors ${isUploading ? 'border-blue-300' : 'border-gray-200'}`}>
@@ -192,6 +214,13 @@ export default function PhotoCapture({ photos = [], onChange }) {
                       >
                         <X className="w-4 h-4" />
                       </Button>
+                    </div>
+                  ) : readOnly ? (
+                    <div className="flex flex-col items-center justify-center aspect-video bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
+                      <Camera className="w-8 h-8 text-gray-300" />
+                      <span className="text-xs text-gray-400 mt-2 text-center px-2">
+                        {photoType.label}
+                      </span>
                     </div>
                   ) : (
                     <label className={`flex flex-col items-center justify-center aspect-video bg-gray-50 rounded-lg border-2 border-dashed cursor-pointer hover:bg-gray-100 transition-colors ${isUploading ? 'border-blue-300' : 'border-gray-200'}`}>

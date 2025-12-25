@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { appClient } from '@/api/appClient';
 import { format } from 'date-fns';
@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import StatusBadge from '@/components/ui/StatusBadge';
+import { MANDATORY_CHECKS } from '@/components/driver/MandatoryChecklist';
 import { 
   Search, 
   Filter,
@@ -52,6 +53,18 @@ export default function Checklists() {
     queryKey: ['checklists'],
     queryFn: () => appClient.entities.Checklist.list('-created_date', 500),
   });
+
+  const { data: orders = [] } = useQuery({
+    queryKey: ['orders'],
+    queryFn: () => appClient.entities.Order.list('-created_date', 1000),
+  });
+
+  const ordersById = useMemo(() => {
+    return orders.reduce((acc, order) => {
+      acc[order.id] = order;
+      return acc;
+    }, {});
+  }, [orders]);
 
   React.useEffect(() => {
     if (urlParams.get('id')) {
@@ -85,7 +98,7 @@ export default function Checklists() {
     </div>
   );
 
-  const ChecklistDetails = ({ checklist }) => (
+  const ChecklistDetails = ({ checklist, order }) => (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between pb-4 border-b">
@@ -105,6 +118,44 @@ export default function Checklists() {
           </Button>
         </Link>
       </div>
+
+      {order && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="p-4 border rounded-lg space-y-2">
+            <h4 className="font-medium">Fahrzeug</h4>
+            <p className="text-sm text-gray-600">
+              {order.vehicle_brand} {order.vehicle_model} • {order.license_plate}
+            </p>
+            {order.vin && <p className="text-xs font-mono text-gray-500">{order.vin}</p>}
+            {order.vehicle_color && <p className="text-sm text-gray-500">Farbe: {order.vehicle_color}</p>}
+          </div>
+          <div className="p-4 border rounded-lg space-y-2">
+            <h4 className="font-medium">Kunde</h4>
+            <p className="text-sm text-gray-700">{order.customer_name || '-'}</p>
+            {order.customer_email && <p className="text-sm text-gray-500">{order.customer_email}</p>}
+            {order.customer_phone && <p className="text-sm text-gray-500">{order.customer_phone}</p>}
+          </div>
+          <div className="p-4 border rounded-lg space-y-2 md:col-span-2">
+            <h4 className="font-medium">Route</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+              <div>
+                <p className="text-gray-500">Abholung</p>
+                <p className="font-medium">{order.pickup_address}</p>
+                <p className="text-gray-600">
+                  {order.pickup_postal_code} {order.pickup_city}
+                </p>
+              </div>
+              <div>
+                <p className="text-gray-500">Abgabe</p>
+                <p className="font-medium">{order.dropoff_address}</p>
+                <p className="text-gray-600">
+                  {order.dropoff_postal_code} {order.dropoff_city}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Basic Info */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -190,6 +241,32 @@ export default function Checklists() {
         </div>
       )}
 
+      {/* Mandatory Checks */}
+      {checklist.mandatory_checks && Object.keys(checklist.mandatory_checks).length > 0 && (
+        <div className="p-4 border rounded-lg">
+          <h4 className="font-medium mb-3">Pflicht-Prüfungen</h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            {MANDATORY_CHECKS.map((check) => {
+              const value = checklist.mandatory_checks?.[check.id];
+              return (
+                <div key={check.id} className="flex items-center gap-2 text-sm">
+                  {value === true ? (
+                    <CheckCircle2 className="w-4 h-4 text-green-500" />
+                  ) : value === false ? (
+                    <XCircle className="w-4 h-4 text-red-500" />
+                  ) : (
+                    <XCircle className="w-4 h-4 text-gray-300" />
+                  )}
+                  <span className={value === false ? 'text-red-600' : 'text-gray-700'}>
+                    {check.label}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Damages */}
       {checklist.damages && checklist.damages.length > 0 && (
         <div className="p-4 border border-red-200 bg-red-50 rounded-lg">
@@ -222,19 +299,25 @@ export default function Checklists() {
             <Camera className="w-4 h-4" />
             Fotos ({checklist.photos.length})
           </h4>
-          <div className="grid grid-cols-3 md:grid-cols-4 gap-2">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {checklist.photos.map((photo, i) => (
-              <div 
-                key={i} 
-                className="aspect-square rounded-lg overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
+              <button
+                key={i}
+                type="button"
+                className="text-left"
                 onClick={() => setSelectedPhoto(photo)}
               >
-                <img 
-                  src={photo.url} 
-                  alt={photo.caption || photo.type}
-                  className="w-full h-full object-cover"
-                />
-              </div>
+                <div className="aspect-square rounded-lg overflow-hidden border hover:opacity-80 transition-opacity">
+                  <img 
+                    src={photo.url} 
+                    alt={photo.caption || photo.type}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <p className="mt-1 text-xs text-gray-600 line-clamp-2">
+                  {photo.caption || photo.type}
+                </p>
+              </button>
             ))}
           </div>
         </div>
@@ -393,7 +476,12 @@ export default function Checklists() {
           <DialogHeader>
             <DialogTitle>Protokoll Details</DialogTitle>
           </DialogHeader>
-          {selectedChecklist && <ChecklistDetails checklist={selectedChecklist} />}
+          {selectedChecklist && (
+            <ChecklistDetails
+              checklist={selectedChecklist}
+              order={ordersById[selectedChecklist.order_id]}
+            />
+          )}
         </DialogContent>
       </Dialog>
 

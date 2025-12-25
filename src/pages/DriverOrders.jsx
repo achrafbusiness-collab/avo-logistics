@@ -18,7 +18,9 @@ import {
   ArrowRight,
   Loader2,
   Play,
-  CheckCircle2
+  CheckCircle2,
+  Mail,
+  Phone
 } from 'lucide-react';
 
 export default function DriverOrders() {
@@ -58,6 +60,13 @@ export default function DriverOrders() {
     queryFn: () => appClient.entities.Checklist.filter({ driver_id: currentDriver?.id }),
     enabled: !!currentDriver,
   });
+
+  const { data: appSettingsList = [] } = useQuery({
+    queryKey: ['appSettings'],
+    queryFn: () => appClient.entities.AppSettings.list('-created_date', 1),
+  });
+
+  const appSettings = appSettingsList[0] || null;
 
   const activeOrders = allOrders.filter(o => ['assigned', 'accepted', 'pickup_started', 'in_transit', 'delivery_started'].includes(o.status));
   const completedOrders = allOrders.filter(o => o.status === 'completed');
@@ -187,6 +196,41 @@ export default function DriverOrders() {
           }
         </p>
       </div>
+
+      {appSettings && (appSettings.instructions || appSettings.support_phone || appSettings.support_email || appSettings.emergency_phone) && (
+        <Card>
+          <CardContent className="p-4 space-y-3 text-sm text-gray-600">
+            <div>
+              <p className="font-semibold text-gray-900">
+                {appSettings.company_name || 'AVO System'} – Fahrerhinweise
+              </p>
+              {appSettings.instructions && (
+                <p className="mt-1 whitespace-pre-wrap">{appSettings.instructions}</p>
+              )}
+            </div>
+            <div className="grid gap-2">
+              {appSettings.support_phone && (
+                <a href={`tel:${appSettings.support_phone}`} className="inline-flex items-center gap-2 text-blue-600">
+                  <Phone className="w-4 h-4" />
+                  Support: {appSettings.support_phone}
+                </a>
+              )}
+              {appSettings.support_email && (
+                <a href={`mailto:${appSettings.support_email}`} className="inline-flex items-center gap-2 text-blue-600">
+                  <Mail className="w-4 h-4" />
+                  {appSettings.support_email}
+                </a>
+              )}
+              {appSettings.emergency_phone && (
+                <a href={`tel:${appSettings.emergency_phone}`} className="inline-flex items-center gap-2 text-red-600">
+                  <Phone className="w-4 h-4" />
+                  Notfall: {appSettings.emergency_phone}
+                </a>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="w-full">

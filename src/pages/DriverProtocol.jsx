@@ -25,7 +25,8 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import SignaturePad from '@/components/driver/SignaturePad';
-import PhotoCapture from '@/components/driver/PhotoCapture';
+import PhotoCapture, { REQUIRED_PHOTO_IDS } from '@/components/driver/PhotoCapture';
+import MandatoryChecklist, { MANDATORY_CHECKS } from '@/components/driver/MandatoryChecklist';
 import { 
   ArrowLeft,
   Save,
@@ -52,6 +53,7 @@ export default function DriverProtocol() {
   const [currentDriver, setCurrentDriver] = useState(null);
   const [saving, setSaving] = useState(false);
   const [activeSection, setActiveSection] = useState('basic');
+  const [submitError, setSubmitError] = useState('');
 
   const [formData, setFormData] = useState({
     order_id: orderId,
@@ -77,6 +79,7 @@ export default function DriverProtocol() {
     damages: [],
     photos: [],
     notes: '',
+    mandatory_checks: {},
     signature_driver: '',
     signature_customer: '',
     customer_name: '',
@@ -122,6 +125,13 @@ export default function DriverProtocol() {
     enabled: !!orderId,
   });
 
+  const { data: appSettingsList = [] } = useQuery({
+    queryKey: ['appSettings'],
+    queryFn: () => appClient.entities.AppSettings.list('-created_date', 1),
+  });
+
+  const appSettings = appSettingsList[0] || null;
+
   const { data: existingChecklist } = useQuery({
     queryKey: ['checklist', checklistId],
     queryFn: async () => {
@@ -140,6 +150,19 @@ export default function DriverProtocol() {
       });
     }
   }, [existingChecklist]);
+
+  useEffect(() => {
+    if (!order || formData.location || existingChecklist) {
+      return;
+    }
+    const defaultLocation =
+      type === 'dropoff'
+        ? [order.dropoff_address, order.dropoff_city].filter(Boolean).join(', ')
+        : [order.pickup_address, order.pickup_city].filter(Boolean).join(', ');
+    if (defaultLocation) {
+      setFormData(prev => ({ ...prev, location: defaultLocation }));
+    }
+  }, [order, type, existingChecklist, formData.location]);
 
   const createMutation = useMutation({
     mutationFn: (data) => appClient.entities.Checklist.create(data),
@@ -193,6 +216,42 @@ export default function DriverProtocol() {
   };
 
   const handleSubmit = async () => {
+    const missingPhotoIds = REQUIRED_PHOTO_IDS.filter((id) => !formData.photos?.some((photo) => photo.type === id));
+    const missingChecks = MANDATORY_CHECKS.filter(
+      (check) => formData.mandatory_checks?.[check.id] === undefined
+    );
+    if (!formData.kilometer) {
+      setSubmitError('Bitte Kilometerstand eintragen.');
+      setActiveSection('basic');
+      return;
+    }
+    if (missingPhotoIds.length > 0) {
+      setSubmitError('Bitte alle Pflichtfotos aufnehmen.');
+      setActiveSection('photos');
+      return;
+    }
+    if (missingChecks.length > 0) {
+      setSubmitError('Bitte alle Pflichtprüfungen beantworten.');
+      setActiveSection('mandatory');
+      return;
+    }
+    if (!formData.signature_driver) {
+      setSubmitError('Bitte die Unterschrift des Fahrers erfassen.');
+      setActiveSection('notes');
+      return;
+    }
+    if (!formData.signature_customer) {
+      setSubmitError('Bitte die Unterschrift des Kunden erfassen.');
+      setActiveSection('notes');
+      return;
+    }
+    if (!formData.customer_name) {
+      setSubmitError('Bitte den Namen des Kunden eintragen.');
+      setActiveSection('notes');
+      return;
+    }
+
+    setSubmitError('');
     setSaving(true);
     try {
       const dataToSave = {
@@ -250,6 +309,19 @@ export default function DriverProtocol() {
       </div>
 
       <div className="p-4 space-y-4">
+        {submitError && (
+          <div className="p-3 rounded-lg border border-red-200 bg-red-50 text-red-700 text-sm">
+            {submitError}
+          </div>
+        )}
+        {appSettings && appSettings.instructions && (
+          <Card>
+            <CardContent className="p-4 text-sm text-gray-600 whitespace-pre-wrap">
+              <span className="block font-semibold text-gray-900 mb-1">Hinweise für Fahrer</span>
+              {appSettings.instructions}
+            </CardContent>
+          </Card>
+        )}
         <Accordion type="single" value={activeSection} onValueChange={setActiveSection} collapsible>
           {/* Basic Info */}
           <AccordionItem value="basic">
@@ -389,6 +461,24 @@ export default function DriverProtocol() {
             </AccordionContent>
           </AccordionItem>
 
+          {/* Mandatory Checks */}
+          <AccordionItem value="mandatory">
+            <AccordionTrigger className="px-4 bg-white rounded-lg border">
+              <div className="flex items-center gap-3">
+                <ClipboardList className="w-5 h-5 text-gray-600" />
+                <span>Pflicht-Prüfungen</span>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent className="pt-4">
+              <MandatoryChecklist
+                checks={formData.mandatory_checks || {}}
+                onChange={(checks) => handleChange('mandatory_checks', checks)}
+                onComplete={() => setActiveSection('photos')}
+                readOnly={isViewOnly}
+              />
+            </AccordionContent>
+          </AccordionItem>
+
           {/* Photos */}
           <AccordionItem value="photos">
             <AccordionTrigger className="px-4 bg-white rounded-lg border">
@@ -401,6 +491,7 @@ export default function DriverProtocol() {
               <PhotoCapture 
                 photos={formData.photos}
                 onChange={(photos) => handleChange('photos', photos)}
+                readOnly={isViewOnly}
               />
             </AccordionContent>
           </AccordionItem>
@@ -518,6 +609,12 @@ export default function DriverProtocol() {
                       disabled={isViewOnly}
                     />
                   </div>
+                  {appSettings && (appSettings.legal_text || appSettings.delivery_legal_text) && (
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+                      {(type === 'pickup' ? appSettings.legal_text : appSettings.delivery_legal_text) ||
+                        appSettings.legal_text}
+                    </div>
+                  )}
 
                   {!isViewOnly ? (
                     <>
