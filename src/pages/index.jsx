@@ -25,6 +25,7 @@ import AIImport from "./AIImport";
 import AVOAI from "./AVOAI";
 
 import Login from "./Login";
+import DriverAccess from "./DriverAccess";
 import ResetPassword from "./ResetPassword";
 import TeamAVO from "./TeamAVO";
 import AccessDenied from "./AccessDenied";
@@ -84,6 +85,7 @@ function PagesContent() {
     const normalizedPath = location.pathname.toLowerCase();
     const isLoginRoute = normalizedPath === '/login';
     const isResetRoute = normalizedPath === '/reset-password';
+    const isDriverAccessRoute = normalizedPath === '/driver';
     const currentPage = _getCurrentPage(location.pathname);
     const [currentUser, setCurrentUser] = useState(null);
     const [authChecked, setAuthChecked] = useState(false);
@@ -107,10 +109,11 @@ function PagesContent() {
         return null;
     }
 
-    if (isLoginRoute || isResetRoute) {
+    if (isLoginRoute || isResetRoute || isDriverAccessRoute) {
         return (
             <Routes>
                 <Route path="/login" element={<Login />} />
+                <Route path="/driver" element={<DriverAccess />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="*" element={<Navigate to="/login" replace />} />
             </Routes>

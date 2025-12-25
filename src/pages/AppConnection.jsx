@@ -23,7 +23,7 @@ export default function AppConnection() {
   const queryClient = useQueryClient();
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
   const driverUrl = baseUrl ? `${baseUrl}/DriverOrders` : '';
-  const profileUrl = baseUrl ? `${baseUrl}/avo-driver.mobileconfig` : '';
+  const driverLoginUrl = baseUrl ? `${baseUrl}/driver` : '';
   const [settings, setSettings] = useState({
     company_name: 'AVO Logistics',
     support_phone: '',
@@ -308,52 +308,24 @@ export default function AppConnection() {
           </div>
 
           <div className="p-4 bg-indigo-50 rounded-lg border border-indigo-200">
-            <h4 className="font-semibold text-indigo-900 mb-2">🍏 iOS Profil installieren (Web-Clip)</h4>
+            <h4 className="font-semibold text-indigo-900 mb-2">🔐 Fahrer-Login Seite</h4>
             <p className="text-sm text-indigo-800 mb-3">
-              Das Profil legt eine Verknuepfung auf dem Home-Bildschirm an. Keine App-Store Installation.
+              Fahrer melden sich hier an und gelangen direkt zur Fahrer-App.
             </p>
-            <div className="flex flex-col gap-2">
-              <a
-                href="/avo-driver.mobileconfig"
-                className="inline-flex items-center gap-2 text-indigo-700 underline"
-              >
-                Profil herunterladen
-              </a>
-              {profileUrl && <p className="text-xs text-indigo-700">{profileUrl}</p>}
-            </div>
-            <ol className="text-sm text-indigo-800 mt-3 ml-4 list-decimal space-y-1">
-              <li>Profil herunterladen</li>
-              <li>Einstellungen oeffnen → "Profil geladen"</li>
-              <li>Installieren und vertrauen</li>
-              <li>Die App erscheint auf dem Home-Bildschirm</li>
-            </ol>
+            {driverLoginUrl && (
+              <div className="flex flex-col gap-2">
+                <Input value={driverLoginUrl} readOnly />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => navigator.clipboard?.writeText(driverLoginUrl)}
+                >
+                  Login-Link kopieren
+                </Button>
+              </div>
+            )}
           </div>
 
-          <div className="p-4 bg-green-50 rounded-lg border border-green-200">
-            <h4 className="font-semibold text-green-900 mb-3">📲 Schnellzugriff einrichten (iOS)</h4>
-            <ol className="space-y-2 text-sm text-green-800">
-              <li>1. App-Link in Safari öffnen</li>
-              <li>2. Auf "Teilen" tippen (unten)</li>
-              <li>3. "Zum Home-Bildschirm" wählen</li>
-              <li>4. "Hinzufügen" bestätigen</li>
-            </ol>
-          </div>
-
-          <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
-            <h4 className="font-semibold text-purple-900 mb-3">📲 Schnellzugriff einrichten (Android)</h4>
-            <ol className="space-y-2 text-sm text-purple-800">
-              <li>1. App-Link in Chrome öffnen</li>
-              <li>2. Menü (⋮) oben rechts öffnen</li>
-              <li>3. "Zum Startbildschirm hinzufügen"</li>
-              <li>4. Bestätigen</li>
-            </ol>
-          </div>
-
-          <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-            <p className="text-sm text-gray-700">
-              <strong>Hinweis:</strong> Die App funktioniert vollständig im Browser. Der Schnellzugriff vom Home-Bildschirm ist optional für schnelleren Zugriff.
-            </p>
-          </div>
         </CardContent>
       </Card>
 
