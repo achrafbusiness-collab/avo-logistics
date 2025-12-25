@@ -21,6 +21,9 @@ import {
 
 export default function AppConnection() {
   const queryClient = useQueryClient();
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+  const driverUrl = baseUrl ? `${baseUrl}/DriverOrders` : '';
+  const profileUrl = baseUrl ? `${baseUrl}/avo-driver.mobileconfig` : '';
   const [settings, setSettings] = useState({
     company_name: 'AVO Logistics',
     support_phone: '',
@@ -287,9 +290,43 @@ export default function AppConnection() {
             <h4 className="font-semibold text-blue-900 mb-2">📱 App-Link für Fahrer</h4>
             <p className="text-sm text-blue-800 mb-3">
               Verwenden Sie die URL Ihrer eigenen Installation. Fuer eine eigene Domain wie
-              "app.avo-logistics.de" registrieren Sie die Domain und verknuepfen Sie diese
+              "app.avo-logistics.app" registrieren Sie die Domain und verknuepfen Sie diese
               mit Ihrem Hosting-Anbieter.
             </p>
+            {driverUrl && (
+              <div className="flex flex-col gap-2">
+                <Input value={driverUrl} readOnly />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => navigator.clipboard?.writeText(driverUrl)}
+                >
+                  Link kopieren
+                </Button>
+              </div>
+            )}
+          </div>
+
+          <div className="p-4 bg-indigo-50 rounded-lg border border-indigo-200">
+            <h4 className="font-semibold text-indigo-900 mb-2">🍏 iOS Profil installieren (Web-Clip)</h4>
+            <p className="text-sm text-indigo-800 mb-3">
+              Das Profil legt eine Verknuepfung auf dem Home-Bildschirm an. Keine App-Store Installation.
+            </p>
+            <div className="flex flex-col gap-2">
+              <a
+                href="/avo-driver.mobileconfig"
+                className="inline-flex items-center gap-2 text-indigo-700 underline"
+              >
+                Profil herunterladen
+              </a>
+              {profileUrl && <p className="text-xs text-indigo-700">{profileUrl}</p>}
+            </div>
+            <ol className="text-sm text-indigo-800 mt-3 ml-4 list-decimal space-y-1">
+              <li>Profil herunterladen</li>
+              <li>Einstellungen oeffnen → "Profil geladen"</li>
+              <li>Installieren und vertrauen</li>
+              <li>Die App erscheint auf dem Home-Bildschirm</li>
+            </ol>
           </div>
 
           <div className="p-4 bg-green-50 rounded-lg border border-green-200">
