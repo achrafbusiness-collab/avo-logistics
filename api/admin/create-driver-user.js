@@ -33,15 +33,6 @@ const getBearerToken = (req) => {
 
 const supabaseAdmin = createClient(supabaseUrl || "", serviceRoleKey || "");
 
-const generatePassword = (length = 12) => {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%";
-  let result = "";
-  for (let i = 0; i < length; i += 1) {
-    result += chars[Math.floor(Math.random() * chars.length)];
-  }
-  return result;
-};
-
 const canSendEmail = () =>
   Boolean(smtpHost && smtpPort && smtpUser && smtpPass && smtpFrom);
 
@@ -92,28 +83,30 @@ export default async function handler(req, res) {
       return;
     }
 
-    const { email, profile, loginUrl } = await readJsonBody(req);
+    const { email, profile, loginUrl, redirectTo } = await readJsonBody(req);
     if (!email) {
       res.status(400).json({ ok: false, error: "Missing email" });
       return;
     }
 
-    const tempPassword = generatePassword();
-    const { data: createdUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
+    const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+      type: "invite",
       email,
-      password: tempPassword,
-      email_confirm: true,
-      user_metadata: {
-        full_name: profile?.full_name || "",
+      options: {
+        redirectTo: redirectTo || loginUrl || undefined,
+        data: {
+          full_name: profile?.full_name || "",
+        },
       },
     });
 
-    if (createError || !createdUser?.user) {
-      res.status(400).json({ ok: false, error: createError?.message || "User create failed" });
+    if (linkError || !linkData?.user) {
+      res.status(400).json({ ok: false, error: linkError?.message || "Invite link failed" });
       return;
     }
 
-    const user = createdUser.user;
+    const user = linkData.user;
+    const actionLink = linkData.properties?.action_link || "";
     await supabaseAdmin.from("profiles").upsert({
       id: user.id,
       email: user.email,
@@ -126,23 +119,23 @@ export default async function handler(req, res) {
     });
 
     const subject = "Dein AVO Fahrer-Zugang";
-    const safeLoginUrl = loginUrl || "";
     const text = `Hallo ${profile?.full_name || "Fahrer"},
 
 dein Zugang zur AVO Fahrer-App wurde erstellt.
 
-Login-Link: ${safeLoginUrl}
-E-Mail: ${email}
-Temporäres Passwort: ${tempPassword}
+Bitte klicke auf diesen Link, um dein Passwort zu setzen:
+${actionLink}
 
-Bitte logge dich ein und ändere dein Passwort so bald wie möglich.
+E-Mail: ${email}
+
+Nach dem Setzen des Passworts kannst du dich anmelden.
 `;
     const html = `<p>Hallo ${profile?.full_name || "Fahrer"},</p>
 <p>dein Zugang zur AVO Fahrer-App wurde erstellt.</p>
-<p><strong>Login-Link:</strong> ${safeLoginUrl || "-"}<br/>
-<strong>E-Mail:</strong> ${email}<br/>
-<strong>Temporäres Passwort:</strong> ${tempPassword}</p>
-<p>Bitte logge dich ein und ändere dein Passwort so bald wie möglich.</p>`;
+<p><strong>Passwort setzen:</strong><br/>
+<a href="${actionLink}">${actionLink}</a></p>
+<p><strong>E-Mail:</strong> ${email}</p>
+<p>Nach dem Setzen des Passworts kannst du dich anmelden.</p>`;
 
     let emailSent = false;
     try {
@@ -155,7 +148,7 @@ Bitte logge dich ein und ändere dein Passwort so bald wie möglich.
       ok: true,
       data: {
         email,
-        tempPassword,
+        actionLink,
         emailSent,
       },
     });

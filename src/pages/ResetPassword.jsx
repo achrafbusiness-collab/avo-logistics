@@ -30,8 +30,14 @@ export default function ResetPassword() {
   const handleSubmit = async (event) => {
     event.preventDefault();
     setError("");
-    if (!password || password.length < 8) {
-      setError("Passwort muss mindestens 8 Zeichen lang sein.");
+    const hasUpper = /[A-Z]/.test(password);
+    const hasLower = /[a-z]/.test(password);
+    const hasNumber = /[0-9]/.test(password);
+    const hasSpecial = /[^A-Za-z0-9]/.test(password);
+    if (!password || password.length < 8 || !hasUpper || !hasLower || !hasNumber || !hasSpecial) {
+      setError(
+        "Passwort muss mindestens 8 Zeichen haben und Großbuchstaben, Kleinbuchstaben, Zahl und Sonderzeichen enthalten."
+      );
       return;
     }
     if (password !== confirm) {
@@ -41,6 +47,21 @@ export default function ResetPassword() {
     setSaving(true);
     try {
       await appClient.auth.updatePassword({ password });
+      const { data: userData } = await supabase.auth.getUser();
+      const userEmail = userData?.user?.email;
+      if (userData?.user?.id) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', userData.user.id)
+          .maybeSingle();
+        if (profile?.role === 'driver' && userEmail) {
+          await supabase
+            .from('drivers')
+            .update({ status: 'active', updated_date: new Date().toISOString() })
+            .eq('email', userEmail);
+        }
+      }
       setDone(true);
       await supabase.auth.signOut();
     } catch (err) {

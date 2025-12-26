@@ -241,7 +241,11 @@ export default function TeamAVO() {
       if (!response.ok || !payload.ok) {
         throw new Error(payload?.error || "Einladung fehlgeschlagen.");
       }
-      setMessage("Einladung wurde gesendet. Konto wartet auf Freigabe.");
+      if (payload?.data?.emailSent === false && payload?.data?.actionLink) {
+        setMessage(`Einladung erstellt, E-Mail konnte nicht gesendet werden. Link: ${payload.data.actionLink}`);
+      } else {
+        setMessage("Einladung wurde gesendet. Konto wartet auf Freigabe.");
+      }
       setInviteEmail("");
       setInviteRole("minijobber");
       await refreshProfiles();

@@ -1,7 +1,16 @@
 import { createClient } from "@supabase/supabase-js";
+import nodemailer from "nodemailer";
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+const smtpHost = process.env.SMTP_HOST;
+const smtpPort = process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : 0;
+const smtpUser = process.env.SMTP_USER;
+const smtpPass = process.env.SMTP_PASS;
+const smtpFrom = process.env.SMTP_FROM || smtpUser;
+const smtpSecure =
+  process.env.SMTP_SECURE === "true" || (smtpPort ? smtpPort === 465 : true);
 
 const readJsonBody = async (req) => {
   if (req.body && typeof req.body === "object") {
@@ -23,6 +32,32 @@ const getBearerToken = (req) => {
 };
 
 const supabaseAdmin = createClient(supabaseUrl || "", serviceRoleKey || "");
+
+const canSendEmail = () =>
+  Boolean(smtpHost && smtpPort && smtpUser && smtpPass && smtpFrom);
+
+const sendEmail = async ({ to, subject, html, text }) => {
+  if (!canSendEmail()) {
+    return false;
+  }
+  const transporter = nodemailer.createTransport({
+    host: smtpHost,
+    port: smtpPort,
+    secure: smtpSecure,
+    auth: {
+      user: smtpUser,
+      pass: smtpPass,
+    },
+  });
+  await transporter.sendMail({
+    from: smtpFrom,
+    to,
+    subject,
+    text,
+    html,
+  });
+  return true;
+};
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -54,17 +89,24 @@ export default async function handler(req, res) {
       return;
     }
 
-    const { data: inviteData, error: inviteError } =
-      await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
+    const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+      type: "invite",
+      email,
+      options: {
         redirectTo,
-      });
+        data: {
+          full_name: profile?.full_name || "",
+        },
+      },
+    });
 
-    if (inviteError) {
-      res.status(400).json({ ok: false, error: inviteError.message });
+    if (linkError || !linkData?.user) {
+      res.status(400).json({ ok: false, error: linkError?.message || "Invite link failed" });
       return;
     }
 
-    const invitedUser = inviteData?.user;
+    const invitedUser = linkData.user;
+    const actionLink = linkData.properties?.action_link || "";
     if (invitedUser) {
       const profileData = {
         id: invitedUser.id,
@@ -83,7 +125,26 @@ export default async function handler(req, res) {
       await supabaseAdmin.from("profiles").upsert(profileData);
     }
 
-    res.status(200).json({ ok: true, data: inviteData });
+    const subject = "Dein AVO System Zugang";
+    const text = `Hallo,
+
+du wurdest zu AVO System eingeladen.
+Bitte klicke auf den Link, um dein Passwort zu setzen:
+${actionLink}
+`;
+    const html = `<p>Hallo,</p>
+<p>du wurdest zu AVO System eingeladen.</p>
+<p><strong>Passwort setzen:</strong><br/>
+<a href="${actionLink}">${actionLink}</a></p>`;
+
+    let emailSent = false;
+    try {
+      emailSent = await sendEmail({ to: email, subject, text, html });
+    } catch (err) {
+      emailSent = false;
+    }
+
+    res.status(200).json({ ok: true, data: { email, actionLink, emailSent } });
   } catch (error) {
     res.status(500).json({ ok: false, error: error?.message || "Unknown error" });
   }
