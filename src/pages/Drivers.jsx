@@ -63,7 +63,15 @@ export default function Drivers() {
 
   const createMutation = useMutation({
     mutationFn: (data) => appClient.entities.Driver.create(data),
-    onSuccess: () => {
+    onSuccess: (created) => {
+      if (created?.id) {
+        queryClient.setQueryData(['drivers'], (prev = []) => {
+          if (prev.some((driver) => driver.id === created.id)) {
+            return prev;
+          }
+          return [created, ...prev];
+        });
+      }
       queryClient.invalidateQueries({ queryKey: ['drivers'] });
     },
   });
