@@ -361,6 +361,11 @@ export default function DriverForm({ driver, onSave, onCancel }) {
                         E-Mail konnte nicht gesendet werden. Bitte den Link manuell weitergeben.
                       </p>
                     )}
+                    <div>
+                      <Button type="button" variant="outline" onClick={onCancel}>
+                        Zur Liste
+                      </Button>
+                    </div>
                   </div>
                 )}
                 {loginCreating && (

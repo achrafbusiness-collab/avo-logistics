@@ -325,6 +325,7 @@ export default function TeamAVO() {
       if (!response.ok || !payload?.ok) {
         throw new Error(payload?.error || "Loeschen fehlgeschlagen.");
       }
+      setProfiles((prev) => prev.filter((item) => item.id !== selectedProfile.id));
       setMessage("Profil wurde geloescht.");
       setDeleteConfirmOpen(false);
       await refreshProfiles();

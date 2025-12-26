@@ -55,6 +55,18 @@ export default async function handler(req, res) {
       return;
     }
 
+    const { data: profile } = await supabaseAdmin
+      .from("profiles")
+      .select("email")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (profile?.email) {
+      await supabaseAdmin.from("drivers").delete().eq("email", profile.email);
+    }
+
+    await supabaseAdmin.from("profiles").delete().eq("id", id);
+
     const { error } = await supabaseAdmin.auth.admin.deleteUser(id);
     if (error) {
       res.status(500).json({ ok: false, error: error.message });
