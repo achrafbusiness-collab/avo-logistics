@@ -65,7 +65,6 @@ export default function Drivers() {
     mutationFn: (data) => appClient.entities.Driver.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['drivers'] });
-      setView('list');
     },
   });
 
@@ -73,8 +72,6 @@ export default function Drivers() {
     mutationFn: ({ id, data }) => appClient.entities.Driver.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['drivers'] });
-      setView('list');
-      setSelectedDriver(null);
     },
   });
 
@@ -103,9 +100,14 @@ export default function Drivers() {
 
   const handleSave = async (data) => {
     if (selectedDriver) {
-      await updateMutation.mutateAsync({ id: selectedDriver.id, data });
+      const updated = await updateMutation.mutateAsync({ id: selectedDriver.id, data });
+      setView('list');
+      setSelectedDriver(null);
+      window.history.pushState({}, '', createPageUrl('Drivers'));
+      return updated;
     } else {
-      await createMutation.mutateAsync(data);
+      const created = await createMutation.mutateAsync(data);
+      return created;
     }
   };
 
@@ -401,9 +403,9 @@ export default function Drivers() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Alle Status</SelectItem>
-                <SelectItem value="active">Aktiv</SelectItem>
+                <SelectItem value="active">Ready</SelectItem>
+                <SelectItem value="pending">Bearbeitung</SelectItem>
                 <SelectItem value="inactive">Inaktiv</SelectItem>
-                <SelectItem value="pending">Ausstehend</SelectItem>
               </SelectContent>
             </Select>
           </div>

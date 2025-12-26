@@ -98,12 +98,17 @@ export default function DriverForm({ driver, onSave, onCancel }) {
     setLoginError('');
     setLoginResult(null);
     try {
-      await onSave(formData);
+      const payload = {
+        ...formData,
+        status: !driver && createLogin ? 'pending' : formData.status,
+      };
+      await onSave(payload);
       if (!driver && createLogin) {
         setLoginCreating(true);
         const token = await getAuthToken();
         if (!token) {
-          throw new Error('Nicht angemeldet.');
+          setLoginError('Nicht angemeldet.');
+          return;
         }
         const fullName = `${formData.first_name || ''} ${formData.last_name || ''}`.trim();
         const response = await fetch('/api/admin/create-driver-user', {
@@ -124,9 +129,12 @@ export default function DriverForm({ driver, onSave, onCancel }) {
         });
         const payload = await response.json();
         if (!response.ok || !payload?.ok) {
-          throw new Error(payload?.error || 'Login konnte nicht erstellt werden.');
+          setLoginError(payload?.error || 'Login konnte nicht erstellt werden.');
+          return;
         }
         setLoginResult(payload.data || null);
+      } else if (!driver && !createLogin) {
+        onCancel();
       }
     } catch (error) {
       setLoginError(error?.message || 'Speichern fehlgeschlagen.');
@@ -305,12 +313,12 @@ export default function DriverForm({ driver, onSave, onCancel }) {
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="active">Aktiv</SelectItem>
-                    <SelectItem value="inactive">Inaktiv</SelectItem>
-                    <SelectItem value="pending">Ausstehend</SelectItem>
-                  </SelectContent>
-                </Select>
+                <SelectContent>
+                  <SelectItem value="active">Ready</SelectItem>
+                  <SelectItem value="pending">Bearbeitung</SelectItem>
+                  <SelectItem value="inactive">Inaktiv</SelectItem>
+                </SelectContent>
+              </Select>
               </div>
             </div>
           </div>

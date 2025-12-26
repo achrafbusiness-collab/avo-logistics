@@ -217,6 +217,13 @@ const auth = {
     if (!active) {
       throw new Error('Konto wartet auf Freigabe durch einen Admin.');
     }
+    if (profile?.role === 'driver' && data.user?.email) {
+      await supabase
+        .from('drivers')
+        .update({ status: 'active', updated_date: new Date().toISOString() })
+        .eq('email', data.user.email)
+        .eq('status', 'pending');
+    }
     return buildUser(data.user, profile);
   },
   logout: async () => {
