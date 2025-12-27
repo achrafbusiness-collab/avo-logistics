@@ -23,6 +23,17 @@ const getBearerToken = (req) => {
 };
 
 const supabaseAdmin = createClient(supabaseUrl || "", serviceRoleKey || "");
+const getCompanyIdForUser = async (userId) => {
+  const { data, error } = await supabaseAdmin
+    .from("profiles")
+    .select("company_id")
+    .eq("id", userId)
+    .maybeSingle();
+  if (error) {
+    throw new Error(error.message);
+  }
+  return data?.company_id || null;
+};
 
 const allowedFields = new Set([
   "full_name",
@@ -62,10 +73,26 @@ export default async function handler(req, res) {
       return;
     }
 
+    const requesterCompanyId = await getCompanyIdForUser(authData.user.id);
+    if (!requesterCompanyId) {
+      res.status(403).json({ ok: false, error: "Kein Unternehmen gefunden." });
+      return;
+    }
+
     const body = await readJsonBody(req);
     const { id, updates } = body || {};
     if (!id || !updates || typeof updates !== "object") {
       res.status(400).json({ ok: false, error: "Missing profile id or updates" });
+      return;
+    }
+
+    const { data: targetProfile } = await supabaseAdmin
+      .from("profiles")
+      .select("company_id")
+      .eq("id", id)
+      .maybeSingle();
+    if (!targetProfile || targetProfile.company_id !== requesterCompanyId) {
+      res.status(403).json({ ok: false, error: "Nicht erlaubt." });
       return;
     }
 
@@ -80,6 +107,7 @@ export default async function handler(req, res) {
       .from("profiles")
       .update(sanitized)
       .eq("id", id)
+      .eq("company_id", requesterCompanyId)
       .select("*")
       .maybeSingle();
 

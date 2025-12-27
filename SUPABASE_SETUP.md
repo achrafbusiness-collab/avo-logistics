@@ -385,3 +385,228 @@ create policy "Employee IDs access" on storage.objects
 for all using (bucket_id = 'employee-ids' and auth.uid() is not null)
 with check (bucket_id = 'employee-ids' and auth.uid() is not null);
 ```
+
+## 7) Mandantenfähigkeit (Pflicht)
+
+Ziel: **Kein Datensatz ohne Unternehmens‑Zuordnung (`company_id`)**.
+
+### 7a) Unternehmenstabelle + erstes Unternehmen (AVO LOGISTICS)
+
+```sql
+create table if not exists public.companies (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  owner_user_id uuid references auth.users on delete set null,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+-- Erstes Unternehmen anlegen (ersetze die E-Mail)
+insert into public.companies (name, owner_user_id)
+values (
+  'AVO LOGISTICS',
+  (select id from auth.users where email = 'ADMIN_EMAIL_HIER')
+)
+on conflict do nothing
+returning id;
+```
+
+Merke dir die `id` (company_id). Diese brauchst du für die Backfills unten.
+
+### 7b) `company_id` in allen Tabellen + Backfill
+
+```sql
+alter table public.profiles
+add column if not exists company_id uuid references public.companies;
+
+alter table public.orders add column if not exists company_id uuid references public.companies;
+alter table public.drivers add column if not exists company_id uuid references public.companies;
+alter table public.customers add column if not exists company_id uuid references public.companies;
+alter table public.checklists add column if not exists company_id uuid references public.companies;
+alter table public.app_settings add column if not exists company_id uuid references public.companies;
+
+-- Backfill: alle bestehenden Daten dem AVO‑Unternehmen zuordnen
+update public.profiles set company_id = 'COMPANY_ID_HIER' where company_id is null;
+update public.orders set company_id = 'COMPANY_ID_HIER' where company_id is null;
+update public.drivers set company_id = 'COMPANY_ID_HIER' where company_id is null;
+update public.customers set company_id = 'COMPANY_ID_HIER' where company_id is null;
+update public.checklists set company_id = 'COMPANY_ID_HIER' where company_id is null;
+update public.app_settings set company_id = 'COMPANY_ID_HIER' where company_id is null;
+
+alter table public.profiles alter column company_id set not null;
+alter table public.orders alter column company_id set not null;
+alter table public.drivers alter column company_id set not null;
+alter table public.customers alter column company_id set not null;
+alter table public.checklists alter column company_id set not null;
+alter table public.app_settings alter column company_id set not null;
+```
+
+### 7c) Auto‑Zuordnung bei INSERT (wenn `company_id` fehlt)
+
+```sql
+create or replace function public.current_company_id()
+returns uuid
+language sql
+stable
+as $$
+  select company_id from public.profiles where id = auth.uid()
+$$;
+
+create or replace function public.set_company_id()
+returns trigger
+language plpgsql
+as $$
+begin
+  if new.company_id is null then
+    new.company_id := public.current_company_id();
+  end if;
+  if new.company_id is null then
+    raise exception 'company_id missing';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists set_company_id_orders on public.orders;
+create trigger set_company_id_orders before insert on public.orders
+for each row execute procedure public.set_company_id();
+
+drop trigger if exists set_company_id_drivers on public.drivers;
+create trigger set_company_id_drivers before insert on public.drivers
+for each row execute procedure public.set_company_id();
+
+drop trigger if exists set_company_id_customers on public.customers;
+create trigger set_company_id_customers before insert on public.customers
+for each row execute procedure public.set_company_id();
+
+drop trigger if exists set_company_id_checklists on public.checklists;
+create trigger set_company_id_checklists before insert on public.checklists
+for each row execute procedure public.set_company_id();
+
+drop trigger if exists set_company_id_app_settings on public.app_settings;
+create trigger set_company_id_app_settings before insert on public.app_settings
+for each row execute procedure public.set_company_id();
+```
+
+### 7d) Profile‑Trigger anpassen (company_id aus Invite übernehmen)
+
+```sql
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer
+as $$
+begin
+  insert into public.profiles (id, email, full_name, role, permissions, company_id)
+  values (
+    new.id,
+    new.email,
+    coalesce(new.raw_user_meta_data->>'full_name', ''),
+    'minijobber',
+    '{}'::jsonb,
+    (new.raw_user_meta_data->>'company_id')::uuid
+  )
+  on conflict (id) do nothing;
+  return new;
+end;
+$$;
+```
+
+### 7e) RLS‑Policies auf `company_id` beschränken
+
+```sql
+-- Alte Policies entfernen
+drop policy if exists "Orders full access" on public.orders;
+drop policy if exists "Drivers full access" on public.drivers;
+drop policy if exists "Customers full access" on public.customers;
+drop policy if exists "Checklists full access" on public.checklists;
+drop policy if exists "App settings full access" on public.app_settings;
+
+create policy "Orders company access" on public.orders
+for all using (company_id = public.current_company_id())
+with check (company_id = public.current_company_id());
+
+create policy "Drivers company access" on public.drivers
+for all using (company_id = public.current_company_id())
+with check (company_id = public.current_company_id());
+
+create policy "Customers company access" on public.customers
+for all using (company_id = public.current_company_id())
+with check (company_id = public.current_company_id());
+
+create policy "Checklists company access" on public.checklists
+for all using (company_id = public.current_company_id())
+with check (company_id = public.current_company_id());
+
+create policy "App settings company access" on public.app_settings
+for all using (company_id = public.current_company_id())
+with check (company_id = public.current_company_id());
+
+-- Profiles: eigener Datensatz + Admin derselben Firma
+drop policy if exists "Users can read own profile" on public.profiles;
+drop policy if exists "Users can update own profile" on public.profiles;
+drop policy if exists "Admins can read all profiles" on public.profiles;
+drop policy if exists "Admins can update all profiles" on public.profiles;
+
+create policy "Profiles read own or company admin" on public.profiles
+for select using (
+  auth.uid() = id
+  or exists (
+    select 1 from public.profiles p
+    where p.id = auth.uid()
+      and p.role = 'admin'
+      and p.company_id = profiles.company_id
+  )
+);
+
+create policy "Profiles update own or company admin" on public.profiles
+for update using (
+  auth.uid() = id
+  or exists (
+    select 1 from public.profiles p
+    where p.id = auth.uid()
+      and p.role = 'admin'
+      and p.company_id = profiles.company_id
+  )
+);
+```
+
+### 7f) Storage‑Policies mit company_id (Dokumente/Uploads)
+
+```sql
+drop policy if exists "Documents access" on storage.objects;
+drop policy if exists "Employee IDs access" on storage.objects;
+
+create policy "Documents access" on storage.objects
+for all using (
+  bucket_id = 'documents'
+  and auth.uid() is not null
+  and (metadata->>'company_id')::uuid = public.current_company_id()
+)
+with check (
+  bucket_id = 'documents'
+  and auth.uid() is not null
+  and (metadata->>'company_id')::uuid = public.current_company_id()
+);
+
+create policy "Employee IDs access" on storage.objects
+for all using (
+  bucket_id = 'employee-ids'
+  and auth.uid() is not null
+  and (metadata->>'company_id')::uuid = public.current_company_id()
+)
+with check (
+  bucket_id = 'employee-ids'
+  and auth.uid() is not null
+  and (metadata->>'company_id')::uuid = public.current_company_id()
+);
+```
+
+Optional: Bestehende Storage‑Dateien dem AVO‑Unternehmen zuordnen:
+
+```sql
+update storage.objects
+set metadata = jsonb_set(coalesce(metadata, '{}'::jsonb), '{company_id}', to_jsonb('COMPANY_ID_HIER'))
+where bucket_id in ('documents', 'employee-ids')
+  and (metadata->>'company_id') is null;
+```

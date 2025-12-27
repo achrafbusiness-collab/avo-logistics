@@ -32,6 +32,17 @@ const getBearerToken = (req) => {
 };
 
 const supabaseAdmin = createClient(supabaseUrl || "", serviceRoleKey || "");
+const getCompanyIdForUser = async (userId) => {
+  const { data, error } = await supabaseAdmin
+    .from("profiles")
+    .select("company_id")
+    .eq("id", userId)
+    .maybeSingle();
+  if (error) {
+    throw new Error(error.message);
+  }
+  return data?.company_id || null;
+};
 
 const canSendEmail = () =>
   Boolean(smtpHost && smtpPort && smtpUser && smtpPass && smtpFrom);
@@ -89,6 +100,12 @@ export default async function handler(req, res) {
       return;
     }
 
+    const companyId = await getCompanyIdForUser(authData.user.id);
+    if (!companyId) {
+      res.status(403).json({ ok: false, error: "Kein Unternehmen gefunden." });
+      return;
+    }
+
     const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
       type: "invite",
       email,
@@ -96,6 +113,7 @@ export default async function handler(req, res) {
         redirectTo: redirectTo || loginUrl || undefined,
         data: {
           full_name: profile?.full_name || "",
+          company_id: companyId,
         },
       },
     });
@@ -115,6 +133,7 @@ export default async function handler(req, res) {
       phone: profile?.phone || "",
       permissions: profile?.permissions || {},
       is_active: true,
+      company_id: companyId,
       updated_at: new Date().toISOString(),
     });
 

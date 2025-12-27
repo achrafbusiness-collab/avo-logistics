@@ -104,17 +104,34 @@ const buildSchemaDefaults = (schema) => {
   }, {});
 };
 
+const getCompanyIdForCurrentUser = async () => {
+  const { data } = await supabase.auth.getUser();
+  if (!data?.user) return null;
+  const profile = await getProfile(data.user.id);
+  return profile?.company_id || null;
+};
+
 const uploadFileToStorage = async ({ file, bucket = "documents", pathPrefix = "uploads" }) => {
   if (!file) {
     throw new Error("Keine Datei angegeben");
   }
   const { data } = await supabase.auth.getSession();
   const userId = data?.session?.user?.id || "public";
+  const companyId = await getCompanyIdForCurrentUser();
+  if (!companyId) {
+    throw new Error("Unternehmen nicht gefunden. Bitte erneut anmelden.");
+  }
   const safeName = file.name.replace(/[^a-z0-9._-]/gi, "_");
-  const filePath = `${pathPrefix}/${userId}/${Date.now()}_${safeName}`;
+  const filePath = `${pathPrefix}/${companyId}/${userId}/${Date.now()}_${safeName}`;
   const { error: uploadError } = await supabase.storage
     .from(bucket)
-    .upload(filePath, file, { upsert: true, contentType: file.type });
+    .upload(filePath, file, {
+      upsert: true,
+      contentType: file.type,
+      metadata: {
+        company_id: companyId,
+      },
+    });
   if (uploadError) {
     throw new Error(uploadError.message);
   }

@@ -10,6 +10,17 @@ const getBearerToken = (req) => {
 };
 
 const supabaseAdmin = createClient(supabaseUrl || "", serviceRoleKey || "");
+const getCompanyIdForUser = async (userId) => {
+  const { data, error } = await supabaseAdmin
+    .from("profiles")
+    .select("company_id")
+    .eq("id", userId)
+    .maybeSingle();
+  if (error) {
+    throw new Error(error.message);
+  }
+  return data?.company_id || null;
+};
 
 export default async function handler(req, res) {
   if (req.method !== "GET") {
@@ -35,9 +46,16 @@ export default async function handler(req, res) {
       return;
     }
 
+    const companyId = await getCompanyIdForUser(authData.user.id);
+    if (!companyId) {
+      res.status(403).json({ ok: false, error: "Kein Unternehmen gefunden." });
+      return;
+    }
+
     const { data, error } = await supabaseAdmin
       .from("profiles")
       .select("*")
+      .eq("company_id", companyId)
       .order("created_at", { ascending: true });
     if (error) {
       res.status(500).json({ ok: false, error: error.message });

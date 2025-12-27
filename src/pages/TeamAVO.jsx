@@ -185,15 +185,22 @@ export default function TeamAVO() {
       setError("Bitte zuerst ein Profil auswählen.");
       return;
     }
+    if (!currentUser?.company_id) {
+      setError("Unternehmen fehlt. Bitte neu anmelden.");
+      return;
+    }
     if (!file) return;
     const ext = file.name.split(".").pop() || "png";
-    const path = `${selectedProfile.id}/${side}-${Date.now()}.${ext}`;
+    const path = `${currentUser.company_id}/${selectedProfile.id}/${side}-${Date.now()}.${ext}`;
     setUploadingId((prev) => ({ ...prev, [side]: true }));
     setError("");
     try {
       const { error: uploadError } = await supabase.storage
         .from("employee-ids")
-        .upload(path, file, { upsert: true });
+        .upload(path, file, {
+          upsert: true,
+          metadata: { company_id: currentUser.company_id },
+        });
       if (uploadError) {
         throw new Error(uploadError.message);
       }

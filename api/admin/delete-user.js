@@ -23,6 +23,17 @@ const getBearerToken = (req) => {
 };
 
 const supabaseAdmin = createClient(supabaseUrl || "", serviceRoleKey || "");
+const getCompanyIdForUser = async (userId) => {
+  const { data, error } = await supabaseAdmin
+    .from("profiles")
+    .select("company_id")
+    .eq("id", userId)
+    .maybeSingle();
+  if (error) {
+    throw new Error(error.message);
+  }
+  return data?.company_id || null;
+};
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -55,17 +66,32 @@ export default async function handler(req, res) {
       return;
     }
 
+    const requesterCompanyId = await getCompanyIdForUser(authData.user.id);
+    if (!requesterCompanyId) {
+      res.status(403).json({ ok: false, error: "Kein Unternehmen gefunden." });
+      return;
+    }
+
     const { data: profile } = await supabaseAdmin
       .from("profiles")
-      .select("email")
+      .select("email, company_id")
       .eq("id", id)
       .maybeSingle();
 
-    if (profile?.email) {
-      await supabaseAdmin.from("drivers").delete().eq("email", profile.email);
+    if (!profile || profile.company_id !== requesterCompanyId) {
+      res.status(403).json({ ok: false, error: "Nicht erlaubt." });
+      return;
     }
 
-    await supabaseAdmin.from("profiles").delete().eq("id", id);
+    if (profile?.email) {
+      await supabaseAdmin
+        .from("drivers")
+        .delete()
+        .eq("email", profile.email)
+        .eq("company_id", requesterCompanyId);
+    }
+
+    await supabaseAdmin.from("profiles").delete().eq("id", id).eq("company_id", requesterCompanyId);
 
     const { error } = await supabaseAdmin.auth.admin.deleteUser(id);
     if (error) {
