@@ -25,6 +25,9 @@ import AIImport from "./AIImport";
 import AVOAI from "./AVOAI";
 
 import Login from "./Login";
+import LoginDriver from "./LoginDriver";
+import LoginStaff from "./LoginStaff";
+import LoginExecutive from "./LoginExecutive";
 import DriverAccess from "./DriverAccess";
 import ResetPassword from "./ResetPassword";
 import TeamAVO from "./TeamAVO";
@@ -86,7 +89,7 @@ function _getCurrentPage(url) {
 function PagesContent() {
     const location = useLocation();
     const normalizedPath = location.pathname.toLowerCase();
-    const isLoginRoute = normalizedPath === '/login';
+    const isLoginRoute = normalizedPath === '/login' || normalizedPath.startsWith('/login/');
     const isResetRoute = normalizedPath === '/reset-password';
     const isDriverAccessRoute = normalizedPath === '/driver';
     const currentPage = _getCurrentPage(location.pathname);
@@ -116,6 +119,9 @@ function PagesContent() {
         return (
             <Routes>
                 <Route path="/login" element={<Login />} />
+                <Route path="/login/driver" element={<LoginDriver />} />
+                <Route path="/login/staff" element={<LoginStaff />} />
+                <Route path="/login/executive" element={<LoginExecutive />} />
                 <Route path="/driver" element={<DriverAccess />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="*" element={<Navigate to="/login" replace />} />
