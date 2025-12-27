@@ -99,12 +99,8 @@ export default function Layout({ children, currentPageName }) {
     }
   };
 
-  // Driver-specific pages get minimal layout
-  const driverPageNames = ['DriverOrders', 'DriverChecklist', 'DriverProtocol'];
-  const isDriverPage = driverPageNames.includes(currentPageName);
-
-  // If it's a driver page or user is driver, show driver layout
-  if (isDriverPage || (isDriver && !['Dashboard', 'Orders', 'Drivers', 'Checklists', 'Search', 'AVOAI'].includes(currentPageName))) {
+  // Drivers always stay inside the driver portal layout.
+  if (isDriver) {
     return (
       <div className={`min-h-screen ${darkMode ? 'bg-gray-950' : 'bg-gray-50'}`}>
         <style>{`

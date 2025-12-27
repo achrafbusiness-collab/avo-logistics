@@ -139,6 +139,12 @@ function PagesContent() {
         return <Navigate to="/login" replace />;
     }
 
+    const driverAllowedPages = ['DriverOrders', 'DriverChecklist', 'DriverProtocol'];
+
+    if (currentUser.role === 'driver' && !driverAllowedPages.includes(currentPage)) {
+        return <Navigate to={createPageUrl('DriverOrders')} replace />;
+    }
+
     if (!hasPageAccess(currentUser, currentPage)) {
         return (
             <Layout currentPageName={currentPage}>
