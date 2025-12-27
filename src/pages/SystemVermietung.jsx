@@ -46,6 +46,10 @@ export default function SystemVermietung() {
   const [savingCompany, setSavingCompany] = useState(false);
   const [companyMessage, setCompanyMessage] = useState("");
   const [companyError, setCompanyError] = useState("");
+  const [selectedCompany, setSelectedCompany] = useState(null);
+  const [deletingCompany, setDeletingCompany] = useState(false);
+  const [deleteMessage, setDeleteMessage] = useState("");
+  const [deleteError, setDeleteError] = useState("");
 
   useEffect(() => {
     const load = async () => {
@@ -86,7 +90,7 @@ export default function SystemVermietung() {
     return data?.session?.access_token || null;
   };
 
-  const fetchCompanies = async () => {
+  const fetchCompanies = async (preferredId) => {
     const token = await getAuthToken();
     if (!token) return;
     const response = await fetch("/api/admin/list-companies", {
@@ -102,10 +106,16 @@ export default function SystemVermietung() {
     const items = payload.data || [];
     setCompanies(items);
     if (items.length) {
-      const first = items[0];
-      const ownerProfile = first.owner_profile || null;
-      setSelectedCompanyId(first.id);
-      setCompanyForm(buildCompanyForm(first, ownerProfile));
+      const resolvedId = preferredId || selectedCompanyId || items[0].id;
+      const selected = items.find((item) => item.id === resolvedId) || items[0];
+      const ownerProfile = selected.owner_profile || null;
+      setSelectedCompanyId(selected.id);
+      setSelectedCompany(selected);
+      setCompanyForm(buildCompanyForm(selected, ownerProfile));
+    } else {
+      setSelectedCompanyId("");
+      setSelectedCompany(null);
+      setCompanyForm(buildCompanyForm(null, null));
     }
   };
 
@@ -113,9 +123,12 @@ export default function SystemVermietung() {
     const company = companies.find((item) => item.id === companyId);
     if (!company) return;
     setSelectedCompanyId(companyId);
+    setSelectedCompany(company);
     setCompanyForm(buildCompanyForm(company, company.owner_profile || null));
     setCompanyMessage("");
     setCompanyError("");
+    setDeleteMessage("");
+    setDeleteError("");
   };
 
   const handleCompanyChange = (field, value) => {
@@ -167,7 +180,7 @@ export default function SystemVermietung() {
       setOwnerName("");
       setOwnerEmail("");
       setOwnerPhone("");
-      await fetchCompanies();
+      await fetchCompanies(selectedCompanyId);
     } catch (err) {
       setError(err?.message || "Mandant konnte nicht erstellt werden.");
     } finally {
@@ -217,11 +230,46 @@ export default function SystemVermietung() {
         throw new Error(payload?.error || "Mandant konnte nicht aktualisiert werden.");
       }
       setCompanyMessage("Mandant gespeichert.");
-      await fetchCompanies();
+      await fetchCompanies(selectedCompanyId);
     } catch (err) {
       setCompanyError(err?.message || "Mandant konnte nicht aktualisiert werden.");
     } finally {
       setSavingCompany(false);
+    }
+  };
+
+  const handleDeleteCompany = async () => {
+    if (!companyForm.id) return;
+    setDeleteMessage("");
+    setDeleteError("");
+    const confirmed = window.confirm(
+      `Mandant "${companyForm.name}" wirklich löschen? Alle Daten und Nutzer werden entfernt.`
+    );
+    if (!confirmed) return;
+    setDeletingCompany(true);
+    try {
+      const token = await getAuthToken();
+      if (!token) {
+        throw new Error("Nicht angemeldet.");
+      }
+      const response = await fetch("/api/admin/delete-company", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ company_id: companyForm.id }),
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload?.ok) {
+        throw new Error(payload?.error || "Mandant konnte nicht gelöscht werden.");
+      }
+      setDeleteMessage("Mandant wurde gelöscht.");
+      await fetchCompanies();
+    } catch (err) {
+      setDeleteError(err?.message || "Mandant konnte nicht gelöscht werden.");
+    } finally {
+      setDeletingCompany(false);
     }
   };
 
@@ -364,6 +412,28 @@ export default function SystemVermietung() {
 
               {companyForm.id && (
                 <div className="space-y-4">
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
+                    <div className="flex flex-wrap items-center gap-4">
+                      <span>
+                        Mitarbeiter:{" "}
+                        <strong className="text-slate-900">
+                          {selectedCompany?.employee_count ?? 0}
+                        </strong>
+                      </span>
+                      <span>
+                        Fahrer:{" "}
+                        <strong className="text-slate-900">
+                          {selectedCompany?.driver_count ?? 0}
+                        </strong>
+                      </span>
+                      <span>
+                        Profile gesamt:{" "}
+                        <strong className="text-slate-900">
+                          {selectedCompany?.profiles?.length ?? 0}
+                        </strong>
+                      </span>
+                    </div>
+                  </div>
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <div>
                       <Label>Firmenname</Label>
@@ -464,21 +534,74 @@ export default function SystemVermietung() {
                     </div>
                   </div>
 
+                  <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm">
+                    <div className="flex items-center justify-between">
+                      <p className="font-semibold text-slate-700">Profile im Mandanten</p>
+                      <span className="text-xs text-slate-400">
+                        {selectedCompany?.profiles?.length ?? 0} Einträge
+                      </span>
+                    </div>
+                    <div className="mt-3 max-h-64 space-y-2 overflow-auto">
+                      {(selectedCompany?.profiles || []).map((profile) => (
+                        <div
+                          key={profile.id}
+                          className="flex flex-wrap items-center justify-between gap-2 rounded border border-slate-100 bg-slate-50 px-3 py-2"
+                        >
+                          <div>
+                            <p className="font-semibold text-slate-800">
+                              {profile.full_name || "Ohne Name"}
+                            </p>
+                            <p className="text-xs text-slate-500">{profile.email}</p>
+                          </div>
+                          <div className="text-xs text-slate-500">
+                            Rolle: {profile.role || "unbekannt"} •{" "}
+                            {profile.is_active ? "Aktiv" : "Inaktiv"}
+                            {profile.must_reset_password ? " • Passwort offen" : ""}
+                          </div>
+                        </div>
+                      ))}
+                      {!selectedCompany?.profiles?.length && (
+                        <p className="text-xs text-slate-400">Keine Profile vorhanden.</p>
+                      )}
+                    </div>
+                  </div>
+
                   {companyMessage && (
                     <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
                       {companyMessage}
                     </div>
                   )}
+                  {deleteMessage && (
+                    <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+                      {deleteMessage}
+                    </div>
+                  )}
+                  {deleteError && (
+                    <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                      {deleteError}
+                    </div>
+                  )}
 
-                  <Button
-                    type="button"
-                    className="bg-[#1e3a5f] hover:bg-[#2d5a8a]"
-                    onClick={handleCompanySave}
-                    disabled={savingCompany}
-                  >
-                    {savingCompany ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                    Mandant speichern
-                  </Button>
+                  <div className="flex flex-wrap gap-3">
+                    <Button
+                      type="button"
+                      className="bg-[#1e3a5f] hover:bg-[#2d5a8a]"
+                      onClick={handleCompanySave}
+                      disabled={savingCompany}
+                    >
+                      {savingCompany ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                      Mandant speichern
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      onClick={handleDeleteCompany}
+                      disabled={deletingCompany}
+                    >
+                      {deletingCompany ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                      Mandant löschen
+                    </Button>
+                  </div>
                 </div>
               )}
             </div>

@@ -3,6 +3,19 @@ import { createClient } from "@supabase/supabase-js";
 const supabaseUrl = process.env.SUPABASE_URL;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
+const readJsonBody = async (req) => {
+  if (req.body && typeof req.body === "object") {
+    return req.body;
+  }
+  const chunks = [];
+  for await (const chunk of req) {
+    chunks.push(chunk);
+  }
+  if (!chunks.length) return {};
+  const raw = Buffer.concat(chunks).toString("utf-8");
+  return raw ? JSON.parse(raw) : {};
+};
+
 const getBearerToken = (req) => {
   const auth = req.headers.authorization || "";
   if (!auth.startsWith("Bearer ")) return null;
@@ -36,7 +49,7 @@ const isOwnerUser = async (userId, companyId) => {
 };
 
 export default async function handler(req, res) {
-  if (req.method !== "GET") {
+  if (req.method !== "POST") {
     res.status(405).json({ ok: false, error: "Method not allowed" });
     return;
   }
@@ -71,81 +84,52 @@ export default async function handler(req, res) {
       return;
     }
 
-    const { data: companies, error: companiesError } = await supabaseAdmin
-      .from("companies")
-      .select("*")
-      .order("created_at", { ascending: true });
-    if (companiesError) {
-      res.status(500).json({ ok: false, error: companiesError.message });
+    const body = await readJsonBody(req);
+    const { company_id } = body || {};
+    if (!company_id) {
+      res.status(400).json({ ok: false, error: "Missing company id" });
       return;
     }
 
-    const ids = (companies || []).map((company) => company.id);
-    const { data: ownerProfiles, error: ownersError } = await supabaseAdmin
-      .from("profiles")
-      .select("id, company_id, full_name, email, phone, role, is_active, must_reset_password")
-      .in("company_id", ids)
-      .eq("role", "admin");
-
-    if (ownersError) {
-      res.status(500).json({ ok: false, error: ownersError.message });
+    if (company_id === ownerCompanyId) {
+      res.status(400).json({ ok: false, error: "Hauptunternehmen kann nicht gelöscht werden." });
       return;
     }
 
     const { data: companyProfiles, error: profilesError } = await supabaseAdmin
       .from("profiles")
-      .select("id, company_id, full_name, email, role, is_active, must_reset_password")
-      .in("company_id", ids);
+      .select("id")
+      .eq("company_id", company_id);
 
     if (profilesError) {
       res.status(500).json({ ok: false, error: profilesError.message });
       return;
     }
 
-    const { data: companyDrivers, error: driversError } = await supabaseAdmin
-      .from("drivers")
-      .select("id, company_id")
-      .in("company_id", ids);
+    const profileIds = (companyProfiles || []).map((profile) => profile.id);
 
-    if (driversError) {
-      res.status(500).json({ ok: false, error: driversError.message });
+    await supabaseAdmin.from("orders").delete().eq("company_id", company_id);
+    await supabaseAdmin.from("drivers").delete().eq("company_id", company_id);
+    await supabaseAdmin.from("customers").delete().eq("company_id", company_id);
+    await supabaseAdmin.from("checklists").delete().eq("company_id", company_id);
+    await supabaseAdmin.from("app_settings").delete().eq("company_id", company_id);
+    await supabaseAdmin.from("profiles").delete().eq("company_id", company_id);
+
+    for (const userId of profileIds) {
+      await supabaseAdmin.auth.admin.deleteUser(userId);
+    }
+
+    const { error: deleteCompanyError } = await supabaseAdmin
+      .from("companies")
+      .delete()
+      .eq("id", company_id);
+
+    if (deleteCompanyError) {
+      res.status(500).json({ ok: false, error: deleteCompanyError.message });
       return;
     }
 
-    const ownersByCompany = (ownerProfiles || []).reduce((acc, profile) => {
-      if (!acc[profile.company_id]) {
-        acc[profile.company_id] = profile;
-      }
-      return acc;
-    }, {});
-
-    const profilesByCompany = (companyProfiles || []).reduce((acc, profile) => {
-      if (!acc[profile.company_id]) {
-        acc[profile.company_id] = [];
-      }
-      acc[profile.company_id].push(profile);
-      return acc;
-    }, {});
-
-    const driversByCompany = (companyDrivers || []).reduce((acc, driver) => {
-      if (!acc[driver.company_id]) {
-        acc[driver.company_id] = [];
-      }
-      acc[driver.company_id].push(driver);
-      return acc;
-    }, {});
-
-    const result = (companies || []).map((company) => ({
-      ...company,
-      owner_profile: ownersByCompany[company.id] || null,
-      profiles: profilesByCompany[company.id] || [],
-      employee_count: (profilesByCompany[company.id] || []).filter(
-        (profile) => profile.role !== "driver"
-      ).length,
-      driver_count: (driversByCompany[company.id] || []).length,
-    }));
-
-    res.status(200).json({ ok: true, data: result });
+    res.status(200).json({ ok: true });
   } catch (error) {
     res.status(500).json({ ok: false, error: error?.message || "Unknown error" });
   }
