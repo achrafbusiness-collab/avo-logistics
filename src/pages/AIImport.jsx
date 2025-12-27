@@ -51,14 +51,6 @@ export default function AIImport() {
     },
   });
 
-  const generateOrderNumber = () => {
-    const date = new Date();
-    const year = date.getFullYear().toString().slice(-2);
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
-    const random = Math.floor(Math.random() * 9000) + 1000;
-    return `EU-OA-${year}${month}-${random}`;
-  };
-
   const normalizeExtractedData = (data) => ({
     license_plate: data?.license_plate || '',
     vehicle_brand: data?.vehicle_brand || '',
@@ -192,7 +184,7 @@ Gib ausschließlich die strukturierten Daten zurück.`,
         .filter(Boolean)
         .map((item) => ({
           ...normalizeExtractedData(item),
-          order_number: generateOrderNumber(),
+          order_number: '',
           status: 'new'
         }));
 
@@ -399,11 +391,15 @@ Gib ausschließlich die strukturierten Daten zurück.`,
                   <CardContent className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <Label>Auftragsnummer</Label>
-                        <Input 
-                          value={currentOrder.order_number || ''} 
+                        <Label>Auftragsnummer (intern)</Label>
+                        <Input
+                          value={currentOrder.order_number || ''}
                           onChange={(e) => updateExtractedData('order_number', e.target.value)}
+                          placeholder="Wird automatisch vergeben"
                         />
+                        <p className="mt-1 text-xs text-gray-500">
+                          Leer lassen für automatische Vergabe (AVO-YYYY-xxxxx).
+                        </p>
                       </div>
                       <div>
                         <Label>Status</Label>

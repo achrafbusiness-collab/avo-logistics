@@ -77,28 +77,20 @@ export default function AVOAI() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const generateOrderNumber = () => {
-    const date = new Date();
-    const year = date.getFullYear().toString().slice(-2);
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
-    const random = Math.floor(Math.random() * 9000) + 1000;
-    return `EU-OA-${year}${month}-${random}`;
-  };
-
   const executeAction = async (action) => {
     try {
       switch (action.type) {
         case 'create_order':
           const orderData = {
             ...action.data,
-            order_number: action.data.order_number || generateOrderNumber(),
+            order_number: action.data.order_number || '',
             status: action.data.status || 'new'
           };
           if (!orderData.pickup_postal_code || !orderData.dropoff_postal_code) {
             return '❌ Bitte Abhol- und Ziel-PLZ angeben, damit der Auftrag korrekt gespeichert wird.';
           }
-          await createOrderMutation.mutateAsync(orderData);
-          return `✅ Auftrag ${orderData.order_number} wurde erfolgreich erstellt.`;
+          const createdOrder = await createOrderMutation.mutateAsync(orderData);
+          return `✅ Auftrag ${createdOrder.order_number} wurde erfolgreich erstellt.`;
 
         case 'assign_driver':
           const order = orders.find(o => o.id === action.order_id || o.order_number === action.order_number);

@@ -83,12 +83,9 @@ export default function OrderForm({ order, onSave, onCancel }) {
         price: order.price?.toString() || '',
       });
     } else {
-      // Generate order number
-      const prefix = 'EU-OA';
-      const number = Math.floor(1000 + Math.random() * 9000);
       setFormData(prev => ({
         ...prev,
-        order_number: `${prefix}-${number}`,
+        order_number: '',
       }));
     }
   }, [order]);
@@ -165,13 +162,18 @@ export default function OrderForm({ order, onSave, onCancel }) {
           {/* Order Info */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <Label>Auftragsnummer</Label>
-              <Input 
+              <Label>Auftragsnummer (intern)</Label>
+              <Input
                 value={formData.order_number}
                 onChange={(e) => handleChange('order_number', e.target.value)}
-                placeholder="EU-OA-XXXX"
-                required
+                placeholder={order ? '' : 'Wird automatisch vergeben'}
+                readOnly={!order}
               />
+              {!order && (
+                <p className="mt-1 text-xs text-gray-500">
+                  Wird beim Speichern automatisch vergeben (z. B. AVO-2025-00001).
+                </p>
+              )}
             </div>
             <div>
               <Label>Status</Label>

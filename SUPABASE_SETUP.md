@@ -201,6 +201,50 @@ create table if not exists public.orders (
   updated_date timestamptz default now()
 );
 
+-- Interne Auftragsnummern automatisch vergeben (AVO-YYYY-xxxxx)
+create sequence if not exists public.order_number_seq;
+
+create or replace function public.generate_order_number()
+returns text
+language plpgsql
+as $$
+declare
+  seq bigint;
+  year text;
+begin
+  year := to_char(now(), 'YYYY');
+  seq := nextval('public.order_number_seq');
+  return 'AVO-' || year || '-' || lpad(seq::text, 5, '0');
+end;
+$$;
+
+create or replace function public.set_order_number()
+returns trigger
+language plpgsql
+as $$
+begin
+  if new.order_number is null or btrim(new.order_number) = '' then
+    new.order_number := public.generate_order_number();
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists set_order_number on public.orders;
+create trigger set_order_number
+before insert on public.orders
+for each row execute procedure public.set_order_number();
+
+update public.orders
+set order_number = public.generate_order_number()
+where order_number is null or order_number = '';
+
+alter table public.orders
+alter column order_number set not null;
+
+create unique index if not exists orders_order_number_unique
+on public.orders(order_number);
+
 create table if not exists public.drivers (
   id uuid primary key default gen_random_uuid(),
   first_name text,
