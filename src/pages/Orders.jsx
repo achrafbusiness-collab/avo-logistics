@@ -132,10 +132,27 @@ export default function Orders() {
   }, [urlParams.toString(), orders]);
 
   const handleSave = async (data) => {
+    const normalizeOrderPayload = (payload) => {
+      const normalized = { ...payload };
+      if (normalized.assigned_driver_id === '') {
+        normalized.assigned_driver_id = null;
+      }
+      if (!normalized.assigned_driver_id) {
+        normalized.assigned_driver_name = '';
+      }
+      if (normalized.customer_id === '') {
+        normalized.customer_id = null;
+      }
+      return normalized;
+    };
+
     if (selectedOrder) {
-      await updateMutation.mutateAsync({ id: selectedOrder.id, data });
+      await updateMutation.mutateAsync({
+        id: selectedOrder.id,
+        data: normalizeOrderPayload(data),
+      });
     } else {
-      await createMutation.mutateAsync(data);
+      await createMutation.mutateAsync(normalizeOrderPayload(data));
     }
   };
 
@@ -147,8 +164,16 @@ export default function Orders() {
       assigned_driver_id: driverId,
       assigned_driver_name: driverName,
     };
-    if (driverId && (!selectedOrder.status || selectedOrder.status === 'new')) {
-      updates.status = 'assigned';
+    if (driverId) {
+      if (!selectedOrder.status || selectedOrder.status === 'new') {
+        updates.status = 'assigned';
+      }
+    } else {
+      updates.assigned_driver_id = null;
+      updates.assigned_driver_name = '';
+      if (selectedOrder.status === 'assigned') {
+        updates.status = 'new';
+      }
     }
     const updated = await appClient.entities.Order.update(selectedOrder.id, updates);
     setSelectedOrder(updated);
@@ -245,8 +270,9 @@ export default function Orders() {
         } = order;
         await appClient.entities.Order.create({
           ...rest,
+          customer_id: rest.customer_id || null,
           status: 'new',
-          assigned_driver_id: '',
+          assigned_driver_id: null,
           assigned_driver_name: '',
         });
       }
