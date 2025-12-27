@@ -33,6 +33,7 @@ import ResetPassword from "./ResetPassword";
 import TeamAVO from "./TeamAVO";
 import AccessDenied from "./AccessDenied";
 import Terminal from "./Terminal";
+import SystemVermietung from "./SystemVermietung";
 
 import { BrowserRouter as Router, Route, Routes, useLocation, Navigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
@@ -69,6 +70,8 @@ const PAGES = {
     TeamAVO: TeamAVO,
 
     Terminal: Terminal,
+
+    SystemVermietung: SystemVermietung,
     
 }
 
@@ -175,6 +178,8 @@ function PagesContent() {
                 <Route path="/TeamAVO" element={<TeamAVO />} />
 
                 <Route path="/Terminal" element={<Terminal />} />
+
+                <Route path="/SystemVermietung" element={<SystemVermietung />} />
                 
             </Routes>
         </Layout>

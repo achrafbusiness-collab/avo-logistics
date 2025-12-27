@@ -18,7 +18,8 @@ import {
   Sparkles,
   Moon,
   Sun,
-  Terminal
+  Terminal,
+  Building2
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import {
@@ -42,6 +43,7 @@ const adminPages = [
   { name: 'Suche', icon: Search, page: 'Search' },
   { name: 'Team AVO', icon: Users, page: 'TeamAVO' },
   { name: 'Terminal', icon: Terminal, page: 'Terminal' },
+  { name: 'System-Vermietung', icon: Building2, page: 'SystemVermietung' },
 ];
 
 // Driver pages (minimal navigation)
