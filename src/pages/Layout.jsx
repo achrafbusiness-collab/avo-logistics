@@ -19,7 +19,8 @@ import {
   Moon,
   Sun,
   Terminal,
-  Building2
+  Building2,
+  History
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import {
@@ -42,6 +43,7 @@ const adminPages = [
   { name: 'App-Verbindung', icon: User, page: 'AppConnection' },
   { name: 'Suche', icon: Search, page: 'Search' },
   { name: 'Team', icon: Users, page: 'TeamAVO' },
+  { name: 'Verlauf', icon: History, page: 'Verlauf' },
   { name: 'Terminal', icon: Terminal, page: 'Terminal' },
   { name: 'System-Vermietung', icon: Building2, page: 'SystemVermietung' },
 ];

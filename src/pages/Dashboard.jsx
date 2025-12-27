@@ -88,8 +88,8 @@ export default function Dashboard() {
 
   const stats = {
     totalOrders: orders.length,
-    activeOrders: rangeOrders.filter(o => ['new', 'assigned', 'accepted', 'pickup_started', 'in_transit', 'delivery_started'].includes(o.status)).length,
-    completedOrders: rangeOrders.filter(o => o.status === 'completed').length,
+    activeOrders: rangeOrders.filter(o => ['new', 'assigned', 'pickup_started', 'in_transit', 'delivery_started'].includes(o.status)).length,
+    completedOrders: rangeOrders.filter(o => ['completed', 'review', 'ready_for_billing', 'approved'].includes(o.status)).length,
     activeDrivers: drivers.filter(d => d.status === 'active').length,
     pendingOrders: rangeOrders.filter(o => o.status === 'new').length,
     rangeOrders: rangeOrders.length,

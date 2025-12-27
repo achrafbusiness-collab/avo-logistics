@@ -181,8 +181,8 @@ export default function AVOAI() {
         })),
         statistics: {
           total_orders: orders.length,
-          active_orders: orders.filter(o => ['assigned', 'in_transit'].includes(o.status)).length,
-          completed_orders: orders.filter(o => o.status === 'completed').length,
+          active_orders: orders.filter(o => ['assigned', 'pickup_started', 'in_transit', 'delivery_started'].includes(o.status)).length,
+          completed_orders: orders.filter(o => ['completed', 'review', 'ready_for_billing', 'approved'].includes(o.status)).length,
           active_drivers: drivers.filter(d => d.status === 'active').length,
           total_customers: customers.length
         }
@@ -198,7 +198,7 @@ export default function AVOAI() {
 Du bist eine normale Konversations-AI wie ChatGPT UND kannst gleichzeitig direkt im System Aktionen ausführen.
 
 VERFÜGBARE SYSTEM-DATEN:
-- Aufträge: ${orders.length} (${orders.filter(o => o.status === 'new').length} neu, ${orders.filter(o => ['assigned', 'in_transit'].includes(o.status)).length} aktiv, ${orders.filter(o => o.status === 'completed').length} abgeschlossen)
+- Aufträge: ${orders.length} (${orders.filter(o => o.status === 'new').length} offen, ${orders.filter(o => ['assigned', 'pickup_started', 'in_transit', 'delivery_started'].includes(o.status)).length} aktiv, ${orders.filter(o => ['completed', 'review', 'ready_for_billing', 'approved'].includes(o.status)).length} abgeschlossen)
 - Fahrer: ${drivers.length} (${drivers.filter(d => d.status === 'active').length} aktiv)
 - Kunden: ${customers.length}
 

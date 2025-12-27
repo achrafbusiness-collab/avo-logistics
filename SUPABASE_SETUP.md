@@ -197,6 +197,9 @@ create table if not exists public.orders (
   dropoff_date date,
   dropoff_time text,
   notes text,
+  review_checks jsonb default '{}'::jsonb,
+  review_notes text,
+  status_override_reason text,
   price numeric,
   created_date timestamptz default now(),
   updated_date timestamptz default now()
@@ -359,7 +362,10 @@ Wenn Tabellen schon existieren, füge die PLZ-Spalten hinzu:
 ```sql
 alter table public.orders
 add column if not exists pickup_postal_code text,
-add column if not exists dropoff_postal_code text;
+add column if not exists dropoff_postal_code text,
+add column if not exists review_checks jsonb default '{}'::jsonb,
+add column if not exists review_notes text,
+add column if not exists status_override_reason text;
 
 alter table public.checklists
 add column if not exists mandatory_checks jsonb default '{}'::jsonb;
@@ -635,4 +641,181 @@ update storage.objects
 set metadata = jsonb_set(coalesce(metadata, '{}'::jsonb), '{company_id}', to_jsonb('COMPANY_ID_HIER'))
 where bucket_id in ('documents', 'employee-ids')
   and (metadata->>'company_id') is null;
+```
+
+### 7g) Audit‑Log (Verlauf)
+
+```sql
+create table if not exists public.audit_logs (
+  id uuid primary key default gen_random_uuid(),
+  company_id uuid references public.companies,
+  actor_user_id uuid,
+  actor_email text,
+  action text,
+  entity text,
+  entity_id uuid,
+  description text,
+  changes jsonb default '{}'::jsonb,
+  created_at timestamptz default now()
+);
+
+alter table public.audit_logs enable row level security;
+
+drop policy if exists "Audit logs select" on public.audit_logs;
+create policy "Audit logs select" on public.audit_logs
+for select using (company_id = public.current_company_id());
+
+drop policy if exists "Audit logs insert" on public.audit_logs;
+create policy "Audit logs insert" on public.audit_logs
+for insert with check (company_id = public.current_company_id());
+
+create or replace function public.write_audit_log()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_company_id uuid;
+  v_actor uuid;
+  v_actor_email text;
+  v_action text;
+  v_entity text := TG_TABLE_NAME;
+  v_entity_id uuid;
+  v_changes jsonb;
+begin
+  v_actor := auth.uid();
+
+  if TG_OP = 'INSERT' then
+    v_action := 'create';
+    v_company_id := NEW.company_id;
+    v_entity_id := NEW.id;
+    v_changes := jsonb_build_object('new', to_jsonb(NEW));
+  elsif TG_OP = 'UPDATE' then
+    v_action := 'update';
+    v_company_id := NEW.company_id;
+    v_entity_id := NEW.id;
+    v_changes := jsonb_build_object('old', to_jsonb(OLD), 'new', to_jsonb(NEW));
+  elsif TG_OP = 'DELETE' then
+    v_action := 'delete';
+    v_company_id := OLD.company_id;
+    v_entity_id := OLD.id;
+    v_changes := jsonb_build_object('old', to_jsonb(OLD));
+  end if;
+
+  if v_actor is not null then
+    select email into v_actor_email from public.profiles where id = v_actor;
+  end if;
+
+  insert into public.audit_logs (
+    company_id,
+    actor_user_id,
+    actor_email,
+    action,
+    entity,
+    entity_id,
+    changes
+  ) values (
+    v_company_id,
+    v_actor,
+    v_actor_email,
+    v_action,
+    v_entity,
+    v_entity_id,
+    v_changes
+  );
+
+  return coalesce(NEW, OLD);
+end;
+$$;
+
+drop trigger if exists audit_orders on public.orders;
+create trigger audit_orders
+after insert or update or delete on public.orders
+for each row execute procedure public.write_audit_log();
+
+drop trigger if exists audit_drivers on public.drivers;
+create trigger audit_drivers
+after insert or update or delete on public.drivers
+for each row execute procedure public.write_audit_log();
+
+drop trigger if exists audit_customers on public.customers;
+create trigger audit_customers
+after insert or update or delete on public.customers
+for each row execute procedure public.write_audit_log();
+
+drop trigger if exists audit_checklists on public.checklists;
+create trigger audit_checklists
+after insert or update or delete on public.checklists
+for each row execute procedure public.write_audit_log();
+
+drop trigger if exists audit_profiles on public.profiles;
+create trigger audit_profiles
+after insert or update or delete on public.profiles
+for each row execute procedure public.write_audit_log();
+
+create or replace function public.write_storage_audit_log()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_company_id uuid;
+  v_actor uuid;
+  v_actor_email text;
+  v_action text;
+  v_entity_id uuid;
+  v_changes jsonb;
+begin
+  v_actor := auth.uid();
+
+  if TG_OP = 'INSERT' then
+    v_action := 'upload';
+    v_company_id := (NEW.metadata->>'company_id')::uuid;
+    v_entity_id := NEW.id;
+    v_changes := jsonb_build_object('bucket', NEW.bucket_id, 'name', NEW.name);
+  elsif TG_OP = 'DELETE' then
+    v_action := 'delete';
+    v_company_id := (OLD.metadata->>'company_id')::uuid;
+    v_entity_id := OLD.id;
+    v_changes := jsonb_build_object('bucket', OLD.bucket_id, 'name', OLD.name);
+  else
+    return coalesce(NEW, OLD);
+  end if;
+
+  if v_company_id is null then
+    return coalesce(NEW, OLD);
+  end if;
+
+  if v_actor is not null then
+    select email into v_actor_email from public.profiles where id = v_actor;
+  end if;
+
+  insert into public.audit_logs (
+    company_id,
+    actor_user_id,
+    actor_email,
+    action,
+    entity,
+    entity_id,
+    changes
+  ) values (
+    v_company_id,
+    v_actor,
+    v_actor_email,
+    v_action,
+    'storage',
+    v_entity_id,
+    v_changes
+  );
+
+  return coalesce(NEW, OLD);
+end;
+$$;
+
+drop trigger if exists audit_storage on storage.objects;
+create trigger audit_storage
+after insert or delete on storage.objects
+for each row execute procedure public.write_storage_audit_log();
 ```

@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import StatusBadge from "@/components/ui/StatusBadge";
 import { 
   Car, 
   MapPin, 
@@ -101,7 +102,7 @@ export default function OrderForm({ order, onSave, onCancel }) {
       ...prev,
       assigned_driver_id: driverId,
       assigned_driver_name: driverName,
-      status: driverId ? 'assigned' : prev.status,
+      status: driverId && prev.status === 'new' ? 'assigned' : prev.status,
     }));
   };
 
@@ -177,23 +178,12 @@ export default function OrderForm({ order, onSave, onCancel }) {
             </div>
             <div>
               <Label>Status</Label>
-              <Select value={formData.status} onValueChange={(v) => handleChange('status', v)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="new">Neu</SelectItem>
-                  <SelectItem value="assigned">Zugeteilt</SelectItem>
-                  <SelectItem value="accepted">Angenommen</SelectItem>
-                  <SelectItem value="pickup_started">Übernahme</SelectItem>
-                  <SelectItem value="in_transit">Bearbeitung</SelectItem>
-                  <SelectItem value="delivery_started">Übergabe</SelectItem>
-                  <SelectItem value="completed">Fertig</SelectItem>
-                  <SelectItem value="cancelled">Storniert</SelectItem>
-                </SelectContent>
-                </Select>
-                </div>
-                <div>
+              <div className="mt-2 flex flex-col gap-1">
+                <StatusBadge status={formData.status || 'new'} />
+                <p className="text-xs text-gray-500">Status wird automatisch im Workflow gesetzt.</p>
+              </div>
+            </div>
+            <div>
                 <Label>Kunde</Label>
                 <Select 
                 value={formData.customer_id || "none"} 

@@ -182,6 +182,20 @@ export default function DriverProtocol() {
     mutationFn: ({ id, data }) => appClient.entities.Order.update(id, data),
   });
 
+  useEffect(() => {
+    if (!orderId || !order?.status) return;
+    let nextStatus = null;
+    if (type === 'pickup' && ['new', 'assigned'].includes(order.status)) {
+      nextStatus = 'pickup_started';
+    }
+    if (type === 'dropoff' && ['in_transit', 'pickup_started', 'assigned', 'new'].includes(order.status)) {
+      nextStatus = 'delivery_started';
+    }
+    if (nextStatus && nextStatus !== order.status) {
+      updateOrderMutation.mutate({ id: orderId, data: { status: nextStatus } });
+    }
+  }, [order?.status, orderId, type]);
+
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
@@ -273,9 +287,9 @@ export default function DriverProtocol() {
       // Update order status
       let newStatus = order?.status;
       if (type === 'pickup') {
-        newStatus = 'in_transit'; // Nach Abholprotokoll → Bearbeitung
+        newStatus = 'in_transit'; // Nach Abholprotokoll → In Lieferung
       } else if (type === 'dropoff') {
-        newStatus = 'completed'; // Nach Abgabeprotokoll → Fertig
+        newStatus = 'completed'; // Nach Abgabeprotokoll → Erfolgreich beendet
       }
       
       if (newStatus !== order?.status) {

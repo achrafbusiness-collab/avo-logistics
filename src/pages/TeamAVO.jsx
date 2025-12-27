@@ -56,6 +56,7 @@ const permissionOptions = [
   { key: "AVOAI", label: "AVO AI" },
   { key: "AppConnection", label: "App-Verbindung" },
   { key: "TeamAVO", label: "Team" },
+  { key: "Verlauf", label: "Verlauf" },
 ];
 
 const defaultPermissions = permissionOptions.reduce((acc, item) => {

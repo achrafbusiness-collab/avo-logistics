@@ -35,6 +35,7 @@ import TeamAVO from "./TeamAVO";
 import AccessDenied from "./AccessDenied";
 import Terminal from "./Terminal";
 import SystemVermietung from "./SystemVermietung";
+import Verlauf from "./Verlauf";
 
 import { BrowserRouter as Router, Route, Routes, useLocation, Navigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
@@ -73,6 +74,8 @@ const PAGES = {
     Terminal: Terminal,
 
     SystemVermietung: SystemVermietung,
+
+    Verlauf: Verlauf,
     
 }
 

@@ -54,6 +54,17 @@ export default function Orders() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
+
+  useEffect(() => {
+    let active = true;
+    appClient.auth.getCurrentUser().then((user) => {
+      if (active) setCurrentUser(user);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const { data: orders = [], isLoading } = useQuery({
     queryKey: ['orders'],
@@ -130,12 +141,19 @@ export default function Orders() {
       assigned_driver_id: driverId,
       assigned_driver_name: driverName,
     };
-    if (driverId) {
+    if (driverId && (!selectedOrder.status || selectedOrder.status === 'new')) {
       updates.status = 'assigned';
     }
     const updated = await appClient.entities.Order.update(selectedOrder.id, updates);
     setSelectedOrder(updated);
     queryClient.invalidateQueries({ queryKey: ['orders'] });
+  };
+
+  const handleStatusUpdate = async (orderId, data) => {
+    const updated = await appClient.entities.Order.update(orderId, data);
+    setSelectedOrder(updated);
+    queryClient.invalidateQueries({ queryKey: ['orders'] });
+    return updated;
   };
 
   const filteredOrders = orders.filter(order => {
@@ -205,7 +223,9 @@ export default function Orders() {
           order={selectedOrder}
           checklists={getOrderChecklists(selectedOrder.id)}
           drivers={drivers}
+          currentUser={currentUser}
           onAssignDriver={handleAssignDriver}
+          onStatusUpdate={handleStatusUpdate}
           onEdit={() => setView('form')}
           onDelete={() => setDeleteConfirmOpen(true)}
         />
@@ -283,12 +303,15 @@ export default function Orders() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Alle Status</SelectItem>
-                <SelectItem value="new">Neu</SelectItem>
+                <SelectItem value="new">Offen</SelectItem>
                 <SelectItem value="assigned">Zugewiesen</SelectItem>
-                <SelectItem value="in_transit">Unterwegs</SelectItem>
-                <SelectItem value="picked_up">Abgeholt</SelectItem>
-                <SelectItem value="delivered">Geliefert</SelectItem>
-                <SelectItem value="completed">Abgeschlossen</SelectItem>
+                <SelectItem value="pickup_started">Übernahme läuft</SelectItem>
+                <SelectItem value="in_transit">In Lieferung</SelectItem>
+                <SelectItem value="delivery_started">Übergabe läuft</SelectItem>
+                <SelectItem value="completed">Erfolgreich beendet</SelectItem>
+                <SelectItem value="review">Prüfung</SelectItem>
+                <SelectItem value="ready_for_billing">Freigabe Abrechnung</SelectItem>
+                <SelectItem value="approved">Freigegeben</SelectItem>
                 <SelectItem value="cancelled">Storniert</SelectItem>
               </SelectContent>
             </Select>

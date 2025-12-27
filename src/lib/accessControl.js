@@ -5,7 +5,7 @@ export const hasPageAccess = (user, pageName) => {
   if (user.role === "driver") {
     return DRIVER_PAGES.has(pageName);
   }
-  if (pageName === "Terminal") {
+  if (pageName === "Terminal" || pageName === "Verlauf") {
     return user.role === "admin";
   }
   if (pageName === "SystemVermietung") {
