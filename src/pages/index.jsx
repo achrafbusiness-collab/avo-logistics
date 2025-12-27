@@ -30,6 +30,7 @@ import LoginStaff from "./LoginStaff";
 import LoginExecutive from "./LoginExecutive";
 import DriverAccess from "./DriverAccess";
 import ResetPassword from "./ResetPassword";
+import SetPassword from "./SetPassword";
 import TeamAVO from "./TeamAVO";
 import AccessDenied from "./AccessDenied";
 import Terminal from "./Terminal";
@@ -94,6 +95,7 @@ function PagesContent() {
     const normalizedPath = location.pathname.toLowerCase();
     const isLoginRoute = normalizedPath === '/login' || normalizedPath.startsWith('/login/');
     const isResetRoute = normalizedPath === '/reset-password';
+    const isSetPasswordRoute = normalizedPath === '/set-password';
     const isDriverAccessRoute = normalizedPath === '/driver';
     const currentPage = _getCurrentPage(location.pathname);
     const [currentUser, setCurrentUser] = useState(null);
@@ -118,7 +120,7 @@ function PagesContent() {
         return null;
     }
 
-    if (isLoginRoute || isResetRoute || isDriverAccessRoute) {
+    if (isLoginRoute || isResetRoute || isSetPasswordRoute || isDriverAccessRoute) {
         return (
             <Routes>
                 <Route path="/login" element={<Login />} />
@@ -127,6 +129,7 @@ function PagesContent() {
                 <Route path="/login/executive" element={<LoginExecutive />} />
                 <Route path="/driver" element={<DriverAccess />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
+                <Route path="/set-password" element={<SetPassword />} />
                 <Route path="*" element={<Navigate to="/login" replace />} />
             </Routes>
         );

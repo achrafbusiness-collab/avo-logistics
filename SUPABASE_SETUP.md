@@ -27,6 +27,7 @@ create table if not exists public.profiles (
   id_back_url text,
   permissions jsonb default '{}'::jsonb,
   is_active boolean default true,
+  must_reset_password boolean default false,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
@@ -419,6 +420,9 @@ Merke dir die `id` (company_id). Diese brauchst du für die Backfills unten.
 alter table public.profiles
 add column if not exists company_id uuid references public.companies;
 
+alter table public.profiles
+add column if not exists must_reset_password boolean default false;
+
 alter table public.orders add column if not exists company_id uuid references public.companies;
 alter table public.drivers add column if not exists company_id uuid references public.companies;
 alter table public.customers add column if not exists company_id uuid references public.companies;
@@ -427,6 +431,7 @@ alter table public.app_settings add column if not exists company_id uuid referen
 
 -- Backfill: alle bestehenden Daten dem AVO‑Unternehmen zuordnen
 update public.profiles set company_id = 'COMPANY_ID_HIER' where company_id is null;
+update public.profiles set must_reset_password = false where must_reset_password is null;
 update public.orders set company_id = 'COMPANY_ID_HIER' where company_id is null;
 update public.drivers set company_id = 'COMPANY_ID_HIER' where company_id is null;
 update public.customers set company_id = 'COMPANY_ID_HIER' where company_id is null;

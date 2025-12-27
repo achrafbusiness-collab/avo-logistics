@@ -38,7 +38,11 @@ export default function LoginPortal({
     setResetSent(false);
     setSubmitting(true);
     try {
-      await appClient.auth.login({ email, password });
+      const user = await appClient.auth.login({ email, password });
+      if (user?.must_reset_password) {
+        window.location.href = "/set-password";
+        return;
+      }
       window.location.href = successRedirect;
     } catch (err) {
       setError(err?.message || 'Login fehlgeschlagen.');

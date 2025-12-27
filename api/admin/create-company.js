@@ -149,28 +149,27 @@ export default async function handler(req, res) {
       return;
     }
 
-    const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
-      type: "invite",
-      email: owner_email,
-      options: {
-        redirectTo,
-        data: {
+    const tempPassword = crypto.randomBytes(8).toString("base64url");
+    const { data: createUserData, error: createUserError } =
+      await supabaseAdmin.auth.admin.createUser({
+        email: owner_email,
+        password: tempPassword,
+        email_confirm: true,
+        user_metadata: {
           full_name: owner_full_name,
           company_id: companyId,
           role: "admin",
         },
-      },
-    });
+      });
 
-    if (linkError || !linkData?.user) {
+    if (createUserError || !createUserData?.user) {
       await supabaseAdmin.from("app_settings").delete().eq("company_id", companyId);
       await supabaseAdmin.from("companies").delete().eq("id", companyId);
-      res.status(400).json({ ok: false, error: linkError?.message || "Invite link failed" });
+      res.status(400).json({ ok: false, error: createUserError?.message || "User creation failed" });
       return;
     }
 
-    const ownerUser = linkData.user;
-    const actionLink = linkData.properties?.action_link || "";
+    const ownerUser = createUserData.user;
 
     const { data: company, error: updateCompanyError } = await supabaseAdmin
       .from("companies")
@@ -192,6 +191,7 @@ export default async function handler(req, res) {
       phone: owner_phone || "",
       permissions: {},
       is_active: true,
+      must_reset_password: true,
       company_id: companyId,
       updated_at: new Date().toISOString(),
     });
@@ -203,18 +203,25 @@ export default async function handler(req, res) {
       updated_date: new Date().toISOString(),
     });
 
+    const origin = req.headers.origin || "";
+    const loginUrl = redirectTo || `${origin}/login/executive`;
     const subject = "Dein AVO System Zugang";
     const text = `Hallo ${owner_full_name},
 
 du hast einen neuen AVO System Mandanten erhalten: ${company_name}
 
-Bitte klicke auf den Link, um dein Passwort zu setzen:
-${actionLink}
+Login: ${loginUrl}
+E-Mail: ${owner_email}
+Temporäres Passwort: ${tempPassword}
+
+Nach dem ersten Login musst du dein Passwort ändern.
 `;
     const html = `<p>Hallo ${owner_full_name},</p>
 <p>du hast einen neuen AVO System Mandanten erhalten: <strong>${company_name}</strong></p>
-<p><strong>Passwort setzen:</strong><br/>
-<a href="${actionLink}">${actionLink}</a></p>`;
+<p><strong>Login:</strong> <a href="${loginUrl}">${loginUrl}</a></p>
+<p><strong>E-Mail:</strong> ${owner_email}<br/>
+<strong>Temporäres Passwort:</strong> ${tempPassword}</p>
+<p>Nach dem ersten Login musst du dein Passwort ändern.</p>`;
 
     let emailSent = false;
     try {
@@ -229,7 +236,8 @@ ${actionLink}
         company_id: companyId,
         company_name,
         owner_email,
-        actionLink,
+        tempPassword,
+        loginUrl,
         emailSent,
       },
     });

@@ -18,7 +18,9 @@ export default function SystemVermietung() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const [inviteLink, setInviteLink] = useState("");
+  const [tempPassword, setTempPassword] = useState("");
+  const [loginUrl, setLoginUrl] = useState("");
+  const [emailSent, setEmailSent] = useState(null);
 
   useEffect(() => {
     const load = async () => {
@@ -59,7 +61,9 @@ export default function SystemVermietung() {
     event.preventDefault();
     setError("");
     setMessage("");
-    setInviteLink("");
+    setTempPassword("");
+    setLoginUrl("");
+    setEmailSent(null);
 
     if (!companyName.trim() || !ownerEmail.trim() || !ownerName.trim()) {
       setError("Bitte Firmenname, Geschäftsführer und E-Mail ausfüllen.");
@@ -91,9 +95,9 @@ export default function SystemVermietung() {
         throw new Error(payload?.error || "Mandant konnte nicht erstellt werden.");
       }
       setMessage(`Mandant "${payload.data.company_name}" wurde angelegt.`);
-      if (payload.data.emailSent === false && payload.data.actionLink) {
-        setInviteLink(payload.data.actionLink);
-      }
+      setTempPassword(payload.data.tempPassword || "");
+      setLoginUrl(payload.data.loginUrl || "");
+      setEmailSent(payload.data.emailSent ?? null);
       setCompanyName("");
       setOwnerName("");
       setOwnerEmail("");
@@ -180,10 +184,21 @@ export default function SystemVermietung() {
                   <CheckCircle2 className="h-4 w-4" />
                   {message}
                 </div>
-                {inviteLink && (
+                {loginUrl && (
                   <div className="text-xs text-emerald-700">
-                    E‑Mail konnte nicht gesendet werden. Link manuell weitergeben:
-                    <div className="mt-1 break-all rounded bg-white/70 p-2">{inviteLink}</div>
+                    Login‑URL:
+                    <div className="mt-1 break-all rounded bg-white/70 p-2">{loginUrl}</div>
+                  </div>
+                )}
+                {tempPassword && (
+                  <div className="text-xs text-emerald-700">
+                    Temporäres Passwort:
+                    <div className="mt-1 break-all rounded bg-white/70 p-2">{tempPassword}</div>
+                  </div>
+                )}
+                {emailSent === false && (
+                  <div className="text-xs text-emerald-700">
+                    E‑Mail konnte nicht gesendet werden. Bitte Zugangsdaten manuell weitergeben.
                   </div>
                 )}
               </div>
