@@ -67,12 +67,14 @@ export default function DriverForm({ driver, onSave, onCancel }) {
   const [loginResult, setLoginResult] = useState(null);
   const [loginError, setLoginError] = useState('');
   const [loginCreating, setLoginCreating] = useState(false);
+  const [createdDriverId, setCreatedDriverId] = useState('');
 
   useEffect(() => {
     setFormData(buildFormData(driver));
     setCreateLogin(!driver);
     setLoginResult(null);
     setLoginError('');
+    setCreatedDriverId('');
   }, [driver]);
 
   const handleChange = (field, value) => {
@@ -102,7 +104,10 @@ export default function DriverForm({ driver, onSave, onCancel }) {
         ...formData,
         status: !driver && createLogin ? 'pending' : formData.status,
       };
-      await onSave(payload);
+      const created = await onSave(payload);
+      if (!driver && created?.id) {
+        setCreatedDriverId(created.id);
+      }
       if (!driver && createLogin) {
         setLoginCreating(true);
         const token = await getAuthToken();
@@ -133,8 +138,6 @@ export default function DriverForm({ driver, onSave, onCancel }) {
           return;
         }
         setLoginResult(payload.data || null);
-      } else if (!driver && !createLogin) {
-        onCancel();
       }
     } catch (error) {
       setLoginError(error?.message || 'Speichern fehlgeschlagen.');
@@ -361,9 +364,42 @@ export default function DriverForm({ driver, onSave, onCancel }) {
                         E-Mail konnte nicht gesendet werden. Bitte den Link manuell weitergeben.
                       </p>
                     )}
-                    <div>
+                    <p className="text-xs text-emerald-700">
+                      Status bleibt auf Bearbeitung bis der Fahrer sein Passwort gesetzt hat.
+                    </p>
+                    <div className="flex flex-wrap gap-2">
                       <Button type="button" variant="outline" onClick={onCancel}>
                         Zur Liste
+                      </Button>
+                      {createdDriverId && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            window.location.href = `/drivers?id=${createdDriverId}`;
+                          }}
+                        >
+                          Profil anzeigen
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                )}
+                {!driver && createdDriverId && !loginResult && !loginCreating && (
+                  <div className="space-y-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                    <p>Profil wurde gespeichert.</p>
+                    <div className="flex flex-wrap gap-2">
+                      <Button type="button" variant="outline" onClick={onCancel}>
+                        Zur Liste
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          window.location.href = `/drivers?id=${createdDriverId}`;
+                        }}
+                      >
+                        Profil anzeigen
                       </Button>
                     </div>
                   </div>
