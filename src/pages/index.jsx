@@ -192,6 +192,8 @@ function PagesContent() {
                 <Route path="/Terminal" element={<Terminal />} />
 
                 <Route path="/SystemVermietung" element={<SystemVermietung />} />
+
+                <Route path="/verlauf" element={<Verlauf />} />
                 
             </Routes>
         </Layout>
