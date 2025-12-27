@@ -344,7 +344,9 @@ create table if not exists public.order_notes (
   author_email text,
   note text,
   is_pinned boolean default false,
-  created_at timestamptz default now()
+  created_at timestamptz default now(),
+  created_date timestamptz default now(),
+  updated_date timestamptz default now()
 );
 
 alter table public.order_notes enable row level security;
