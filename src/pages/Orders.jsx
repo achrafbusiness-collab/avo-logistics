@@ -66,6 +66,9 @@ export default function Orders() {
   const [noteSaving, setNoteSaving] = useState({});
   const [noteErrors, setNoteErrors] = useState({});
   const [noteOpen, setNoteOpen] = useState({});
+  const [noteEditOpen, setNoteEditOpen] = useState({});
+  const [noteEditDrafts, setNoteEditDrafts] = useState({});
+  const [noteEditSaving, setNoteEditSaving] = useState({});
 
   useEffect(() => {
     let active = true;
@@ -338,6 +341,48 @@ export default function Orders() {
     }
   };
 
+  const handleNoteEditStart = (note) => {
+    if (!note?.id) return;
+    setNoteEditOpen((prev) => ({ ...prev, [note.order_id]: true }));
+    setNoteEditDrafts((prev) => ({ ...prev, [note.order_id]: note.note || '' }));
+  };
+
+  const handleNoteEditSave = async (note) => {
+    if (!note?.id) return;
+    const updatedText = (noteEditDrafts[note.order_id] || '').trim();
+    if (!updatedText) return;
+    setNoteEditSaving((prev) => ({ ...prev, [note.order_id]: true }));
+    setNoteErrors((prev) => ({ ...prev, [note.order_id]: '' }));
+    try {
+      await appClient.entities.OrderNote.update(note.id, { note: updatedText });
+      setNoteEditOpen((prev) => ({ ...prev, [note.order_id]: false }));
+      queryClient.invalidateQueries({ queryKey: ['order-notes'] });
+    } catch (err) {
+      setNoteErrors((prev) => ({
+        ...prev,
+        [note.order_id]: err?.message || 'Notiz konnte nicht gespeichert werden.',
+      }));
+    } finally {
+      setNoteEditSaving((prev) => ({ ...prev, [note.order_id]: false }));
+    }
+  };
+
+  const handleNoteDelete = async (note) => {
+    if (!note?.id) return;
+    const confirmed = window.confirm('Notiz wirklich löschen?');
+    if (!confirmed) return;
+    setNoteErrors((prev) => ({ ...prev, [note.order_id]: '' }));
+    try {
+      await appClient.entities.OrderNote.delete(note.id);
+      queryClient.invalidateQueries({ queryKey: ['order-notes'] });
+    } catch (err) {
+      setNoteErrors((prev) => ({
+        ...prev,
+        [note.order_id]: err?.message || 'Notiz konnte nicht gelöscht werden.',
+      }));
+    }
+  };
+
   const getOrderChecklists = (orderId) => {
     return checklists.filter(c => c.order_id === orderId);
   };
@@ -605,12 +650,80 @@ export default function Orders() {
                           <p className="text-sm text-gray-500">{order.license_plate}</p>
                           {latestNotesByOrder[order.id]?.note && (
                             <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                              <p className="text-xs uppercase tracking-wide text-slate-400">
-                                Interne Notiz
-                              </p>
-                              <p className="text-xs text-slate-600 line-clamp-2">
-                                {latestNotesByOrder[order.id].note}
-                              </p>
+                              <div className="flex items-center justify-between text-xs uppercase tracking-wide text-slate-400">
+                                <span>Interne Notiz</span>
+                                <div className="flex items-center gap-2 normal-case text-[11px] text-slate-500">
+                                  <button
+                                    type="button"
+                                    className="hover:text-slate-700"
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      handleNoteEditStart(latestNotesByOrder[order.id]);
+                                    }}
+                                  >
+                                    Bearbeiten
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="hover:text-red-600"
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      handleNoteDelete(latestNotesByOrder[order.id]);
+                                    }}
+                                  >
+                                    Löschen
+                                  </button>
+                                </div>
+                              </div>
+                              {noteEditOpen[order.id] ? (
+                                <div className="mt-2 space-y-2">
+                                  <Textarea
+                                    rows={2}
+                                    value={noteEditDrafts[order.id] || ''}
+                                    onChange={(e) =>
+                                      setNoteEditDrafts((prev) => ({
+                                        ...prev,
+                                        [order.id]: e.target.value,
+                                      }))
+                                    }
+                                    className="text-xs"
+                                  />
+                                  <div className="flex items-center gap-2">
+                                    <Button
+                                      size="sm"
+                                      className="bg-[#1e3a5f] hover:bg-[#2d5a8a]"
+                                      disabled={
+                                        noteEditSaving[order.id] ||
+                                        !noteEditDrafts[order.id]?.trim()
+                                      }
+                                      onClick={() =>
+                                        handleNoteEditSave(latestNotesByOrder[order.id])
+                                      }
+                                    >
+                                      {noteEditSaving[order.id] ? (
+                                        <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                                      ) : null}
+                                      Speichern
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() =>
+                                        setNoteEditOpen((prev) => ({
+                                          ...prev,
+                                          [order.id]: false,
+                                        }))
+                                      }
+                                    >
+                                      Abbrechen
+                                    </Button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <p className="mt-1 text-xs text-slate-600 line-clamp-2">
+                                  {latestNotesByOrder[order.id].note}
+                                </p>
+                              )}
                             </div>
                           )}
                           <div
