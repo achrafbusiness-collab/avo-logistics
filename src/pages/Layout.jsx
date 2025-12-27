@@ -17,7 +17,8 @@ import {
   ChevronDown,
   Sparkles,
   Moon,
-  Sun
+  Sun,
+  Terminal
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import {
@@ -40,6 +41,7 @@ const adminPages = [
   { name: 'App-Verbindung', icon: User, page: 'AppConnection' },
   { name: 'Suche', icon: Search, page: 'Search' },
   { name: 'Team AVO', icon: Users, page: 'TeamAVO' },
+  { name: 'Terminal', icon: Terminal, page: 'Terminal' },
 ];
 
 // Driver pages (minimal navigation)
@@ -85,9 +87,14 @@ export default function Layout({ children, currentPageName }) {
     }
   };
 
-  const handleLogout = () => {
-    appClient.auth.logout();
-    window.location.href = createPageUrl('Login');
+  const handleLogout = async () => {
+    try {
+      await appClient.auth.logout();
+    } finally {
+      setUser(null);
+      setIsDriver(false);
+      window.location.href = createPageUrl('Login');
+    }
   };
 
   // Driver-specific pages get minimal layout

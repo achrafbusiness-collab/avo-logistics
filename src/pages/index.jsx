@@ -29,6 +29,7 @@ import DriverAccess from "./DriverAccess";
 import ResetPassword from "./ResetPassword";
 import TeamAVO from "./TeamAVO";
 import AccessDenied from "./AccessDenied";
+import Terminal from "./Terminal";
 
 import { BrowserRouter as Router, Route, Routes, useLocation, Navigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
@@ -63,6 +64,8 @@ const PAGES = {
     AVOAI: AVOAI,
 
     TeamAVO: TeamAVO,
+
+    Terminal: Terminal,
     
 }
 
@@ -164,6 +167,8 @@ function PagesContent() {
                 <Route path="/AVOAI" element={<AVOAI />} />
 
                 <Route path="/TeamAVO" element={<TeamAVO />} />
+
+                <Route path="/Terminal" element={<Terminal />} />
                 
             </Routes>
         </Layout>
