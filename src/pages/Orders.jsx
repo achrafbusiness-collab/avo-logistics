@@ -649,7 +649,11 @@ export default function Orders() {
                           <p className="font-semibold text-[#1e3a5f]">{order.order_number}</p>
                           <p className="text-sm text-gray-500">{order.license_plate}</p>
                           {latestNotesByOrder[order.id]?.note && (
-                            <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                            <div
+                              className="mt-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2"
+                              onClick={(event) => event.stopPropagation()}
+                              onMouseDown={(event) => event.stopPropagation()}
+                            >
                               <div className="flex items-center justify-between text-xs uppercase tracking-wide text-slate-400">
                                 <span>Interne Notiz</span>
                                 <div className="flex items-center gap-2 normal-case text-[11px] text-slate-500">
@@ -676,7 +680,11 @@ export default function Orders() {
                                 </div>
                               </div>
                               {noteEditOpen[order.id] ? (
-                                <div className="mt-2 space-y-2">
+                                <div
+                                  className="mt-2 space-y-2"
+                                  onClick={(event) => event.stopPropagation()}
+                                  onMouseDown={(event) => event.stopPropagation()}
+                                >
                                   <Textarea
                                     rows={2}
                                     value={noteEditDrafts[order.id] || ''}
