@@ -65,6 +65,7 @@ export default function Orders() {
   const [noteDrafts, setNoteDrafts] = useState({});
   const [noteSaving, setNoteSaving] = useState({});
   const [noteErrors, setNoteErrors] = useState({});
+  const [noteOpen, setNoteOpen] = useState({});
 
   useEffect(() => {
     let active = true;
@@ -325,6 +326,7 @@ export default function Orders() {
         is_pinned: false,
       });
       setNoteDrafts((prev) => ({ ...prev, [orderId]: '' }));
+      setNoteOpen((prev) => ({ ...prev, [orderId]: false }));
       queryClient.invalidateQueries({ queryKey: ['order-notes'] });
     } catch (err) {
       setNoteErrors((prev) => ({
@@ -602,39 +604,65 @@ export default function Orders() {
                           <p className="font-semibold text-[#1e3a5f]">{order.order_number}</p>
                           <p className="text-sm text-gray-500">{order.license_plate}</p>
                           {latestNotesByOrder[order.id]?.note && (
-                            <p className="mt-1 text-xs text-slate-500 line-clamp-2">
-                              Notiz: {latestNotesByOrder[order.id].note}
-                            </p>
+                            <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                              <p className="text-xs uppercase tracking-wide text-slate-400">
+                                Interne Notiz
+                              </p>
+                              <p className="text-xs text-slate-600 line-clamp-2">
+                                {latestNotesByOrder[order.id].note}
+                              </p>
+                            </div>
                           )}
                           <div
-                            className="mt-2"
+                            className="mt-3 flex flex-col gap-2"
                             onClick={(event) => event.stopPropagation()}
                           >
-                            <div className="flex flex-col gap-2">
-                              <Textarea
-                                rows={2}
-                                value={noteDrafts[order.id] || ''}
-                                onChange={(e) => handleNoteChange(order.id, e.target.value)}
-                                placeholder="Interne Notiz hinzufügen..."
-                                className="text-xs"
-                              />
-                              <div className="flex items-center gap-2">
-                                <Button
-                                  size="sm"
-                                  className="bg-[#1e3a5f] hover:bg-[#2d5a8a]"
-                                  disabled={noteSaving[order.id] || !noteDrafts[order.id]?.trim()}
-                                  onClick={() => handleNoteSave(order.id)}
-                                >
-                                  {noteSaving[order.id] ? (
-                                    <Loader2 className="mr-2 h-3 w-3 animate-spin" />
-                                  ) : null}
-                                  Notiz speichern
-                                </Button>
-                                {noteErrors[order.id] && (
-                                  <span className="text-xs text-red-600">{noteErrors[order.id]}</span>
-                                )}
+                            {!noteOpen[order.id] ? (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() =>
+                                  setNoteOpen((prev) => ({ ...prev, [order.id]: true }))
+                                }
+                              >
+                                Notiz hinzufügen
+                              </Button>
+                            ) : (
+                              <div className="space-y-2 rounded-lg border border-slate-200 bg-white px-3 py-2">
+                                <Textarea
+                                  rows={2}
+                                  value={noteDrafts[order.id] || ''}
+                                  onChange={(e) => handleNoteChange(order.id, e.target.value)}
+                                  placeholder="Interne Notiz hinzufügen..."
+                                  className="text-xs"
+                                />
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <Button
+                                    size="sm"
+                                    className="bg-[#1e3a5f] hover:bg-[#2d5a8a]"
+                                    disabled={noteSaving[order.id] || !noteDrafts[order.id]?.trim()}
+                                    onClick={() => handleNoteSave(order.id)}
+                                  >
+                                    {noteSaving[order.id] ? (
+                                      <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                                    ) : null}
+                                    Notiz speichern
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() =>
+                                      setNoteOpen((prev) => ({ ...prev, [order.id]: false }))
+                                    }
+                                  >
+                                    Schließen
+                                  </Button>
+                                  {noteErrors[order.id] && (
+                                    <span className="text-xs text-red-600">{noteErrors[order.id]}</span>
+                                  )}
+                                </div>
                               </div>
-                            </div>
+                            )}
                           </div>
                         </div>
                       </TableCell>
