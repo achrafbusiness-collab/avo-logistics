@@ -5,6 +5,9 @@ export const hasPageAccess = (user, pageName) => {
   if (user.role === "driver") {
     return DRIVER_PAGES.has(pageName);
   }
+  if (pageName === "Terminal") {
+    return user.role === "admin";
+  }
   if (pageName === "SystemVermietung") {
     const ownerCompanyId = import.meta.env.VITE_PLATFORM_OWNER_COMPANY_ID;
     if (ownerCompanyId) {

@@ -55,7 +55,7 @@ const permissionOptions = [
   { key: "AIImport", label: "AI Import" },
   { key: "AVOAI", label: "AVO AI" },
   { key: "AppConnection", label: "App-Verbindung" },
-  { key: "TeamAVO", label: "Team AVO" },
+  { key: "TeamAVO", label: "Team" },
 ];
 
 const defaultPermissions = permissionOptions.reduce((acc, item) => {
@@ -356,7 +356,7 @@ export default function TeamAVO() {
       <div className="flex flex-col gap-2">
         <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
           <Users className="h-6 w-6 text-[#1e3a5f]" />
-          Team AVO
+          Team
         </h1>
         <p className="text-slate-500">
           Verwalte Konten, Rollen und Seiten-Zugriffe für dein Team.

@@ -41,7 +41,7 @@ const adminPages = [
   { name: 'Protokolle', icon: ClipboardList, page: 'Checklists' },
   { name: 'App-Verbindung', icon: User, page: 'AppConnection' },
   { name: 'Suche', icon: Search, page: 'Search' },
-  { name: 'Team AVO', icon: Users, page: 'TeamAVO' },
+  { name: 'Team', icon: Users, page: 'TeamAVO' },
   { name: 'Terminal', icon: Terminal, page: 'Terminal' },
   { name: 'System-Vermietung', icon: Building2, page: 'SystemVermietung' },
 ];
