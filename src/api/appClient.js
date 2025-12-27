@@ -229,7 +229,8 @@ const auth = {
   logout: async () => {
     const { error } = await supabase.auth.signOut();
     if (error) {
-      throw new Error(error.message);
+      console.error('Logout failed, clearing local session.', error.message);
+      await supabase.auth.signOut({ scope: 'local' });
     }
   },
   resetPassword: async ({ email, redirectTo }) => {

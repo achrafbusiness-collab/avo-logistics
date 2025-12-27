@@ -1,4 +1,4 @@
-const CACHE_NAME = "avo-system-v1";
+const CACHE_NAME = "avo-system-v2";
 const PRECACHE_ASSETS = [
   "/",
   "/index.html",
@@ -30,16 +30,37 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
-  event.respondWith(
-    caches.match(event.request).then((cached) => {
-      if (cached) return cached;
-      return fetch(event.request)
-        .then((response) => {
+  const url = new URL(event.request.url);
+  if (url.origin !== self.location.origin) return;
+
+  const destination = event.request.destination;
+  const isDocument = event.request.mode === "navigate" || destination === "document";
+  const isScriptOrStyle = destination === "script" || destination === "style";
+  const isStaticAsset =
+    destination === "image" ||
+    destination === "font" ||
+    destination === "manifest" ||
+    url.pathname.endsWith(".webmanifest");
+
+  if (isDocument || isScriptOrStyle) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => response)
+        .catch(() => caches.match(event.request))
+    );
+    return;
+  }
+
+  if (isStaticAsset) {
+    event.respondWith(
+      caches.match(event.request).then((cached) => {
+        if (cached) return cached;
+        return fetch(event.request).then((response) => {
           const copy = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy)).catch(() => {});
           return response;
-        })
-        .catch(() => cached);
-    })
-  );
+        });
+      })
+    );
+  }
 });
