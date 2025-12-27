@@ -23,6 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { appClient } from "@/api/appClient";
 import StatusBadge from '@/components/ui/StatusBadge';
 import { 
   Car, 
@@ -81,6 +82,12 @@ export default function OrderDetails({
   const [overrideOpen, setOverrideOpen] = useState(false);
   const [overrideStatus, setOverrideStatus] = useState(order?.status || 'assigned');
   const [overrideReason, setOverrideReason] = useState('');
+  const [notes, setNotes] = useState([]);
+  const [noteText, setNoteText] = useState('');
+  const [notePinned, setNotePinned] = useState(false);
+  const [notesLoading, setNotesLoading] = useState(false);
+  const [notesSaving, setNotesSaving] = useState(false);
+  const [notesError, setNotesError] = useState('');
   const pickupChecklist = checklists.find(c => c.type === 'pickup');
   const dropoffChecklist = checklists.find(c => c.type === 'dropoff');
   const formatDateSafe = (value, pattern) => {
@@ -101,6 +108,33 @@ export default function OrderDetails({
     setOverrideReason('');
     setStatusError('');
   }, [order]);
+
+  useEffect(() => {
+    const loadNotes = async () => {
+      if (!order?.id) return;
+      setNotesLoading(true);
+      setNotesError('');
+      try {
+        const data = await appClient.entities.OrderNote.filter(
+          { order_id: order.id },
+          '-created_at',
+          200
+        );
+        const sorted = [...data].sort((a, b) => {
+          if (a.is_pinned === b.is_pinned) {
+            return new Date(b.created_at) - new Date(a.created_at);
+          }
+          return a.is_pinned ? -1 : 1;
+        });
+        setNotes(sorted);
+      } catch (err) {
+        setNotesError(err?.message || 'Notizen konnten nicht geladen werden.');
+      } finally {
+        setNotesLoading(false);
+      }
+    };
+    loadNotes();
+  }, [order?.id]);
 
   const isAdmin = currentUser?.role === 'admin';
   const reviewComplete = useMemo(
@@ -174,6 +208,39 @@ export default function OrderDetails({
     }
     await updateOrderStatus(overrideStatus, { status_override_reason: overrideReason.trim() });
     setOverrideOpen(false);
+  };
+
+  const handleAddNote = async () => {
+    if (!noteText.trim()) return;
+    if (!currentUser) {
+      setNotesError('Bitte erneut anmelden.');
+      return;
+    }
+    setNotesSaving(true);
+    setNotesError('');
+    try {
+      const created = await appClient.entities.OrderNote.create({
+        order_id: order.id,
+        author_user_id: currentUser.id,
+        author_name: currentUser.full_name || '',
+        author_email: currentUser.email || '',
+        note: noteText.trim(),
+        is_pinned: notePinned,
+      });
+      const updated = [created, ...notes].sort((a, b) => {
+        if (a.is_pinned === b.is_pinned) {
+          return new Date(b.created_at) - new Date(a.created_at);
+        }
+        return a.is_pinned ? -1 : 1;
+      });
+      setNotes(updated);
+      setNoteText('');
+      setNotePinned(false);
+    } catch (err) {
+      setNotesError(err?.message || 'Notiz konnte nicht gespeichert werden.');
+    } finally {
+      setNotesSaving(false);
+    }
   };
 
   return (
@@ -305,6 +372,92 @@ export default function OrderDetails({
               </CardContent>
             </Card>
           )}
+
+          {/* Internal Notes */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <FileText className="w-5 h-5 text-[#1e3a5f]" />
+                Interne Notizen
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Textarea
+                  value={noteText}
+                  onChange={(e) => setNoteText(e.target.value)}
+                  placeholder="Interne Notiz hinzufügen..."
+                  rows={3}
+                />
+                <label className="flex items-center gap-2 text-sm text-gray-600">
+                  <Checkbox
+                    checked={notePinned}
+                    onCheckedChange={(checked) => setNotePinned(Boolean(checked))}
+                  />
+                  Wichtig markieren
+                </label>
+                <Button
+                  size="sm"
+                  className="bg-[#1e3a5f] hover:bg-[#2d5a8a]"
+                  onClick={handleAddNote}
+                  disabled={notesSaving || !noteText.trim()}
+                >
+                  {notesSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  Notiz speichern
+                </Button>
+                <p className="text-xs text-gray-500">
+                  Diese Notizen sind nur intern sichtbar.
+                </p>
+              </div>
+
+              {notesError && (
+                <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                  {notesError}
+                </div>
+              )}
+
+              {notesLoading ? (
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Notizen werden geladen...
+                </div>
+              ) : notes.length === 0 ? (
+                <p className="text-sm text-gray-500">Noch keine Notizen vorhanden.</p>
+              ) : (
+                <div className="space-y-3">
+                  {notes.map((note) => (
+                    <div
+                      key={note.id}
+                      className={`rounded-lg border px-3 py-2 ${
+                        note.is_pinned
+                          ? "border-amber-200 bg-amber-50"
+                          : "border-slate-200 bg-white"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between text-xs text-gray-500">
+                        <span>
+                          {note.author_name || note.author_email || "Unbekannt"}
+                        </span>
+                        <span>
+                          {note.created_at
+                            ? format(new Date(note.created_at), "dd.MM.yyyy HH:mm")
+                            : "-"}
+                        </span>
+                      </div>
+                      <p className="mt-2 text-sm text-gray-700 whitespace-pre-wrap">
+                        {note.note}
+                      </p>
+                      {note.is_pinned && (
+                        <span className="mt-2 inline-flex rounded-full bg-amber-200 px-2 py-0.5 text-xs text-amber-800">
+                          Wichtig
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
 
         {/* Right Column - Sidebar */}

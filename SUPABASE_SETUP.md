@@ -335,6 +335,24 @@ create table if not exists public.app_settings (
   updated_date timestamptz default now()
 );
 
+create table if not exists public.order_notes (
+  id uuid primary key default gen_random_uuid(),
+  order_id uuid references public.orders on delete cascade,
+  company_id uuid references public.companies,
+  author_user_id uuid,
+  author_name text,
+  author_email text,
+  note text,
+  is_pinned boolean default false,
+  created_at timestamptz default now()
+);
+
+alter table public.order_notes enable row level security;
+
+create policy "Order notes company access" on public.order_notes
+for all using (company_id = public.current_company_id())
+with check (company_id = public.current_company_id());
+
 alter table public.orders enable row level security;
 alter table public.drivers enable row level security;
 alter table public.customers enable row level security;
@@ -455,6 +473,7 @@ alter table public.drivers add column if not exists company_id uuid references p
 alter table public.customers add column if not exists company_id uuid references public.companies;
 alter table public.checklists add column if not exists company_id uuid references public.companies;
 alter table public.app_settings add column if not exists company_id uuid references public.companies;
+alter table public.order_notes add column if not exists company_id uuid references public.companies;
 
 -- Backfill: alle bestehenden Daten dem AVO‑Unternehmen zuordnen
 update public.profiles set company_id = 'COMPANY_ID_HIER' where company_id is null;
@@ -464,6 +483,7 @@ update public.drivers set company_id = 'COMPANY_ID_HIER' where company_id is nul
 update public.customers set company_id = 'COMPANY_ID_HIER' where company_id is null;
 update public.checklists set company_id = 'COMPANY_ID_HIER' where company_id is null;
 update public.app_settings set company_id = 'COMPANY_ID_HIER' where company_id is null;
+update public.order_notes set company_id = 'COMPANY_ID_HIER' where company_id is null;
 
 alter table public.profiles alter column company_id set not null;
 alter table public.orders alter column company_id set not null;
@@ -471,6 +491,7 @@ alter table public.drivers alter column company_id set not null;
 alter table public.customers alter column company_id set not null;
 alter table public.checklists alter column company_id set not null;
 alter table public.app_settings alter column company_id set not null;
+alter table public.order_notes alter column company_id set not null;
 ```
 
 ### 7c) Auto‑Zuordnung bei INSERT (wenn `company_id` fehlt)
@@ -517,6 +538,10 @@ for each row execute procedure public.set_company_id();
 
 drop trigger if exists set_company_id_app_settings on public.app_settings;
 create trigger set_company_id_app_settings before insert on public.app_settings
+for each row execute procedure public.set_company_id();
+
+drop trigger if exists set_company_id_order_notes on public.order_notes;
+create trigger set_company_id_order_notes before insert on public.order_notes
 for each row execute procedure public.set_company_id();
 ```
 
@@ -752,6 +777,11 @@ for each row execute procedure public.write_audit_log();
 drop trigger if exists audit_profiles on public.profiles;
 create trigger audit_profiles
 after insert or update or delete on public.profiles
+for each row execute procedure public.write_audit_log();
+
+drop trigger if exists audit_order_notes on public.order_notes;
+create trigger audit_order_notes
+after insert or update or delete on public.order_notes
 for each row execute procedure public.write_audit_log();
 
 create or replace function public.write_storage_audit_log()

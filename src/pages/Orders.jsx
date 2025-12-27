@@ -23,6 +23,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -55,6 +56,11 @@ export default function Orders() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkWorking, setBulkWorking] = useState(false);
+  const [bulkMessage, setBulkMessage] = useState('');
+  const [bulkError, setBulkError] = useState('');
 
   useEffect(() => {
     let active = true;
@@ -169,6 +175,90 @@ export default function Orders() {
     
     return matchesSearch && matchesStatus;
   });
+
+  useEffect(() => {
+    const availableIds = new Set(orders.map((order) => order.id));
+    setSelectedIds((prev) => prev.filter((id) => availableIds.has(id)));
+  }, [orders]);
+
+  const toggleSelectAll = (checked) => {
+    if (checked) {
+      setSelectedIds(filteredOrders.map((order) => order.id));
+    } else {
+      setSelectedIds([]);
+    }
+  };
+
+  const toggleSelect = (id, checked) => {
+    setSelectedIds((prev) => {
+      if (checked) {
+        return prev.includes(id) ? prev : [...prev, id];
+      }
+      return prev.filter((item) => item !== id);
+    });
+  };
+
+  const selectedOrders = filteredOrders.filter((order) => selectedIds.includes(order.id));
+  const allSelected = selectedOrders.length > 0 && selectedOrders.length === filteredOrders.length;
+  const someSelected = selectedOrders.length > 0 && !allSelected;
+
+  const handleBulkDelete = async () => {
+    if (!selectedIds.length) return;
+    setBulkWorking(true);
+    setBulkError('');
+    setBulkMessage('');
+    try {
+      for (const id of selectedIds) {
+        await appClient.entities.Order.delete(id);
+      }
+      setBulkMessage('Aufträge wurden gelöscht.');
+      setSelectedIds([]);
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      setBulkDeleteOpen(false);
+    } catch (err) {
+      setBulkError(err?.message || 'Bulk-Löschen fehlgeschlagen.');
+    } finally {
+      setBulkWorking(false);
+    }
+  };
+
+  const handleBulkDuplicate = async () => {
+    if (!selectedOrders.length) return;
+    setBulkWorking(true);
+    setBulkError('');
+    setBulkMessage('');
+    try {
+      for (const order of selectedOrders) {
+        const {
+          id,
+          order_number,
+          status,
+          created_date,
+          updated_date,
+          review_checks,
+          review_notes,
+          status_override_reason,
+          assigned_driver_id,
+          assigned_driver_name,
+          pdf_url,
+          ...rest
+        } = order;
+        await appClient.entities.Order.create({
+          ...rest,
+          status: 'new',
+          assigned_driver_id: '',
+          assigned_driver_name: '',
+        });
+      }
+      setBulkMessage('Aufträge wurden dupliziert.');
+      setSelectedIds([]);
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+    } catch (err) {
+      setBulkError(err?.message || 'Bulk-Duplizieren fehlgeschlagen.');
+    } finally {
+      setBulkWorking(false);
+    }
+  };
 
   const getOrderChecklists = (orderId) => {
     return checklists.filter(c => c.order_id === orderId);
@@ -319,6 +409,50 @@ export default function Orders() {
         </CardContent>
       </Card>
 
+      {selectedIds.length > 0 && (
+        <Card className="border border-slate-200 bg-slate-50">
+          <CardContent className="p-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="text-sm text-slate-600">
+              {selectedIds.length} Auftrag/‑träge ausgewählt
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {currentUser?.role === 'admin' && (
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={handleBulkDuplicate}
+                    disabled={bulkWorking}
+                  >
+                    Duplizieren
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={() => setBulkDeleteOpen(true)}
+                    disabled={bulkWorking}
+                  >
+                    Löschen
+                  </Button>
+                </>
+              )}
+              <Button variant="ghost" onClick={() => setSelectedIds([])} disabled={bulkWorking}>
+                Auswahl löschen
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {bulkError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          {bulkError}
+        </div>
+      )}
+      {bulkMessage && (
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+          {bulkMessage}
+        </div>
+      )}
+
       {/* Table */}
       <Card>
         <CardContent className="p-0">
@@ -355,6 +489,13 @@ export default function Orders() {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-gray-50">
+                    <TableHead className="w-12">
+                      <Checkbox
+                        checked={allSelected || (someSelected ? "indeterminate" : false)}
+                        onCheckedChange={(checked) => toggleSelectAll(Boolean(checked))}
+                        onClick={(event) => event.stopPropagation()}
+                      />
+                    </TableHead>
                     <TableHead>Auftrag</TableHead>
                     <TableHead>Fahrzeug</TableHead>
                     <TableHead className="hidden md:table-cell">Route</TableHead>
@@ -374,6 +515,12 @@ export default function Orders() {
                         window.history.pushState({}, '', createPageUrl('Orders') + `?id=${order.id}`);
                       }}
                     >
+                      <TableCell onClick={(event) => event.stopPropagation()}>
+                        <Checkbox
+                          checked={selectedIds.includes(order.id)}
+                          onCheckedChange={(checked) => toggleSelect(order.id, Boolean(checked))}
+                        />
+                      </TableCell>
                       <TableCell>
                         <div>
                           <p className="font-semibold text-[#1e3a5f]">{order.order_number}</p>
@@ -412,6 +559,28 @@ export default function Orders() {
           )}
         </CardContent>
       </Card>
+
+      <AlertDialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Aufträge löschen?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Möchtest du die ausgewählten Aufträge wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700"
+              onClick={handleBulkDelete}
+              disabled={bulkWorking}
+            >
+              {bulkWorking ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Löschen
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
