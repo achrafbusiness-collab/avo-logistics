@@ -7,6 +7,7 @@ import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Select,
@@ -61,6 +62,9 @@ export default function Orders() {
   const [bulkWorking, setBulkWorking] = useState(false);
   const [bulkMessage, setBulkMessage] = useState('');
   const [bulkError, setBulkError] = useState('');
+  const [noteDrafts, setNoteDrafts] = useState({});
+  const [noteSaving, setNoteSaving] = useState({});
+  const [noteErrors, setNoteErrors] = useState({});
 
   useEffect(() => {
     let active = true;
@@ -75,6 +79,11 @@ export default function Orders() {
   const { data: orders = [], isLoading } = useQuery({
     queryKey: ['orders'],
     queryFn: () => appClient.entities.Order.list('-created_date', 500),
+  });
+
+  const { data: orderNotes = [] } = useQuery({
+    queryKey: ['order-notes'],
+    queryFn: () => appClient.entities.OrderNote.list('-created_at', 500),
   });
 
   const { data: checklists = [] } = useQuery({
@@ -201,6 +210,17 @@ export default function Orders() {
     return matchesSearch && matchesStatus;
   });
 
+  const latestNotesByOrder = useMemo(() => {
+    const map = {};
+    orderNotes.forEach((note) => {
+      if (!note?.order_id) return;
+      if (!map[note.order_id]) {
+        map[note.order_id] = note;
+      }
+    });
+    return map;
+  }, [orderNotes]);
+
   useEffect(() => {
     const availableIds = new Set(orders.map((order) => order.id));
     setSelectedIds((prev) => prev.filter((id) => availableIds.has(id)));
@@ -283,6 +303,36 @@ export default function Orders() {
       setBulkError(err?.message || 'Bulk-Duplizieren fehlgeschlagen.');
     } finally {
       setBulkWorking(false);
+    }
+  };
+
+  const handleNoteChange = (orderId, value) => {
+    setNoteDrafts((prev) => ({ ...prev, [orderId]: value }));
+  };
+
+  const handleNoteSave = async (orderId) => {
+    const note = (noteDrafts[orderId] || '').trim();
+    if (!note || !currentUser) return;
+    setNoteSaving((prev) => ({ ...prev, [orderId]: true }));
+    setNoteErrors((prev) => ({ ...prev, [orderId]: '' }));
+    try {
+      await appClient.entities.OrderNote.create({
+        order_id: orderId,
+        author_user_id: currentUser.id,
+        author_name: currentUser.full_name || '',
+        author_email: currentUser.email || '',
+        note,
+        is_pinned: false,
+      });
+      setNoteDrafts((prev) => ({ ...prev, [orderId]: '' }));
+      queryClient.invalidateQueries({ queryKey: ['order-notes'] });
+    } catch (err) {
+      setNoteErrors((prev) => ({
+        ...prev,
+        [orderId]: err?.message || 'Notiz konnte nicht gespeichert werden.',
+      }));
+    } finally {
+      setNoteSaving((prev) => ({ ...prev, [orderId]: false }));
     }
   };
 
@@ -551,6 +601,41 @@ export default function Orders() {
                         <div>
                           <p className="font-semibold text-[#1e3a5f]">{order.order_number}</p>
                           <p className="text-sm text-gray-500">{order.license_plate}</p>
+                          {latestNotesByOrder[order.id]?.note && (
+                            <p className="mt-1 text-xs text-slate-500 line-clamp-2">
+                              Notiz: {latestNotesByOrder[order.id].note}
+                            </p>
+                          )}
+                          <div
+                            className="mt-2"
+                            onClick={(event) => event.stopPropagation()}
+                          >
+                            <div className="flex flex-col gap-2">
+                              <Textarea
+                                rows={2}
+                                value={noteDrafts[order.id] || ''}
+                                onChange={(e) => handleNoteChange(order.id, e.target.value)}
+                                placeholder="Interne Notiz hinzufügen..."
+                                className="text-xs"
+                              />
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  size="sm"
+                                  className="bg-[#1e3a5f] hover:bg-[#2d5a8a]"
+                                  disabled={noteSaving[order.id] || !noteDrafts[order.id]?.trim()}
+                                  onClick={() => handleNoteSave(order.id)}
+                                >
+                                  {noteSaving[order.id] ? (
+                                    <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                                  ) : null}
+                                  Notiz speichern
+                                </Button>
+                                {noteErrors[order.id] && (
+                                  <span className="text-xs text-red-600">{noteErrors[order.id]}</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       </TableCell>
                       <TableCell>
