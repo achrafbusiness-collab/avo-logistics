@@ -115,7 +115,7 @@ export default async function handler(req, res) {
     }
 
     const body = await readJsonBody(req);
-    const { company_name, owner_full_name, owner_email, owner_phone, redirectTo } = body || {};
+    const { company_name, owner_full_name, owner_email, owner_phone, login_url } = body || {};
     if (!company_name || !owner_full_name || !owner_email) {
       res.status(400).json({ ok: false, error: "Missing required fields" });
       return;
@@ -204,7 +204,7 @@ export default async function handler(req, res) {
     });
 
     const origin = req.headers.origin || "";
-    const loginUrl = redirectTo || `${origin}/login/executive`;
+    const loginUrl = login_url || `${origin}/login/executive`;
     const subject = "Dein AVO System Zugang";
     const text = `Hallo ${owner_full_name},
 

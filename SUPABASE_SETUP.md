@@ -397,10 +397,31 @@ Ziel: **Kein Datensatz ohne Unternehmens‑Zuordnung (`company_id`)**.
 create table if not exists public.companies (
   id uuid primary key default gen_random_uuid(),
   name text not null,
+  vat_id text,
+  billing_address text,
+  billing_city text,
+  billing_postal_code text,
+  billing_country text,
+  contact_name text,
+  contact_email text,
+  contact_phone text,
+  is_active boolean default true,
   owner_user_id uuid references auth.users on delete set null,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
+
+-- Wenn companies schon existiert, fehlende Spalten hinzufügen:
+alter table public.companies
+  add column if not exists vat_id text,
+  add column if not exists billing_address text,
+  add column if not exists billing_city text,
+  add column if not exists billing_postal_code text,
+  add column if not exists billing_country text,
+  add column if not exists contact_name text,
+  add column if not exists contact_email text,
+  add column if not exists contact_phone text,
+  add column if not exists is_active boolean default true;
 
 -- Erstes Unternehmen anlegen (ersetze die E-Mail)
 insert into public.companies (name, owner_user_id)
