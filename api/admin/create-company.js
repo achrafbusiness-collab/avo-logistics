@@ -121,8 +121,16 @@ export default async function handler(req, res) {
       return;
     }
 
-    const { data: existingUser } = await supabaseAdmin.auth.admin.getUserByEmail(owner_email);
-    if (existingUser?.user) {
+    const { data: existingProfile, error: existingProfileError } = await supabaseAdmin
+      .from("profiles")
+      .select("id")
+      .eq("email", owner_email)
+      .maybeSingle();
+    if (existingProfileError) {
+      res.status(500).json({ ok: false, error: existingProfileError.message });
+      return;
+    }
+    if (existingProfile?.id) {
       res.status(400).json({ ok: false, error: "E-Mail ist bereits vergeben." });
       return;
     }
