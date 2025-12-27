@@ -136,6 +136,19 @@ export default async function handler(req, res) {
     }
 
     const companyId = crypto.randomUUID();
+    const { error: companyInsertError } = await supabaseAdmin
+      .from("companies")
+      .insert({
+        id: companyId,
+        name: company_name,
+        owner_user_id: null,
+      });
+
+    if (companyInsertError) {
+      res.status(500).json({ ok: false, error: companyInsertError.message });
+      return;
+    }
+
     const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
       type: "invite",
       email: owner_email,
@@ -150,6 +163,8 @@ export default async function handler(req, res) {
     });
 
     if (linkError || !linkData?.user) {
+      await supabaseAdmin.from("app_settings").delete().eq("company_id", companyId);
+      await supabaseAdmin.from("companies").delete().eq("id", companyId);
       res.status(400).json({ ok: false, error: linkError?.message || "Invite link failed" });
       return;
     }
@@ -157,18 +172,15 @@ export default async function handler(req, res) {
     const ownerUser = linkData.user;
     const actionLink = linkData.properties?.action_link || "";
 
-    const { data: company, error: insertError } = await supabaseAdmin
+    const { data: company, error: updateCompanyError } = await supabaseAdmin
       .from("companies")
-      .insert({
-        id: companyId,
-        name: company_name,
-        owner_user_id: ownerUser.id,
-      })
+      .update({ owner_user_id: ownerUser.id })
+      .eq("id", companyId)
       .select("*")
       .single();
 
-    if (insertError) {
-      res.status(500).json({ ok: false, error: insertError.message });
+    if (updateCompanyError) {
+      res.status(500).json({ ok: false, error: updateCompanyError.message });
       return;
     }
 
