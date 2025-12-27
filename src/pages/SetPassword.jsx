@@ -50,10 +50,22 @@ export default function SetPassword() {
       await appClient.auth.updatePassword({ password });
       const { data: userData } = await supabase.auth.getUser();
       if (userData?.user?.id) {
+        const { data: profileData } = await supabase
+          .from("profiles")
+          .select("role, email, company_id")
+          .eq("id", userData.user.id)
+          .maybeSingle();
         await supabase
           .from("profiles")
           .update({ must_reset_password: false, updated_at: new Date().toISOString() })
           .eq("id", userData.user.id);
+        if (profileData?.role === "driver" && profileData?.email) {
+          await supabase
+            .from("drivers")
+            .update({ status: "active" })
+            .eq("email", profileData.email)
+            .eq("company_id", profileData.company_id || null);
+        }
       }
       setDone(true);
       window.location.href = createPageUrl("Dashboard");

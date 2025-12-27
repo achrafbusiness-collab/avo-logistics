@@ -124,7 +124,7 @@ export default function DriverForm({ driver, onSave, onCancel }) {
           },
           body: JSON.stringify({
             email: formData.email,
-            redirectTo: `${window.location.origin}/reset-password`,
+            login_url: `${window.location.origin}/login/driver`,
             profile: {
               full_name: fullName,
               phone: formData.phone,
@@ -334,7 +334,7 @@ export default function DriverForm({ driver, onSave, onCancel }) {
                   <div>
                     <h3 className="font-semibold text-[#1e3a5f]">Login-Zugang erstellen</h3>
                 <p className="text-sm text-gray-500">
-                  Sendet eine Einladung mit Link zum Passwort-Setup.
+                  Erstellt einen temporären Zugang für den Fahrer.
                 </p>
                   </div>
                   <Switch checked={createLogin} onCheckedChange={setCreateLogin} />
@@ -346,22 +346,34 @@ export default function DriverForm({ driver, onSave, onCancel }) {
                 )}
                 {loginResult && (
                   <div className="space-y-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-                    <p>Einladung wurde erstellt.</p>
-                    {loginResult.actionLink && (
+                    <p>Zugang wurde erstellt.</p>
+                    {loginResult.loginUrl && (
                       <div className="flex items-center gap-2">
-                        <Input value={loginResult.actionLink} readOnly />
+                        <Input value={loginResult.loginUrl} readOnly />
                         <Button
                           type="button"
                           variant="outline"
-                          onClick={() => navigator.clipboard?.writeText(loginResult.actionLink || '')}
+                          onClick={() => navigator.clipboard?.writeText(loginResult.loginUrl || '')}
                         >
                           Link kopieren
                         </Button>
                       </div>
                     )}
+                    {loginResult.tempPassword && (
+                      <div className="flex items-center gap-2">
+                        <Input value={loginResult.tempPassword} readOnly />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => navigator.clipboard?.writeText(loginResult.tempPassword || '')}
+                        >
+                          Passwort kopieren
+                        </Button>
+                      </div>
+                    )}
                     {!loginResult.emailSent && (
                       <p className="text-xs text-emerald-700">
-                        E-Mail konnte nicht gesendet werden. Bitte den Link manuell weitergeben.
+                        E-Mail konnte nicht gesendet werden. Bitte Zugangsdaten manuell weitergeben.
                       </p>
                     )}
                     <p className="text-xs text-emerald-700">

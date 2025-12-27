@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import nodemailer from "nodemailer";
+import crypto from "crypto";
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -94,7 +95,7 @@ export default async function handler(req, res) {
       return;
     }
 
-    const { email, profile, loginUrl, redirectTo } = await readJsonBody(req);
+    const { email, profile, login_url } = await readJsonBody(req);
     if (!email) {
       res.status(400).json({ ok: false, error: "Missing email" });
       return;
@@ -106,25 +107,39 @@ export default async function handler(req, res) {
       return;
     }
 
-    const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
-      type: "invite",
-      email,
-      options: {
-        redirectTo: redirectTo || loginUrl || undefined,
-        data: {
-          full_name: profile?.full_name || "",
-          company_id: companyId,
-        },
-      },
-    });
-
-    if (linkError || !linkData?.user) {
-      res.status(400).json({ ok: false, error: linkError?.message || "Invite link failed" });
+    const { data: existingProfile, error: existingProfileError } = await supabaseAdmin
+      .from("profiles")
+      .select("id")
+      .eq("email", email)
+      .maybeSingle();
+    if (existingProfileError) {
+      res.status(500).json({ ok: false, error: existingProfileError.message });
+      return;
+    }
+    if (existingProfile?.id) {
+      res.status(400).json({ ok: false, error: "E-Mail ist bereits vergeben." });
       return;
     }
 
-    const user = linkData.user;
-    const actionLink = linkData.properties?.action_link || "";
+    const tempPassword = crypto.randomBytes(8).toString("base64url");
+    const { data: createUserData, error: createUserError } =
+      await supabaseAdmin.auth.admin.createUser({
+        email,
+        password: tempPassword,
+        email_confirm: true,
+        user_metadata: {
+          full_name: profile?.full_name || "",
+          company_id: companyId,
+          role: "driver",
+        },
+      });
+
+    if (createUserError || !createUserData?.user) {
+      res.status(400).json({ ok: false, error: createUserError?.message || "User creation failed" });
+      return;
+    }
+
+    const user = createUserData.user;
     await supabaseAdmin.from("profiles").upsert({
       id: user.id,
       email: user.email,
@@ -133,28 +148,36 @@ export default async function handler(req, res) {
       phone: profile?.phone || "",
       permissions: profile?.permissions || {},
       is_active: true,
+      must_reset_password: true,
       company_id: companyId,
       updated_at: new Date().toISOString(),
     });
 
+    await supabaseAdmin
+      .from("drivers")
+      .update({ status: "pending" })
+      .eq("email", email)
+      .eq("company_id", companyId);
+
+    const origin = req.headers.origin || "";
+    const loginUrl = login_url || `${origin}/login/driver`;
     const subject = "Dein AVO Fahrer-Zugang";
     const text = `Hallo ${profile?.full_name || "Fahrer"},
 
 dein Zugang zur AVO Fahrer-App wurde erstellt.
 
-Bitte klicke auf diesen Link, um dein Passwort zu setzen:
-${actionLink}
-
+Login: ${loginUrl}
 E-Mail: ${email}
+Temporäres Passwort: ${tempPassword}
 
-Nach dem Setzen des Passworts kannst du dich anmelden.
+Nach dem ersten Login musst du dein Passwort ändern.
 `;
     const html = `<p>Hallo ${profile?.full_name || "Fahrer"},</p>
 <p>dein Zugang zur AVO Fahrer-App wurde erstellt.</p>
-<p><strong>Passwort setzen:</strong><br/>
-<a href="${actionLink}">${actionLink}</a></p>
-<p><strong>E-Mail:</strong> ${email}</p>
-<p>Nach dem Setzen des Passworts kannst du dich anmelden.</p>`;
+<p><strong>Login:</strong> <a href="${loginUrl}">${loginUrl}</a></p>
+<p><strong>E-Mail:</strong> ${email}<br/>
+<strong>Temporäres Passwort:</strong> ${tempPassword}</p>
+<p>Nach dem ersten Login musst du dein Passwort ändern.</p>`;
 
     let emailSent = false;
     try {
@@ -167,7 +190,8 @@ Nach dem Setzen des Passworts kannst du dich anmelden.
       ok: true,
       data: {
         email,
-        actionLink,
+        tempPassword,
+        loginUrl,
         emailSent,
       },
     });
