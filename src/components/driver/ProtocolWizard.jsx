@@ -5,9 +5,8 @@ import { Progress } from "@/components/ui/progress";
 import { CheckCircle2, Circle, ArrowRight, ArrowLeft } from 'lucide-react';
 
 const WIZARD_STEPS = [
-  { id: 'vehicle_check', label: 'Fahrzeugdaten', icon: '🚗' },
+  { id: 'vehicle_check', label: 'Grunddaten', icon: '🚗' },
   { id: 'photos', label: 'Fotos', icon: '📸' },
-  { id: 'damages', label: 'Schäden', icon: '⚠️' },
   { id: 'checklist', label: 'Prüfungen', icon: '✓' },
   { id: 'signatures', label: 'Unterschriften', icon: '✍️' },
 ];
@@ -16,6 +15,7 @@ export default function ProtocolWizard({
   currentStep, 
   completedSteps = [], 
   onStepChange,
+  onBeforeNext,
   children 
 }) {
   const currentIndex = WIZARD_STEPS.findIndex(s => s.id === currentStep);
@@ -26,7 +26,12 @@ export default function ProtocolWizard({
 
   const handleNext = () => {
     if (currentIndex < WIZARD_STEPS.length - 1) {
-      onStepChange(WIZARD_STEPS[currentIndex + 1].id);
+      const nextStep = WIZARD_STEPS[currentIndex + 1].id;
+      if (typeof onBeforeNext === "function") {
+        const canProceed = onBeforeNext(currentStep, nextStep);
+        if (!canProceed) return;
+      }
+      onStepChange(nextStep);
     }
   };
 

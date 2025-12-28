@@ -40,7 +40,9 @@ export default function MandatoryChecklist({ checks = {}, onChange, onComplete, 
     if (currentCheckIndex < MANDATORY_CHECKS.length - 1) {
       setCurrentCheckIndex(currentCheckIndex + 1);
     } else if (Object.keys(newChecks).length === MANDATORY_CHECKS.length) {
-      onComplete();
+      if (typeof onComplete === 'function') {
+        onComplete();
+      }
     }
   };
 
