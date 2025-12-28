@@ -20,7 +20,8 @@ import {
   Sun,
   Terminal,
   Building2,
-  History
+  History,
+  LifeBuoy
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import {
@@ -50,7 +51,10 @@ const adminPages = [
 
 // Driver pages (minimal navigation)
 const driverPages = [
-  { name: 'Meine Aufträge', icon: Truck, page: 'DriverOrders' },
+  { name: 'Aufträge', icon: Truck, page: 'DriverOrders' },
+  { name: 'Dokumente', icon: FileText, page: 'DriverDocuments' },
+  { name: 'Profil', icon: User, page: 'DriverProfile' },
+  { name: 'Support', icon: LifeBuoy, page: 'DriverSupport' },
 ];
 
 export default function Layout({ children, currentPageName }) {
@@ -144,14 +148,22 @@ export default function Layout({ children, currentPageName }) {
         </main>
 
         {/* Bottom Navigation for Driver */}
-        <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-2 flex justify-around z-50">
-          <Link 
-            to={createPageUrl('DriverOrders')}
-            className={`flex flex-col items-center py-2 px-4 rounded-lg ${currentPageName === 'DriverOrders' ? 'text-[#1e3a5f] bg-blue-50' : 'text-gray-500'}`}
-          >
-            <Truck className="w-6 h-6" />
-            <span className="text-xs mt-1">Aufträge</span>
-          </Link>
+        <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-3 py-2 flex justify-between z-50">
+          {driverPages.map((item) => {
+            const isActive = currentPageName === item.page;
+            return (
+              <Link
+                key={item.page}
+                to={createPageUrl(item.page)}
+                className={`flex flex-col items-center flex-1 py-2 px-2 rounded-xl ${
+                  isActive ? 'text-[#1e3a5f] bg-blue-50' : 'text-gray-500'
+                }`}
+              >
+                <item.icon className="w-5 h-5" />
+                <span className="text-[11px] mt-1">{item.name}</span>
+              </Link>
+            );
+          })}
         </nav>
       </div>
     );

@@ -3,6 +3,7 @@ import { supabase } from "@/lib/supabaseClient";
 const tableMap = {
   Order: "orders",
   OrderNote: "order_notes",
+  DriverDocument: "driver_documents",
   Driver: "drivers",
   Customer: "customers",
   Checklist: "checklists",
@@ -273,6 +274,7 @@ export const appClient = {
     Driver: createEntityClient('Driver'),
     Order: createEntityClient('Order'),
     OrderNote: createEntityClient('OrderNote'),
+    DriverDocument: createEntityClient('DriverDocument'),
     Checklist: createEntityClient('Checklist'),
     Customer: createEntityClient('Customer'),
     AppSettings: createEntityClient('AppSettings'),

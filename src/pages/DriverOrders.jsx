@@ -68,8 +68,10 @@ export default function DriverOrders() {
 
   const appSettings = appSettingsList[0] || null;
 
-  const activeOrders = allOrders.filter(o => ['assigned', 'accepted', 'pickup_started', 'in_transit', 'delivery_started'].includes(o.status));
-  const completedOrders = allOrders.filter(o => o.status === 'completed');
+  const activeStatuses = ['assigned', 'accepted', 'pickup_started', 'in_transit', 'delivery_started'];
+  const completedStatuses = ['completed', 'review', 'ready_for_billing', 'approved', 'cancelled'];
+  const activeOrders = allOrders.filter((order) => activeStatuses.includes(order.status));
+  const completedOrders = allOrders.filter((order) => completedStatuses.includes(order.status));
 
   const getOrderChecklists = (orderId) => checklists.filter(c => c.order_id === orderId);
 
@@ -240,6 +242,9 @@ export default function DriverOrders() {
           <TabsTrigger value="completed" className="flex-1">
             Erledigt ({completedOrders.length})
           </TabsTrigger>
+          <TabsTrigger value="all" className="flex-1">
+            Alle ({allOrders.length})
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="active" className="space-y-4 mt-4">
@@ -271,6 +276,21 @@ export default function DriverOrders() {
             </Card>
           ) : (
             completedOrders.map(order => (
+              <OrderCard key={order.id} order={order} />
+            ))
+          )}
+        </TabsContent>
+
+        <TabsContent value="all" className="space-y-4 mt-4">
+          {allOrders.length === 0 ? (
+            <Card>
+              <CardContent className="text-center py-12">
+                <Truck className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                <p className="text-gray-500">Keine Aufträge vorhanden</p>
+              </CardContent>
+            </Card>
+          ) : (
+            allOrders.map(order => (
               <OrderCard key={order.id} order={order} />
             ))
           )}

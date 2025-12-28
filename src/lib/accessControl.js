@@ -1,4 +1,11 @@
-const DRIVER_PAGES = new Set(["DriverOrders", "DriverChecklist", "DriverProtocol"]);
+const DRIVER_PAGES = new Set([
+  "DriverOrders",
+  "DriverChecklist",
+  "DriverProtocol",
+  "DriverDocuments",
+  "DriverProfile",
+  "DriverSupport",
+]);
 
 export const hasPageAccess = (user, pageName) => {
   if (!user) return false;

@@ -349,6 +349,58 @@ create table if not exists public.order_notes (
   updated_date timestamptz default now()
 );
 
+create table if not exists public.driver_documents (
+  id uuid primary key default gen_random_uuid(),
+  company_id uuid references public.companies,
+  title text,
+  category text default 'general',
+  order_id uuid references public.orders on delete set null,
+  driver_user_id uuid references auth.users on delete set null,
+  file_url text,
+  created_at timestamptz default now(),
+  created_date timestamptz default now(),
+  updated_date timestamptz default now()
+);
+
+alter table public.driver_documents enable row level security;
+
+drop policy if exists "Driver documents select" on public.driver_documents;
+create policy "Driver documents select" on public.driver_documents
+for select using (
+  company_id = public.current_company_id()
+  and (
+    exists (
+      select 1 from public.profiles p
+      where p.id = auth.uid()
+        and p.company_id = driver_documents.company_id
+        and p.role <> 'driver'
+    )
+    or driver_user_id is null
+    or driver_user_id = auth.uid()
+  )
+);
+
+drop policy if exists "Driver documents manage" on public.driver_documents;
+create policy "Driver documents manage" on public.driver_documents
+for all using (
+  company_id = public.current_company_id()
+  and exists (
+    select 1 from public.profiles p
+    where p.id = auth.uid()
+      and p.company_id = driver_documents.company_id
+      and p.role <> 'driver'
+  )
+)
+with check (
+  company_id = public.current_company_id()
+  and exists (
+    select 1 from public.profiles p
+    where p.id = auth.uid()
+      and p.company_id = driver_documents.company_id
+      and p.role <> 'driver'
+  )
+);
+
 alter table public.order_notes enable row level security;
 
 create policy "Order notes company access" on public.order_notes
@@ -476,6 +528,7 @@ alter table public.customers add column if not exists company_id uuid references
 alter table public.checklists add column if not exists company_id uuid references public.companies;
 alter table public.app_settings add column if not exists company_id uuid references public.companies;
 alter table public.order_notes add column if not exists company_id uuid references public.companies;
+alter table public.driver_documents add column if not exists company_id uuid references public.companies;
 
 -- Backfill: alle bestehenden Daten dem AVO‑Unternehmen zuordnen
 update public.profiles set company_id = 'COMPANY_ID_HIER' where company_id is null;
@@ -486,6 +539,7 @@ update public.customers set company_id = 'COMPANY_ID_HIER' where company_id is n
 update public.checklists set company_id = 'COMPANY_ID_HIER' where company_id is null;
 update public.app_settings set company_id = 'COMPANY_ID_HIER' where company_id is null;
 update public.order_notes set company_id = 'COMPANY_ID_HIER' where company_id is null;
+update public.driver_documents set company_id = 'COMPANY_ID_HIER' where company_id is null;
 
 alter table public.profiles alter column company_id set not null;
 alter table public.orders alter column company_id set not null;
@@ -494,6 +548,7 @@ alter table public.customers alter column company_id set not null;
 alter table public.checklists alter column company_id set not null;
 alter table public.app_settings alter column company_id set not null;
 alter table public.order_notes alter column company_id set not null;
+alter table public.driver_documents alter column company_id set not null;
 ```
 
 ### 7c) Auto‑Zuordnung bei INSERT (wenn `company_id` fehlt)
@@ -544,6 +599,10 @@ for each row execute procedure public.set_company_id();
 
 drop trigger if exists set_company_id_order_notes on public.order_notes;
 create trigger set_company_id_order_notes before insert on public.order_notes
+for each row execute procedure public.set_company_id();
+
+drop trigger if exists set_company_id_driver_documents on public.driver_documents;
+create trigger set_company_id_driver_documents before insert on public.driver_documents
 for each row execute procedure public.set_company_id();
 ```
 
@@ -786,6 +845,11 @@ create trigger audit_order_notes
 after insert or update or delete on public.order_notes
 for each row execute procedure public.write_audit_log();
 
+drop trigger if exists audit_driver_documents on public.driver_documents;
+create trigger audit_driver_documents
+after insert or update or delete on public.driver_documents
+for each row execute procedure public.write_audit_log();
+
 create or replace function public.write_storage_audit_log()
 returns trigger
 language plpgsql
@@ -850,4 +914,12 @@ drop trigger if exists audit_storage on storage.objects;
 create trigger audit_storage
 after insert or delete on storage.objects
 for each row execute procedure public.write_storage_audit_log();
+```
+
+### 7h) Lizenzschein‑Token (Server Secret)
+
+Für den tagesgültigen Fahrer‑Lizenzschein brauchst du in Vercel (Production):
+
+```
+LICENSE_TOKEN_SECRET = <ein-langer-geheimer-schluessel>
 ```

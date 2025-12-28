@@ -14,6 +14,12 @@ import DriverOrders from "./DriverOrders";
 
 import DriverProtocol from "./DriverProtocol";
 
+import DriverDocuments from "./DriverDocuments";
+
+import DriverProfile from "./DriverProfile";
+
+import DriverSupport from "./DriverSupport";
+
 import Drivers from "./Drivers";
 
 import Orders from "./Orders";
@@ -58,6 +64,12 @@ const PAGES = {
     DriverOrders: DriverOrders,
     
     DriverProtocol: DriverProtocol,
+
+    DriverDocuments: DriverDocuments,
+
+    DriverProfile: DriverProfile,
+
+    DriverSupport: DriverSupport,
     
     Drivers: Drivers,
     
@@ -142,7 +154,14 @@ function PagesContent() {
         return <Navigate to="/login" replace />;
     }
 
-    const driverAllowedPages = ['DriverOrders', 'DriverChecklist', 'DriverProtocol'];
+    const driverAllowedPages = [
+        'DriverOrders',
+        'DriverChecklist',
+        'DriverProtocol',
+        'DriverDocuments',
+        'DriverProfile',
+        'DriverSupport',
+    ];
 
     if (currentUser.role === 'driver' && !driverAllowedPages.includes(currentPage)) {
         return <Navigate to={createPageUrl('DriverOrders')} replace />;
@@ -176,6 +195,12 @@ function PagesContent() {
                 <Route path="/DriverOrders" element={<DriverOrders />} />
                 
                 <Route path="/DriverProtocol" element={<DriverProtocol />} />
+
+                <Route path="/DriverDocuments" element={<DriverDocuments />} />
+
+                <Route path="/DriverProfile" element={<DriverProfile />} />
+
+                <Route path="/DriverSupport" element={<DriverSupport />} />
                 
                 <Route path="/Drivers" element={<Drivers />} />
                 
