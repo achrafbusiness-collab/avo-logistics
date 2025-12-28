@@ -42,10 +42,10 @@ export default function ProtocolWizard({
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-32">
+    <div className="min-h-screen bg-transparent pb-32">
       {/* Progress Header */}
-      <div className="bg-white border-b sticky top-0 z-10">
-        <div className="p-4">
+      <div className="sticky top-0 z-10 bg-white/90 border-b border-slate-200 backdrop-blur">
+        <div className="mx-auto max-w-3xl p-4">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium text-gray-600">
               Schritt {currentIndex + 1} von {WIZARD_STEPS.length}
@@ -58,7 +58,7 @@ export default function ProtocolWizard({
         </div>
 
         {/* Step Indicators */}
-        <div className="flex items-center justify-between px-2 pb-3 overflow-x-auto">
+        <div className="mx-auto max-w-3xl flex items-center justify-between px-2 pb-3 overflow-x-auto">
           {WIZARD_STEPS.map((step, index) => (
             <div 
               key={step.id}
@@ -83,11 +83,13 @@ export default function ProtocolWizard({
 
       {/* Content */}
       <div className="p-4">
-        {children}
+        <div className="mx-auto max-w-3xl rounded-3xl bg-gradient-to-br from-white via-slate-50 to-blue-50/80 p-4 shadow-[0_25px_45px_-35px_rgba(15,23,42,0.8)]">
+          {children}
+        </div>
       </div>
 
       {/* Navigation Footer */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t p-4 flex gap-3">
+      <div className="fixed bottom-0 left-0 right-0 bg-white/95 border-t border-slate-200 p-4 flex gap-3 backdrop-blur">
         <Button 
           variant="outline" 
           onClick={handleBack}
@@ -100,7 +102,7 @@ export default function ProtocolWizard({
         <Button 
           onClick={handleNext}
           disabled={!canGoNext || currentIndex === WIZARD_STEPS.length - 1}
-          className="flex-1 bg-blue-600 hover:bg-blue-700"
+          className="flex-1 bg-[#1e3a5f] hover:bg-[#2d5a8a]"
         >
           Weiter
           <ArrowRight className="w-4 h-4 ml-2" />
