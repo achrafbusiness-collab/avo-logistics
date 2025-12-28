@@ -148,23 +148,25 @@ export default function Layout({ children, currentPageName }) {
         </main>
 
         {/* Bottom Navigation for Driver */}
-        <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-3 py-2 flex justify-between z-50">
-          {driverPages.map((item) => {
-            const isActive = currentPageName === item.page;
-            return (
-              <Link
-                key={item.page}
-                to={createPageUrl(item.page)}
-                className={`flex flex-col items-center flex-1 py-2 px-2 rounded-xl ${
-                  isActive ? 'text-[#1e3a5f] bg-blue-50' : 'text-gray-500'
-                }`}
-              >
-                <item.icon className="w-5 h-5" />
-                <span className="text-[11px] mt-1">{item.name}</span>
-              </Link>
-            );
-          })}
-        </nav>
+        {!['DriverProtocol', 'DriverChecklist'].includes(currentPageName) && (
+          <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-3 py-2 flex justify-between z-50">
+            {driverPages.map((item) => {
+              const isActive = currentPageName === item.page;
+              return (
+                <Link
+                  key={item.page}
+                  to={createPageUrl(item.page)}
+                  className={`flex flex-col items-center flex-1 py-2 px-2 rounded-xl ${
+                    isActive ? 'text-[#1e3a5f] bg-blue-50' : 'text-gray-500'
+                  }`}
+                >
+                  <item.icon className="w-5 h-5" />
+                  <span className="text-[11px] mt-1">{item.name}</span>
+                </Link>
+              );
+            })}
+          </nav>
+        )}
       </div>
     );
   }

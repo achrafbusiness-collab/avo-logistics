@@ -472,15 +472,17 @@ export default function DriverProtocol() {
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950 pb-24">
       {/* Header */}
       <div className="px-4 pt-4">
-        <div className={`${type === 'pickup' ? 'bg-blue-600' : 'bg-green-600'} text-white px-4 py-6 rounded-3xl shadow-[0_20px_40px_-30px_rgba(15,23,42,0.7)]`}>
-          <Link to={createPageUrl('DriverChecklist') + `?orderId=${orderId}`} className="inline-flex items-center text-white/80 hover:text-white mb-4">
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Zurück
-          </Link>
-          <h1 className="text-2xl font-bold">
-            {type === 'pickup' ? 'Abholprotokoll' : 'Abgabeprotokoll'}
-          </h1>
-          <p className="text-white/80">{order?.order_number} • {order?.license_plate}</p>
+        <div className="mx-auto max-w-3xl">
+          <div className={`${type === 'pickup' ? 'bg-blue-600' : 'bg-green-600'} text-white px-4 py-6 rounded-3xl shadow-[0_20px_40px_-30px_rgba(15,23,42,0.7)]`}>
+            <Link to={createPageUrl('DriverChecklist') + `?orderId=${orderId}`} className="inline-flex items-center text-white/80 hover:text-white mb-4">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Zurück
+            </Link>
+            <h1 className="text-2xl font-bold">
+              {type === 'pickup' ? 'Abholprotokoll' : 'Abgabeprotokoll'}
+            </h1>
+            <p className="text-white/80">{order?.order_number} • {order?.license_plate}</p>
+          </div>
         </div>
       </div>
 
