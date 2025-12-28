@@ -1,0 +1,371 @@
+{
+  "app": {
+    "name": "AVO Logistics"
+  },
+  "common": {
+    "back": "Zurück",
+    "next": "Weiter",
+    "cancel": "Abbrechen",
+    "open": "Öffnen",
+    "download": "Download",
+    "optional": "optional",
+    "delete": "Löschen"
+  },
+  "nav": {
+    "driverPortal": "Fahrer-Portal",
+    "orders": "Aufträge",
+    "documents": "Dokumente",
+    "profile": "Profil",
+    "support": "Support",
+    "logout": "Abmelden"
+  },
+  "login": {
+    "logoAlt": "AVO SYSTEMS",
+    "actions": {
+      "switchPortal": "Portal wechseln",
+      "signIn": "Einloggen",
+      "forgotPassword": "Passwort vergessen?"
+    },
+    "labels": {
+      "email": "E-Mail",
+      "password": "Passwort"
+    },
+    "passwordPlaceholder": "••••••••",
+    "resetSent": "Passwort-Link wurde gesendet. Bitte E-Mail prüfen.",
+    "errors": {
+      "loginFailed": "Login fehlgeschlagen.",
+      "resetMissingEmail": "Bitte E-Mail eingeben, um das Passwort zurückzusetzen.",
+      "resetFailed": "Passwort-Reset fehlgeschlagen."
+    },
+    "hintTitle": "Hinweis",
+    "hintText": "Bei Problemen bitte an den Administrator wenden.",
+    "driver": {
+      "title": "Fahrer-Portal",
+      "subtitle": "Bitte melde dich an, um deine Aufträge zu sehen und Protokolle zu erstellen.",
+      "cardTitle": "Fahrer-Login",
+      "emailPlaceholder": "fahrer@avo-logistics.app"
+    }
+  },
+  "status": {
+    "new": "Offen",
+    "assigned": "Zugewiesen",
+    "accepted": "Angenommen",
+    "pickup_started": "Übernahme läuft",
+    "in_transit": "In Lieferung",
+    "delivery_started": "Übergabe läuft",
+    "completed": "Erfolgreich beendet",
+    "review": "Prüfung",
+    "ready_for_billing": "Freigabe Abrechnung",
+    "approved": "Freigegeben",
+    "cancelled": "Storniert",
+    "active": "Ready",
+    "inactive": "Inaktiv",
+    "pending": "Bearbeitung"
+  },
+  "orders": {
+    "pickup": "Abholung",
+    "dropoff": "Abgabe",
+    "greeting": "Hallo, {{name}}!",
+    "driverFallback": "Fahrer",
+    "summary": {
+      "none": "Aktuell keine aktiven Aufträge",
+      "single": "1 aktiver Auftrag",
+      "multiple": "{{count}} aktive Aufträge"
+    },
+    "driverHints": "{{company}} – Fahrerhinweise",
+    "supportLabel": "Support: {{phone}}",
+    "emergencyLabel": "Notfall: {{phone}}",
+    "tabs": {
+      "active": "Aktiv",
+      "completed": "Erledigt",
+      "all": "Alle"
+    },
+    "empty": {
+      "active": "Keine aktiven Aufträge",
+      "completed": "Noch keine erledigten Aufträge",
+      "all": "Keine Aufträge vorhanden"
+    },
+    "noDriverProfile": {
+      "title": "Kein Fahrerprofil gefunden",
+      "body": "Dein Konto ist nicht mit einem Fahrerprofil verknüpft. Bitte kontaktiere den Administrator."
+    }
+  },
+  "documents": {
+    "title": "Dokumente",
+    "subtitle": "Alle wichtigen Unterlagen auf einen Blick.",
+    "orderRelated": "Auftragsbezogene Dokumente",
+    "general": "Allgemeine Dokumente",
+    "emptyOrder": "Keine Auftragsdokumente vorhanden.",
+    "emptyGeneral": "Keine allgemeinen Dokumente vorhanden.",
+    "emptyAll": "Keine Dokumente gefunden. Bitte warte auf neue Uploads.",
+    "defaultTitle": "Dokument",
+    "forAllDrivers": "Für alle Fahrer",
+    "forYou": "Nur für dich",
+    "noDriverProfile": "Dein Fahrerprofil wurde noch nicht zugeordnet. Bitte kontaktiere den Admin.",
+    "backToOrders": "Zurück zu Aufträgen"
+  },
+  "profile": {
+    "title": "Profil",
+    "subtitle": "Deine persönlichen Daten & Tages-Lizenzschein.",
+    "phone": "Telefon",
+    "city": "Ort",
+    "license": {
+      "title": "Tages-Lizenzschein",
+      "description": "Dieser Schein ist nur für den heutigen Tag gültig und wird täglich neu generiert.",
+      "loading": "Lizenzschein wird erstellt...",
+      "error": "Token konnte nicht erstellt werden.",
+      "validOn": "Gültig am",
+      "tokenId": "Token ID",
+      "securityNote": "Sicherheitsregel: Token ist serverseitig signiert (HMAC) und täglich gültig."
+    }
+  },
+  "support": {
+    "title": "Support",
+    "subtitle": "Hilfe, Kontakte und Infos für unterwegs.",
+    "contact": {
+      "title": "Kontakt",
+      "supportLabel": "Support: {{phone}}",
+      "whatsapp": "WhatsApp Support",
+      "emergencyLabel": "Notfall: {{phone}}"
+    },
+    "guide": {
+      "title": "Anleitung",
+      "fallback": "Halte dich an die Anweisungen deines Disponenten."
+    },
+    "faqTitle": "FAQ",
+    "faq": [
+      {
+        "title": "Wie starte ich ein Protokoll?",
+        "body": "Auftrag öffnen → Protokoll starten → Fotos, Checkliste, Unterschrift speichern."
+      },
+      {
+        "title": "Was mache ich bei Schaden?",
+        "body": "Schaden markieren, Foto aufnehmen und Notiz im Protokoll hinterlegen."
+      },
+      {
+        "title": "Dokumente fehlen?",
+        "body": "Bitte den Disponenten informieren. Dokumente werden zentral freigegeben."
+      }
+    ],
+    "appInfo": {
+      "title": "App-Infos",
+      "version": "Version: {{value}}",
+      "officeHours": "Servicezeiten: {{value}}",
+      "address": "Adresse: {{value}}"
+    }
+  },
+  "settings": {
+    "language": {
+      "title": "Sprache",
+      "helper": "Wähle die Sprache für dein Fahrer-Portal.",
+      "options": {
+        "de": "Deutsch",
+        "en": "Englisch",
+        "es": "Spanisch",
+        "ar": "Arabisch"
+      }
+    }
+  },
+  "checklist": {
+    "orderNotFound": "Auftrag nicht gefunden",
+    "backToOrders": "Zurück zu Aufträgen",
+    "vehicle": {
+      "title": "Fahrzeug",
+      "brandModel": "Marke / Modell",
+      "color": "Farbe",
+      "vin": "VIN"
+    },
+    "route": {
+      "title": "Route",
+      "openMaps": "In Google Maps öffnen"
+    },
+    "customer": {
+      "title": "Kunde"
+    },
+    "notes": {
+      "title": "Hinweise"
+    },
+    "protocols": {
+      "title": "Protokolle",
+      "pickupTitle": "Abholprotokoll",
+      "dropoffTitle": "Abgabeprotokoll",
+      "createdAt": "Erstellt am {{date}}",
+      "notCreated": "Noch nicht erstellt",
+      "ready": "Bereit zum Ausfüllen",
+      "createPickupFirst": "Zuerst Abholprotokoll erstellen",
+      "view": "Anzeigen",
+      "start": "Starten"
+    }
+  },
+  "protocol": {
+    "pickupTitle": "Abholprotokoll",
+    "dropoffTitle": "Abgabeprotokoll",
+    "stepProgress": "Schritt {{current}} von {{total}}",
+    "steps": {
+      "basics": "Grunddaten",
+      "photos": "Fotos",
+      "signatures": "Unterschriften"
+    },
+    "driverNotesTitle": "Hinweise für Fahrer",
+    "basics": {
+      "title": "Grunddaten & Zubehör",
+      "location": "Ort",
+      "locationPlaceholder": "Aktueller Standort",
+      "kilometer": "Kilometerstand *",
+      "kilometerPlaceholder": "z.B. 125000",
+      "fuel": "Tankstand",
+      "fuelOptions": {
+        "empty": "Leer",
+        "full": "Voll"
+      },
+      "cleanInside": "Sauberkeit innen",
+      "cleanOutside": "Sauberkeit außen",
+      "cleanOptions": {
+        "clean": "Sauber",
+        "normal": "Normal",
+        "dirty": "Verschmutzt"
+      },
+      "accessories": {
+        "spareWheel": "Reserverad",
+        "warningTriangle": "Warndreieck",
+        "firstAidKit": "Verbandskasten",
+        "safetyVest": "Warnweste",
+        "carJack": "Wagenheber",
+        "wheelWrench": "Radmutternschlüssel",
+        "manual": "Bedienungsanleitung",
+        "serviceBook": "Serviceheft",
+        "registrationDoc": "Fahrzeugschein"
+      },
+      "keysCount": "Anzahl Schlüssel"
+    },
+    "damage": {
+      "title": "Schäden",
+      "instructions": "Tippe auf die Skizze, um die Schadensposition zu markieren.",
+      "sketchAlt": "Fahrzeugskizze",
+      "markAria": "Schaden markieren: {{location}}",
+      "legend": {
+        "scratch": "K = Kratzer",
+        "chip": "S = Steinschlag",
+        "dent": "D = Delle",
+        "damage": "B = Beschädigung"
+      },
+      "location": "Position am Fahrzeug",
+      "locationPlaceholder": "z.B. Vorne links, Stoßstange",
+      "type": "Art des Schadens",
+      "typeOptions": {
+        "scratch": "Kratzer (K)",
+        "chip": "Steinschlag (S)",
+        "dent": "Delle (D)",
+        "damage": "Beschädigung (B)"
+      },
+      "description": "Beschreibung",
+      "descriptionPlaceholder": "Art des Schadens",
+      "severity": "Schweregrad",
+      "severityOptions": {
+        "minor": "Leicht",
+        "medium": "Mittel",
+        "severe": "Schwer"
+      },
+      "add": "Schaden hinzufügen",
+      "none": "Keine Schäden",
+      "empty": "Keine Schäden erfasst"
+    },
+    "damagePoints": {
+      "frontLeft": "Front links",
+      "frontRight": "Front rechts",
+      "hood": "Motorhaube",
+      "roof": "Dach",
+      "leftSide": "Seite links",
+      "rightSide": "Seite rechts",
+      "rearLeft": "Heck links",
+      "rearRight": "Heck rechts",
+      "trunk": "Kofferraum",
+      "glass": "Scheiben"
+    },
+    "signatures": {
+      "title": "Bemerkungen & Unterschriften",
+      "notes": "Bemerkungen",
+      "notesPlaceholder": "Weitere Anmerkungen...",
+      "customerName": "Name des Kunden",
+      "customerNamePlaceholder": "Name des Empfängers/Übergebers",
+      "driverSignature": "Unterschrift Fahrer",
+      "customerSignature": "Unterschrift Kunde",
+      "submit": "Protokoll abschließen"
+    },
+    "confirm": {
+      "title": "Sicherheitsprüfung",
+      "description": "Bitte bestätige, dass alle Punkte korrekt geprüft wurden."
+    },
+    "errors": {
+      "missingKilometer": "Bitte Kilometerstand eintragen.",
+      "missingPhotos": "Bitte alle Pflichtfotos aufnehmen.",
+      "damageIncomplete": "Bitte alle Schadensfelder vollständig ausfüllen oder Einträge entfernen.",
+      "missingDriverSignature": "Bitte die Unterschrift des Fahrers erfassen.",
+      "missingCustomerSignature": "Bitte die Unterschrift des Kunden erfassen.",
+      "missingCustomerName": "Bitte den Namen des Kunden eintragen.",
+      "missingSignatures": "Bitte Name und Unterschriften vollständig erfassen."
+    },
+    "confirmations": {
+      "vehicle": {
+        "kilometer": "Kilometerstand korrekt erfasst",
+        "fuel": "Tankstand korrekt angegeben",
+        "cleanliness": "Sauberkeit innen/außen eingetragen",
+        "accessories": "Zubehör geprüft und eingetragen"
+      },
+      "photos": {
+        "required": "Alle Pflichtfotos aufgenommen",
+        "damage": "Schäden dokumentiert (falls vorhanden)"
+      },
+      "signatures": {
+        "customer": "Name des Kunden geprüft",
+        "signatures": "Unterschriften Fahrer & Kunde vorhanden",
+        "notes": "Bemerkungen geprüft"
+      }
+    }
+  },
+  "photos": {
+    "nextLabel": "Nächstes Foto",
+    "optionalTitle": "Weitere Fotos (optional)",
+    "captureType": "Aufnahme-Typ",
+    "review": "Zur Kontrolle",
+    "requiredTitle": "Pflichtfotos",
+    "requiredComplete": "Alle Pflichtfotos aufgenommen",
+    "requiredRemaining": "Noch {{count}} Fotos erforderlich",
+    "camera": {
+      "start": "Kamera starten",
+      "stop": "Kamera schließen",
+      "capture": "Foto aufnehmen"
+    },
+    "errors": {
+      "uploadFailed": "Upload fehlgeschlagen. Bitte erneut versuchen.",
+      "cameraStartFailed": "Kamera konnte nicht gestartet werden.",
+      "captureFailed": "Kein Foto aufgenommen."
+    },
+    "types": {
+      "front": "Fahrzeug Front",
+      "frontLeft": "Front links",
+      "frontRight": "Front rechts",
+      "wheelFrontRight": "Felge vorne rechts",
+      "doorPassenger": "Beifahrertür",
+      "doorRearRight": "Hintere Tür rechts",
+      "wheelRearRight": "Felge hinten rechts",
+      "rear": "Fahrzeug hinten",
+      "rearLeft": "Heck links",
+      "wheelRearLeft": "Felge hinten links",
+      "doorRearLeft": "Hintere Tür links",
+      "doorDriver": "Fahrertür",
+      "wheelFrontLeft": "Felge vorne links",
+      "windshield": "Windschutzscheibe",
+      "interiorFront": "Innenraum vorne",
+      "interiorRear": "Innenraum hinten",
+      "trunk": "Kofferraum",
+      "odometer": "Kilometerstand",
+      "damage": "Schaden",
+      "other": "Sonstiges"
+    }
+  },
+  "signature": {
+    "captured": "Unterschrift aufgenommen",
+    "placeholder": "Hier unterschreiben"
+  }
+}

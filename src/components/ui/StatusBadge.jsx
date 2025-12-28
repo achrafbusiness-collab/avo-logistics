@@ -24,15 +24,16 @@ const statusConfig = {
   dropoff: { label: 'Abgabe', className: 'bg-green-100 text-green-800 border-green-200' },
 };
 
-export default function StatusBadge({ status, size = 'default' }) {
+export default function StatusBadge({ status, size = 'default', label }) {
   const config = statusConfig[status] || { label: status, className: 'bg-gray-100 text-gray-800' };
+  const displayLabel = label || config.label;
   
   return (
     <Badge 
       variant="outline" 
       className={`${config.className} border font-medium ${size === 'sm' ? 'text-xs px-2 py-0.5' : ''}`}
     >
-      {config.label}
+      {displayLabel}
     </Badge>
   );
 }

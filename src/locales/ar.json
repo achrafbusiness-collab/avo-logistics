@@ -1,0 +1,371 @@
+{
+  "app": {
+    "name": "AVO Logistics"
+  },
+  "common": {
+    "back": "رجوع",
+    "next": "التالي",
+    "cancel": "إلغاء",
+    "open": "فتح",
+    "download": "تنزيل",
+    "optional": "اختياري",
+    "delete": "حذف"
+  },
+  "nav": {
+    "driverPortal": "بوابة السائق",
+    "orders": "الطلبات",
+    "documents": "المستندات",
+    "profile": "الملف الشخصي",
+    "support": "الدعم",
+    "logout": "تسجيل الخروج"
+  },
+  "login": {
+    "logoAlt": "AVO SYSTEMS",
+    "actions": {
+      "switchPortal": "تغيير البوابة",
+      "signIn": "تسجيل الدخول",
+      "forgotPassword": "نسيت كلمة المرور؟"
+    },
+    "labels": {
+      "email": "البريد الإلكتروني",
+      "password": "كلمة المرور"
+    },
+    "passwordPlaceholder": "••••••••",
+    "resetSent": "تم إرسال رابط كلمة المرور. يرجى التحقق من البريد.",
+    "errors": {
+      "loginFailed": "فشل تسجيل الدخول.",
+      "resetMissingEmail": "يرجى إدخال البريد لإعادة تعيين كلمة المرور.",
+      "resetFailed": "فشل إعادة تعيين كلمة المرور."
+    },
+    "hintTitle": "ملاحظة",
+    "hintText": "في حال وجود مشكلة، تواصل مع المسؤول.",
+    "driver": {
+      "title": "بوابة السائق",
+      "subtitle": "سجّل الدخول لرؤية الطلبات وإنشاء البروتوكولات.",
+      "cardTitle": "تسجيل دخول السائق",
+      "emailPlaceholder": "driver@avo-logistics.app"
+    }
+  },
+  "status": {
+    "new": "جديد",
+    "assigned": "مُعيَّن",
+    "accepted": "مقبول",
+    "pickup_started": "الاستلام جارٍ",
+    "in_transit": "في الطريق",
+    "delivery_started": "التسليم جارٍ",
+    "completed": "مكتمل",
+    "review": "مراجعة",
+    "ready_for_billing": "جاهز للفوترة",
+    "approved": "معتمد",
+    "cancelled": "ملغي",
+    "active": "نشط",
+    "inactive": "غير نشط",
+    "pending": "قيد المعالجة"
+  },
+  "orders": {
+    "pickup": "الاستلام",
+    "dropoff": "التسليم",
+    "greeting": "مرحبًا، {{name}}!",
+    "driverFallback": "سائق",
+    "summary": {
+      "none": "لا توجد طلبات نشطة حاليًا",
+      "single": "طلب نشط واحد",
+      "multiple": "{{count}} طلبات نشطة"
+    },
+    "driverHints": "{{company}} – ملاحظات للسائق",
+    "supportLabel": "الدعم: {{phone}}",
+    "emergencyLabel": "الطوارئ: {{phone}}",
+    "tabs": {
+      "active": "نشطة",
+      "completed": "مكتملة",
+      "all": "الكل"
+    },
+    "empty": {
+      "active": "لا توجد طلبات نشطة",
+      "completed": "لا توجد طلبات مكتملة بعد",
+      "all": "لا توجد طلبات"
+    },
+    "noDriverProfile": {
+      "title": "لا يوجد ملف سائق",
+      "body": "حسابك غير مرتبط بملف سائق. يرجى التواصل مع المسؤول."
+    }
+  },
+  "documents": {
+    "title": "المستندات",
+    "subtitle": "كل الملفات المهمة في مكان واحد.",
+    "orderRelated": "مستندات الطلبات",
+    "general": "مستندات عامة",
+    "emptyOrder": "لا توجد مستندات للطلبات.",
+    "emptyGeneral": "لا توجد مستندات عامة.",
+    "emptyAll": "لم يتم العثور على مستندات. يرجى انتظار التحميلات الجديدة.",
+    "defaultTitle": "مستند",
+    "forAllDrivers": "لكل السائقين",
+    "forYou": "لك فقط",
+    "noDriverProfile": "ملف السائق غير مُعيّن بعد. يرجى التواصل مع المسؤول.",
+    "backToOrders": "العودة إلى الطلبات"
+  },
+  "profile": {
+    "title": "الملف الشخصي",
+    "subtitle": "بياناتك الشخصية ورخصة اليوم.",
+    "phone": "الهاتف",
+    "city": "المدينة",
+    "license": {
+      "title": "رخصة اليوم",
+      "description": "هذه الرخصة صالحة لليوم فقط ويتم إنشاؤها يوميًا.",
+      "loading": "جارٍ إنشاء الرخصة...",
+      "error": "تعذّر إنشاء الرمز.",
+      "validOn": "صالحة في",
+      "tokenId": "معرّف الرمز",
+      "securityNote": "قاعدة الأمان: الرمز موقّع على الخادم (HMAC) وصالح ليوم واحد."
+    }
+  },
+  "support": {
+    "title": "الدعم",
+    "subtitle": "مساعدة وجهات اتصال ومعلومات أثناء الطريق.",
+    "contact": {
+      "title": "الاتصال",
+      "supportLabel": "الدعم: {{phone}}",
+      "whatsapp": "دعم واتساب",
+      "emergencyLabel": "الطوارئ: {{phone}}"
+    },
+    "guide": {
+      "title": "الدليل",
+      "fallback": "اتبع تعليمات المرسل."
+    },
+    "faqTitle": "الأسئلة الشائعة",
+    "faq": [
+      {
+        "title": "كيف أبدأ بروتوكولًا؟",
+        "body": "افتح الطلب → ابدأ البروتوكول → احفظ الصور والقائمة والتوقيع."
+      },
+      {
+        "title": "ماذا أفعل عند وجود ضرر؟",
+        "body": "حدد الضرر، التقط صورة، وأضف ملاحظة في البروتوكول."
+      },
+      {
+        "title": "المستندات غير موجودة؟",
+        "body": "أبلغ المرسل. يتم نشر المستندات مركزيًا."
+      }
+    ],
+    "appInfo": {
+      "title": "معلومات التطبيق",
+      "version": "الإصدار: {{value}}",
+      "officeHours": "ساعات العمل: {{value}}",
+      "address": "العنوان: {{value}}"
+    }
+  },
+  "settings": {
+    "language": {
+      "title": "اللغة",
+      "helper": "اختر لغة بوابة السائق.",
+      "options": {
+        "de": "الألمانية",
+        "en": "الإنجليزية",
+        "es": "الإسبانية",
+        "ar": "العربية"
+      }
+    }
+  },
+  "checklist": {
+    "orderNotFound": "لم يتم العثور على الطلب",
+    "backToOrders": "العودة إلى الطلبات",
+    "vehicle": {
+      "title": "المركبة",
+      "brandModel": "العلامة / الموديل",
+      "color": "اللون",
+      "vin": "VIN"
+    },
+    "route": {
+      "title": "المسار",
+      "openMaps": "افتح في خرائط Google"
+    },
+    "customer": {
+      "title": "العميل"
+    },
+    "notes": {
+      "title": "ملاحظات"
+    },
+    "protocols": {
+      "title": "البروتوكولات",
+      "pickupTitle": "بروتوكول الاستلام",
+      "dropoffTitle": "بروتوكول التسليم",
+      "createdAt": "تم الإنشاء في {{date}}",
+      "notCreated": "لم يتم الإنشاء بعد",
+      "ready": "جاهز للتعبئة",
+      "createPickupFirst": "أنشئ بروتوكول الاستلام أولاً",
+      "view": "عرض",
+      "start": "بدء"
+    }
+  },
+  "protocol": {
+    "pickupTitle": "بروتوكول الاستلام",
+    "dropoffTitle": "بروتوكول التسليم",
+    "stepProgress": "الخطوة {{current}} من {{total}}",
+    "steps": {
+      "basics": "البيانات الأساسية",
+      "photos": "الصور",
+      "signatures": "التواقيع"
+    },
+    "driverNotesTitle": "ملاحظات للسائق",
+    "basics": {
+      "title": "البيانات الأساسية والملحقات",
+      "location": "الموقع",
+      "locationPlaceholder": "الموقع الحالي",
+      "kilometer": "عداد الكيلومترات *",
+      "kilometerPlaceholder": "مثال 125000",
+      "fuel": "مستوى الوقود",
+      "fuelOptions": {
+        "empty": "فارغ",
+        "full": "ممتلئ"
+      },
+      "cleanInside": "نظافة الداخل",
+      "cleanOutside": "نظافة الخارج",
+      "cleanOptions": {
+        "clean": "نظيف",
+        "normal": "عادي",
+        "dirty": "متسخ"
+      },
+      "accessories": {
+        "spareWheel": "عجلة احتياطية",
+        "warningTriangle": "مثلث تحذير",
+        "firstAidKit": "عدة إسعافات أولية",
+        "safetyVest": "سترة أمان",
+        "carJack": "رافعة",
+        "wheelWrench": "مفتاح عجلات",
+        "manual": "دليل الاستخدام",
+        "serviceBook": "دفتر الصيانة",
+        "registrationDoc": "أوراق المركبة"
+      },
+      "keysCount": "عدد المفاتيح"
+    },
+    "damage": {
+      "title": "الأضرار",
+      "instructions": "اضغط على الرسم لتحديد موقع الضرر.",
+      "sketchAlt": "رسم المركبة",
+      "markAria": "تحديد ضرر: {{location}}",
+      "legend": {
+        "scratch": "K = خدش",
+        "chip": "S = حجر",
+        "dent": "D = بعج",
+        "damage": "B = تلف"
+      },
+      "location": "موقع الضرر",
+      "locationPlaceholder": "مثال: الأمام اليسار، الصدام",
+      "type": "نوع الضرر",
+      "typeOptions": {
+        "scratch": "خدش (K)",
+        "chip": "حجر (S)",
+        "dent": "بعج (D)",
+        "damage": "تلف (B)"
+      },
+      "description": "الوصف",
+      "descriptionPlaceholder": "تفاصيل الضرر",
+      "severity": "الخطورة",
+      "severityOptions": {
+        "minor": "خفيف",
+        "medium": "متوسط",
+        "severe": "شديد"
+      },
+      "add": "إضافة ضرر",
+      "none": "لا توجد أضرار",
+      "empty": "لا توجد أضرار مسجلة"
+    },
+    "damagePoints": {
+      "frontLeft": "الأمام يسار",
+      "frontRight": "الأمام يمين",
+      "hood": "غطاء المحرك",
+      "roof": "السقف",
+      "leftSide": "الجانب الأيسر",
+      "rightSide": "الجانب الأيمن",
+      "rearLeft": "الخلف يسار",
+      "rearRight": "الخلف يمين",
+      "trunk": "الصندوق",
+      "glass": "الزجاج"
+    },
+    "signatures": {
+      "title": "ملاحظات وتواقيع",
+      "notes": "ملاحظات",
+      "notesPlaceholder": "ملاحظات إضافية...",
+      "customerName": "اسم العميل",
+      "customerNamePlaceholder": "اسم المستلم/المُسلِّم",
+      "driverSignature": "توقيع السائق",
+      "customerSignature": "توقيع العميل",
+      "submit": "إنهاء البروتوكول"
+    },
+    "confirm": {
+      "title": "فحص الأمان",
+      "description": "يرجى التأكيد على مراجعة جميع البنود."
+    },
+    "errors": {
+      "missingKilometer": "يرجى إدخال قراءة العداد.",
+      "missingPhotos": "يرجى التقاط جميع الصور المطلوبة.",
+      "damageIncomplete": "يرجى إكمال جميع حقول الضرر أو حذف الإدخالات.",
+      "missingDriverSignature": "يرجى التقاط توقيع السائق.",
+      "missingCustomerSignature": "يرجى التقاط توقيع العميل.",
+      "missingCustomerName": "يرجى إدخال اسم العميل.",
+      "missingSignatures": "يرجى إكمال الاسم والتواقيع."
+    },
+    "confirmations": {
+      "vehicle": {
+        "kilometer": "تم تسجيل العداد بشكل صحيح",
+        "fuel": "تم تسجيل الوقود بشكل صحيح",
+        "cleanliness": "تم تسجيل نظافة الداخل/الخارج",
+        "accessories": "تم فحص الملحقات"
+      },
+      "photos": {
+        "required": "تم التقاط جميع الصور المطلوبة",
+        "damage": "تم توثيق الأضرار (إن وجدت)"
+      },
+      "signatures": {
+        "customer": "تم التحقق من اسم العميل",
+        "signatures": "تم التقاط تواقيع السائق والعميل",
+        "notes": "تمت مراجعة الملاحظات"
+      }
+    }
+  },
+  "photos": {
+    "nextLabel": "الصورة التالية",
+    "optionalTitle": "صور إضافية (اختياري)",
+    "captureType": "نوع الالتقاط",
+    "review": "مراجعة",
+    "requiredTitle": "الصور المطلوبة",
+    "requiredComplete": "تم التقاط جميع الصور المطلوبة",
+    "requiredRemaining": "متبقٍ {{count}} صورة",
+    "camera": {
+      "start": "تشغيل الكاميرا",
+      "stop": "إغلاق الكاميرا",
+      "capture": "التقاط صورة"
+    },
+    "errors": {
+      "uploadFailed": "فشل الرفع. حاول مرة أخرى.",
+      "cameraStartFailed": "تعذر تشغيل الكاميرا.",
+      "captureFailed": "لم يتم التقاط صورة."
+    },
+    "types": {
+      "front": "واجهة المركبة",
+      "frontLeft": "الأمام يسار",
+      "frontRight": "الأمام يمين",
+      "wheelFrontRight": "جنط أمامي يمين",
+      "doorPassenger": "باب الراكب",
+      "doorRearRight": "الباب الخلفي يمين",
+      "wheelRearRight": "جنط خلفي يمين",
+      "rear": "خلف المركبة",
+      "rearLeft": "الخلف يسار",
+      "wheelRearLeft": "جنط خلفي يسار",
+      "doorRearLeft": "الباب الخلفي يسار",
+      "doorDriver": "باب السائق",
+      "wheelFrontLeft": "جنط أمامي يسار",
+      "windshield": "الزجاج الأمامي",
+      "interiorFront": "الداخل الأمامي",
+      "interiorRear": "الداخل الخلفي",
+      "trunk": "الصندوق",
+      "odometer": "عداد المسافة",
+      "damage": "ضرر",
+      "other": "أخرى"
+    }
+  },
+  "signature": {
+    "captured": "تم حفظ التوقيع",
+    "placeholder": "وقّع هنا"
+  }
+}

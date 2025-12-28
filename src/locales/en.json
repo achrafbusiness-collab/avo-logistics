@@ -1,0 +1,371 @@
+{
+  "app": {
+    "name": "AVO Logistics"
+  },
+  "common": {
+    "back": "Back",
+    "next": "Next",
+    "cancel": "Cancel",
+    "open": "Open",
+    "download": "Download",
+    "optional": "optional",
+    "delete": "Delete"
+  },
+  "nav": {
+    "driverPortal": "Driver Portal",
+    "orders": "Orders",
+    "documents": "Documents",
+    "profile": "Profile",
+    "support": "Support",
+    "logout": "Sign out"
+  },
+  "login": {
+    "logoAlt": "AVO SYSTEMS",
+    "actions": {
+      "switchPortal": "Switch portal",
+      "signIn": "Sign in",
+      "forgotPassword": "Forgot password?"
+    },
+    "labels": {
+      "email": "Email",
+      "password": "Password"
+    },
+    "passwordPlaceholder": "••••••••",
+    "resetSent": "Password link sent. Please check your email.",
+    "errors": {
+      "loginFailed": "Login failed.",
+      "resetMissingEmail": "Please enter your email to reset the password.",
+      "resetFailed": "Password reset failed."
+    },
+    "hintTitle": "Note",
+    "hintText": "If you have issues, please contact the administrator.",
+    "driver": {
+      "title": "Driver Portal",
+      "subtitle": "Please sign in to see your orders and create protocols.",
+      "cardTitle": "Driver Login",
+      "emailPlaceholder": "driver@avo-logistics.app"
+    }
+  },
+  "status": {
+    "new": "Open",
+    "assigned": "Assigned",
+    "accepted": "Accepted",
+    "pickup_started": "Pickup in progress",
+    "in_transit": "In transit",
+    "delivery_started": "Drop-off in progress",
+    "completed": "Completed",
+    "review": "Review",
+    "ready_for_billing": "Ready for billing",
+    "approved": "Approved",
+    "cancelled": "Cancelled",
+    "active": "Active",
+    "inactive": "Inactive",
+    "pending": "Pending"
+  },
+  "orders": {
+    "pickup": "Pickup",
+    "dropoff": "Drop-off",
+    "greeting": "Hello, {{name}}!",
+    "driverFallback": "Driver",
+    "summary": {
+      "none": "No active orders right now",
+      "single": "1 active order",
+      "multiple": "{{count}} active orders"
+    },
+    "driverHints": "{{company}} – Driver notes",
+    "supportLabel": "Support: {{phone}}",
+    "emergencyLabel": "Emergency: {{phone}}",
+    "tabs": {
+      "active": "Active",
+      "completed": "Completed",
+      "all": "All"
+    },
+    "empty": {
+      "active": "No active orders",
+      "completed": "No completed orders yet",
+      "all": "No orders available"
+    },
+    "noDriverProfile": {
+      "title": "No driver profile found",
+      "body": "Your account is not linked to a driver profile. Please contact the administrator."
+    }
+  },
+  "documents": {
+    "title": "Documents",
+    "subtitle": "All important files at a glance.",
+    "orderRelated": "Order documents",
+    "general": "General documents",
+    "emptyOrder": "No order documents available.",
+    "emptyGeneral": "No general documents available.",
+    "emptyAll": "No documents found. Please wait for new uploads.",
+    "defaultTitle": "Document",
+    "forAllDrivers": "For all drivers",
+    "forYou": "Only for you",
+    "noDriverProfile": "Your driver profile is not assigned yet. Please contact the admin.",
+    "backToOrders": "Back to orders"
+  },
+  "profile": {
+    "title": "Profile",
+    "subtitle": "Your personal data & daily license.",
+    "phone": "Phone",
+    "city": "City",
+    "license": {
+      "title": "Daily License",
+      "description": "This pass is only valid for today and is generated daily.",
+      "loading": "Creating license...",
+      "error": "Token could not be created.",
+      "validOn": "Valid on",
+      "tokenId": "Token ID",
+      "securityNote": "Security rule: token is server-signed (HMAC) and valid for one day."
+    }
+  },
+  "support": {
+    "title": "Support",
+    "subtitle": "Help, contacts, and info on the go.",
+    "contact": {
+      "title": "Contact",
+      "supportLabel": "Support: {{phone}}",
+      "whatsapp": "WhatsApp Support",
+      "emergencyLabel": "Emergency: {{phone}}"
+    },
+    "guide": {
+      "title": "Guide",
+      "fallback": "Follow the instructions from your dispatcher."
+    },
+    "faqTitle": "FAQ",
+    "faq": [
+      {
+        "title": "How do I start a protocol?",
+        "body": "Open order → start protocol → save photos, checklist, signature."
+      },
+      {
+        "title": "What if there is damage?",
+        "body": "Mark the damage, take a photo, and add a note to the protocol."
+      },
+      {
+        "title": "Missing documents?",
+        "body": "Please inform the dispatcher. Documents are released centrally."
+      }
+    ],
+    "appInfo": {
+      "title": "App Info",
+      "version": "Version: {{value}}",
+      "officeHours": "Office hours: {{value}}",
+      "address": "Address: {{value}}"
+    }
+  },
+  "settings": {
+    "language": {
+      "title": "Language",
+      "helper": "Choose the language for your driver portal.",
+      "options": {
+        "de": "German",
+        "en": "English",
+        "es": "Spanish",
+        "ar": "Arabic"
+      }
+    }
+  },
+  "checklist": {
+    "orderNotFound": "Order not found",
+    "backToOrders": "Back to orders",
+    "vehicle": {
+      "title": "Vehicle",
+      "brandModel": "Brand / Model",
+      "color": "Color",
+      "vin": "VIN"
+    },
+    "route": {
+      "title": "Route",
+      "openMaps": "Open in Google Maps"
+    },
+    "customer": {
+      "title": "Customer"
+    },
+    "notes": {
+      "title": "Notes"
+    },
+    "protocols": {
+      "title": "Protocols",
+      "pickupTitle": "Pickup protocol",
+      "dropoffTitle": "Drop-off protocol",
+      "createdAt": "Created on {{date}}",
+      "notCreated": "Not created yet",
+      "ready": "Ready to fill",
+      "createPickupFirst": "Create pickup protocol first",
+      "view": "View",
+      "start": "Start"
+    }
+  },
+  "protocol": {
+    "pickupTitle": "Pickup protocol",
+    "dropoffTitle": "Drop-off protocol",
+    "stepProgress": "Step {{current}} of {{total}}",
+    "steps": {
+      "basics": "Basics",
+      "photos": "Photos",
+      "signatures": "Signatures"
+    },
+    "driverNotesTitle": "Driver notes",
+    "basics": {
+      "title": "Basics & accessories",
+      "location": "Location",
+      "locationPlaceholder": "Current location",
+      "kilometer": "Odometer *",
+      "kilometerPlaceholder": "e.g. 125000",
+      "fuel": "Fuel level",
+      "fuelOptions": {
+        "empty": "Empty",
+        "full": "Full"
+      },
+      "cleanInside": "Interior cleanliness",
+      "cleanOutside": "Exterior cleanliness",
+      "cleanOptions": {
+        "clean": "Clean",
+        "normal": "Normal",
+        "dirty": "Dirty"
+      },
+      "accessories": {
+        "spareWheel": "Spare wheel",
+        "warningTriangle": "Warning triangle",
+        "firstAidKit": "First aid kit",
+        "safetyVest": "Safety vest",
+        "carJack": "Car jack",
+        "wheelWrench": "Wheel wrench",
+        "manual": "Manual",
+        "serviceBook": "Service book",
+        "registrationDoc": "Registration document"
+      },
+      "keysCount": "Number of keys"
+    },
+    "damage": {
+      "title": "Damages",
+      "instructions": "Tap the sketch to mark the damage position.",
+      "sketchAlt": "Vehicle sketch",
+      "markAria": "Mark damage: {{location}}",
+      "legend": {
+        "scratch": "K = Scratch",
+        "chip": "S = Stone chip",
+        "dent": "D = Dent",
+        "damage": "B = Damage"
+      },
+      "location": "Vehicle position",
+      "locationPlaceholder": "e.g. front left, bumper",
+      "type": "Damage type",
+      "typeOptions": {
+        "scratch": "Scratch (K)",
+        "chip": "Stone chip (S)",
+        "dent": "Dent (D)",
+        "damage": "Damage (B)"
+      },
+      "description": "Description",
+      "descriptionPlaceholder": "Damage details",
+      "severity": "Severity",
+      "severityOptions": {
+        "minor": "Minor",
+        "medium": "Medium",
+        "severe": "Severe"
+      },
+      "add": "Add damage",
+      "none": "No damages",
+      "empty": "No damages recorded"
+    },
+    "damagePoints": {
+      "frontLeft": "Front left",
+      "frontRight": "Front right",
+      "hood": "Hood",
+      "roof": "Roof",
+      "leftSide": "Left side",
+      "rightSide": "Right side",
+      "rearLeft": "Rear left",
+      "rearRight": "Rear right",
+      "trunk": "Trunk",
+      "glass": "Windows"
+    },
+    "signatures": {
+      "title": "Notes & signatures",
+      "notes": "Notes",
+      "notesPlaceholder": "Additional notes...",
+      "customerName": "Customer name",
+      "customerNamePlaceholder": "Name of receiver/handover",
+      "driverSignature": "Driver signature",
+      "customerSignature": "Customer signature",
+      "submit": "Complete protocol"
+    },
+    "confirm": {
+      "title": "Safety check",
+      "description": "Please confirm that all items have been reviewed."
+    },
+    "errors": {
+      "missingKilometer": "Please enter the odometer reading.",
+      "missingPhotos": "Please take all required photos.",
+      "damageIncomplete": "Please complete all damage fields or remove entries.",
+      "missingDriverSignature": "Please capture the driver's signature.",
+      "missingCustomerSignature": "Please capture the customer's signature.",
+      "missingCustomerName": "Please enter the customer's name.",
+      "missingSignatures": "Please complete name and signatures."
+    },
+    "confirmations": {
+      "vehicle": {
+        "kilometer": "Odometer recorded correctly",
+        "fuel": "Fuel level recorded correctly",
+        "cleanliness": "Interior/exterior cleanliness recorded",
+        "accessories": "Accessories checked and recorded"
+      },
+      "photos": {
+        "required": "All required photos taken",
+        "damage": "Damages documented (if any)"
+      },
+      "signatures": {
+        "customer": "Customer name verified",
+        "signatures": "Driver & customer signatures captured",
+        "notes": "Notes reviewed"
+      }
+    }
+  },
+  "photos": {
+    "nextLabel": "Next photo",
+    "optionalTitle": "Additional photos (optional)",
+    "captureType": "Capture type",
+    "review": "Review",
+    "requiredTitle": "Required photos",
+    "requiredComplete": "All required photos captured",
+    "requiredRemaining": "{{count}} photos remaining",
+    "camera": {
+      "start": "Start camera",
+      "stop": "Close camera",
+      "capture": "Take photo"
+    },
+    "errors": {
+      "uploadFailed": "Upload failed. Please try again.",
+      "cameraStartFailed": "Camera could not be started.",
+      "captureFailed": "No photo captured."
+    },
+    "types": {
+      "front": "Vehicle front",
+      "frontLeft": "Front left",
+      "frontRight": "Front right",
+      "wheelFrontRight": "Front right rim",
+      "doorPassenger": "Passenger door",
+      "doorRearRight": "Rear right door",
+      "wheelRearRight": "Rear right rim",
+      "rear": "Vehicle rear",
+      "rearLeft": "Rear left",
+      "wheelRearLeft": "Rear left rim",
+      "doorRearLeft": "Rear left door",
+      "doorDriver": "Driver door",
+      "wheelFrontLeft": "Front left rim",
+      "windshield": "Windshield",
+      "interiorFront": "Interior front",
+      "interiorRear": "Interior rear",
+      "trunk": "Trunk",
+      "odometer": "Odometer",
+      "damage": "Damage",
+      "other": "Other"
+    }
+  },
+  "signature": {
+    "captured": "Signature captured",
+    "placeholder": "Sign here"
+  }
+}

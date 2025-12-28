@@ -1,8 +1,15 @@
-import React from "react";
+import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { appClient } from "@/api/appClient";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   LifeBuoy,
   Phone,
@@ -12,23 +19,11 @@ import {
   Info,
   Shield,
 } from "lucide-react";
-
-const faqItems = [
-  {
-    title: "Wie starte ich ein Protokoll?",
-    body: "Auftrag oeffnen -> Protokoll starten -> Fotos, Checkliste, Unterschrift speichern.",
-  },
-  {
-    title: "Was mache ich bei Schaden?",
-    body: "Schaden markieren, Foto aufnehmen und Notiz im Protokoll hinterlegen.",
-  },
-  {
-    title: "Dokumente fehlen?",
-    body: "Bitte den Disponenten informieren. Dokumente werden zentral freigegeben.",
-  },
-];
+import { useI18n } from "@/i18n";
 
 export default function DriverSupport() {
+  const { t, getValue, language, setLanguage } = useI18n();
+  const [savingLanguage, setSavingLanguage] = useState(false);
   const { data: appSettingsList = [] } = useQuery({
     queryKey: ["appSettings"],
     queryFn: () => appClient.entities.AppSettings.list("-created_date", 1),
@@ -39,19 +34,47 @@ export default function DriverSupport() {
   const supportEmail = appSettings?.support_email || "";
   const emergencyPhone = appSettings?.emergency_phone || "";
   const whatsappNumber = supportPhone.replace(/[^\d]/g, "");
+  const faqItems = getValue("support.faq") || [];
+
+  const handleLanguageChange = async (value) => {
+    setSavingLanguage(true);
+    await setLanguage(value);
+    setSavingLanguage(false);
+  };
 
   return (
     <div className="p-4 pb-24 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Support</h1>
-        <p className="text-sm text-slate-500">Hilfe, Kontakte und Infos fuer unterwegs.</p>
+        <h1 className="text-2xl font-bold text-slate-900">{t("support.title")}</h1>
+        <p className="text-sm text-slate-500">{t("support.subtitle")}</p>
       </div>
+
+      <Card>
+        <CardContent className="p-4 space-y-3 text-sm text-slate-600">
+          <div className="flex items-center gap-2 text-slate-700">
+            <Shield className="h-5 w-5 text-[#1e3a5f]" />
+            <h2 className="text-base font-semibold">{t("settings.language.title")}</h2>
+          </div>
+          <p className="text-xs text-slate-500">{t("settings.language.helper")}</p>
+          <Select value={language} onValueChange={handleLanguageChange} disabled={savingLanguage}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="de">{t("settings.language.options.de")}</SelectItem>
+              <SelectItem value="en">{t("settings.language.options.en")}</SelectItem>
+              <SelectItem value="es">{t("settings.language.options.es")}</SelectItem>
+              <SelectItem value="ar">{t("settings.language.options.ar")}</SelectItem>
+            </SelectContent>
+          </Select>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardContent className="p-4 space-y-4">
           <div className="flex items-center gap-2 text-slate-700">
             <LifeBuoy className="h-5 w-5 text-[#1e3a5f]" />
-            <h2 className="text-base font-semibold">Kontakt</h2>
+            <h2 className="text-base font-semibold">{t("support.contact.title")}</h2>
           </div>
           <div className="grid gap-3 text-sm text-slate-600">
             {supportPhone && (
@@ -61,7 +84,7 @@ export default function DriverSupport() {
                 onClick={() => (window.location.href = `tel:${supportPhone}`)}
               >
                 <Phone className="h-4 w-4" />
-                Support: {supportPhone}
+                {t("support.contact.supportLabel", { phone: supportPhone })}
               </Button>
             )}
             {supportEmail && (
@@ -81,7 +104,7 @@ export default function DriverSupport() {
                 onClick={() => window.open(`https://wa.me/${whatsappNumber}`, "_blank")}
               >
                 <MessageCircle className="h-4 w-4" />
-                WhatsApp Support
+                {t("support.contact.whatsapp")}
               </Button>
             )}
             {emergencyPhone && (
@@ -90,7 +113,7 @@ export default function DriverSupport() {
                 onClick={() => (window.location.href = `tel:${emergencyPhone}`)}
               >
                 <Phone className="h-4 w-4" />
-                Notfall: {emergencyPhone}
+                {t("support.contact.emergencyLabel", { phone: emergencyPhone })}
               </Button>
             )}
           </div>
@@ -101,10 +124,10 @@ export default function DriverSupport() {
         <CardContent className="p-4 space-y-3 text-sm text-slate-600">
           <div className="flex items-center gap-2 text-slate-700">
             <BookOpen className="h-5 w-5 text-[#1e3a5f]" />
-            <h2 className="text-base font-semibold">Anleitung</h2>
+            <h2 className="text-base font-semibold">{t("support.guide.title")}</h2>
           </div>
           <p className="whitespace-pre-wrap">
-            {appSettings?.instructions || "Halte dich an die Anweisungen deines Disponenten."}
+            {appSettings?.instructions || t("support.guide.fallback")}
           </p>
         </CardContent>
       </Card>
@@ -113,7 +136,7 @@ export default function DriverSupport() {
         <CardContent className="p-4 space-y-4 text-sm text-slate-600">
           <div className="flex items-center gap-2 text-slate-700">
             <Info className="h-5 w-5 text-[#1e3a5f]" />
-            <h2 className="text-base font-semibold">FAQ</h2>
+            <h2 className="text-base font-semibold">{t("support.faqTitle")}</h2>
           </div>
           <div className="space-y-3">
             {faqItems.map((item) => (
@@ -130,12 +153,16 @@ export default function DriverSupport() {
         <CardContent className="p-4 space-y-3 text-sm text-slate-600">
           <div className="flex items-center gap-2 text-slate-700">
             <Shield className="h-5 w-5 text-[#1e3a5f]" />
-            <h2 className="text-base font-semibold">App-Infos</h2>
+            <h2 className="text-base font-semibold">{t("support.appInfo.title")}</h2>
           </div>
           <div className="space-y-2">
-            <p>Version: {appSettings?.app_version || "1.0.0"}</p>
-            {appSettings?.office_hours && <p>Servicezeiten: {appSettings.office_hours}</p>}
-            {appSettings?.office_address && <p>Adresse: {appSettings.office_address}</p>}
+            <p>{t("support.appInfo.version", { value: appSettings?.app_version || "1.0.0" })}</p>
+            {appSettings?.office_hours && (
+              <p>{t("support.appInfo.officeHours", { value: appSettings.office_hours })}</p>
+            )}
+            {appSettings?.office_address && (
+              <p>{t("support.appInfo.address", { value: appSettings.office_address })}</p>
+            )}
           </div>
           {appSettings?.legal_text && (
             <p className="text-xs text-slate-500 whitespace-pre-wrap">

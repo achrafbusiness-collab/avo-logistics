@@ -4,8 +4,10 @@ import { appClient } from "@/api/appClient";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2, ShieldCheck, User, Building2, Copy } from "lucide-react";
+import { useI18n } from "@/i18n";
 
 export default function DriverProfile() {
+  const { t } = useI18n();
   const [user, setUser] = useState(null);
   const [licenseToken, setLicenseToken] = useState(null);
   const [tokenError, setTokenError] = useState("");
@@ -48,17 +50,17 @@ export default function DriverProfile() {
         });
         const payload = await response.json();
         if (!response.ok || !payload?.ok) {
-          throw new Error(payload?.error || "Token konnte nicht erstellt werden.");
+          throw new Error(payload?.error || t("profile.license.error"));
         }
         setLicenseToken(payload.data);
       } catch (err) {
-        setTokenError(err?.message || "Token konnte nicht erstellt werden.");
+        setTokenError(err?.message || t("profile.license.error"));
       } finally {
         setLoadingToken(false);
       }
     };
     loadToken();
-  }, [user]);
+  }, [user, t]);
 
   if (!user) {
     return (
@@ -71,8 +73,8 @@ export default function DriverProfile() {
   return (
     <div className="p-4 pb-24 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Profil</h1>
-        <p className="text-sm text-slate-500">Deine persönlichen Daten & Tages‑Lizenzschein.</p>
+        <h1 className="text-2xl font-bold text-slate-900">{t("profile.title")}</h1>
+        <p className="text-sm text-slate-500">{t("profile.subtitle")}</p>
       </div>
 
       <Card>
@@ -90,39 +92,37 @@ export default function DriverProfile() {
               <p className="text-sm text-slate-500">{user.email}</p>
             </div>
           </div>
-          <div className="grid grid-cols-1 gap-2 text-sm text-slate-600">
-            <div className="flex items-center gap-2">
-              <Building2 className="h-4 w-4 text-slate-400" />
-              {appSettings?.company_name || "AVO Logistics"}
+            <div className="grid grid-cols-1 gap-2 text-sm text-slate-600">
+              <div className="flex items-center gap-2">
+                <Building2 className="h-4 w-4 text-slate-400" />
+                {appSettings?.company_name || t("app.name")}
+              </div>
+              {driver?.phone && <p>{t("profile.phone")}: {driver.phone}</p>}
+              {driver?.city && <p>{t("profile.city")}: {driver.city}</p>}
             </div>
-            {driver?.phone && <p>Telefon: {driver.phone}</p>}
-            {driver?.city && <p>Ort: {driver.city}</p>}
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
 
       <Card className="border border-emerald-200 bg-emerald-50">
         <CardContent className="p-4 space-y-3">
           <div className="flex items-center gap-2 text-emerald-700">
             <ShieldCheck className="h-5 w-5" />
-            <h2 className="font-semibold">Tages‑Lizenzschein</h2>
+            <h2 className="font-semibold">{t("profile.license.title")}</h2>
           </div>
-          <p className="text-sm text-emerald-700">
-            Dieser Schein ist nur für den heutigen Tag gültig und wird täglich neu generiert.
-          </p>
+          <p className="text-sm text-emerald-700">{t("profile.license.description")}</p>
           {loadingToken ? (
             <div className="flex items-center gap-2 text-sm text-emerald-700">
               <Loader2 className="h-4 w-4 animate-spin" />
-              Lizenzschein wird erstellt...
+              {t("profile.license.loading")}
             </div>
           ) : tokenError ? (
             <p className="text-sm text-red-600">{tokenError}</p>
           ) : (
             <div className="rounded-lg border border-emerald-200 bg-white p-3 text-sm text-slate-700">
-              <p className="text-xs text-slate-400">Gültig am</p>
+              <p className="text-xs text-slate-400">{t("profile.license.validOn")}</p>
               <p className="font-semibold">{licenseToken?.day}</p>
               <div className="mt-3">
-                <p className="text-xs text-slate-400">Token ID</p>
+                <p className="text-xs text-slate-400">{t("profile.license.tokenId")}</p>
                 <div className="mt-1 flex items-center gap-2">
                   <code className="text-xs break-all">{licenseToken?.token}</code>
                   <Button
@@ -135,7 +135,7 @@ export default function DriverProfile() {
                 </div>
               </div>
               <p className="mt-3 text-xs text-slate-500">
-                Sicherheitsregel: Token ist serverseitig signiert (HMAC) und täglich gültig.
+                {t("profile.license.securityNote")}
               </p>
             </div>
           )}

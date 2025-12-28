@@ -156,3 +156,11 @@ button:focus-visible {
     @apply bg-background text-foreground;
   }
 }
+
+.driver-layout[dir="rtl"] .driver-bottom-nav {
+  flex-direction: row-reverse;
+}
+
+.driver-layout[dir="rtl"] .rtl-flip {
+  transform: scaleX(-1);
+}

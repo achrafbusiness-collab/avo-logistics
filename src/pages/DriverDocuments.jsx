@@ -5,8 +5,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FileText, Download, Loader2, FolderOpen } from "lucide-react";
 import { createPageUrl } from "@/utils";
+import { useI18n } from "@/i18n";
 
 export default function DriverDocuments() {
+  const { t } = useI18n();
   const [user, setUser] = useState(null);
 
   useEffect(() => {
@@ -45,9 +47,9 @@ export default function DriverDocuments() {
           id: order.id,
           title: order.order_number,
           url: order.pdf_url,
-          description: `${order.pickup_city || "Abholung"} → ${order.dropoff_city || "Abgabe"}`,
+          description: `${order.pickup_city || t("orders.pickup")} → ${order.dropoff_city || t("orders.dropoff")}`,
         })),
-    [orders]
+    [orders, t]
   );
 
   const emptyState = !ordersLoading && !docsLoading && !orderDocs.length && !driverDocs.length;
@@ -55,14 +57,14 @@ export default function DriverDocuments() {
   return (
     <div className="p-4 pb-24 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Dokumente</h1>
-        <p className="text-sm text-slate-500">Alle wichtigen Unterlagen auf einen Blick.</p>
+        <h1 className="text-2xl font-bold text-slate-900">{t("documents.title")}</h1>
+        <p className="text-sm text-slate-500">{t("documents.subtitle")}</p>
       </div>
 
       <div className="space-y-3">
         <div className="flex items-center gap-2 text-slate-700">
           <FolderOpen className="h-5 w-5 text-[#1e3a5f]" />
-          <h2 className="text-base font-semibold">Auftragsbezogene Dokumente</h2>
+          <h2 className="text-base font-semibold">{t("documents.orderRelated")}</h2>
         </div>
         {ordersLoading ? (
           <Card>
@@ -73,7 +75,7 @@ export default function DriverDocuments() {
         ) : orderDocs.length === 0 ? (
           <Card>
             <CardContent className="py-8 text-center text-sm text-slate-500">
-              Keine Auftragsdokumente vorhanden.
+              {t("documents.emptyOrder")}
             </CardContent>
           </Card>
         ) : (
@@ -90,7 +92,7 @@ export default function DriverDocuments() {
                   onClick={() => window.open(doc.url, "_blank")}
                 >
                   <Download className="mr-2 h-4 w-4" />
-                  Öffnen
+                  {t("common.open")}
                 </Button>
               </CardContent>
             </Card>
@@ -101,7 +103,7 @@ export default function DriverDocuments() {
       <div className="space-y-3">
         <div className="flex items-center gap-2 text-slate-700">
           <FileText className="h-5 w-5 text-[#1e3a5f]" />
-          <h2 className="text-base font-semibold">Allgemeine Dokumente</h2>
+          <h2 className="text-base font-semibold">{t("documents.general")}</h2>
         </div>
         {docsLoading ? (
           <Card>
@@ -112,7 +114,7 @@ export default function DriverDocuments() {
         ) : driverDocs.length === 0 ? (
           <Card>
             <CardContent className="py-8 text-center text-sm text-slate-500">
-              Keine allgemeinen Dokumente vorhanden.
+              {t("documents.emptyGeneral")}
             </CardContent>
           </Card>
         ) : (
@@ -120,9 +122,9 @@ export default function DriverDocuments() {
             <Card key={doc.id}>
               <CardContent className="flex items-center justify-between gap-4 p-4">
                 <div>
-                  <p className="font-semibold text-slate-900">{doc.title || "Dokument"}</p>
+                  <p className="font-semibold text-slate-900">{doc.title || t("documents.defaultTitle")}</p>
                   <p className="text-xs text-slate-500">
-                    {doc.category === "general" ? "Für alle Fahrer" : "Nur für dich"}
+                    {doc.category === "general" ? t("documents.forAllDrivers") : t("documents.forYou")}
                   </p>
                 </div>
                 <Button
@@ -131,7 +133,7 @@ export default function DriverDocuments() {
                   onClick={() => window.open(doc.file_url, "_blank")}
                 >
                   <Download className="mr-2 h-4 w-4" />
-                  Download
+                  {t("common.download")}
                 </Button>
               </CardContent>
             </Card>
@@ -142,7 +144,7 @@ export default function DriverDocuments() {
       {emptyState && (
         <Card>
           <CardContent className="py-10 text-center text-sm text-slate-500">
-            Keine Dokumente gefunden. Bitte warte auf neue Uploads.
+            {t("documents.emptyAll")}
           </CardContent>
         </Card>
       )}
@@ -150,10 +152,10 @@ export default function DriverDocuments() {
       {!currentDriver && user && (
         <Card>
           <CardContent className="py-8 text-center text-sm text-slate-500">
-            Dein Fahrerprofil wurde noch nicht zugeordnet. Bitte kontaktiere den Admin.
+            {t("documents.noDriverProfile")}
             <div className="mt-3">
               <Button size="sm" variant="outline" onClick={() => (window.location.href = createPageUrl("DriverOrders"))}>
-                Zurück zu Aufträgen
+                {t("documents.backToOrders")}
               </Button>
             </div>
           </CardContent>

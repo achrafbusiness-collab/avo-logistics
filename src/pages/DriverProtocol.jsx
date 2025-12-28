@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { appClient } from '@/api/appClient';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
-import { format } from 'date-fns';
-import { de } from 'date-fns/locale';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,6 +27,7 @@ import {
 import SignaturePad from '@/components/driver/SignaturePad';
 import PhotoCapture, { REQUIRED_PHOTO_IDS } from '@/components/driver/PhotoCapture';
 import ProtocolWizard from '@/components/driver/ProtocolWizard';
+import { useI18n } from '@/i18n';
 import { 
   ArrowLeft,
   Loader2,
@@ -42,36 +41,37 @@ import {
 
 const STEP_CONFIRMATIONS = {
   vehicle_check: [
-    { id: 'km', label: 'Kilometerstand korrekt erfasst' },
-    { id: 'fuel', label: 'Tankstand korrekt angegeben' },
-    { id: 'clean', label: 'Sauberkeit innen/außen eingetragen' },
-    { id: 'accessories', label: 'Zubehör geprüft und eingetragen' },
+    { id: 'km', labelKey: 'protocol.confirmations.vehicle.kilometer' },
+    { id: 'fuel', labelKey: 'protocol.confirmations.vehicle.fuel' },
+    { id: 'clean', labelKey: 'protocol.confirmations.vehicle.cleanliness' },
+    { id: 'accessories', labelKey: 'protocol.confirmations.vehicle.accessories' },
   ],
   photos: [
-    { id: 'photos', label: 'Alle Pflichtfotos aufgenommen' },
-    { id: 'damage_photos', label: 'Schäden dokumentiert (falls vorhanden)' },
+    { id: 'photos', labelKey: 'protocol.confirmations.photos.required' },
+    { id: 'damage_photos', labelKey: 'protocol.confirmations.photos.damage' },
   ],
   signatures: [
-    { id: 'customer', label: 'Name des Kunden geprüft' },
-    { id: 'signatures', label: 'Unterschriften Fahrer & Kunde vorhanden' },
-    { id: 'notes', label: 'Bemerkungen geprüft' },
+    { id: 'customer', labelKey: 'protocol.confirmations.signatures.customer' },
+    { id: 'signatures', labelKey: 'protocol.confirmations.signatures.signatures' },
+    { id: 'notes', labelKey: 'protocol.confirmations.signatures.notes' },
   ],
 };
 
 const DAMAGE_POINTS = [
-  { id: 'front-left', label: 'Front links', x: 18, y: 20 },
-  { id: 'front-right', label: 'Front rechts', x: 82, y: 20 },
-  { id: 'hood', label: 'Motorhaube', x: 50, y: 18 },
-  { id: 'roof', label: 'Dach', x: 50, y: 38 },
-  { id: 'left-side', label: 'Seite links', x: 20, y: 50 },
-  { id: 'right-side', label: 'Seite rechts', x: 80, y: 50 },
-  { id: 'rear-left', label: 'Heck links', x: 18, y: 78 },
-  { id: 'rear-right', label: 'Heck rechts', x: 82, y: 78 },
-  { id: 'trunk', label: 'Kofferraum', x: 50, y: 80 },
-  { id: 'glass', label: 'Scheiben', x: 50, y: 55 },
+  { id: 'front-left', labelKey: 'protocol.damagePoints.frontLeft', x: 18, y: 20 },
+  { id: 'front-right', labelKey: 'protocol.damagePoints.frontRight', x: 82, y: 20 },
+  { id: 'hood', labelKey: 'protocol.damagePoints.hood', x: 50, y: 18 },
+  { id: 'roof', labelKey: 'protocol.damagePoints.roof', x: 50, y: 38 },
+  { id: 'left-side', labelKey: 'protocol.damagePoints.leftSide', x: 20, y: 50 },
+  { id: 'right-side', labelKey: 'protocol.damagePoints.rightSide', x: 80, y: 50 },
+  { id: 'rear-left', labelKey: 'protocol.damagePoints.rearLeft', x: 18, y: 78 },
+  { id: 'rear-right', labelKey: 'protocol.damagePoints.rearRight', x: 82, y: 78 },
+  { id: 'trunk', labelKey: 'protocol.damagePoints.trunk', x: 50, y: 80 },
+  { id: 'glass', labelKey: 'protocol.damagePoints.glass', x: 50, y: 55 },
 ];
 
 export default function DriverProtocol() {
+  const { t } = useI18n();
   const queryClient = useQueryClient();
   const urlParams = new URLSearchParams(window.location.search);
   const orderId = urlParams.get('orderId');
@@ -241,12 +241,13 @@ export default function DriverProtocol() {
 
   const addDamageFromSketch = (point) => {
     if (isViewOnly) return;
+    const label = t(point.labelKey);
     setFormData((prev) => {
-      const existing = prev.damages?.some((damage) => damage.location === point.label);
+      const existing = prev.damages?.some((damage) => damage.location === label);
       if (existing) return prev;
       const nextDamages = [
         ...(prev.damages || []),
-        { location: point.label, description: '', severity: 'minor', type: 'K' },
+        { location: label, description: '', severity: 'minor', type: 'K' },
       ];
       return { ...prev, damages: nextDamages };
     });
@@ -282,12 +283,12 @@ export default function DriverProtocol() {
   const submitProtocol = async () => {
     const missingPhotoIds = REQUIRED_PHOTO_IDS.filter((id) => !formData.photos?.some((photo) => photo.type === id));
     if (!formData.kilometer) {
-      setSubmitError('Bitte Kilometerstand eintragen.');
+      setSubmitError(t('protocol.errors.missingKilometer'));
       setCurrentStep('vehicle_check');
       return;
     }
     if (missingPhotoIds.length > 0) {
-      setSubmitError('Bitte alle Pflichtfotos aufnehmen.');
+      setSubmitError(t('protocol.errors.missingPhotos'));
       setCurrentStep('photos');
       return;
     }
@@ -295,22 +296,22 @@ export default function DriverProtocol() {
       (damage) => !damage.location || !damage.description
     );
     if (damageHasGaps) {
-      setSubmitError('Bitte alle Schadensfelder vollständig ausfüllen oder Einträge entfernen.');
+      setSubmitError(t('protocol.errors.damageIncomplete'));
       setCurrentStep('photos');
       return;
     }
     if (!formData.signature_driver) {
-      setSubmitError('Bitte die Unterschrift des Fahrers erfassen.');
+      setSubmitError(t('protocol.errors.missingDriverSignature'));
       setCurrentStep('signatures');
       return;
     }
     if (!formData.signature_customer) {
-      setSubmitError('Bitte die Unterschrift des Kunden erfassen.');
+      setSubmitError(t('protocol.errors.missingCustomerSignature'));
       setCurrentStep('signatures');
       return;
     }
     if (!formData.customer_name) {
-      setSubmitError('Bitte den Namen des Kunden eintragen.');
+      setSubmitError(t('protocol.errors.missingCustomerName'));
       setCurrentStep('signatures');
       return;
     }
@@ -381,19 +382,19 @@ export default function DriverProtocol() {
 
   const getStepBlockingReason = (stepId) => {
     if (stepId === 'vehicle_check' && !formData.kilometer) {
-      return 'Bitte Kilometerstand eintragen.';
+      return t('protocol.errors.missingKilometer');
     }
     if (stepId === 'photos') {
       if (!hasAllRequiredPhotos) {
-        return 'Bitte alle Pflichtfotos aufnehmen.';
+        return t('protocol.errors.missingPhotos');
       }
       if (damageHasGaps) {
-        return 'Bitte alle Schadensfelder vollständig ausfüllen oder Einträge entfernen.';
+        return t('protocol.errors.damageIncomplete');
       }
     }
     if (stepId === 'signatures') {
       if (!formData.customer_name || !formData.signature_driver || !formData.signature_customer) {
-        return 'Bitte Name und Unterschriften vollständig erfassen.';
+        return t('protocol.errors.missingSignatures');
       }
     }
     return '';
@@ -455,11 +456,11 @@ export default function DriverProtocol() {
         <div className="mx-auto max-w-3xl">
           <div className={`${type === 'pickup' ? 'bg-blue-600' : 'bg-green-600'} text-white px-4 py-6 rounded-3xl shadow-[0_20px_40px_-30px_rgba(15,23,42,0.7)]`}>
             <Link to={createPageUrl('DriverChecklist') + `?orderId=${orderId}`} className="inline-flex items-center text-white/80 hover:text-white mb-4">
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Zurück
+              <ArrowLeft className="w-4 h-4 mr-2 rtl-flip" />
+              {t('common.back')}
             </Link>
             <h1 className="text-2xl font-bold">
-              {type === 'pickup' ? 'Abholprotokoll' : 'Abgabeprotokoll'}
+              {type === 'pickup' ? t('protocol.pickupTitle') : t('protocol.dropoffTitle')}
             </h1>
             <p className="text-white/80">{order?.order_number} • {order?.license_plate}</p>
           </div>
@@ -481,7 +482,7 @@ export default function DriverProtocol() {
           {appSettings && appSettings.instructions && currentStep === 'vehicle_check' && (
             <Card>
               <CardContent className="p-4 text-sm text-gray-600 whitespace-pre-wrap">
-                <span className="block font-semibold text-gray-900 mb-1">Hinweise für Fahrer</span>
+                <span className="block font-semibold text-gray-900 mb-1">{t('protocol.driverNotesTitle')}</span>
                 {appSettings.instructions}
               </CardContent>
             </Card>
@@ -492,32 +493,32 @@ export default function DriverProtocol() {
               <CardHeader className="pb-2">
                 <CardTitle className="flex items-center gap-2 text-lg">
                   <Car className="w-5 h-5 text-gray-600" />
-                  Grunddaten & Zubehör
+                  {t('protocol.basics.title')}
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-4 space-y-4">
                 <div>
-                  <Label>Ort</Label>
+                  <Label>{t('protocol.basics.location')}</Label>
                   <Input
                     value={formData.location}
                     onChange={(e) => handleChange('location', e.target.value)}
-                    placeholder="Aktueller Standort"
+                    placeholder={t('protocol.basics.locationPlaceholder')}
                     disabled={isViewOnly}
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label>Kilometerstand *</Label>
+                    <Label>{t('protocol.basics.kilometer')}</Label>
                     <Input
                       type="number"
                       value={formData.kilometer}
                       onChange={(e) => handleChange('kilometer', e.target.value)}
-                      placeholder="z.B. 125000"
+                      placeholder={t('protocol.basics.kilometerPlaceholder')}
                       disabled={isViewOnly}
                     />
                   </div>
                   <div>
-                    <Label>Tankstand</Label>
+                    <Label>{t('protocol.basics.fuel')}</Label>
                     <Select
                       value={formData.fuel_level}
                       onValueChange={(v) => handleChange('fuel_level', v)}
@@ -527,18 +528,18 @@ export default function DriverProtocol() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="empty">Leer</SelectItem>
+                        <SelectItem value="empty">{t('protocol.basics.fuelOptions.empty')}</SelectItem>
                         <SelectItem value="1/4">1/4</SelectItem>
                         <SelectItem value="1/2">1/2</SelectItem>
                         <SelectItem value="3/4">3/4</SelectItem>
-                        <SelectItem value="full">Voll</SelectItem>
+                        <SelectItem value="full">{t('protocol.basics.fuelOptions.full')}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label>Sauberkeit innen</Label>
+                    <Label>{t('protocol.basics.cleanInside')}</Label>
                     <Select
                       value={formData.cleanliness_inside}
                       onValueChange={(v) => handleChange('cleanliness_inside', v)}
@@ -548,14 +549,14 @@ export default function DriverProtocol() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="clean">Sauber</SelectItem>
-                        <SelectItem value="normal">Normal</SelectItem>
-                        <SelectItem value="dirty">Verschmutzt</SelectItem>
+                        <SelectItem value="clean">{t('protocol.basics.cleanOptions.clean')}</SelectItem>
+                        <SelectItem value="normal">{t('protocol.basics.cleanOptions.normal')}</SelectItem>
+                        <SelectItem value="dirty">{t('protocol.basics.cleanOptions.dirty')}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                   <div>
-                    <Label>Sauberkeit außen</Label>
+                    <Label>{t('protocol.basics.cleanOutside')}</Label>
                     <Select
                       value={formData.cleanliness_outside}
                       onValueChange={(v) => handleChange('cleanliness_outside', v)}
@@ -565,27 +566,27 @@ export default function DriverProtocol() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="clean">Sauber</SelectItem>
-                        <SelectItem value="normal">Normal</SelectItem>
-                        <SelectItem value="dirty">Verschmutzt</SelectItem>
+                        <SelectItem value="clean">{t('protocol.basics.cleanOptions.clean')}</SelectItem>
+                        <SelectItem value="normal">{t('protocol.basics.cleanOptions.normal')}</SelectItem>
+                        <SelectItem value="dirty">{t('protocol.basics.cleanOptions.dirty')}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                 </div>
                 <div className="space-y-3 pt-2">
                   {[
-                    { id: 'spare_wheel', label: 'Reserverad' },
-                    { id: 'warning_triangle', label: 'Warndreieck' },
-                    { id: 'first_aid_kit', label: 'Verbandskasten' },
-                    { id: 'safety_vest', label: 'Warnweste' },
-                    { id: 'car_jack', label: 'Wagenheber' },
-                    { id: 'wheel_wrench', label: 'Radmutternschlüssel' },
-                    { id: 'manual', label: 'Bedienungsanleitung' },
-                    { id: 'service_book', label: 'Serviceheft' },
-                    { id: 'registration_doc', label: 'Fahrzeugschein' },
+                    { id: 'spare_wheel', labelKey: 'protocol.basics.accessories.spareWheel' },
+                    { id: 'warning_triangle', labelKey: 'protocol.basics.accessories.warningTriangle' },
+                    { id: 'first_aid_kit', labelKey: 'protocol.basics.accessories.firstAidKit' },
+                    { id: 'safety_vest', labelKey: 'protocol.basics.accessories.safetyVest' },
+                    { id: 'car_jack', labelKey: 'protocol.basics.accessories.carJack' },
+                    { id: 'wheel_wrench', labelKey: 'protocol.basics.accessories.wheelWrench' },
+                    { id: 'manual', labelKey: 'protocol.basics.accessories.manual' },
+                    { id: 'service_book', labelKey: 'protocol.basics.accessories.serviceBook' },
+                    { id: 'registration_doc', labelKey: 'protocol.basics.accessories.registrationDoc' },
                   ].map((item) => (
                     <div key={item.id} className="flex items-center justify-between py-2 border-b last:border-0">
-                      <span>{item.label}</span>
+                      <span>{t(item.labelKey)}</span>
                       <Switch
                         checked={formData.accessories[item.id]}
                         onCheckedChange={(v) => handleAccessoryChange(item.id, v)}
@@ -595,7 +596,7 @@ export default function DriverProtocol() {
                     </div>
                   ))}
                   <div className="pt-2">
-                    <Label>Anzahl Schlüssel</Label>
+                    <Label>{t('protocol.basics.keysCount')}</Label>
                     <Input
                       type="number"
                       min="0"
@@ -620,18 +621,18 @@ export default function DriverProtocol() {
                 <CardHeader className="pb-2">
                   <CardTitle className="flex items-center gap-2 text-lg">
                     <AlertTriangle className="w-5 h-5 text-gray-600" />
-                    Schäden
+                    {t('protocol.damage.title')}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-4 space-y-4">
                   <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
                     <p className="text-sm text-slate-600 mb-2">
-                      Tippe auf die Skizze, um die Schadensposition zu markieren.
+                      {t('protocol.damage.instructions')}
                     </p>
                     <div className="relative overflow-hidden rounded-lg border bg-white">
                       <img
                         src="/vehicle-sketch.svg"
-                        alt="Fahrzeugskizze"
+                        alt={t('protocol.damage.sketchAlt')}
                         className="w-full"
                       />
                       {DAMAGE_POINTS.map((point) => (
@@ -642,15 +643,15 @@ export default function DriverProtocol() {
                           style={{ left: `${point.x}%`, top: `${point.y}%` }}
                           onClick={() => addDamageFromSketch(point)}
                           disabled={isViewOnly}
-                          aria-label={`Schaden markieren: ${point.label}`}
+                          aria-label={t('protocol.damage.markAria', { location: t(point.labelKey) })}
                         />
                       ))}
                     </div>
                     <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-600">
-                      <span className="rounded-full border border-slate-200 px-2 py-1">K = Kratzer</span>
-                      <span className="rounded-full border border-slate-200 px-2 py-1">S = Steinschlag</span>
-                      <span className="rounded-full border border-slate-200 px-2 py-1">D = Delle</span>
-                      <span className="rounded-full border border-slate-200 px-2 py-1">B = Beschädigung</span>
+                      <span className="rounded-full border border-slate-200 px-2 py-1">{t('protocol.damage.legend.scratch')}</span>
+                      <span className="rounded-full border border-slate-200 px-2 py-1">{t('protocol.damage.legend.chip')}</span>
+                      <span className="rounded-full border border-slate-200 px-2 py-1">{t('protocol.damage.legend.dent')}</span>
+                      <span className="rounded-full border border-slate-200 px-2 py-1">{t('protocol.damage.legend.damage')}</span>
                     </div>
                   </div>
                   {formData.damages?.map((damage, index) => (
@@ -667,16 +668,16 @@ export default function DriverProtocol() {
                       )}
                       <div className="space-y-3 pr-8">
                         <div>
-                          <Label>Position am Fahrzeug</Label>
+                          <Label>{t('protocol.damage.location')}</Label>
                           <Input
                             value={damage.location}
                             onChange={(e) => updateDamage(index, 'location', e.target.value)}
-                            placeholder="z.B. Vorne links, Stoßstange"
+                            placeholder={t('protocol.damage.locationPlaceholder')}
                             disabled={isViewOnly}
                           />
                         </div>
                         <div>
-                          <Label>Art des Schadens</Label>
+                          <Label>{t('protocol.damage.type')}</Label>
                           <Select
                             value={damage.type || 'K'}
                             onValueChange={(v) => updateDamage(index, 'type', v)}
@@ -686,24 +687,24 @@ export default function DriverProtocol() {
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="K">Kratzer (K)</SelectItem>
-                              <SelectItem value="S">Steinschlag (S)</SelectItem>
-                              <SelectItem value="D">Delle (D)</SelectItem>
-                              <SelectItem value="B">Beschädigung (B)</SelectItem>
+                              <SelectItem value="K">{t('protocol.damage.typeOptions.scratch')}</SelectItem>
+                              <SelectItem value="S">{t('protocol.damage.typeOptions.chip')}</SelectItem>
+                              <SelectItem value="D">{t('protocol.damage.typeOptions.dent')}</SelectItem>
+                              <SelectItem value="B">{t('protocol.damage.typeOptions.damage')}</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
                         <div>
-                          <Label>Beschreibung</Label>
+                          <Label>{t('protocol.damage.description')}</Label>
                           <Input
                             value={damage.description}
                             onChange={(e) => updateDamage(index, 'description', e.target.value)}
-                            placeholder="Art des Schadens"
+                            placeholder={t('protocol.damage.descriptionPlaceholder')}
                             disabled={isViewOnly}
                           />
                         </div>
                         <div>
-                          <Label>Schweregrad</Label>
+                          <Label>{t('protocol.damage.severity')}</Label>
                           <Select
                             value={damage.severity}
                             onValueChange={(v) => updateDamage(index, 'severity', v)}
@@ -713,9 +714,9 @@ export default function DriverProtocol() {
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="minor">Leicht</SelectItem>
-                              <SelectItem value="medium">Mittel</SelectItem>
-                              <SelectItem value="severe">Schwer</SelectItem>
+                              <SelectItem value="minor">{t('protocol.damage.severityOptions.minor')}</SelectItem>
+                              <SelectItem value="medium">{t('protocol.damage.severityOptions.medium')}</SelectItem>
+                              <SelectItem value="severe">{t('protocol.damage.severityOptions.severe')}</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
@@ -726,15 +727,15 @@ export default function DriverProtocol() {
                     <div className="grid gap-2 md:grid-cols-2">
                       <Button variant="outline" className="w-full" onClick={addDamage}>
                         <Plus className="w-4 h-4 mr-2" />
-                        Schaden hinzufügen
+                        {t('protocol.damage.add')}
                       </Button>
                       <Button variant="outline" className="w-full" onClick={clearDamages}>
-                        Keine Schäden
+                        {t('protocol.damage.none')}
                       </Button>
                     </div>
                   )}
                   {formData.damages?.length === 0 && (
-                    <p className="text-center text-gray-500 py-4">Keine Schäden erfasst</p>
+                    <p className="text-center text-gray-500 py-4">{t('protocol.damage.empty')}</p>
                   )}
                 </CardContent>
               </Card>
@@ -746,27 +747,27 @@ export default function DriverProtocol() {
               <CardHeader className="pb-2">
                 <CardTitle className="flex items-center gap-2 text-lg">
                   <PenTool className="w-5 h-5 text-gray-600" />
-                  Bemerkungen & Unterschriften
+                  {t('protocol.signatures.title')}
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-4 space-y-6">
                 <div>
-                  <Label>Bemerkungen</Label>
+                  <Label>{t('protocol.signatures.notes')}</Label>
                   <Textarea
                     value={formData.notes}
                     onChange={(e) => handleChange('notes', e.target.value)}
-                    placeholder="Weitere Anmerkungen..."
+                    placeholder={t('protocol.signatures.notesPlaceholder')}
                     rows={3}
                     disabled={isViewOnly}
                   />
                 </div>
 
                 <div>
-                  <Label>Name des Kunden</Label>
+                  <Label>{t('protocol.signatures.customerName')}</Label>
                   <Input
                     value={formData.customer_name}
                     onChange={(e) => handleChange('customer_name', e.target.value)}
-                    placeholder="Name des Empfängers/Übergebers"
+                    placeholder={t('protocol.signatures.customerNamePlaceholder')}
                     disabled={isViewOnly}
                   />
                 </div>
@@ -780,12 +781,12 @@ export default function DriverProtocol() {
                 {!isViewOnly ? (
                   <>
                     <SignaturePad
-                      label="Unterschrift Fahrer"
+                      label={t('protocol.signatures.driverSignature')}
                       value={formData.signature_driver}
                       onChange={(v) => handleChange('signature_driver', v)}
                     />
                     <SignaturePad
-                      label="Unterschrift Kunde"
+                      label={t('protocol.signatures.customerSignature')}
                       value={formData.signature_customer}
                       onChange={(v) => handleChange('signature_customer', v)}
                     />
@@ -794,20 +795,20 @@ export default function DriverProtocol() {
                   <div className="grid grid-cols-2 gap-4">
                     {formData.signature_driver && (
                       <div>
-                        <Label>Unterschrift Fahrer</Label>
+                        <Label>{t('protocol.signatures.driverSignature')}</Label>
                         <img
                           src={formData.signature_driver}
-                          alt="Unterschrift Fahrer"
+                          alt={t('protocol.signatures.driverSignature')}
                           className="border rounded mt-2 max-h-24"
                         />
                       </div>
                     )}
                     {formData.signature_customer && (
                       <div>
-                        <Label>Unterschrift Kunde</Label>
+                        <Label>{t('protocol.signatures.customerSignature')}</Label>
                         <img
                           src={formData.signature_customer}
-                          alt="Unterschrift Kunde"
+                          alt={t('protocol.signatures.customerSignature')}
                           className="border rounded mt-2 max-h-24"
                         />
                       </div>
@@ -826,7 +827,7 @@ export default function DriverProtocol() {
                     ) : (
                       <CheckCircle2 className="w-5 h-5 mr-2" />
                     )}
-                    Protokoll abschließen
+                    {t('protocol.signatures.submit')}
                   </Button>
                 )}
               </CardContent>
@@ -838,9 +839,9 @@ export default function DriverProtocol() {
       <Dialog open={confirmOpen} onOpenChange={handleConfirmOpenChange}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Sicherheitspruefung</DialogTitle>
+            <DialogTitle>{t('protocol.confirm.title')}</DialogTitle>
             <DialogDescription>
-              Bitte bestaetige, dass alle Punkte korrekt geprueft wurden.
+              {t('protocol.confirm.description')}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
@@ -849,7 +850,7 @@ export default function DriverProtocol() {
                 key={item.id}
                 className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2"
               >
-                <span className="text-sm text-slate-700">{item.label}</span>
+                <span className="text-sm text-slate-700">{t(item.labelKey)}</span>
                 <Switch
                   checked={!!confirmChecks[item.id]}
                   onCheckedChange={(value) =>
@@ -867,10 +868,10 @@ export default function DriverProtocol() {
           </div>
           <DialogFooter className="mt-4">
             <Button variant="outline" onClick={() => handleConfirmOpenChange(false)}>
-              Abbrechen
+              {t('common.cancel')}
             </Button>
             <Button onClick={handleConfirmContinue} disabled={!allConfirmed || !!blockingReason}>
-              Weiter
+              {t('common.next')}
             </Button>
           </DialogFooter>
         </DialogContent>

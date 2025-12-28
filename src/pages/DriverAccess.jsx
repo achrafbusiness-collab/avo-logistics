@@ -1,17 +1,19 @@
 import React from 'react';
 import LoginPortal from '@/components/auth/LoginPortal';
 import { createPageUrl } from '@/utils';
+import { useI18n } from '@/i18n';
 
 export default function DriverAccess() {
+  const { t } = useI18n();
   return (
     <LoginPortal
-      title="Fahrer‑Portal"
-      subtitle="Bitte melde dich an, um deine Aufträge zu sehen und Protokolle zu erstellen."
-      cardTitle="Fahrer‑Login"
+      title={t('login.driver.title')}
+      subtitle={t('login.driver.subtitle')}
+      cardTitle={t('login.driver.cardTitle')}
       successRedirect={createPageUrl('DriverOrders')}
-      emailPlaceholder="fahrer@avo-logistics.app"
-      hintTitle="Hinweis"
-      hintText="Bei Problemen bitte an den Administrator wenden."
+      emailPlaceholder={t('login.driver.emailPlaceholder')}
+      hintTitle={t('login.hintTitle')}
+      hintText={t('login.hintText')}
     />
   );
 }

@@ -3,11 +3,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { CheckCircle2, Circle, ArrowRight, ArrowLeft } from 'lucide-react';
+import { useI18n } from '@/i18n';
 
 const WIZARD_STEPS = [
-  { id: 'vehicle_check', label: 'Grunddaten', icon: '🚗' },
-  { id: 'photos', label: 'Fotos', icon: '📸' },
-  { id: 'signatures', label: 'Unterschriften', icon: '✍️' },
+  { id: 'vehicle_check', labelKey: 'protocol.steps.basics', icon: '🚗' },
+  { id: 'photos', labelKey: 'protocol.steps.photos', icon: '📸' },
+  { id: 'signatures', labelKey: 'protocol.steps.signatures', icon: '✍️' },
 ];
 
 export default function ProtocolWizard({ 
@@ -17,6 +18,7 @@ export default function ProtocolWizard({
   onBeforeNext,
   children 
 }) {
+  const { t } = useI18n();
   const currentIndex = WIZARD_STEPS.findIndex(s => s.id === currentStep);
   const progress = ((completedSteps.length) / WIZARD_STEPS.length) * 100;
 
@@ -47,7 +49,7 @@ export default function ProtocolWizard({
         <div className="mx-auto max-w-3xl p-4 text-slate-100">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium text-slate-300">
-              Schritt {currentIndex + 1} von {WIZARD_STEPS.length}
+              {t('protocol.stepProgress', { current: currentIndex + 1, total: WIZARD_STEPS.length })}
             </span>
             <span className="text-sm font-medium text-blue-200">
               {Math.round(progress)}%
@@ -74,7 +76,7 @@ export default function ProtocolWizard({
               }`}>
                 {completedSteps.includes(step.id) ? '✓' : step.icon}
               </div>
-              <span className="text-xs font-medium text-center">{step.label}</span>
+              <span className="text-xs font-medium text-center">{t(step.labelKey)}</span>
             </div>
           ))}
         </div>
@@ -96,16 +98,16 @@ export default function ProtocolWizard({
             disabled={!canGoBack}
             className="flex-1"
           >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Zurück
+            <ArrowLeft className="w-4 h-4 mr-2 rtl-flip" />
+            {t('common.back')}
           </Button>
           <Button 
             onClick={handleNext}
             disabled={!canGoNext || currentIndex === WIZARD_STEPS.length - 1}
             className="flex-1 bg-[#1e3a5f] hover:bg-[#2d5a8a]"
           >
-            Weiter
-            <ArrowRight className="w-4 h-4 ml-2" />
+            {t('common.next')}
+            <ArrowRight className="w-4 h-4 ml-2 rtl-flip" />
           </Button>
         </div>
       </div>

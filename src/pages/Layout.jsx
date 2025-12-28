@@ -32,6 +32,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { hasPageAccess } from "@/lib/accessControl";
+import { useI18n } from "@/i18n";
 
 // Admin pages (full sidebar)
 const adminPages = [
@@ -49,18 +50,11 @@ const adminPages = [
   { name: 'System-Vermietung', icon: Building2, page: 'SystemVermietung' },
 ];
 
-// Driver pages (minimal navigation)
-const driverPages = [
-  { name: 'Aufträge', icon: Truck, page: 'DriverOrders' },
-  { name: 'Dokumente', icon: FileText, page: 'DriverDocuments' },
-  { name: 'Profil', icon: User, page: 'DriverProfile' },
-  { name: 'Support', icon: LifeBuoy, page: 'DriverSupport' },
-];
-
 export default function Layout({ children, currentPageName }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [user, setUser] = useState(null);
   const [isDriver, setIsDriver] = useState(false);
+  const { t, dir } = useI18n();
   const [darkMode, setDarkMode] = useState(() => {
     const saved = localStorage.getItem('avo-dark-mode');
     return saved ? JSON.parse(saved) : true;
@@ -107,8 +101,17 @@ export default function Layout({ children, currentPageName }) {
 
   // Drivers always stay inside the driver portal layout.
   if (isDriver) {
+    const driverPages = [
+      { name: t('nav.orders'), icon: Truck, page: 'DriverOrders' },
+      { name: t('nav.documents'), icon: FileText, page: 'DriverDocuments' },
+      { name: t('nav.profile'), icon: User, page: 'DriverProfile' },
+      { name: t('nav.support'), icon: LifeBuoy, page: 'DriverSupport' },
+    ];
     return (
-      <div className={`min-h-screen ${darkMode ? 'bg-gray-950' : 'bg-gray-50'}`}>
+      <div
+        dir={dir}
+        className={`min-h-screen driver-layout ${darkMode ? 'bg-gray-950' : 'bg-gray-50'} ${dir === 'rtl' ? 'rtl' : 'ltr'}`}
+      >
         <style>{`
           :root {
             --primary: #1e3a5f;
@@ -121,7 +124,7 @@ export default function Layout({ children, currentPageName }) {
         <header className={`${darkMode ? 'bg-gray-900' : 'bg-[#1e3a5f]'} text-white px-4 py-3 flex items-center justify-between sticky top-0 z-50`}>
           <div className="flex items-center gap-3">
             <Truck className="w-6 h-6" />
-            <span className="font-semibold text-lg">Fahrer-Portal</span>
+            <span className="font-semibold text-lg">{t('nav.driverPortal')}</span>
           </div>
           
           {user && (
@@ -136,7 +139,7 @@ export default function Layout({ children, currentPageName }) {
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={handleLogout}>
                   <LogOut className="w-4 h-4 mr-2" />
-                  Abmelden
+                  {t('nav.logout')}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -149,14 +152,14 @@ export default function Layout({ children, currentPageName }) {
 
         {/* Bottom Navigation for Driver */}
         {!['DriverProtocol', 'DriverChecklist'].includes(currentPageName) && (
-          <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-3 py-2 flex justify-between z-50">
+          <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-3 py-2 flex justify-between z-50 driver-bottom-nav">
             {driverPages.map((item) => {
               const isActive = currentPageName === item.page;
               return (
                 <Link
                   key={item.page}
                   to={createPageUrl(item.page)}
-                  className={`flex flex-col items-center flex-1 py-2 px-2 rounded-xl ${
+                  className={`driver-nav-item flex flex-col items-center flex-1 py-2 px-2 rounded-xl ${
                     isActive ? 'text-[#1e3a5f] bg-blue-50' : 'text-gray-500'
                   }`}
                 >

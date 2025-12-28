@@ -1,8 +1,10 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Trash2 } from 'lucide-react';
+import { useI18n } from '@/i18n';
 
 export default function SignaturePad({ value, onChange, label }) {
+  const { t } = useI18n();
   const canvasRef = useRef(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [hasSignature, setHasSignature] = useState(false);
@@ -108,7 +110,7 @@ export default function SignaturePad({ value, onChange, label }) {
             className="text-red-600 hover:text-red-700 hover:bg-red-50"
           >
             <Trash2 className="w-4 h-4 mr-1" />
-            Löschen
+            {t('common.delete')}
           </Button>
         )}
       </div>
@@ -127,7 +129,7 @@ export default function SignaturePad({ value, onChange, label }) {
         />
       </div>
       <p className="text-xs text-gray-500 text-center">
-        {hasSignature ? 'Unterschrift aufgenommen' : 'Hier unterschreiben'}
+        {hasSignature ? t('signature.captured') : t('signature.placeholder')}
       </p>
     </div>
   );

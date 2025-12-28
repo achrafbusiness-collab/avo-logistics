@@ -181,6 +181,7 @@ const Core = {
 const profileDefaults = {
   role: 'minijobber',
   permissions: {},
+  language: 'de',
 };
 
 const ensureActiveProfile = async (profile) => {

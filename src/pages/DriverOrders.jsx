@@ -3,12 +3,10 @@ import { useQuery } from '@tanstack/react-query';
 import { appClient } from '@/api/appClient';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
-import { format } from 'date-fns';
-import { de } from 'date-fns/locale';
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import StatusBadge from '@/components/ui/StatusBadge';
+import { useI18n } from '@/i18n';
 
 import { 
   Truck, 
@@ -24,6 +22,7 @@ import {
 } from 'lucide-react';
 
 export default function DriverOrders() {
+  const { t, formatDate } = useI18n();
   const [user, setUser] = useState(null);
   const [activeTab, setActiveTab] = useState('active');
 
@@ -91,11 +90,11 @@ export default function DriverOrders() {
               <div>
                 <div className="flex items-center gap-2 mb-1">
                   <span className="font-bold text-lg text-[#1e3a5f]">{order.order_number}</span>
-                  <StatusBadge status={order.status} size="sm" />
+                  <StatusBadge status={order.status} size="sm" label={t(`status.${order.status}`)} />
                 </div>
                 <p className="text-sm text-gray-500">{order.license_plate}</p>
               </div>
-              <ArrowRight className="w-5 h-5 text-gray-400" />
+              <ArrowRight className="w-5 h-5 text-gray-400 rtl-flip" />
             </div>
 
             <div className="flex items-center gap-2 mb-3">
@@ -114,7 +113,7 @@ export default function DriverOrders() {
                   <span className="text-xs font-bold text-blue-600">A</span>
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm font-medium">{order.pickup_city || 'Abholung'}</p>
+                  <p className="text-sm font-medium">{order.pickup_city || t('orders.pickup')}</p>
                   <p className="text-xs text-gray-500 truncate">{order.pickup_address}</p>
                 </div>
               </div>
@@ -123,7 +122,7 @@ export default function DriverOrders() {
                   <span className="text-xs font-bold text-green-600">B</span>
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm font-medium">{order.dropoff_city || 'Abgabe'}</p>
+                  <p className="text-sm font-medium">{order.dropoff_city || t('orders.dropoff')}</p>
                   <p className="text-xs text-gray-500 truncate">{order.dropoff_address}</p>
                 </div>
               </div>
@@ -134,7 +133,7 @@ export default function DriverOrders() {
               <div className="flex items-center gap-4 text-sm text-gray-500 mb-3">
                 <span className="flex items-center gap-1">
                   <Calendar className="w-4 h-4" />
-                  {format(new Date(order.pickup_date), 'dd.MM.yyyy', { locale: de })}
+                  {formatDate(order.pickup_date)}
                 </span>
                 {order.pickup_time && (
                   <span className="flex items-center gap-1">
@@ -149,11 +148,11 @@ export default function DriverOrders() {
             <div className="flex gap-2 pt-3 border-t">
               <div className={`flex-1 p-2 rounded-lg text-center text-sm ${hasPickup ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-500'}`}>
                 <CheckCircle2 className={`w-4 h-4 mx-auto mb-1 ${hasPickup ? 'text-green-600' : 'text-gray-400'}`} />
-                Abholung
+                {t('orders.pickup')}
               </div>
               <div className={`flex-1 p-2 rounded-lg text-center text-sm ${hasDropoff ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-500'}`}>
                 <CheckCircle2 className={`w-4 h-4 mx-auto mb-1 ${hasDropoff ? 'text-green-600' : 'text-gray-400'}`} />
-                Abgabe
+                {t('orders.dropoff')}
               </div>
             </div>
           </CardContent>
@@ -174,11 +173,8 @@ export default function DriverOrders() {
     return (
       <div className="p-6 text-center">
         <Truck className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-        <h2 className="text-xl font-bold mb-2">Kein Fahrerprofil gefunden</h2>
-        <p className="text-gray-500">
-          Dein Konto ist nicht mit einem Fahrerprofil verknüpft.
-          Bitte kontaktiere den Administrator.
-        </p>
+        <h2 className="text-xl font-bold mb-2">{t('orders.noDriverProfile.title')}</h2>
+        <p className="text-gray-500">{t('orders.noDriverProfile.body')}</p>
       </div>
     );
   }
@@ -189,13 +185,16 @@ export default function DriverOrders() {
       {/* Welcome */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">
-          Hallo, {currentDriver.first_name || currentDriver.last_name || 'Fahrer'}!
+          {t('orders.greeting', {
+            name: currentDriver.first_name || currentDriver.last_name || t('orders.driverFallback'),
+          })}
         </h1>
         <p className="text-gray-500">
-          {activeOrders.length === 0 
-            ? 'Aktuell keine aktiven Aufträge' 
-            : `${activeOrders.length} aktive${activeOrders.length === 1 ? 'r' : ''} Auftrag${activeOrders.length === 1 ? '' : 'e'}`
-          }
+          {activeOrders.length === 0
+            ? t('orders.summary.none')
+            : activeOrders.length === 1
+            ? t('orders.summary.single')
+            : t('orders.summary.multiple', { count: activeOrders.length })}
         </p>
       </div>
 
@@ -204,7 +203,7 @@ export default function DriverOrders() {
           <CardContent className="p-4 space-y-3 text-sm text-gray-600">
             <div>
               <p className="font-semibold text-gray-900">
-                {appSettings.company_name || 'AVO System'} – Fahrerhinweise
+                {t('orders.driverHints', { company: appSettings.company_name || t('app.name') })}
               </p>
               {appSettings.instructions && (
                 <p className="mt-1 whitespace-pre-wrap">{appSettings.instructions}</p>
@@ -214,7 +213,7 @@ export default function DriverOrders() {
               {appSettings.support_phone && (
                 <a href={`tel:${appSettings.support_phone}`} className="inline-flex items-center gap-2 text-blue-600">
                   <Phone className="w-4 h-4" />
-                  Support: {appSettings.support_phone}
+                  {t('orders.supportLabel', { phone: appSettings.support_phone })}
                 </a>
               )}
               {appSettings.support_email && (
@@ -226,7 +225,7 @@ export default function DriverOrders() {
               {appSettings.emergency_phone && (
                 <a href={`tel:${appSettings.emergency_phone}`} className="inline-flex items-center gap-2 text-red-600">
                   <Phone className="w-4 h-4" />
-                  Notfall: {appSettings.emergency_phone}
+                  {t('orders.emergencyLabel', { phone: appSettings.emergency_phone })}
                 </a>
               )}
             </div>
@@ -237,13 +236,13 @@ export default function DriverOrders() {
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="w-full">
           <TabsTrigger value="active" className="flex-1">
-            Aktiv ({activeOrders.length})
+            {t('orders.tabs.active')} ({activeOrders.length})
           </TabsTrigger>
           <TabsTrigger value="completed" className="flex-1">
-            Erledigt ({completedOrders.length})
+            {t('orders.tabs.completed')} ({completedOrders.length})
           </TabsTrigger>
           <TabsTrigger value="all" className="flex-1">
-            Alle ({allOrders.length})
+            {t('orders.tabs.all')} ({allOrders.length})
           </TabsTrigger>
         </TabsList>
 
@@ -256,7 +255,7 @@ export default function DriverOrders() {
             <Card>
               <CardContent className="text-center py-12">
                 <Truck className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                <p className="text-gray-500">Keine aktiven Aufträge</p>
+                <p className="text-gray-500">{t('orders.empty.active')}</p>
               </CardContent>
             </Card>
           ) : (
@@ -271,7 +270,7 @@ export default function DriverOrders() {
             <Card>
               <CardContent className="text-center py-12">
                 <CheckCircle2 className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                <p className="text-gray-500">Noch keine erledigten Aufträge</p>
+                <p className="text-gray-500">{t('orders.empty.completed')}</p>
               </CardContent>
             </Card>
           ) : (
@@ -286,7 +285,7 @@ export default function DriverOrders() {
             <Card>
               <CardContent className="text-center py-12">
                 <Truck className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                <p className="text-gray-500">Keine Aufträge vorhanden</p>
+                <p className="text-gray-500">{t('orders.empty.all')}</p>
               </CardContent>
             </Card>
           ) : (

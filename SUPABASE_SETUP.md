@@ -26,11 +26,16 @@ create table if not exists public.profiles (
   id_front_url text,
   id_back_url text,
   permissions jsonb default '{}'::jsonb,
+  language text default 'de',
   is_active boolean default true,
   must_reset_password boolean default false,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
+
+-- Wenn die Tabelle bereits existiert:
+alter table public.profiles
+add column if not exists language text default 'de';
 
 create or replace function public.handle_new_user()
 returns trigger

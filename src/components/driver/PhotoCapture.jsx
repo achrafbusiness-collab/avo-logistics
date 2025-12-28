@@ -6,31 +6,31 @@ import {
   Camera, 
   X, 
   Loader2,
-  CheckCircle2,
-  AlertCircle
+  CheckCircle2
 } from 'lucide-react';
+import { useI18n } from '@/i18n';
 
 const PHOTO_TYPES = [
-  { id: 'front', label: 'Fahrzeug Front', required: true },
-  { id: 'front_left', label: 'Front links', required: true },
-  { id: 'front_right', label: 'Front rechts', required: true },
-  { id: 'wheel_front_right', label: 'Felge vorne rechts', required: true },
-  { id: 'door_passenger', label: 'Beifahrertür', required: true },
-  { id: 'door_rear_right', label: 'Hintere Tür rechts', required: true },
-  { id: 'wheel_rear_right', label: 'Felge hinten rechts', required: true },
-  { id: 'rear', label: 'Fahrzeug hinten', required: true },
-  { id: 'rear_left', label: 'Heck links', required: true },
-  { id: 'wheel_rear_left', label: 'Felge hinten links', required: true },
-  { id: 'door_rear_left', label: 'Hintere Tür links', required: true },
-  { id: 'door_driver', label: 'Fahrertür', required: true },
-  { id: 'wheel_front_left', label: 'Felge vorne links', required: true },
-  { id: 'windshield', label: 'Windschutzscheibe', required: true },
-  { id: 'interior_front', label: 'Innenraum vorne', required: true },
-  { id: 'interior_rear', label: 'Innenraum hinten', required: true },
-  { id: 'trunk', label: 'Kofferraum', required: true },
-  { id: 'odometer', label: 'Kilometerstand', required: true },
-  { id: 'damage', label: 'Schaden (optional)', required: false },
-  { id: 'other', label: 'Sonstiges', required: false },
+  { id: 'front', labelKey: 'photos.types.front', required: true },
+  { id: 'front_left', labelKey: 'photos.types.frontLeft', required: true },
+  { id: 'front_right', labelKey: 'photos.types.frontRight', required: true },
+  { id: 'wheel_front_right', labelKey: 'photos.types.wheelFrontRight', required: true },
+  { id: 'door_passenger', labelKey: 'photos.types.doorPassenger', required: true },
+  { id: 'door_rear_right', labelKey: 'photos.types.doorRearRight', required: true },
+  { id: 'wheel_rear_right', labelKey: 'photos.types.wheelRearRight', required: true },
+  { id: 'rear', labelKey: 'photos.types.rear', required: true },
+  { id: 'rear_left', labelKey: 'photos.types.rearLeft', required: true },
+  { id: 'wheel_rear_left', labelKey: 'photos.types.wheelRearLeft', required: true },
+  { id: 'door_rear_left', labelKey: 'photos.types.doorRearLeft', required: true },
+  { id: 'door_driver', labelKey: 'photos.types.doorDriver', required: true },
+  { id: 'wheel_front_left', labelKey: 'photos.types.wheelFrontLeft', required: true },
+  { id: 'windshield', labelKey: 'photos.types.windshield', required: true },
+  { id: 'interior_front', labelKey: 'photos.types.interiorFront', required: true },
+  { id: 'interior_rear', labelKey: 'photos.types.interiorRear', required: true },
+  { id: 'trunk', labelKey: 'photos.types.trunk', required: true },
+  { id: 'odometer', labelKey: 'photos.types.odometer', required: true },
+  { id: 'damage', labelKey: 'photos.types.damage', required: false },
+  { id: 'other', labelKey: 'photos.types.other', required: false },
 ];
 
 export const REQUIRED_PHOTO_IDS = PHOTO_TYPES.filter((photo) => photo.required).map(
@@ -38,6 +38,7 @@ export const REQUIRED_PHOTO_IDS = PHOTO_TYPES.filter((photo) => photo.required).
 );
 
 export default function PhotoCapture({ photos = [], onChange, readOnly = false }) {
+  const { t } = useI18n();
   const [uploading, setUploading] = useState({});
   const [cameraActive, setCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState('');
@@ -59,7 +60,7 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false }
       const newPhoto = {
         type,
         url: file_url,
-        caption: PHOTO_TYPES.find(p => p.id === type)?.label || type
+        caption: t(PHOTO_TYPES.find(p => p.id === type)?.labelKey || "photos.types.other")
       };
       
       // Replace if exists, otherwise add
@@ -75,7 +76,7 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false }
       onChange(newPhotos);
     } catch (error) {
       console.error('Upload failed:', error);
-      setCameraError(error?.message || 'Upload fehlgeschlagen. Bitte erneut versuchen.');
+      setCameraError(error?.message || t('photos.errors.uploadFailed'));
     } finally {
       setUploading(prev => ({ ...prev, [type]: false }));
     }
@@ -115,7 +116,7 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false }
       }
       setCameraActive(true);
     } catch (err) {
-      setCameraError('Kamera konnte nicht gestartet werden.');
+      setCameraError(t('photos.errors.cameraStartFailed'));
     }
   };
 
@@ -133,7 +134,7 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false }
       ctx.drawImage(video, 0, 0, width, height);
       const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.92));
       if (!blob) {
-        throw new Error('Kein Foto aufgenommen.');
+        throw new Error(t('photos.errors.captureFailed'));
       }
       const file = new File([blob], `${currentType}-${Date.now()}.jpg`, { type: 'image/jpeg' });
       await uploadPhoto(currentType, file);
@@ -171,9 +172,9 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false }
           <CardContent className="p-0">
             <div className="flex items-center justify-between gap-3 px-4 py-3 border-b">
               <div>
-                <p className="text-xs uppercase tracking-wide text-slate-400">Nächstes Foto</p>
+                <p className="text-xs uppercase tracking-wide text-slate-400">{t('photos.nextLabel')}</p>
                 <p className="font-semibold text-slate-900">
-                  {nextRequired?.label || "Optionales Foto"}
+                  {nextRequired ? t(nextRequired.labelKey) : t('photos.optionalTitle')}
                 </p>
               </div>
               <Button
@@ -181,7 +182,7 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false }
                 size="sm"
                 onClick={cameraActive ? stopCamera : startCamera}
               >
-                {cameraActive ? "Kamera schließen" : "Kamera starten"}
+                {cameraActive ? t('photos.camera.stop') : t('photos.camera.start')}
               </Button>
             </div>
 
@@ -200,29 +201,29 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false }
                   />
                   <div className="absolute left-4 top-4 rounded-full bg-black/60 px-3 py-1 text-sm text-white">
                     {currentType
-                      ? PHOTO_TYPES.find((photo) => photo.id === currentType)?.label
-                      : "Foto aufnehmen"}
+                      ? t(PHOTO_TYPES.find((photo) => photo.id === currentType)?.labelKey || "photos.types.other")
+                      : t("photos.camera.capture")}
                   </div>
                 </div>
                 <div className="flex flex-col gap-2 border-t bg-white px-4 py-3">
                   <div>
-                    <p className="text-xs text-slate-500">Aufnahme-Typ</p>
+                    <p className="text-xs text-slate-500">{t('photos.captureType')}</p>
                     <select
                       className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
                       value={currentType || ''}
                       onChange={(e) => setCurrentType(e.target.value)}
                     >
-                      {nextRequired && <option value={nextRequired.id}>{nextRequired.label}</option>}
+                      {nextRequired && <option value={nextRequired.id}>{t(nextRequired.labelKey)}</option>}
                       {requiredPhotos
                         .filter((photo) => photo.id !== nextRequired?.id)
                         .map((photo) => (
                           <option key={photo.id} value={photo.id}>
-                            {photo.label}
+                            {t(photo.labelKey)}
                           </option>
                         ))}
                       {optionalPhotos.map((photo) => (
                         <option key={photo.id} value={photo.id}>
-                          {photo.label} (optional)
+                          {t(photo.labelKey)} ({t('common.optional')})
                         </option>
                       ))}
                     </select>
@@ -238,10 +239,10 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false }
                       ) : (
                         <Camera className="w-4 h-4 mr-2" />
                       )}
-                      Foto aufnehmen
+                      {t('photos.camera.capture')}
                     </Button>
                     <Button variant="outline" onClick={stopCamera}>
-                      Zur Kontrolle
+                      {t('photos.review')}
                     </Button>
                   </div>
                 </div>
@@ -278,23 +279,23 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false }
           </span>
         </div>
         <div>
-          <p className="font-medium text-blue-900">Pflichtfotos</p>
+          <p className="font-medium text-blue-900">{t('photos.requiredTitle')}</p>
           <p className="text-sm text-blue-700">
-            {completedRequired === requiredPhotos.length 
-              ? 'Alle Pflichtfotos aufgenommen' 
-              : `Noch ${requiredPhotos.length - completedRequired} Fotos erforderlich`
-            }
+            {completedRequired === requiredPhotos.length
+              ? t('photos.requiredComplete')
+              : t('photos.requiredRemaining', { count: requiredPhotos.length - completedRequired })}
           </p>
         </div>
       </div>
 
       {/* Required Photos */}
       <div>
-        <h3 className="font-semibold mb-3">Pflichtfotos</h3>
+        <h3 className="font-semibold mb-3">{t('photos.requiredTitle')}</h3>
         <div className="grid grid-cols-2 gap-3">
           {requiredPhotos.map((photoType) => {
             const photo = getPhotoByType(photoType.id);
             const isUploading = uploading[photoType.id];
+            const label = t(photoType.labelKey);
             
             return (
               <Card key={photoType.id} className={photo ? 'border-green-300' : ''}>
@@ -303,7 +304,7 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false }
                     <div className="relative">
                       <img 
                         src={photo.url} 
-                        alt={photoType.label}
+                        alt={label}
                         className="w-full aspect-video object-cover rounded"
                       />
                       {!readOnly && (
@@ -325,7 +326,7 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false }
                     <div className="flex flex-col items-center justify-center aspect-video bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
                       <Camera className="w-8 h-8 text-gray-300" />
                       <span className="text-xs text-gray-400 mt-2 text-center px-2">
-                        {photoType.label}
+                        {label}
                       </span>
                     </div>
                   ) : (
@@ -336,7 +337,7 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false }
                         <Camera className="w-8 h-8 text-gray-400" />
                       )}
                       <span className="text-xs text-gray-500 mt-2 text-center px-2">
-                        {photoType.label}
+                        {label}
                       </span>
                       <input
                         type="file"
@@ -357,11 +358,12 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false }
 
       {/* Optional Photos */}
       <div>
-        <h3 className="font-semibold mb-3">Weitere Fotos (optional)</h3>
+        <h3 className="font-semibold mb-3">{t('photos.optionalTitle')}</h3>
         <div className="grid grid-cols-2 gap-3">
           {optionalPhotos.map((photoType) => {
             const photo = getPhotoByType(photoType.id);
             const isUploading = uploading[photoType.id];
+            const label = t(photoType.labelKey);
             
             return (
               <Card key={photoType.id} className={photo ? 'border-green-300' : ''}>
@@ -370,7 +372,7 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false }
                     <div className="relative">
                       <img 
                         src={photo.url} 
-                        alt={photoType.label}
+                        alt={label}
                         className="w-full aspect-video object-cover rounded"
                       />
                       <Button
@@ -386,7 +388,7 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false }
                     <div className="flex flex-col items-center justify-center aspect-video bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
                       <Camera className="w-8 h-8 text-gray-300" />
                       <span className="text-xs text-gray-400 mt-2 text-center px-2">
-                        {photoType.label}
+                        {label}
                       </span>
                     </div>
                   ) : (
@@ -397,7 +399,7 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false }
                         <Camera className="w-8 h-8 text-gray-400" />
                       )}
                       <span className="text-xs text-gray-500 mt-2 text-center px-2">
-                        {photoType.label}
+                        {label}
                       </span>
                       <input
                         type="file"

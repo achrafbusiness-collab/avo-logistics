@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Lock, Mail, ArrowLeft } from 'lucide-react';
+import { useI18n } from '@/i18n';
 
 export default function LoginPortal({
   title,
@@ -16,6 +17,7 @@ export default function LoginPortal({
   hintTitle,
   hintText,
 }) {
+  const { t } = useI18n();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -45,7 +47,7 @@ export default function LoginPortal({
       }
       window.location.href = successRedirect;
     } catch (err) {
-      setError(err?.message || 'Login fehlgeschlagen.');
+      setError(err?.message || t('login.errors.loginFailed'));
     } finally {
       setSubmitting(false);
     }
@@ -53,7 +55,7 @@ export default function LoginPortal({
 
   const handleReset = async () => {
     if (!email.trim()) {
-      setError('Bitte E-Mail eingeben, um das Passwort zurückzusetzen.');
+      setError(t('login.errors.resetMissingEmail'));
       return;
     }
     setError('');
@@ -65,7 +67,7 @@ export default function LoginPortal({
       });
       setResetSent(true);
     } catch (err) {
-      setError(err?.message || 'Passwort-Reset fehlgeschlagen.');
+      setError(err?.message || t('login.errors.resetFailed'));
     }
   };
 
@@ -80,7 +82,7 @@ export default function LoginPortal({
             <div className="mx-auto flex items-center justify-center rounded-3xl bg-white p-6 shadow-2xl ring-1 ring-slate-200/70">
               <img
                 src="/IMG_5222.JPG"
-                alt="AVO SYSTEMS"
+                alt={t('login.logoAlt')}
                 className="h-28 w-auto object-contain drop-shadow-sm sm:h-36"
               />
             </div>
@@ -92,8 +94,8 @@ export default function LoginPortal({
             </p>
             <Button asChild variant="ghost" className="text-white/80 hover:text-white">
               <Link to="/login">
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Portal wechseln
+                <ArrowLeft className="mr-2 h-4 w-4 rtl-flip" />
+                {t('login.actions.switchPortal')}
               </Link>
             </Button>
           </div>
@@ -108,7 +110,7 @@ export default function LoginPortal({
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="portal-email">E-Mail</Label>
+                  <Label htmlFor="portal-email">{t('login.labels.email')}</Label>
                   <Input
                     id="portal-email"
                     type="email"
@@ -119,13 +121,13 @@ export default function LoginPortal({
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="portal-password">Passwort</Label>
+                  <Label htmlFor="portal-password">{t('login.labels.password')}</Label>
                   <Input
                     id="portal-password"
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
+                    placeholder={t('login.passwordPlaceholder')}
                     required
                   />
                 </div>
@@ -136,7 +138,7 @@ export default function LoginPortal({
                 )}
                 {resetSent && (
                   <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-                    Passwort-Link wurde gesendet. Bitte E-Mail prüfen.
+                    {t('login.resetSent')}
                   </div>
                 )}
                 <Button
@@ -144,7 +146,7 @@ export default function LoginPortal({
                   className="w-full bg-[#1e3a5f] hover:bg-[#2d5a8a]"
                   disabled={submitting}
                 >
-                  {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Einloggen'}
+                  {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : t('login.actions.signIn')}
                 </Button>
                 <Button
                   type="button"
@@ -153,7 +155,7 @@ export default function LoginPortal({
                   onClick={handleReset}
                 >
                   <Mail className="w-4 h-4 mr-2" />
-                  Passwort vergessen?
+                  {t('login.actions.forgotPassword')}
                 </Button>
               </form>
 

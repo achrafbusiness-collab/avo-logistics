@@ -1,0 +1,371 @@
+{
+  "app": {
+    "name": "AVO Logistics"
+  },
+  "common": {
+    "back": "Atrás",
+    "next": "Siguiente",
+    "cancel": "Cancelar",
+    "open": "Abrir",
+    "download": "Descargar",
+    "optional": "opcional",
+    "delete": "Eliminar"
+  },
+  "nav": {
+    "driverPortal": "Portal del conductor",
+    "orders": "Pedidos",
+    "documents": "Documentos",
+    "profile": "Perfil",
+    "support": "Soporte",
+    "logout": "Cerrar sesión"
+  },
+  "login": {
+    "logoAlt": "AVO SYSTEMS",
+    "actions": {
+      "switchPortal": "Cambiar portal",
+      "signIn": "Iniciar sesión",
+      "forgotPassword": "¿Olvidaste la contraseña?"
+    },
+    "labels": {
+      "email": "Correo",
+      "password": "Contraseña"
+    },
+    "passwordPlaceholder": "••••••••",
+    "resetSent": "Se envió el enlace de contraseña. Revisa tu correo.",
+    "errors": {
+      "loginFailed": "Error de inicio de sesión.",
+      "resetMissingEmail": "Introduce tu correo para restablecer la contraseña.",
+      "resetFailed": "El restablecimiento de contraseña falló."
+    },
+    "hintTitle": "Nota",
+    "hintText": "Si tienes problemas, contacta al administrador.",
+    "driver": {
+      "title": "Portal del conductor",
+      "subtitle": "Inicia sesión para ver tus pedidos y crear protocolos.",
+      "cardTitle": "Acceso de conductor",
+      "emailPlaceholder": "conductor@avo-logistics.app"
+    }
+  },
+  "status": {
+    "new": "Abierto",
+    "assigned": "Asignado",
+    "accepted": "Aceptado",
+    "pickup_started": "Recogida en curso",
+    "in_transit": "En tránsito",
+    "delivery_started": "Entrega en curso",
+    "completed": "Completado",
+    "review": "Revisión",
+    "ready_for_billing": "Listo para facturar",
+    "approved": "Aprobado",
+    "cancelled": "Cancelado",
+    "active": "Activo",
+    "inactive": "Inactivo",
+    "pending": "Pendiente"
+  },
+  "orders": {
+    "pickup": "Recogida",
+    "dropoff": "Entrega",
+    "greeting": "Hola, {{name}}!",
+    "driverFallback": "Conductor",
+    "summary": {
+      "none": "No hay pedidos activos",
+      "single": "1 pedido activo",
+      "multiple": "{{count}} pedidos activos"
+    },
+    "driverHints": "{{company}} – Notas para conductores",
+    "supportLabel": "Soporte: {{phone}}",
+    "emergencyLabel": "Emergencia: {{phone}}",
+    "tabs": {
+      "active": "Activos",
+      "completed": "Completados",
+      "all": "Todos"
+    },
+    "empty": {
+      "active": "No hay pedidos activos",
+      "completed": "Aún no hay pedidos completados",
+      "all": "No hay pedidos"
+    },
+    "noDriverProfile": {
+      "title": "No se encontró perfil de conductor",
+      "body": "Tu cuenta no está vinculada a un perfil de conductor. Contacta al administrador."
+    }
+  },
+  "documents": {
+    "title": "Documentos",
+    "subtitle": "Todos los documentos importantes en un vistazo.",
+    "orderRelated": "Documentos del pedido",
+    "general": "Documentos generales",
+    "emptyOrder": "No hay documentos del pedido.",
+    "emptyGeneral": "No hay documentos generales.",
+    "emptyAll": "No se encontraron documentos. Espera nuevas cargas.",
+    "defaultTitle": "Documento",
+    "forAllDrivers": "Para todos los conductores",
+    "forYou": "Solo para ti",
+    "noDriverProfile": "Tu perfil de conductor aún no está asignado. Contacta al admin.",
+    "backToOrders": "Volver a pedidos"
+  },
+  "profile": {
+    "title": "Perfil",
+    "subtitle": "Tus datos personales y licencia diaria.",
+    "phone": "Teléfono",
+    "city": "Ciudad",
+    "license": {
+      "title": "Licencia diaria",
+      "description": "Este pase es válido solo hoy y se genera diariamente.",
+      "loading": "Creando licencia...",
+      "error": "No se pudo crear el token.",
+      "validOn": "Válido el",
+      "tokenId": "ID del token",
+      "securityNote": "Regla de seguridad: token firmado en servidor (HMAC) y válido por un día."
+    }
+  },
+  "support": {
+    "title": "Soporte",
+    "subtitle": "Ayuda, contactos e información sobre la marcha.",
+    "contact": {
+      "title": "Contacto",
+      "supportLabel": "Soporte: {{phone}}",
+      "whatsapp": "Soporte WhatsApp",
+      "emergencyLabel": "Emergencia: {{phone}}"
+    },
+    "guide": {
+      "title": "Guía",
+      "fallback": "Sigue las instrucciones de tu coordinador."
+    },
+    "faqTitle": "FAQ",
+    "faq": [
+      {
+        "title": "¿Cómo inicio un protocolo?",
+        "body": "Abre el pedido → inicia el protocolo → guarda fotos, lista y firma."
+      },
+      {
+        "title": "¿Qué hago si hay daños?",
+        "body": "Marca el daño, toma una foto y añade una nota al protocolo."
+      },
+      {
+        "title": "¿Faltan documentos?",
+        "body": "Informa al coordinador. Los documentos se liberan centralmente."
+      }
+    ],
+    "appInfo": {
+      "title": "Información de la app",
+      "version": "Versión: {{value}}",
+      "officeHours": "Horario: {{value}}",
+      "address": "Dirección: {{value}}"
+    }
+  },
+  "settings": {
+    "language": {
+      "title": "Idioma",
+      "helper": "Elige el idioma del portal del conductor.",
+      "options": {
+        "de": "Alemán",
+        "en": "Inglés",
+        "es": "Español",
+        "ar": "Árabe"
+      }
+    }
+  },
+  "checklist": {
+    "orderNotFound": "Pedido no encontrado",
+    "backToOrders": "Volver a pedidos",
+    "vehicle": {
+      "title": "Vehículo",
+      "brandModel": "Marca / Modelo",
+      "color": "Color",
+      "vin": "VIN"
+    },
+    "route": {
+      "title": "Ruta",
+      "openMaps": "Abrir en Google Maps"
+    },
+    "customer": {
+      "title": "Cliente"
+    },
+    "notes": {
+      "title": "Notas"
+    },
+    "protocols": {
+      "title": "Protocolos",
+      "pickupTitle": "Protocolo de recogida",
+      "dropoffTitle": "Protocolo de entrega",
+      "createdAt": "Creado el {{date}}",
+      "notCreated": "Aún no creado",
+      "ready": "Listo para completar",
+      "createPickupFirst": "Crea primero el protocolo de recogida",
+      "view": "Ver",
+      "start": "Iniciar"
+    }
+  },
+  "protocol": {
+    "pickupTitle": "Protocolo de recogida",
+    "dropoffTitle": "Protocolo de entrega",
+    "stepProgress": "Paso {{current}} de {{total}}",
+    "steps": {
+      "basics": "Datos básicos",
+      "photos": "Fotos",
+      "signatures": "Firmas"
+    },
+    "driverNotesTitle": "Notas para conductores",
+    "basics": {
+      "title": "Datos básicos y accesorios",
+      "location": "Ubicación",
+      "locationPlaceholder": "Ubicación actual",
+      "kilometer": "Kilometraje *",
+      "kilometerPlaceholder": "p. ej. 125000",
+      "fuel": "Nivel de combustible",
+      "fuelOptions": {
+        "empty": "Vacío",
+        "full": "Lleno"
+      },
+      "cleanInside": "Limpieza interior",
+      "cleanOutside": "Limpieza exterior",
+      "cleanOptions": {
+        "clean": "Limpio",
+        "normal": "Normal",
+        "dirty": "Sucio"
+      },
+      "accessories": {
+        "spareWheel": "Rueda de repuesto",
+        "warningTriangle": "Triángulo",
+        "firstAidKit": "Botiquín",
+        "safetyVest": "Chaleco",
+        "carJack": "Gato",
+        "wheelWrench": "Llave de rueda",
+        "manual": "Manual",
+        "serviceBook": "Libro de servicio",
+        "registrationDoc": "Documentación"
+      },
+      "keysCount": "Número de llaves"
+    },
+    "damage": {
+      "title": "Daños",
+      "instructions": "Toca el esquema para marcar la posición del daño.",
+      "sketchAlt": "Esquema del vehículo",
+      "markAria": "Marcar daño: {{location}}",
+      "legend": {
+        "scratch": "K = Arañazo",
+        "chip": "S = Piedra",
+        "dent": "D = Abolladura",
+        "damage": "B = Daño"
+      },
+      "location": "Posición en el vehículo",
+      "locationPlaceholder": "p. ej. delantero izquierdo, parachoques",
+      "type": "Tipo de daño",
+      "typeOptions": {
+        "scratch": "Arañazo (K)",
+        "chip": "Piedra (S)",
+        "dent": "Abolladura (D)",
+        "damage": "Daño (B)"
+      },
+      "description": "Descripción",
+      "descriptionPlaceholder": "Detalles del daño",
+      "severity": "Gravedad",
+      "severityOptions": {
+        "minor": "Leve",
+        "medium": "Media",
+        "severe": "Grave"
+      },
+      "add": "Añadir daño",
+      "none": "Sin daños",
+      "empty": "No se registraron daños"
+    },
+    "damagePoints": {
+      "frontLeft": "Frontal izquierdo",
+      "frontRight": "Frontal derecho",
+      "hood": "Capó",
+      "roof": "Techo",
+      "leftSide": "Lado izquierdo",
+      "rightSide": "Lado derecho",
+      "rearLeft": "Trasero izquierdo",
+      "rearRight": "Trasero derecho",
+      "trunk": "Maletero",
+      "glass": "Cristales"
+    },
+    "signatures": {
+      "title": "Notas y firmas",
+      "notes": "Notas",
+      "notesPlaceholder": "Notas adicionales...",
+      "customerName": "Nombre del cliente",
+      "customerNamePlaceholder": "Nombre del receptor/entregante",
+      "driverSignature": "Firma del conductor",
+      "customerSignature": "Firma del cliente",
+      "submit": "Finalizar protocolo"
+    },
+    "confirm": {
+      "title": "Revisión de seguridad",
+      "description": "Confirma que todos los puntos han sido verificados."
+    },
+    "errors": {
+      "missingKilometer": "Introduce el kilometraje.",
+      "missingPhotos": "Toma todas las fotos obligatorias.",
+      "damageIncomplete": "Completa todos los daños o elimina las entradas.",
+      "missingDriverSignature": "Captura la firma del conductor.",
+      "missingCustomerSignature": "Captura la firma del cliente.",
+      "missingCustomerName": "Introduce el nombre del cliente.",
+      "missingSignatures": "Completa nombre y firmas."
+    },
+    "confirmations": {
+      "vehicle": {
+        "kilometer": "Kilometraje registrado correctamente",
+        "fuel": "Combustible registrado correctamente",
+        "cleanliness": "Limpieza interior/exterior registrada",
+        "accessories": "Accesorios verificados"
+      },
+      "photos": {
+        "required": "Todas las fotos obligatorias tomadas",
+        "damage": "Daños documentados (si aplica)"
+      },
+      "signatures": {
+        "customer": "Nombre del cliente verificado",
+        "signatures": "Firmas de conductor y cliente capturadas",
+        "notes": "Notas revisadas"
+      }
+    }
+  },
+  "photos": {
+    "nextLabel": "Siguiente foto",
+    "optionalTitle": "Fotos adicionales (opcional)",
+    "captureType": "Tipo de captura",
+    "review": "Revisar",
+    "requiredTitle": "Fotos obligatorias",
+    "requiredComplete": "Todas las fotos obligatorias capturadas",
+    "requiredRemaining": "Faltan {{count}} fotos",
+    "camera": {
+      "start": "Iniciar cámara",
+      "stop": "Cerrar cámara",
+      "capture": "Tomar foto"
+    },
+    "errors": {
+      "uploadFailed": "La carga falló. Intenta de nuevo.",
+      "cameraStartFailed": "No se pudo iniciar la cámara.",
+      "captureFailed": "No se tomó la foto."
+    },
+    "types": {
+      "front": "Frontal del vehículo",
+      "frontLeft": "Frontal izquierdo",
+      "frontRight": "Frontal derecho",
+      "wheelFrontRight": "Llanta delantera derecha",
+      "doorPassenger": "Puerta del pasajero",
+      "doorRearRight": "Puerta trasera derecha",
+      "wheelRearRight": "Llanta trasera derecha",
+      "rear": "Parte trasera",
+      "rearLeft": "Trasero izquierdo",
+      "wheelRearLeft": "Llanta trasera izquierda",
+      "doorRearLeft": "Puerta trasera izquierda",
+      "doorDriver": "Puerta del conductor",
+      "wheelFrontLeft": "Llanta delantera izquierda",
+      "windshield": "Parabrisas",
+      "interiorFront": "Interior delantero",
+      "interiorRear": "Interior trasero",
+      "trunk": "Maletero",
+      "odometer": "Odómetro",
+      "damage": "Daño",
+      "other": "Otro"
+    }
+  },
+  "signature": {
+    "captured": "Firma capturada",
+    "placeholder": "Firme aquí"
+  }
+}
