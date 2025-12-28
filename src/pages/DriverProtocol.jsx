@@ -28,7 +28,6 @@ import {
 } from "@/components/ui/select";
 import SignaturePad from '@/components/driver/SignaturePad';
 import PhotoCapture, { REQUIRED_PHOTO_IDS } from '@/components/driver/PhotoCapture';
-import MandatoryChecklist, { MANDATORY_CHECKS } from '@/components/driver/MandatoryChecklist';
 import ProtocolWizard from '@/components/driver/ProtocolWizard';
 import { 
   ArrowLeft,
@@ -50,11 +49,7 @@ const STEP_CONFIRMATIONS = {
   ],
   photos: [
     { id: 'photos', label: 'Alle Pflichtfotos aufgenommen' },
-    { id: 'damage_photos', label: 'Schäden fotografiert (falls vorhanden)' },
-  ],
-  checklist: [
-    { id: 'mandatory', label: 'Alle Pflichtprüfungen beantwortet' },
-    { id: 'damages', label: 'Schäden geprüft und dokumentiert' },
+    { id: 'damage_photos', label: 'Schäden dokumentiert (falls vorhanden)' },
   ],
   signatures: [
     { id: 'customer', label: 'Name des Kunden geprüft' },
@@ -286,9 +281,6 @@ export default function DriverProtocol() {
 
   const submitProtocol = async () => {
     const missingPhotoIds = REQUIRED_PHOTO_IDS.filter((id) => !formData.photos?.some((photo) => photo.type === id));
-    const missingChecks = MANDATORY_CHECKS.filter(
-      (check) => formData.mandatory_checks?.[check.id] === undefined
-    );
     if (!formData.kilometer) {
       setSubmitError('Bitte Kilometerstand eintragen.');
       setCurrentStep('vehicle_check');
@@ -299,17 +291,12 @@ export default function DriverProtocol() {
       setCurrentStep('photos');
       return;
     }
-    if (missingChecks.length > 0) {
-      setSubmitError('Bitte alle Pflichtprüfungen beantworten.');
-      setCurrentStep('checklist');
-      return;
-    }
     const damageHasGaps = formData.damages?.some(
       (damage) => !damage.location || !damage.description
     );
     if (damageHasGaps) {
       setSubmitError('Bitte alle Schadensfelder vollständig ausfüllen oder Einträge entfernen.');
-      setCurrentStep('checklist');
+      setCurrentStep('photos');
       return;
     }
     if (!formData.signature_driver) {
@@ -384,27 +371,21 @@ export default function DriverProtocol() {
   const damageHasGaps = formData.damages?.some(
     (damage) => !damage.location || !damage.description
   );
-  const hasAllMandatoryChecks =
-    MANDATORY_CHECKS.length > 0 &&
-    MANDATORY_CHECKS.every((check) => formData.mandatory_checks?.[check.id] !== undefined);
   const hasAllRequiredPhotos = REQUIRED_PHOTO_IDS.every((id) =>
     formData.photos?.some((photo) => photo.type === id)
   );
   const damagesComplete =
     !formData.damages?.length ||
     formData.damages.every((damage) => damage.location && damage.description);
-  const checklistComplete = hasAllMandatoryChecks && damagesComplete;
+  const photosComplete = hasAllRequiredPhotos && damagesComplete;
 
   const getStepBlockingReason = (stepId) => {
     if (stepId === 'vehicle_check' && !formData.kilometer) {
       return 'Bitte Kilometerstand eintragen.';
     }
-    if (stepId === 'photos' && !hasAllRequiredPhotos) {
-      return 'Bitte alle Pflichtfotos aufnehmen.';
-    }
-    if (stepId === 'checklist') {
-      if (!hasAllMandatoryChecks) {
-        return 'Bitte alle Pflichtprüfungen beantworten.';
+    if (stepId === 'photos') {
+      if (!hasAllRequiredPhotos) {
+        return 'Bitte alle Pflichtfotos aufnehmen.';
       }
       if (damageHasGaps) {
         return 'Bitte alle Schadensfelder vollständig ausfüllen oder Einträge entfernen.';
@@ -419,11 +400,10 @@ export default function DriverProtocol() {
   };
 
   const completedSteps = isViewOnly
-    ? ['vehicle_check', 'photos', 'checklist', 'signatures']
+    ? ['vehicle_check', 'photos', 'signatures']
     : [
         formData.kilometer ? 'vehicle_check' : null,
-        hasAllRequiredPhotos ? 'photos' : null,
-        checklistComplete ? 'checklist' : null,
+        photosComplete ? 'photos' : null,
         formData.signature_driver && formData.signature_customer && formData.customer_name
           ? 'signatures'
           : null,
@@ -610,6 +590,7 @@ export default function DriverProtocol() {
                         checked={formData.accessories[item.id]}
                         onCheckedChange={(v) => handleAccessoryChange(item.id, v)}
                         disabled={isViewOnly}
+                        className="data-[state=checked]:bg-[#1e3a5f] data-[state=unchecked]:bg-slate-200"
                       />
                     </div>
                   ))}
@@ -629,18 +610,10 @@ export default function DriverProtocol() {
           )}
 
           {currentStep === 'photos' && (
-            <PhotoCapture
-              photos={formData.photos}
-              onChange={(photos) => handleChange('photos', photos)}
-              readOnly={isViewOnly}
-            />
-          )}
-
-          {currentStep === 'checklist' && (
             <div className="space-y-4">
-              <MandatoryChecklist
-                checks={formData.mandatory_checks || {}}
-                onChange={(checks) => handleChange('mandatory_checks', checks)}
+              <PhotoCapture
+                photos={formData.photos}
+                onChange={(photos) => handleChange('photos', photos)}
                 readOnly={isViewOnly}
               />
               <Card>
@@ -882,6 +855,7 @@ export default function DriverProtocol() {
                   onCheckedChange={(value) =>
                     setConfirmChecks((prev) => ({ ...prev, [item.id]: value }))
                   }
+                  className="data-[state=checked]:bg-[#1e3a5f] data-[state=unchecked]:bg-slate-200"
                 />
               </div>
             ))}

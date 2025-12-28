@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { appClient } from '@/api/appClient';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -39,11 +39,19 @@ export const REQUIRED_PHOTO_IDS = PHOTO_TYPES.filter((photo) => photo.required).
 
 export default function PhotoCapture({ photos = [], onChange, readOnly = false }) {
   const [uploading, setUploading] = useState({});
+  const [cameraActive, setCameraActive] = useState(false);
+  const [cameraError, setCameraError] = useState('');
+  const [capturing, setCapturing] = useState(false);
+  const [currentType, setCurrentType] = useState(null);
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const streamRef = useRef(null);
 
-  const handleCapture = async (type, file) => {
+  const uploadPhoto = async (type, file) => {
     if (!file) return;
     
     setUploading(prev => ({ ...prev, [type]: true }));
+    setCameraError('');
     
     try {
       const { file_url } = await appClient.integrations.Core.UploadFile({ file });
@@ -67,6 +75,7 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false }
       onChange(newPhotos);
     } catch (error) {
       console.error('Upload failed:', error);
+      setCameraError('Upload fehlgeschlagen. Bitte erneut versuchen.');
     } finally {
       setUploading(prev => ({ ...prev, [type]: false }));
     }
@@ -78,12 +87,159 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false }
 
   const getPhotoByType = (type) => photos.find(p => p.type === type);
 
-  const requiredPhotos = PHOTO_TYPES.filter(p => p.required);
-  const optionalPhotos = PHOTO_TYPES.filter(p => !p.required);
+  const requiredPhotos = useMemo(() => PHOTO_TYPES.filter(p => p.required), []);
+  const optionalPhotos = useMemo(() => PHOTO_TYPES.filter(p => !p.required), []);
   const completedRequired = requiredPhotos.filter(p => getPhotoByType(p.id)).length;
+  const nextRequired = requiredPhotos.find((photo) => !getPhotoByType(photo.id)) || null;
+
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+    setCameraActive(false);
+  };
+
+  const startCamera = async () => {
+    if (readOnly) return;
+    setCameraError('');
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' },
+        audio: false,
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+      setCameraActive(true);
+    } catch (err) {
+      setCameraError('Kamera konnte nicht gestartet werden.');
+    }
+  };
+
+  const captureFromCamera = async () => {
+    if (!videoRef.current || !currentType) return;
+    setCapturing(true);
+    try {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      const width = video.videoWidth || 1280;
+      const height = video.videoHeight || 720;
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, width, height);
+      const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.92));
+      if (!blob) {
+        throw new Error('Kein Foto aufgenommen.');
+      }
+      const file = new File([blob], `${currentType}-${Date.now()}.jpg`, { type: 'image/jpeg' });
+      await uploadPhoto(currentType, file);
+    } catch (err) {
+      console.error('Capture failed:', err);
+    } finally {
+      setCapturing(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!cameraActive) return;
+    if (nextRequired?.id && currentType !== nextRequired.id) {
+      setCurrentType(nextRequired.id);
+      return;
+    }
+    if (!currentType && optionalPhotos[0]?.id) {
+      setCurrentType(optionalPhotos[0].id);
+    }
+  }, [cameraActive, nextRequired, optionalPhotos, currentType]);
+
+  useEffect(() => {
+    if (readOnly) return;
+    startCamera();
+    return () => {
+      stopCamera();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="space-y-6">
+      {!readOnly && (
+        <Card className="border-slate-200">
+          <CardContent className="p-4 space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm text-slate-500">Nächstes Foto</p>
+                <p className="font-semibold text-slate-900">
+                  {nextRequired?.label || "Optionales Foto"}
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={cameraActive ? stopCamera : startCamera}
+              >
+                {cameraActive ? "Kamera schließen" : "Kamera starten"}
+              </Button>
+            </div>
+
+            {cameraError && (
+              <div className="text-sm text-red-600">{cameraError}</div>
+            )}
+
+            {cameraActive && (
+              <div className="space-y-3">
+                <div className="relative overflow-hidden rounded-xl border bg-black">
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    playsInline
+                    className="aspect-video w-full object-cover"
+                  />
+                </div>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <div className="flex-1">
+                    <p className="text-xs text-slate-500">Aufnahme-Typ</p>
+                    <select
+                      className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
+                      value={currentType || ''}
+                      onChange={(e) => setCurrentType(e.target.value)}
+                    >
+                      {nextRequired && <option value={nextRequired.id}>{nextRequired.label}</option>}
+                      {requiredPhotos
+                        .filter((photo) => photo.id !== nextRequired?.id)
+                        .map((photo) => (
+                          <option key={photo.id} value={photo.id}>
+                            {photo.label}
+                          </option>
+                        ))}
+                      {optionalPhotos.map((photo) => (
+                        <option key={photo.id} value={photo.id}>
+                          {photo.label} (optional)
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <Button
+                    className="flex-1 bg-[#1e3a5f] hover:bg-[#2d5a8a]"
+                    onClick={captureFromCamera}
+                    disabled={capturing || !currentType}
+                  >
+                    {capturing || uploading[currentType] ? (
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    ) : (
+                      <Camera className="w-4 h-4 mr-2" />
+                    )}
+                    Foto aufnehmen
+                  </Button>
+                </div>
+              </div>
+            )}
+            <canvas ref={canvasRef} className="hidden" />
+          </CardContent>
+        </Card>
+      )}
       {/* Progress */}
       <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg">
         <div className="relative w-12 h-12">
@@ -176,7 +332,7 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false }
                         accept="image/*"
                         capture="environment"
                         className="hidden"
-                        onChange={(e) => handleCapture(photoType.id, e.target.files[0])}
+                        onChange={(e) => uploadPhoto(photoType.id, e.target.files[0])}
                         disabled={isUploading}
                       />
                     </label>
@@ -237,7 +393,7 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false }
                         accept="image/*"
                         capture="environment"
                         className="hidden"
-                        onChange={(e) => handleCapture(photoType.id, e.target.files[0])}
+                        onChange={(e) => uploadPhoto(photoType.id, e.target.files[0])}
                         disabled={isUploading}
                       />
                     </label>

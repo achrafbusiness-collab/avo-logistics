@@ -7,7 +7,6 @@ import { CheckCircle2, Circle, ArrowRight, ArrowLeft } from 'lucide-react';
 const WIZARD_STEPS = [
   { id: 'vehicle_check', label: 'Grunddaten', icon: '🚗' },
   { id: 'photos', label: 'Fotos', icon: '📸' },
-  { id: 'checklist', label: 'Prüfungen', icon: '✓' },
   { id: 'signatures', label: 'Unterschriften', icon: '✍️' },
 ];
 
