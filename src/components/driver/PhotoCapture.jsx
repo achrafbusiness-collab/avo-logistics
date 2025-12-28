@@ -75,7 +75,7 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false }
       onChange(newPhotos);
     } catch (error) {
       console.error('Upload failed:', error);
-      setCameraError('Upload fehlgeschlagen. Bitte erneut versuchen.');
+      setCameraError(error?.message || 'Upload fehlgeschlagen. Bitte erneut versuchen.');
     } finally {
       setUploading(prev => ({ ...prev, [type]: false }));
     }
@@ -111,6 +111,7 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false }
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
+        await videoRef.current.play();
       }
       setCameraActive(true);
     } catch (err) {
@@ -167,10 +168,10 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false }
     <div className="space-y-6">
       {!readOnly && (
         <Card className="border-slate-200">
-          <CardContent className="p-4 space-y-3">
-            <div className="flex items-center justify-between gap-3">
+          <CardContent className="p-0">
+            <div className="flex items-center justify-between gap-3 px-4 py-3 border-b">
               <div>
-                <p className="text-sm text-slate-500">Nächstes Foto</p>
+                <p className="text-xs uppercase tracking-wide text-slate-400">Nächstes Foto</p>
                 <p className="font-semibold text-slate-900">
                   {nextRequired?.label || "Optionales Foto"}
                 </p>
@@ -185,21 +186,26 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false }
             </div>
 
             {cameraError && (
-              <div className="text-sm text-red-600">{cameraError}</div>
+              <div className="px-4 py-2 text-sm text-red-600">{cameraError}</div>
             )}
 
             {cameraActive && (
-              <div className="space-y-3">
-                <div className="relative overflow-hidden rounded-xl border bg-black">
+              <div className="relative">
+                <div className="relative h-[60vh] bg-black">
                   <video
                     ref={videoRef}
                     autoPlay
                     playsInline
-                    className="aspect-video w-full object-cover"
+                    className="h-full w-full object-cover"
                   />
+                  <div className="absolute left-4 top-4 rounded-full bg-black/60 px-3 py-1 text-sm text-white">
+                    {currentType
+                      ? PHOTO_TYPES.find((photo) => photo.id === currentType)?.label
+                      : "Foto aufnehmen"}
+                  </div>
                 </div>
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                  <div className="flex-1">
+                <div className="flex flex-col gap-2 border-t bg-white px-4 py-3">
+                  <div>
                     <p className="text-xs text-slate-500">Aufnahme-Typ</p>
                     <select
                       className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
@@ -221,18 +227,23 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false }
                       ))}
                     </select>
                   </div>
-                  <Button
-                    className="flex-1 bg-[#1e3a5f] hover:bg-[#2d5a8a]"
-                    onClick={captureFromCamera}
-                    disabled={capturing || !currentType}
-                  >
-                    {capturing || uploading[currentType] ? (
-                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                    ) : (
-                      <Camera className="w-4 h-4 mr-2" />
-                    )}
-                    Foto aufnehmen
-                  </Button>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <Button
+                      className="bg-[#1e3a5f] hover:bg-[#2d5a8a]"
+                      onClick={captureFromCamera}
+                      disabled={capturing || !currentType}
+                    >
+                      {capturing || uploading[currentType] ? (
+                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                      ) : (
+                        <Camera className="w-4 h-4 mr-2" />
+                      )}
+                      Foto aufnehmen
+                    </Button>
+                    <Button variant="outline" onClick={stopCamera}>
+                      Zur Kontrolle
+                    </Button>
+                  </div>
                 </div>
               </div>
             )}

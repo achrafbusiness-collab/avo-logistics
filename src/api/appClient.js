@@ -110,7 +110,18 @@ const getCompanyIdForCurrentUser = async () => {
   const { data } = await supabase.auth.getUser();
   if (!data?.user) return null;
   const profile = await getProfile(data.user.id);
-  return profile?.company_id || null;
+  if (profile?.company_id) return profile.company_id;
+  if (data.user.email) {
+    const { data: driverRecord } = await supabase
+      .from('drivers')
+      .select('company_id')
+      .eq('email', data.user.email)
+      .maybeSingle();
+    if (driverRecord?.company_id) {
+      return driverRecord.company_id;
+    }
+  }
+  return null;
 };
 
 const uploadFileToStorage = async ({ file, bucket = "documents", pathPrefix = "uploads" }) => {
