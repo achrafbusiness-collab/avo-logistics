@@ -217,6 +217,25 @@ const buildUser = (authUser, profile) => {
   };
 };
 
+const resolveEffectiveRole = async (authUser, profile) => {
+  const baseRole = profile?.role || profileDefaults.role;
+  if (!authUser?.email) return baseRole;
+  if (baseRole === 'admin') return baseRole;
+  try {
+    const { data: driverRecord } = await supabase
+      .from('drivers')
+      .select('id')
+      .eq('email', authUser.email)
+      .maybeSingle();
+    if (driverRecord?.id) {
+      return 'driver';
+    }
+  } catch (error) {
+    console.warn('Driver role lookup failed', error);
+  }
+  return baseRole;
+};
+
 const auth = {
   getCurrentUser: async () => {
     const { data } = await supabase.auth.getUser();
@@ -224,7 +243,8 @@ const auth = {
     const profile = await getProfile(data.user.id);
     const active = await ensureActiveProfile(profile);
     if (!active) return null;
-    return buildUser(data.user, profile);
+    const role = await resolveEffectiveRole(data.user, profile);
+    return buildUser(data.user, { ...profile, role });
   },
   me: async () => {
     const { data } = await supabase.auth.getUser();
@@ -232,7 +252,8 @@ const auth = {
     const profile = await getProfile(data.user.id);
     const active = await ensureActiveProfile(profile);
     if (!active) return null;
-    return buildUser(data.user, profile);
+    const role = await resolveEffectiveRole(data.user, profile);
+    return buildUser(data.user, { ...profile, role });
   },
   login: async ({ email, password }) => {
     const { data, error } = await supabase.auth.signInWithPassword({
@@ -247,14 +268,15 @@ const auth = {
     if (!active) {
       throw new Error('Konto wartet auf Freigabe durch einen Admin.');
     }
-    if (profile?.role === 'driver' && data.user?.email) {
+    const effectiveRole = await resolveEffectiveRole(data.user, profile);
+    if (effectiveRole === 'driver' && data.user?.email) {
       await supabase
         .from('drivers')
         .update({ status: 'active', updated_date: new Date().toISOString() })
         .eq('email', data.user.email)
         .eq('status', 'pending');
     }
-    return buildUser(data.user, profile);
+    return buildUser(data.user, { ...profile, role: effectiveRole });
   },
   logout: async () => {
     const { error } = await supabase.auth.signOut();
