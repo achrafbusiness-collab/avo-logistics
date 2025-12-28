@@ -26,7 +26,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
 import SignaturePad from '@/components/driver/SignaturePad';
 import PhotoCapture, { REQUIRED_PHOTO_IDS } from '@/components/driver/PhotoCapture';
 import MandatoryChecklist, { MANDATORY_CHECKS } from '@/components/driver/MandatoryChecklist';
