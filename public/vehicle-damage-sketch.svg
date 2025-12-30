@@ -1,43 +1,59 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 700">
   <rect width="1000" height="700" fill="#ffffff" />
-  <g stroke="#111827" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <g stroke="#111827" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round">
     <!-- Side view (top) -->
-    <rect x="200" y="40" width="600" height="120" rx="24" />
-    <path d="M260 40 L330 80 L670 80 L740 40" />
+    <path d="M210 80 Q260 40 330 40 L670 40 Q740 40 790 80 L810 120 Q820 140 790 150 L210 150 Q180 140 190 120 Z" />
+    <path d="M260 80 L320 120 L680 120 L740 80" />
     <line x1="260" y1="120" x2="740" y2="120" />
     <circle cx="300" cy="160" r="26" />
     <circle cx="700" cy="160" r="26" />
+    <circle cx="300" cy="160" r="12" />
+    <circle cx="700" cy="160" r="12" />
+    <line x1="360" y1="60" x2="360" y2="120" />
+    <line x1="500" y1="60" x2="500" y2="120" />
+    <line x1="640" y1="60" x2="640" y2="120" />
 
     <!-- Front view (left) -->
-    <rect x="40" y="240" width="140" height="220" rx="28" />
-    <rect x="60" y="270" width="100" height="120" rx="18" />
-    <line x1="40" y1="300" x2="180" y2="300" />
-    <circle cx="70" cy="420" r="18" />
-    <circle cx="150" cy="420" r="18" />
+    <path d="M70 240 Q40 260 40 310 L40 420 Q40 450 70 470 L150 470 Q180 450 180 420 L180 310 Q180 260 150 240 Z" />
+    <rect x="58" y="280" width="104" height="110" rx="18" />
+    <line x1="40" y1="320" x2="180" y2="320" />
+    <circle cx="75" cy="430" r="18" />
+    <circle cx="145" cy="430" r="18" />
+    <rect x="82" y="248" width="56" height="14" rx="6" />
 
     <!-- Top view (center) -->
-    <rect x="250" y="220" width="500" height="260" rx="90" />
-    <rect x="310" y="255" width="380" height="190" rx="70" />
-    <line x1="500" y1="220" x2="500" y2="480" />
-    <line x1="360" y1="255" x2="360" y2="445" />
-    <line x1="640" y1="255" x2="640" y2="445" />
-    <circle cx="320" cy="250" r="28" />
-    <circle cx="680" cy="250" r="28" />
-    <circle cx="320" cy="450" r="28" />
-    <circle cx="680" cy="450" r="28" />
+    <path d="M260 240 Q280 200 340 200 L660 200 Q720 200 740 240 L760 300 Q770 330 760 360 L740 430 Q720 470 660 470 L340 470 Q280 470 260 430 L240 360 Q230 330 240 300 Z" />
+    <path d="M310 260 Q330 230 360 230 L640 230 Q670 230 690 260 L710 320 Q720 340 710 360 L690 410 Q670 440 640 440 L360 440 Q330 440 310 410 L290 360 Q280 340 290 320 Z" />
+    <line x1="500" y1="200" x2="500" y2="470" />
+    <line x1="360" y1="230" x2="360" y2="440" />
+    <line x1="640" y1="230" x2="640" y2="440" />
+    <circle cx="320" cy="230" r="26" />
+    <circle cx="680" cy="230" r="26" />
+    <circle cx="320" cy="440" r="26" />
+    <circle cx="680" cy="440" r="26" />
+    <circle cx="320" cy="230" r="12" />
+    <circle cx="680" cy="230" r="12" />
+    <circle cx="320" cy="440" r="12" />
+    <circle cx="680" cy="440" r="12" />
 
     <!-- Rear view (right) -->
-    <rect x="820" y="240" width="140" height="220" rx="28" />
-    <rect x="840" y="270" width="100" height="120" rx="18" />
-    <line x1="820" y1="300" x2="960" y2="300" />
-    <circle cx="850" cy="420" r="18" />
-    <circle cx="930" cy="420" r="18" />
+    <path d="M850 240 Q820 260 820 310 L820 420 Q820 450 850 470 L930 470 Q960 450 960 420 L960 310 Q960 260 930 240 Z" />
+    <rect x="838" y="280" width="104" height="110" rx="18" />
+    <line x1="820" y1="320" x2="960" y2="320" />
+    <circle cx="855" cy="430" r="18" />
+    <circle cx="925" cy="430" r="18" />
+    <rect x="872" y="248" width="56" height="14" rx="6" />
 
     <!-- Side view (bottom) -->
-    <rect x="200" y="540" width="600" height="120" rx="24" />
-    <path d="M260 660 L330 620 L670 620 L740 660" />
+    <path d="M210 620 Q260 660 330 660 L670 660 Q740 660 790 620 L810 580 Q820 560 790 550 L210 550 Q180 560 190 580 Z" />
+    <path d="M260 620 L320 580 L680 580 L740 620" />
     <line x1="260" y1="580" x2="740" y2="580" />
     <circle cx="300" cy="540" r="26" />
     <circle cx="700" cy="540" r="26" />
+    <circle cx="300" cy="540" r="12" />
+    <circle cx="700" cy="540" r="12" />
+    <line x1="360" y1="620" x2="360" y2="580" />
+    <line x1="500" y1="620" x2="500" y2="580" />
+    <line x1="640" y1="620" x2="640" y2="580" />
   </g>
 </svg>
