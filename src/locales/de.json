@@ -289,9 +289,13 @@
       "customerName": "Name des Kunden",
       "customerNamePlaceholder": "Name des Empfängers/Übergebers",
       "driverSignature": "Unterschrift Fahrer",
-      "customerSignature": "Unterschrift Kunde",
-      "submit": "Protokoll abschließen"
-    },
+    "customerSignature": "Unterschrift Kunde",
+    "add": "Unterschrift aufnehmen",
+    "edit": "Unterschrift ändern",
+    "empty": "Noch keine Unterschrift vorhanden",
+    "signatureHint": "Bitte hier unterschreiben",
+    "submit": "Protokoll abschließen"
+  },
     "confirm": {
       "title": "Sicherheitsprüfung",
       "description": "Bitte bestätige, dass alle Punkte korrekt geprüft wurden."

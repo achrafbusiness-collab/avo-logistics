@@ -42,6 +42,7 @@ import AccessDenied from "./AccessDenied";
 import Terminal from "./Terminal";
 import SystemVermietung from "./SystemVermietung";
 import Verlauf from "./Verlauf";
+import ProtocolPdf from "./ProtocolPdf";
 
 import { BrowserRouter as Router, Route, Routes, useLocation, Navigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
@@ -112,6 +113,7 @@ function PagesContent() {
     const isResetRoute = normalizedPath === '/reset-password';
     const isSetPasswordRoute = normalizedPath === '/set-password';
     const isDriverAccessRoute = normalizedPath === '/driver';
+    const isProtocolPdfRoute = normalizedPath === '/protocol-pdf';
     const currentPage = _getCurrentPage(location.pathname);
     const [currentUser, setCurrentUser] = useState(null);
     const [authChecked, setAuthChecked] = useState(false);
@@ -135,7 +137,7 @@ function PagesContent() {
         return null;
     }
 
-    if (isLoginRoute || isResetRoute || isSetPasswordRoute || isDriverAccessRoute) {
+    if (isLoginRoute || isResetRoute || isSetPasswordRoute || isDriverAccessRoute || isProtocolPdfRoute) {
         return (
             <Routes>
                 <Route path="/login" element={<Login />} />
@@ -145,6 +147,7 @@ function PagesContent() {
                 <Route path="/driver" element={<DriverAccess />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/set-password" element={<SetPassword />} />
+                <Route path="/protocol-pdf" element={<ProtocolPdf />} />
                 <Route path="*" element={<Navigate to="/login" replace />} />
             </Routes>
         );

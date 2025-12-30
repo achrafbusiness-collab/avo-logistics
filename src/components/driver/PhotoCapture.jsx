@@ -236,8 +236,20 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false }
             )}
 
             {cameraActive && (
-              <div className="relative">
-                <div className="relative h-[60vh] bg-black">
+              <div className="fixed inset-0 z-50 flex flex-col bg-black">
+                <div className="flex items-center justify-between px-4 py-3 text-white">
+                  <div className="text-sm">
+                    {currentType
+                      ? t(PHOTO_TYPES.find((photo) => photo.id === currentType)?.labelKey || "photos.types.other")
+                      : t("photos.camera.capture")}
+                  </div>
+                  <Button variant="ghost" className="text-white hover:bg-white/10" onClick={stopCamera}>
+                    <X className="w-5 h-5 mr-2" />
+                    {t('photos.review')}
+                  </Button>
+                </div>
+
+                <div className="relative flex-1 bg-black">
                   <video
                     ref={videoRef}
                     autoPlay
@@ -257,18 +269,14 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false }
                     }}
                     className="h-full w-full object-cover"
                   />
-                  <div className="absolute left-4 top-4 rounded-full bg-black/60 px-3 py-1 text-sm text-white">
-                    {currentType
-                      ? t(PHOTO_TYPES.find((photo) => photo.id === currentType)?.labelKey || "photos.types.other")
-                      : t("photos.camera.capture")}
-                  </div>
                   {!cameraReady && (
                     <div className="absolute inset-0 flex items-center justify-center bg-black/40 text-sm text-white">
                       {t('photos.camera.loading')}
                     </div>
                   )}
                 </div>
-                <div className="flex flex-col gap-2 border-t bg-white px-4 py-3">
+
+                <div className="bg-white px-4 py-4 space-y-3">
                   <div>
                     <p className="text-xs text-slate-500">{t('photos.captureType')}</p>
                     <select
@@ -293,7 +301,7 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false }
                   </div>
                   <div className="grid gap-2 sm:grid-cols-2">
                     <Button
-                      className="h-12 w-full text-base bg-[#1e3a5f] hover:bg-[#2d5a8a]"
+                      className="h-14 w-full text-base bg-[#1e3a5f] hover:bg-[#2d5a8a]"
                       onClick={captureFromCamera}
                       disabled={capturing || !currentType || !cameraReady}
                     >
@@ -304,13 +312,10 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false }
                       )}
                       {t('photos.camera.capture')}
                     </Button>
-                    <Button variant="outline" onClick={stopCamera}>
-                      {t('photos.review')}
-                    </Button>
                     {!cameraReady && (
                       <Button
                         variant="outline"
-                        className="h-12 w-full text-base"
+                        className="h-14 w-full text-base"
                         onClick={startCamera}
                         disabled={cameraStarting}
                       >

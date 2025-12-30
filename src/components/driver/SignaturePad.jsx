@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Trash2 } from 'lucide-react';
 import { useI18n } from '@/i18n';
 
-export default function SignaturePad({ value, onChange, label }) {
+export default function SignaturePad({ value, onChange, label, height = 150 }) {
   const { t } = useI18n();
   const canvasRef = useRef(null);
   const [isDrawing, setIsDrawing] = useState(false);
@@ -118,7 +118,7 @@ export default function SignaturePad({ value, onChange, label }) {
         <canvas
           ref={canvasRef}
           className="w-full touch-none"
-          style={{ height: '150px' }}
+          style={{ height: `${height}px` }}
           onMouseDown={startDrawing}
           onMouseMove={draw}
           onMouseUp={stopDrawing}

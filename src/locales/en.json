@@ -289,9 +289,13 @@
       "customerName": "Customer name",
       "customerNamePlaceholder": "Name of receiver/handover",
       "driverSignature": "Driver signature",
-      "customerSignature": "Customer signature",
-      "submit": "Complete protocol"
-    },
+    "customerSignature": "Customer signature",
+    "add": "Capture signature",
+    "edit": "Edit signature",
+    "empty": "No signature yet",
+    "signatureHint": "Please sign here",
+    "submit": "Complete protocol"
+  },
     "confirm": {
       "title": "Safety check",
       "description": "Please confirm that all items have been reviewed."

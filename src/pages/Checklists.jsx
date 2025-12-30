@@ -37,6 +37,7 @@ import {
   CheckCircle2,
   XCircle,
   ExternalLink,
+  Download,
   X
 } from 'lucide-react';
 
@@ -111,12 +112,24 @@ export default function Checklists() {
             {checklist.driver_name} • {checklist.datetime && format(new Date(checklist.datetime), 'dd.MM.yyyy HH:mm', { locale: de })}
           </p>
         </div>
-        <Link to={createPageUrl('Orders') + `?id=${checklist.order_id}`}>
-          <Button variant="outline" size="sm">
-            <ExternalLink className="w-4 h-4 mr-2" />
-            Zum Auftrag
-          </Button>
-        </Link>
+        <div className="flex gap-2">
+          <a
+            href={`/protocol-pdf?checklistId=${checklist.id}&print=1`}
+            target="_blank"
+            rel="noreferrer"
+          >
+            <Button variant="outline" size="sm">
+              <Download className="w-4 h-4 mr-2" />
+              PDF
+            </Button>
+          </a>
+          <Link to={createPageUrl('Orders') + `?id=${checklist.order_id}`}>
+            <Button variant="outline" size="sm">
+              <ExternalLink className="w-4 h-4 mr-2" />
+              Zum Auftrag
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {order && (

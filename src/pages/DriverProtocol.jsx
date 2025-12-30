@@ -12,8 +12,6 @@ import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -38,24 +36,6 @@ import {
   Plus,
   X
 } from 'lucide-react';
-
-const STEP_CONFIRMATIONS = {
-  vehicle_check: [
-    { id: 'km', labelKey: 'protocol.confirmations.vehicle.kilometer' },
-    { id: 'fuel', labelKey: 'protocol.confirmations.vehicle.fuel' },
-    { id: 'clean', labelKey: 'protocol.confirmations.vehicle.cleanliness' },
-    { id: 'accessories', labelKey: 'protocol.confirmations.vehicle.accessories' },
-  ],
-  photos: [
-    { id: 'photos', labelKey: 'protocol.confirmations.photos.required' },
-    { id: 'damage_photos', labelKey: 'protocol.confirmations.photos.damage' },
-  ],
-  signatures: [
-    { id: 'customer', labelKey: 'protocol.confirmations.signatures.customer' },
-    { id: 'signatures', labelKey: 'protocol.confirmations.signatures.signatures' },
-    { id: 'notes', labelKey: 'protocol.confirmations.signatures.notes' },
-  ],
-};
 
 const DAMAGE_POINTS = [
   { id: 'front-left', labelKey: 'protocol.damagePoints.frontLeft', x: 18, y: 20 },
@@ -83,9 +63,7 @@ export default function DriverProtocol() {
   const [saving, setSaving] = useState(false);
   const [currentStep, setCurrentStep] = useState('vehicle_check');
   const [submitError, setSubmitError] = useState('');
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const [confirmStep, setConfirmStep] = useState(null);
-  const [confirmChecks, setConfirmChecks] = useState({});
+  const [signatureModal, setSignatureModal] = useState(null);
 
   const [formData, setFormData] = useState({
     order_id: orderId,
@@ -357,17 +335,6 @@ export default function DriverProtocol() {
     }
   };
 
-  const openConfirmForStep = (stepId, nextStepId, action) => {
-    const items = STEP_CONFIRMATIONS[stepId] || [];
-    const nextChecks = items.reduce((acc, item) => {
-      acc[item.id] = false;
-      return acc;
-    }, {});
-    setConfirmChecks(nextChecks);
-    setConfirmStep({ stepId, nextStepId, action });
-    setConfirmOpen(true);
-  };
-
   const isViewOnly = !!checklistId && existingChecklist?.completed;
   const damageHasGaps = formData.damages?.some(
     (damage) => !damage.location || !damage.description
@@ -410,43 +377,20 @@ export default function DriverProtocol() {
           : null,
       ].filter(Boolean);
 
-  const handleBeforeNext = (stepId, nextStepId) => {
+  const handleBeforeNext = (stepId) => {
     if (isViewOnly) return true;
-    openConfirmForStep(stepId, nextStepId, 'next');
-    return false;
+    const reason = getStepBlockingReason(stepId);
+    if (reason) {
+      setSubmitError(reason);
+      return false;
+    }
+    setSubmitError('');
+    return true;
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (isViewOnly) return;
-    openConfirmForStep('signatures', null, 'submit');
-  };
-
-  const confirmItems = confirmStep ? STEP_CONFIRMATIONS[confirmStep.stepId] || [] : [];
-  const allConfirmed = confirmItems.length > 0 && confirmItems.every((item) => confirmChecks[item.id]);
-  const blockingReason = confirmStep ? getStepBlockingReason(confirmStep.stepId) : '';
-
-  const handleConfirmContinue = async () => {
-    if (!confirmStep || blockingReason || !allConfirmed) return;
-    const action = confirmStep.action;
-    const nextStepId = confirmStep.nextStepId;
-    setConfirmOpen(false);
-    setConfirmStep(null);
-    setConfirmChecks({});
-    if (action === 'next' && nextStepId) {
-      setCurrentStep(nextStepId);
-      return;
-    }
-    if (action === 'submit') {
-      await submitProtocol();
-    }
-  };
-
-  const handleConfirmOpenChange = (open) => {
-    setConfirmOpen(open);
-    if (!open) {
-      setConfirmStep(null);
-      setConfirmChecks({});
-    }
+    await submitProtocol();
   };
 
   return (
@@ -779,18 +723,49 @@ export default function DriverProtocol() {
                 )}
 
                 {!isViewOnly ? (
-                  <>
-                    <SignaturePad
-                      label={t('protocol.signatures.driverSignature')}
-                      value={formData.signature_driver}
-                      onChange={(v) => handleChange('signature_driver', v)}
-                    />
-                    <SignaturePad
-                      label={t('protocol.signatures.customerSignature')}
-                      value={formData.signature_customer}
-                      onChange={(v) => handleChange('signature_customer', v)}
-                    />
-                  </>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {[
+                      {
+                        key: 'driver',
+                        label: t('protocol.signatures.driverSignature'),
+                        value: formData.signature_driver,
+                        onChange: (v) => handleChange('signature_driver', v),
+                      },
+                      {
+                        key: 'customer',
+                        label: t('protocol.signatures.customerSignature'),
+                        value: formData.signature_customer,
+                        onChange: (v) => handleChange('signature_customer', v),
+                      },
+                    ].map((item) => (
+                      <Card key={item.key} className="border-slate-200">
+                        <CardContent className="p-4 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <Label className="font-medium">{item.label}</Label>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setSignatureModal(item.key)}
+                            >
+                              {item.value ? t('protocol.signatures.edit') : t('protocol.signatures.add')}
+                            </Button>
+                          </div>
+                          {item.value ? (
+                            <img
+                              src={item.value}
+                              alt={item.label}
+                              className="w-full rounded border bg-white object-contain max-h-40"
+                            />
+                          ) : (
+                            <div className="rounded-lg border-2 border-dashed border-slate-200 p-6 text-center text-sm text-slate-500">
+                              {t('protocol.signatures.empty')}
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
                 ) : (
                   <div className="grid grid-cols-2 gap-4">
                     {formData.signature_driver && (
@@ -836,46 +811,28 @@ export default function DriverProtocol() {
         </div>
       </ProtocolWizard>
 
-      <Dialog open={confirmOpen} onOpenChange={handleConfirmOpenChange}>
-        <DialogContent className="max-w-md">
+      <Dialog open={!!signatureModal} onOpenChange={(open) => !open && setSignatureModal(null)}>
+        <DialogContent className="w-[95vw] max-w-3xl">
           <DialogHeader>
-            <DialogTitle>{t('protocol.confirm.title')}</DialogTitle>
-            <DialogDescription>
-              {t('protocol.confirm.description')}
-            </DialogDescription>
+            <DialogTitle>
+              {signatureModal === 'driver'
+                ? t('protocol.signatures.driverSignature')
+                : t('protocol.signatures.customerSignature')}
+            </DialogTitle>
           </DialogHeader>
-          <div className="space-y-3">
-            {confirmItems.map((item) => (
-              <div
-                key={item.id}
-                className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2"
-              >
-                <span className="text-sm text-slate-700">{t(item.labelKey)}</span>
-                <Switch
-                  checked={!!confirmChecks[item.id]}
-                  onCheckedChange={(value) =>
-                    setConfirmChecks((prev) => ({ ...prev, [item.id]: value }))
-                  }
-                  className="data-[state=checked]:bg-[#1e3a5f] data-[state=unchecked]:bg-slate-200"
-                />
-              </div>
-            ))}
-            {blockingReason && (
-              <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                {blockingReason}
-              </div>
-            )}
-          </div>
-          <DialogFooter className="mt-4">
-            <Button variant="outline" onClick={() => handleConfirmOpenChange(false)}>
-              {t('common.cancel')}
-            </Button>
-            <Button onClick={handleConfirmContinue} disabled={!allConfirmed || !!blockingReason}>
-              {t('common.next')}
-            </Button>
-          </DialogFooter>
+          {signatureModal && (
+            <SignaturePad
+              label={t('protocol.signatures.signatureHint')}
+              value={signatureModal === 'driver' ? formData.signature_driver : formData.signature_customer}
+              onChange={(v) =>
+                handleChange(signatureModal === 'driver' ? 'signature_driver' : 'signature_customer', v)
+              }
+              height={320}
+            />
+          )}
         </DialogContent>
       </Dialog>
+
     </div>
   );
 }

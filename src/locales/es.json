@@ -289,9 +289,13 @@
       "customerName": "Nombre del cliente",
       "customerNamePlaceholder": "Nombre del receptor/entregante",
       "driverSignature": "Firma del conductor",
-      "customerSignature": "Firma del cliente",
-      "submit": "Finalizar protocolo"
-    },
+    "customerSignature": "Firma del cliente",
+    "add": "Capturar firma",
+    "edit": "Editar firma",
+    "empty": "Sin firma todavía",
+    "signatureHint": "Firma aquí, por favor",
+    "submit": "Finalizar protocolo"
+  },
     "confirm": {
       "title": "Revisión de seguridad",
       "description": "Confirma que todos los puntos han sido verificados."

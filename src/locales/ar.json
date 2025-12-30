@@ -289,9 +289,13 @@
       "customerName": "اسم العميل",
       "customerNamePlaceholder": "اسم المستلم/المُسلِّم",
       "driverSignature": "توقيع السائق",
-      "customerSignature": "توقيع العميل",
-      "submit": "إنهاء البروتوكول"
-    },
+    "customerSignature": "توقيع العميل",
+    "add": "التقاط التوقيع",
+    "edit": "تعديل التوقيع",
+    "empty": "لا يوجد توقيع بعد",
+    "signatureHint": "يرجى التوقيع هنا",
+    "submit": "إنهاء البروتوكول"
+  },
     "confirm": {
       "title": "فحص الأمان",
       "description": "يرجى التأكيد على مراجعة جميع البنود."
