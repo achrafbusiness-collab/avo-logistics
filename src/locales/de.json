@@ -205,6 +205,7 @@
       "basics": "Grunddaten",
       "photos": "Fotos",
       "damage": "Schäden",
+      "expenses": "Auslagen",
       "signatures": "Unterschriften"
     },
     "driverNotesTitle": "Hinweise für Fahrer",
@@ -294,6 +295,29 @@
       "rearRight": "Heck rechts",
       "trunk": "Kofferraum",
       "glass": "Scheiben"
+    },
+    "expenses": {
+      "title": "Auslagen",
+      "subtitle": "Tank-, Taxi-, Maut- oder Parkbelege hinzufügen.",
+      "add": "Auslage hinzufügen",
+      "empty": "Noch keine Auslagen erfasst",
+      "itemTitle": "Auslage {{index}}",
+      "type": "Belegart",
+      "amount": "Betrag (€)",
+      "note": "Notiz",
+      "notePlaceholder": "z.B. Strecke oder Ticketnummer",
+      "receipt": "Beleg",
+      "upload": "Beleg hochladen",
+      "uploading": "Wird hochgeladen...",
+      "view": "Beleg öffnen",
+      "uploadError": "Beleg konnte nicht hochgeladen werden.",
+      "types": {
+        "fuel": "Tankbeleg",
+        "taxi": "Taxi",
+        "toll": "Maut",
+        "parking": "Parken",
+        "other": "Sonstiges"
+      }
     },
     "signatures": {
       "title": "Bemerkungen & Unterschriften",

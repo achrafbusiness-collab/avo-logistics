@@ -316,6 +316,7 @@ create table if not exists public.checklists (
   mandatory_checks jsonb default '{}'::jsonb,
   damages jsonb default '[]'::jsonb,
   photos jsonb default '[]'::jsonb,
+  expenses jsonb default '[]'::jsonb,
   notes text,
   signature_driver text,
   signature_customer text,
@@ -324,6 +325,9 @@ create table if not exists public.checklists (
   created_date timestamptz default now(),
   updated_date timestamptz default now()
 );
+
+alter table public.checklists
+  add column if not exists expenses jsonb default '[]'::jsonb;
 
 create table if not exists public.app_settings (
   id uuid primary key default gen_random_uuid(),

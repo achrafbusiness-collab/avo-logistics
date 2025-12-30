@@ -38,6 +38,7 @@ import {
   XCircle,
   ExternalLink,
   Download,
+  FileText,
   X
 } from 'lucide-react';
 
@@ -121,6 +122,16 @@ export default function Checklists() {
             <Button variant="outline" size="sm">
               <Download className="w-4 h-4 mr-2" />
               PDF
+            </Button>
+          </a>
+          <a
+            href={`/expenses-pdf?checklistId=${checklist.id}&print=1`}
+            target="_blank"
+            rel="noreferrer"
+          >
+            <Button variant="outline" size="sm">
+              <FileText className="w-4 h-4 mr-2" />
+              Auslagen
             </Button>
           </a>
           <Link to={createPageUrl('Orders') + `?id=${checklist.order_id}`}>

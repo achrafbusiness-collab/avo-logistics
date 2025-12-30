@@ -51,6 +51,14 @@ const DAMAGE_POINTS = [
   { id: 'glass', labelKey: 'protocol.damagePoints.glass', boxX: 50, boxY: 32, targetX: 50, targetY: 50 },
 ];
 
+const EXPENSE_TYPES = [
+  { value: 'fuel', labelKey: 'protocol.expenses.types.fuel' },
+  { value: 'taxi', labelKey: 'protocol.expenses.types.taxi' },
+  { value: 'toll', labelKey: 'protocol.expenses.types.toll' },
+  { value: 'parking', labelKey: 'protocol.expenses.types.parking' },
+  { value: 'other', labelKey: 'protocol.expenses.types.other' },
+];
+
 export default function DriverProtocol() {
   const { t } = useI18n();
   const queryClient = useQueryClient();
@@ -69,6 +77,7 @@ export default function DriverProtocol() {
   const [activeDamageIndex, setActiveDamageIndex] = useState(null);
   const [pendingDamagePhoto, setPendingDamagePhoto] = useState(null);
   const damageRefs = useRef({});
+  const [expenseUploads, setExpenseUploads] = useState({});
 
   const [formData, setFormData] = useState({
     order_id: orderId,
@@ -94,6 +103,7 @@ export default function DriverProtocol() {
     },
     damages: [],
     photos: [],
+    expenses: [],
     notes: '',
     mandatory_checks: {},
     signature_driver: '',
@@ -163,7 +173,8 @@ export default function DriverProtocol() {
       setFormData({
         ...existingChecklist,
         kilometer: existingChecklist.kilometer?.toString() || '',
-        fuel_cost: existingChecklist.fuel_cost?.toString() || ''
+        fuel_cost: existingChecklist.fuel_cost?.toString() || '',
+        expenses: existingChecklist.expenses || []
       });
     }
   }, [existingChecklist]);
@@ -353,6 +364,59 @@ export default function DriverProtocol() {
     }
   };
 
+  const addExpense = () => {
+    setFormData((prev) => ({
+      ...prev,
+      expenses: [
+        ...(prev.expenses || []),
+        { type: 'fuel', amount: '', note: '', file_url: '', file_name: '', file_type: '' },
+      ],
+    }));
+  };
+
+  const updateExpense = (index, field, value) => {
+    setFormData((prev) => {
+      const expenses = [...(prev.expenses || [])];
+      expenses[index] = { ...expenses[index], [field]: value };
+      return { ...prev, expenses };
+    });
+  };
+
+  const removeExpense = (index) => {
+    setFormData((prev) => ({
+      ...prev,
+      expenses: (prev.expenses || []).filter((_, i) => i !== index),
+    }));
+    setExpenseUploads((prev) => {
+      const next = { ...prev };
+      delete next[index];
+      return next;
+    });
+  };
+
+  const uploadExpenseFile = async (index, file) => {
+    if (!file) return;
+    setExpenseUploads((prev) => ({ ...prev, [index]: true }));
+    try {
+      const { file_url } = await appClient.integrations.Core.UploadFile({ file });
+      setFormData((prev) => {
+        const expenses = [...(prev.expenses || [])];
+        expenses[index] = {
+          ...expenses[index],
+          file_url,
+          file_name: file.name,
+          file_type: file.type,
+        };
+        return { ...prev, expenses };
+      });
+    } catch (error) {
+      console.error('Expense upload failed', error);
+      setSubmitError(t('protocol.expenses.uploadError'));
+    } finally {
+      setExpenseUploads((prev) => ({ ...prev, [index]: false }));
+    }
+  };
+
   const submitProtocol = async () => {
     const missingPhotoIds = REQUIRED_PHOTO_IDS.filter((id) => !formData.photos?.some((photo) => photo.type === id));
     if (!formData.kilometer) {
@@ -452,6 +516,14 @@ export default function DriverProtocol() {
     formData.damages.every((damage) => damage.location && damage.description && damage.type && damage.photo_url);
   const photosComplete = hasAllRequiredPhotos;
   const damageComplete = type !== 'pickup' ? true : damagesComplete;
+  const expensesComplete = !Object.values(expenseUploads).some(Boolean);
+  const finalStep = type === 'dropoff' ? 'expenses' : 'signatures';
+
+  const isImageFile = (expense) => {
+    if (!expense?.file_url) return false;
+    if (expense.file_type?.startsWith('image/')) return true;
+    return /\.(png|jpe?g|webp|gif|svg)$/i.test(expense.file_url);
+  };
 
   const getStepBlockingReason = (stepId) => {
     if (stepId === 'vehicle_check' && !formData.kilometer) {
@@ -479,7 +551,7 @@ export default function DriverProtocol() {
   };
 
   const completedSteps = isViewOnly
-    ? (type === 'pickup' ? ['vehicle_check', 'photos', 'damage', 'signatures'] : ['vehicle_check', 'photos', 'signatures'])
+    ? (type === 'pickup' ? ['vehicle_check', 'photos', 'damage', 'signatures'] : ['vehicle_check', 'photos', 'signatures', 'expenses'])
     : [
         formData.kilometer ? 'vehicle_check' : null,
         photosComplete ? 'photos' : null,
@@ -487,6 +559,7 @@ export default function DriverProtocol() {
         formData.signature_driver && formData.signature_customer && formData.customer_name
           ? 'signatures'
           : null,
+        type === 'dropoff' && expensesComplete ? 'expenses' : null,
       ].filter(Boolean);
 
   const steps = useMemo(
@@ -502,6 +575,7 @@ export default function DriverProtocol() {
             { id: 'vehicle_check', labelKey: 'protocol.steps.basics', icon: '🚗' },
             { id: 'photos', labelKey: 'protocol.steps.photos', icon: '📸' },
             { id: 'signatures', labelKey: 'protocol.steps.signatures', icon: '✍️' },
+            { id: 'expenses', labelKey: 'protocol.steps.expenses', icon: '🧾' },
           ],
     [type]
   );
@@ -1031,9 +1105,156 @@ export default function DriverProtocol() {
                   </div>
                 )}
 
-                {!isViewOnly && (
+                {!isViewOnly && currentStep === finalStep && (
                   <Button
                     className={`w-full py-5 text-lg ${type === 'pickup' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-green-600 hover:bg-green-700'}`}
+                    onClick={handleSubmit}
+                    disabled={saving || !formData.kilometer}
+                  >
+                    {saving ? (
+                      <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                    ) : (
+                      <CheckCircle2 className="w-5 h-5 mr-2" />
+                    )}
+                    {t('protocol.signatures.submit')}
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {currentStep === 'expenses' && type === 'dropoff' && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <CheckCircle2 className="w-5 h-5 text-gray-600" />
+                  {t('protocol.expenses.title')}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-4 space-y-4">
+                <p className="text-sm text-slate-600">{t('protocol.expenses.subtitle')}</p>
+
+                {formData.expenses?.length === 0 && (
+                  <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 p-4 text-center text-sm text-slate-500">
+                    {t('protocol.expenses.empty')}
+                  </div>
+                )}
+
+                <div className="space-y-4">
+                  {formData.expenses?.map((expense, index) => (
+                    <div key={`${expense.type}-${index}`} className="rounded-lg border border-slate-200 bg-white p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-sm font-semibold text-slate-700">
+                          {t('protocol.expenses.itemTitle', { index: index + 1 })}
+                        </span>
+                        {!isViewOnly && (
+                          <Button size="icon" variant="ghost" onClick={() => removeExpense(index)}>
+                            <X className="w-4 h-4 text-red-500" />
+                          </Button>
+                        )}
+                      </div>
+                      <div className="grid gap-3 md:grid-cols-3">
+                        <div>
+                          <Label>{t('protocol.expenses.type')}</Label>
+                          <Select
+                            value={expense.type || 'fuel'}
+                            onValueChange={(value) => updateExpense(index, 'type', value)}
+                            disabled={isViewOnly}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {EXPENSE_TYPES.map((option) => (
+                                <SelectItem key={option.value} value={option.value}>
+                                  {t(option.labelKey)}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label>{t('protocol.expenses.amount')}</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={expense.amount || ''}
+                            onChange={(event) => updateExpense(index, 'amount', event.target.value)}
+                            placeholder="0.00"
+                            disabled={isViewOnly}
+                          />
+                        </div>
+                        <div className="md:col-span-1">
+                          <Label>{t('protocol.expenses.note')}</Label>
+                          <Input
+                            value={expense.note || ''}
+                            onChange={(event) => updateExpense(index, 'note', event.target.value)}
+                            placeholder={t('protocol.expenses.notePlaceholder')}
+                            disabled={isViewOnly}
+                          />
+                        </div>
+                      </div>
+                      <div className="mt-3">
+                        <Label>{t('protocol.expenses.receipt')}</Label>
+                        <div className="flex flex-wrap items-center gap-3 mt-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => document.getElementById(`expense-file-${index}`)?.click()}
+                            disabled={expenseUploads[index]}
+                          >
+                            {expenseUploads[index]
+                              ? t('protocol.expenses.uploading')
+                              : t('protocol.expenses.upload')}
+                          </Button>
+                          {expense.file_url && isImageFile(expense) && (
+                            <img
+                              src={expense.file_url}
+                              alt={expense.file_name || t('protocol.expenses.receipt')}
+                              className="h-16 w-20 rounded border object-cover"
+                            />
+                          )}
+                          {expense.file_url && !isImageFile(expense) && (
+                            <a
+                              href={expense.file_url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-sm text-blue-600 underline"
+                            >
+                              {expense.file_name || t('protocol.expenses.view')}
+                            </a>
+                          )}
+                        </div>
+                        <input
+                          id={`expense-file-${index}`}
+                          type="file"
+                          accept="image/*,.pdf"
+                          className="hidden"
+                          onChange={(event) => {
+                            const file = event.target.files?.[0];
+                            if (file) {
+                              uploadExpenseFile(index, file);
+                            }
+                            event.target.value = '';
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {!isViewOnly && (
+                  <Button variant="outline" className="w-full" onClick={addExpense}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    {t('protocol.expenses.add')}
+                  </Button>
+                )}
+
+                {!isViewOnly && currentStep === finalStep && (
+                  <Button
+                    className="w-full py-5 text-lg bg-green-600 hover:bg-green-700"
                     onClick={handleSubmit}
                     disabled={saving || !formData.kilometer}
                   >

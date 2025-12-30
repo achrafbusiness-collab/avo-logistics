@@ -43,6 +43,7 @@ import Terminal from "./Terminal";
 import SystemVermietung from "./SystemVermietung";
 import Verlauf from "./Verlauf";
 import ProtocolPdf from "./ProtocolPdf";
+import ExpensesPdf from "./ExpensesPdf";
 
 import { BrowserRouter as Router, Route, Routes, useLocation, Navigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
@@ -114,6 +115,7 @@ function PagesContent() {
     const isSetPasswordRoute = normalizedPath === '/set-password';
     const isDriverAccessRoute = normalizedPath === '/driver';
     const isProtocolPdfRoute = normalizedPath === '/protocol-pdf';
+    const isExpensesPdfRoute = normalizedPath === '/expenses-pdf';
     const currentPage = _getCurrentPage(location.pathname);
     const [currentUser, setCurrentUser] = useState(null);
     const [authChecked, setAuthChecked] = useState(false);
@@ -137,7 +139,7 @@ function PagesContent() {
         return null;
     }
 
-    if (isLoginRoute || isResetRoute || isSetPasswordRoute || isDriverAccessRoute || isProtocolPdfRoute) {
+    if (isLoginRoute || isResetRoute || isSetPasswordRoute || isDriverAccessRoute || isProtocolPdfRoute || isExpensesPdfRoute) {
         return (
             <Routes>
                 <Route path="/login" element={<Login />} />
@@ -148,6 +150,7 @@ function PagesContent() {
                 <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/set-password" element={<SetPassword />} />
                 <Route path="/protocol-pdf" element={<ProtocolPdf />} />
+                <Route path="/expenses-pdf" element={<ExpensesPdf />} />
                 <Route path="*" element={<Navigate to="/login" replace />} />
             </Routes>
         );

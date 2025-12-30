@@ -205,6 +205,7 @@
       "basics": "Datos básicos",
       "photos": "Fotos",
       "damage": "Daños",
+      "expenses": "Gastos",
       "signatures": "Firmas"
     },
     "driverNotesTitle": "Notas para conductores",
@@ -294,6 +295,29 @@
       "rearRight": "Trasero derecho",
       "trunk": "Maletero",
       "glass": "Cristales"
+    },
+    "expenses": {
+      "title": "Gastos",
+      "subtitle": "Añade recibos de combustible, taxi, peajes o parking.",
+      "add": "Añadir gasto",
+      "empty": "Aún no hay gastos registrados",
+      "itemTitle": "Gasto {{index}}",
+      "type": "Tipo de recibo",
+      "amount": "Importe (€)",
+      "note": "Nota",
+      "notePlaceholder": "p. ej. ruta o número de ticket",
+      "receipt": "Recibo",
+      "upload": "Subir recibo",
+      "uploading": "Subiendo...",
+      "view": "Abrir recibo",
+      "uploadError": "Error al subir el recibo.",
+      "types": {
+        "fuel": "Recibo de combustible",
+        "taxi": "Taxi",
+        "toll": "Peaje",
+        "parking": "Parking",
+        "other": "Otro"
+      }
     },
     "signatures": {
       "title": "Notas y firmas",

@@ -205,6 +205,7 @@
       "basics": "Basics",
       "photos": "Photos",
       "damage": "Damage",
+      "expenses": "Expenses",
       "signatures": "Signatures"
     },
     "driverNotesTitle": "Driver notes",
@@ -294,6 +295,29 @@
       "rearRight": "Rear right",
       "trunk": "Trunk",
       "glass": "Windows"
+    },
+    "expenses": {
+      "title": "Expenses",
+      "subtitle": "Add fuel, taxi, toll, or parking receipts.",
+      "add": "Add expense",
+      "empty": "No expenses recorded yet",
+      "itemTitle": "Expense {{index}}",
+      "type": "Receipt type",
+      "amount": "Amount (€)",
+      "note": "Note",
+      "notePlaceholder": "e.g. route or ticket number",
+      "receipt": "Receipt",
+      "upload": "Upload receipt",
+      "uploading": "Uploading...",
+      "view": "Open receipt",
+      "uploadError": "Receipt upload failed.",
+      "types": {
+        "fuel": "Fuel receipt",
+        "taxi": "Taxi",
+        "toll": "Toll",
+        "parking": "Parking",
+        "other": "Other"
+      }
     },
     "signatures": {
       "title": "Notes & signatures",
