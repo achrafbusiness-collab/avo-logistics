@@ -539,24 +539,20 @@ export default function Orders() {
               {selectedIds.length} Auftrag/‑träge ausgewählt
             </div>
             <div className="flex flex-wrap gap-2">
-              {currentUser?.role === 'admin' && (
-                <>
-                  <Button
-                    variant="outline"
-                    onClick={handleBulkDuplicate}
-                    disabled={bulkWorking}
-                  >
-                    Duplizieren
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    onClick={() => setBulkDeleteOpen(true)}
-                    disabled={bulkWorking}
-                  >
-                    Löschen
-                  </Button>
-                </>
-              )}
+              <Button
+                variant="outline"
+                onClick={handleBulkDuplicate}
+                disabled={bulkWorking}
+              >
+                Duplizieren
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => setBulkDeleteOpen(true)}
+                disabled={bulkWorking}
+              >
+                Löschen
+              </Button>
               <Button variant="ghost" onClick={() => setSelectedIds([])} disabled={bulkWorking}>
                 Auswahl löschen
               </Button>

@@ -40,16 +40,16 @@ const accessories = [
 ];
 
 const DAMAGE_POINTS = [
-  { id: 'front-left', x: 18, y: 20 },
-  { id: 'front-right', x: 82, y: 20 },
-  { id: 'hood', x: 50, y: 18 },
-  { id: 'roof', x: 50, y: 38 },
-  { id: 'left-side', x: 20, y: 50 },
-  { id: 'right-side', x: 80, y: 50 },
-  { id: 'rear-left', x: 18, y: 78 },
-  { id: 'rear-right', x: 82, y: 78 },
-  { id: 'trunk', x: 50, y: 80 },
-  { id: 'glass', x: 50, y: 55 },
+  { id: 'front-left', boxX: 10, boxY: 12, targetX: 32, targetY: 32 },
+  { id: 'front-right', boxX: 90, boxY: 12, targetX: 68, targetY: 32 },
+  { id: 'hood', boxX: 50, boxY: 6, targetX: 50, targetY: 26 },
+  { id: 'roof', boxX: 50, boxY: 22, targetX: 50, targetY: 42 },
+  { id: 'left-side', boxX: 10, boxY: 50, targetX: 32, targetY: 50 },
+  { id: 'right-side', boxX: 90, boxY: 50, targetX: 68, targetY: 50 },
+  { id: 'rear-left', boxX: 10, boxY: 88, targetX: 32, targetY: 66 },
+  { id: 'rear-right', boxX: 90, boxY: 88, targetX: 68, targetY: 66 },
+  { id: 'trunk', boxX: 50, boxY: 94, targetX: 50, targetY: 72 },
+  { id: 'glass', boxX: 50, boxY: 32, targetX: 50, targetY: 50 },
 ];
 
 const pickLatestChecklist = (items, type) => {
@@ -197,8 +197,9 @@ export default function ProtocolPdf() {
         .pdf-photos { margin-top: 22px; }
         .pdf-photo-section { margin-top: 16px; }
         .pdf-photo-section h3 { margin: 0 0 10px; font-size: 14px; color: #1e3a5f; }
-        .pdf-sketch { position: relative; border: 1px solid #e2e8f0; border-radius: 12px; background: #fff; padding: 8px; margin-top: 8px; }
+        .pdf-sketch { position: relative; border: 1px solid #e2e8f0; border-radius: 12px; background: #fff; overflow: hidden; margin-top: 8px; }
         .pdf-sketch img { width: 100%; display: block; }
+        .pdf-sketch svg { position: absolute; inset: 0; }
         .pdf-sketch-marker { position: absolute; width: 16px; height: 16px; border: 1px solid #0f172a; background: #fff; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: #1e3a5f; }
         .pdf-photo-grid { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
         .pdf-photo-card { border: 1px solid #e2e8f0; padding: 8px; border-radius: 12px; background: white; }
@@ -331,7 +332,35 @@ export default function ProtocolPdf() {
             <div className="pdf-field">
               <div className="pdf-field-label">Schäden / Bemerkungen</div>
               <div className="pdf-sketch">
-                <img src="/vehicle-sketch.svg" alt="Fahrzeugskizze" />
+                <img src="/PHOTO-2025-12-30-13-15-46.jpg" alt="Fahrzeugskizze" />
+                <svg viewBox="0 0 100 100" preserveAspectRatio="none">
+                  <defs>
+                    <marker
+                      id="damage-arrow-pdf"
+                      markerWidth="6"
+                      markerHeight="6"
+                      refX="5"
+                      refY="3"
+                      orient="auto"
+                    >
+                      <path d="M0,0 L6,3 L0,6 Z" fill="#94a3b8" />
+                    </marker>
+                  </defs>
+                  {DAMAGE_POINTS.map((point) => (
+                    <g key={`${point.id}-line`}>
+                      <line
+                        x1={point.boxX}
+                        y1={point.boxY}
+                        x2={point.targetX}
+                        y2={point.targetY}
+                        stroke="#94a3b8"
+                        strokeWidth="0.6"
+                        markerEnd="url(#damage-arrow-pdf)"
+                      />
+                      <circle cx={point.targetX} cy={point.targetY} r="1.2" fill="#94a3b8" />
+                    </g>
+                  ))}
+                </svg>
                 {DAMAGE_POINTS.map((point) => {
                   const damage = pickupChecklist?.damages?.find((item) => item.slot_id === point.id);
                   if (!damage?.type) return null;
@@ -339,7 +368,7 @@ export default function ProtocolPdf() {
                     <div
                       key={point.id}
                       className="pdf-sketch-marker"
-                      style={{ left: `${point.x}%`, top: `${point.y}%`, transform: 'translate(-50%, -50%)' }}
+                      style={{ left: `${point.boxX}%`, top: `${point.boxY}%`, transform: 'translate(-50%, -50%)' }}
                     >
                       {damage.type}
                     </div>

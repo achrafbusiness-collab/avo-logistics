@@ -39,16 +39,16 @@ import {
 } from 'lucide-react';
 
 const DAMAGE_POINTS = [
-  { id: 'front-left', labelKey: 'protocol.damagePoints.frontLeft', x: 18, y: 20 },
-  { id: 'front-right', labelKey: 'protocol.damagePoints.frontRight', x: 82, y: 20 },
-  { id: 'hood', labelKey: 'protocol.damagePoints.hood', x: 50, y: 18 },
-  { id: 'roof', labelKey: 'protocol.damagePoints.roof', x: 50, y: 38 },
-  { id: 'left-side', labelKey: 'protocol.damagePoints.leftSide', x: 20, y: 50 },
-  { id: 'right-side', labelKey: 'protocol.damagePoints.rightSide', x: 80, y: 50 },
-  { id: 'rear-left', labelKey: 'protocol.damagePoints.rearLeft', x: 18, y: 78 },
-  { id: 'rear-right', labelKey: 'protocol.damagePoints.rearRight', x: 82, y: 78 },
-  { id: 'trunk', labelKey: 'protocol.damagePoints.trunk', x: 50, y: 80 },
-  { id: 'glass', labelKey: 'protocol.damagePoints.glass', x: 50, y: 55 },
+  { id: 'front-left', labelKey: 'protocol.damagePoints.frontLeft', boxX: 10, boxY: 12, targetX: 32, targetY: 32 },
+  { id: 'front-right', labelKey: 'protocol.damagePoints.frontRight', boxX: 90, boxY: 12, targetX: 68, targetY: 32 },
+  { id: 'hood', labelKey: 'protocol.damagePoints.hood', boxX: 50, boxY: 6, targetX: 50, targetY: 26 },
+  { id: 'roof', labelKey: 'protocol.damagePoints.roof', boxX: 50, boxY: 22, targetX: 50, targetY: 42 },
+  { id: 'left-side', labelKey: 'protocol.damagePoints.leftSide', boxX: 10, boxY: 50, targetX: 32, targetY: 50 },
+  { id: 'right-side', labelKey: 'protocol.damagePoints.rightSide', boxX: 90, boxY: 50, targetX: 68, targetY: 50 },
+  { id: 'rear-left', labelKey: 'protocol.damagePoints.rearLeft', boxX: 10, boxY: 88, targetX: 32, targetY: 66 },
+  { id: 'rear-right', labelKey: 'protocol.damagePoints.rearRight', boxX: 90, boxY: 88, targetX: 68, targetY: 66 },
+  { id: 'trunk', labelKey: 'protocol.damagePoints.trunk', boxX: 50, boxY: 94, targetX: 50, targetY: 72 },
+  { id: 'glass', labelKey: 'protocol.damagePoints.glass', boxX: 50, boxY: 32, targetX: 50, targetY: 50 },
 ];
 
 export default function DriverProtocol() {
@@ -723,12 +723,44 @@ export default function DriverProtocol() {
                   <p className="text-sm text-slate-600 mb-2">
                     {t('protocol.damage.instructions')}
                   </p>
-                  <div className="relative overflow-hidden rounded-lg border bg-white">
+                  <div className="relative overflow-visible rounded-lg border bg-white">
                     <img
-                      src="/vehicle-sketch.svg"
+                      src="/PHOTO-2025-12-30-13-15-46.jpg"
                       alt={t('protocol.damage.sketchAlt')}
                       className="w-full"
                     />
+                    <svg
+                      className="absolute inset-0 h-full w-full pointer-events-none"
+                      viewBox="0 0 100 100"
+                      preserveAspectRatio="none"
+                    >
+                      <defs>
+                        <marker
+                          id="damage-arrow"
+                          markerWidth="6"
+                          markerHeight="6"
+                          refX="5"
+                          refY="3"
+                          orient="auto"
+                        >
+                          <path d="M0,0 L6,3 L0,6 Z" fill="#94a3b8" />
+                        </marker>
+                      </defs>
+                      {DAMAGE_POINTS.map((point) => (
+                        <g key={`${point.id}-line`}>
+                          <line
+                            x1={point.boxX}
+                            y1={point.boxY}
+                            x2={point.targetX}
+                            y2={point.targetY}
+                            stroke="#94a3b8"
+                            strokeWidth="0.6"
+                            markerEnd="url(#damage-arrow)"
+                          />
+                          <circle cx={point.targetX} cy={point.targetY} r="1.2" fill="#94a3b8" />
+                        </g>
+                      ))}
+                    </svg>
                     {DAMAGE_POINTS.map((point) => {
                       const damageIndex = formData.damages.findIndex(
                         (damage) => damage.slot_id === point.id
@@ -743,7 +775,7 @@ export default function DriverProtocol() {
                               ? 'border-blue-600 bg-blue-50 text-blue-700'
                               : 'border-slate-300 bg-white text-slate-500'
                           }`}
-                          style={{ left: `${point.x}%`, top: `${point.y}%` }}
+                          style={{ left: `${point.boxX}%`, top: `${point.boxY}%` }}
                           onClick={() => handleDamagePointClick(point)}
                           disabled={isViewOnly}
                           aria-label={t('protocol.damage.markAria', { location: t(point.labelKey) })}
