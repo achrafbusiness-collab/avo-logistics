@@ -203,7 +203,7 @@ export default function ProtocolPdf() {
         .pdf-actions { max-width: 980px; margin: 0 auto 16px; display: flex; gap: 12px; }
         .pdf-button { background: #1e3a5f; color: white; border: none; padding: 10px 16px; border-radius: 8px; cursor: pointer; }
         .pdf-button.secondary { background: #e2e8f0; color: #0f172a; }
-        .pdf-photo-page { page-break-before: always; page-break-after: always; }
+        .pdf-photo-page { page-break-before: always; page-break-after: always; min-height: 297mm; display: flex; flex-direction: column; justify-content: flex-start; }
         .pdf-protocol-page { page-break-after: always; min-height: 297mm; }
         .pdf-photo-grid { break-inside: avoid; }
         @page { size: A4; margin: 10mm; }
@@ -218,9 +218,15 @@ export default function ProtocolPdf() {
           .pdf-protocol-column h2 { font-size: 15px; }
           .pdf-box { font-size: 12px; }
           .pdf-field-value { font-size: 12px; }
-          .pdf-photo-grid { gap: 6mm; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr)); }
-          .pdf-photo-card { height: 110mm; }
-          .pdf-photo-card img { height: 85mm; max-height: none; object-fit: contain; }
+          .pdf-photo-grid {
+            gap: 6mm;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            grid-template-rows: repeat(2, minmax(0, 1fr));
+            height: 250mm;
+            align-content: space-between;
+          }
+          .pdf-photo-card { height: 118mm; }
+          .pdf-photo-card img { height: 92mm; max-height: none; object-fit: contain; }
         }
       `}</style>
 
