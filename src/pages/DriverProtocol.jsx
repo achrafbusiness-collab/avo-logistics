@@ -725,7 +725,7 @@ export default function DriverProtocol() {
                   </p>
                   <div className="relative overflow-visible rounded-lg border bg-white">
                     <img
-                      src="/vehicle-damage-sketch.svg"
+                      src="/Bildschirmfoto 2025-12-30 um 14.49.39.png"
                       alt={t('protocol.damage.sketchAlt')}
                       className="w-full"
                     />
