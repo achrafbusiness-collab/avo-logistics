@@ -218,8 +218,9 @@ export default function ProtocolPdf() {
           .pdf-protocol-column h2 { font-size: 15px; }
           .pdf-box { font-size: 12px; }
           .pdf-field-value { font-size: 12px; }
-          .pdf-photo-grid { gap: 6mm; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-          .pdf-photo-card img { height: auto; max-height: 85mm; object-fit: contain; }
+          .pdf-photo-grid { gap: 6mm; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr)); }
+          .pdf-photo-card { height: 120mm; }
+          .pdf-photo-card img { height: 100%; max-height: none; object-fit: contain; }
         }
       `}</style>
 
