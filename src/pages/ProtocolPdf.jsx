@@ -186,7 +186,7 @@ export default function ProtocolPdf() {
         .pdf-photo-section h3 { margin: 0 0 10px; font-size: 14px; color: #1e3a5f; }
         .pdf-photo-grid { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
         .pdf-photo-card { border: 1px solid #e2e8f0; padding: 8px; border-radius: 12px; background: white; }
-        .pdf-photo-card img { width: 100%; height: 240px; object-fit: contain; border-radius: 8px; background: #f8fafc; }
+        .pdf-photo-card img { width: 100%; height: 260px; object-fit: contain; border-radius: 8px; background: #f8fafc; }
         .pdf-photo-caption { margin-top: 6px; font-size: 11px; color: #334155; }
         .pdf-divider { height: 1px; background: #e2e8f0; margin: 18px 0; }
         .pdf-actions { max-width: 980px; margin: 0 auto 16px; display: flex; gap: 12px; }
@@ -207,7 +207,7 @@ export default function ProtocolPdf() {
           .pdf-box { font-size: 12px; }
           .pdf-field-value { font-size: 12px; }
           .pdf-photo-grid { gap: 6mm; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-          .pdf-photo-card img { height: 240px; object-fit: contain; }
+          .pdf-photo-card img { height: 260px; object-fit: contain; }
         }
       `}</style>
 

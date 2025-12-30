@@ -114,12 +114,16 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false }
   const getStream = async () => {
     try {
       return await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: 'environment' } },
+        video: {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+        },
         audio: false,
       });
     } catch (error) {
       return await navigator.mediaDevices.getUserMedia({
-        video: true,
+        video: { width: { ideal: 1280 }, height: { ideal: 720 } },
         audio: false,
       });
     }
@@ -177,7 +181,7 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false }
       canvas.height = height;
       const ctx = canvas.getContext('2d');
       ctx.drawImage(video, 0, 0, width, height);
-      const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.92));
+      const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.95));
       if (!blob) {
         throw new Error(t('photos.errors.captureFailed'));
       }
