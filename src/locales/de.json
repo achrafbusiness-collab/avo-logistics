@@ -214,6 +214,8 @@
       "kilometer": "Kilometerstand *",
       "kilometerPlaceholder": "z.B. 125000",
       "fuel": "Tankstand",
+      "fuelCost": "Tankkosten",
+      "fuelCostPlaceholder": "z.B. 25.50",
       "fuelOptions": {
         "empty": "Leer",
         "full": "Voll"

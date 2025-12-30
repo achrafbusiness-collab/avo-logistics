@@ -214,6 +214,8 @@
       "kilometer": "Odometer *",
       "kilometerPlaceholder": "e.g. 125000",
       "fuel": "Fuel level",
+      "fuelCost": "Fuel cost",
+      "fuelCostPlaceholder": "e.g. 25.50",
       "fuelOptions": {
         "empty": "Empty",
         "full": "Full"

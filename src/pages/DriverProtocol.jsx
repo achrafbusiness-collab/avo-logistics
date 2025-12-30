@@ -72,6 +72,7 @@ export default function DriverProtocol() {
     location: '',
     kilometer: '',
     fuel_level: '1/2',
+    fuel_cost: '',
     cleanliness_inside: 'normal',
     cleanliness_outside: 'normal',
     accessories: {
@@ -156,7 +157,8 @@ export default function DriverProtocol() {
     if (existingChecklist) {
       setFormData({
         ...existingChecklist,
-        kilometer: existingChecklist.kilometer?.toString() || ''
+        kilometer: existingChecklist.kilometer?.toString() || '',
+        fuel_cost: existingChecklist.fuel_cost?.toString() || ''
       });
     }
   }, [existingChecklist]);
@@ -270,13 +272,15 @@ export default function DriverProtocol() {
       setCurrentStep('photos');
       return;
     }
-    const damageHasGaps = formData.damages?.some(
-      (damage) => !damage.location || !damage.description
-    );
-    if (damageHasGaps) {
-      setSubmitError(t('protocol.errors.damageIncomplete'));
-      setCurrentStep('photos');
-      return;
+    if (type === 'pickup') {
+      const damageHasGaps = formData.damages?.some(
+        (damage) => !damage.location || !damage.description
+      );
+      if (damageHasGaps) {
+        setSubmitError(t('protocol.errors.damageIncomplete'));
+        setCurrentStep('photos');
+        return;
+      }
     }
     if (!formData.signature_driver) {
       setSubmitError(t('protocol.errors.missingDriverSignature'));
@@ -304,6 +308,7 @@ export default function DriverProtocol() {
         driver_id: currentDriver?.id,
         driver_name: currentDriver?.name,
         kilometer: formData.kilometer ? parseFloat(formData.kilometer) : null,
+        fuel_cost: formData.fuel_cost ? parseFloat(formData.fuel_cost) : null,
         completed: true
       };
 
@@ -336,16 +341,17 @@ export default function DriverProtocol() {
   };
 
   const isViewOnly = !!checklistId && existingChecklist?.completed;
-  const damageHasGaps = formData.damages?.some(
-    (damage) => !damage.location || !damage.description
-  );
+  const damageHasGaps =
+    type === 'pickup' &&
+    formData.damages?.some((damage) => !damage.location || !damage.description);
   const hasAllRequiredPhotos = REQUIRED_PHOTO_IDS.every((id) =>
     formData.photos?.some((photo) => photo.type === id)
   );
   const damagesComplete =
+    type !== 'pickup' ||
     !formData.damages?.length ||
     formData.damages.every((damage) => damage.location && damage.description);
-  const photosComplete = hasAllRequiredPhotos && damagesComplete;
+  const photosComplete = type === 'pickup' ? hasAllRequiredPhotos && damagesComplete : hasAllRequiredPhotos;
 
   const getStepBlockingReason = (stepId) => {
     if (stepId === 'vehicle_check' && !formData.kilometer) {
@@ -355,7 +361,7 @@ export default function DriverProtocol() {
       if (!hasAllRequiredPhotos) {
         return t('protocol.errors.missingPhotos');
       }
-      if (damageHasGaps) {
+      if (type === 'pickup' && damageHasGaps) {
         return t('protocol.errors.damageIncomplete');
       }
     }
@@ -517,39 +523,55 @@ export default function DriverProtocol() {
                     </Select>
                   </div>
                 </div>
-                <div className="space-y-3 pt-2">
-                  {[
-                    { id: 'spare_wheel', labelKey: 'protocol.basics.accessories.spareWheel' },
-                    { id: 'warning_triangle', labelKey: 'protocol.basics.accessories.warningTriangle' },
-                    { id: 'first_aid_kit', labelKey: 'protocol.basics.accessories.firstAidKit' },
-                    { id: 'safety_vest', labelKey: 'protocol.basics.accessories.safetyVest' },
-                    { id: 'car_jack', labelKey: 'protocol.basics.accessories.carJack' },
-                    { id: 'wheel_wrench', labelKey: 'protocol.basics.accessories.wheelWrench' },
-                    { id: 'manual', labelKey: 'protocol.basics.accessories.manual' },
-                    { id: 'service_book', labelKey: 'protocol.basics.accessories.serviceBook' },
-                    { id: 'registration_doc', labelKey: 'protocol.basics.accessories.registrationDoc' },
-                  ].map((item) => (
-                    <div key={item.id} className="flex items-center justify-between py-2 border-b last:border-0">
-                      <span>{t(item.labelKey)}</span>
-                      <Switch
-                        checked={formData.accessories[item.id]}
-                        onCheckedChange={(v) => handleAccessoryChange(item.id, v)}
-                        disabled={isViewOnly}
-                        className="data-[state=checked]:bg-[#1e3a5f] data-[state=unchecked]:bg-slate-200"
-                      />
-                    </div>
-                  ))}
-                  <div className="pt-2">
-                    <Label>{t('protocol.basics.keysCount')}</Label>
+                {type === 'dropoff' && (
+                  <div>
+                    <Label>{t('protocol.basics.fuelCost')}</Label>
                     <Input
                       type="number"
                       min="0"
-                      value={formData.accessories.keys_count}
-                      onChange={(e) => handleAccessoryChange('keys_count', parseInt(e.target.value) || 0)}
+                      step="0.01"
+                      value={formData.fuel_cost}
+                      onChange={(e) => handleChange('fuel_cost', e.target.value)}
+                      placeholder={t('protocol.basics.fuelCostPlaceholder')}
                       disabled={isViewOnly}
                     />
                   </div>
-                </div>
+                )}
+                {type === 'pickup' && (
+                  <div className="space-y-3 pt-2">
+                    {[
+                      { id: 'spare_wheel', labelKey: 'protocol.basics.accessories.spareWheel' },
+                      { id: 'warning_triangle', labelKey: 'protocol.basics.accessories.warningTriangle' },
+                      { id: 'first_aid_kit', labelKey: 'protocol.basics.accessories.firstAidKit' },
+                      { id: 'safety_vest', labelKey: 'protocol.basics.accessories.safetyVest' },
+                      { id: 'car_jack', labelKey: 'protocol.basics.accessories.carJack' },
+                      { id: 'wheel_wrench', labelKey: 'protocol.basics.accessories.wheelWrench' },
+                      { id: 'manual', labelKey: 'protocol.basics.accessories.manual' },
+                      { id: 'service_book', labelKey: 'protocol.basics.accessories.serviceBook' },
+                      { id: 'registration_doc', labelKey: 'protocol.basics.accessories.registrationDoc' },
+                    ].map((item) => (
+                      <div key={item.id} className="flex items-center justify-between py-2 border-b last:border-0">
+                        <span>{t(item.labelKey)}</span>
+                        <Switch
+                          checked={formData.accessories[item.id]}
+                          onCheckedChange={(v) => handleAccessoryChange(item.id, v)}
+                          disabled={isViewOnly}
+                          className="data-[state=checked]:bg-[#1e3a5f] data-[state=unchecked]:bg-slate-200"
+                        />
+                      </div>
+                    ))}
+                    <div className="pt-2">
+                      <Label>{t('protocol.basics.keysCount')}</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={formData.accessories.keys_count}
+                        onChange={(e) => handleAccessoryChange('keys_count', parseInt(e.target.value) || 0)}
+                        disabled={isViewOnly}
+                      />
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}
@@ -561,128 +583,130 @@ export default function DriverProtocol() {
                 onChange={(photos) => handleChange('photos', photos)}
                 readOnly={isViewOnly}
               />
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center gap-2 text-lg">
-                    <AlertTriangle className="w-5 h-5 text-gray-600" />
-                    {t('protocol.damage.title')}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-4 space-y-4">
-                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                    <p className="text-sm text-slate-600 mb-2">
-                      {t('protocol.damage.instructions')}
-                    </p>
-                    <div className="relative overflow-hidden rounded-lg border bg-white">
-                      <img
-                        src="/vehicle-sketch.svg"
-                        alt={t('protocol.damage.sketchAlt')}
-                        className="w-full"
-                      />
-                      {DAMAGE_POINTS.map((point) => (
-                        <button
-                          key={point.id}
-                          type="button"
-                          className="absolute h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white bg-blue-600/80 shadow"
-                          style={{ left: `${point.x}%`, top: `${point.y}%` }}
-                          onClick={() => addDamageFromSketch(point)}
-                          disabled={isViewOnly}
-                          aria-label={t('protocol.damage.markAria', { location: t(point.labelKey) })}
+              {type === 'pickup' && (
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="flex items-center gap-2 text-lg">
+                      <AlertTriangle className="w-5 h-5 text-gray-600" />
+                      {t('protocol.damage.title')}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-4 space-y-4">
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                      <p className="text-sm text-slate-600 mb-2">
+                        {t('protocol.damage.instructions')}
+                      </p>
+                      <div className="relative overflow-hidden rounded-lg border bg-white">
+                        <img
+                          src="/vehicle-sketch.svg"
+                          alt={t('protocol.damage.sketchAlt')}
+                          className="w-full"
                         />
-                      ))}
-                    </div>
-                    <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-600">
-                      <span className="rounded-full border border-slate-200 px-2 py-1">{t('protocol.damage.legend.scratch')}</span>
-                      <span className="rounded-full border border-slate-200 px-2 py-1">{t('protocol.damage.legend.chip')}</span>
-                      <span className="rounded-full border border-slate-200 px-2 py-1">{t('protocol.damage.legend.dent')}</span>
-                      <span className="rounded-full border border-slate-200 px-2 py-1">{t('protocol.damage.legend.damage')}</span>
-                    </div>
-                  </div>
-                  {formData.damages?.map((damage, index) => (
-                    <div key={index} className="p-3 border rounded-lg relative">
-                      {!isViewOnly && (
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="absolute top-2 right-2 w-6 h-6 text-red-500"
-                          onClick={() => removeDamage(index)}
-                        >
-                          <X className="w-4 h-4" />
-                        </Button>
-                      )}
-                      <div className="space-y-3 pr-8">
-                        <div>
-                          <Label>{t('protocol.damage.location')}</Label>
-                          <Input
-                            value={damage.location}
-                            onChange={(e) => updateDamage(index, 'location', e.target.value)}
-                            placeholder={t('protocol.damage.locationPlaceholder')}
+                        {DAMAGE_POINTS.map((point) => (
+                          <button
+                            key={point.id}
+                            type="button"
+                            className="absolute h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white bg-blue-600/80 shadow"
+                            style={{ left: `${point.x}%`, top: `${point.y}%` }}
+                            onClick={() => addDamageFromSketch(point)}
                             disabled={isViewOnly}
+                            aria-label={t('protocol.damage.markAria', { location: t(point.labelKey) })}
                           />
-                        </div>
-                        <div>
-                          <Label>{t('protocol.damage.type')}</Label>
-                          <Select
-                            value={damage.type || 'K'}
-                            onValueChange={(v) => updateDamage(index, 'type', v)}
-                            disabled={isViewOnly}
-                          >
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="K">{t('protocol.damage.typeOptions.scratch')}</SelectItem>
-                              <SelectItem value="S">{t('protocol.damage.typeOptions.chip')}</SelectItem>
-                              <SelectItem value="D">{t('protocol.damage.typeOptions.dent')}</SelectItem>
-                              <SelectItem value="B">{t('protocol.damage.typeOptions.damage')}</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div>
-                          <Label>{t('protocol.damage.description')}</Label>
-                          <Input
-                            value={damage.description}
-                            onChange={(e) => updateDamage(index, 'description', e.target.value)}
-                            placeholder={t('protocol.damage.descriptionPlaceholder')}
-                            disabled={isViewOnly}
-                          />
-                        </div>
-                        <div>
-                          <Label>{t('protocol.damage.severity')}</Label>
-                          <Select
-                            value={damage.severity}
-                            onValueChange={(v) => updateDamage(index, 'severity', v)}
-                            disabled={isViewOnly}
-                          >
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="minor">{t('protocol.damage.severityOptions.minor')}</SelectItem>
-                              <SelectItem value="medium">{t('protocol.damage.severityOptions.medium')}</SelectItem>
-                              <SelectItem value="severe">{t('protocol.damage.severityOptions.severe')}</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
+                        ))}
+                      </div>
+                      <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-600">
+                        <span className="rounded-full border border-slate-200 px-2 py-1">{t('protocol.damage.legend.scratch')}</span>
+                        <span className="rounded-full border border-slate-200 px-2 py-1">{t('protocol.damage.legend.chip')}</span>
+                        <span className="rounded-full border border-slate-200 px-2 py-1">{t('protocol.damage.legend.dent')}</span>
+                        <span className="rounded-full border border-slate-200 px-2 py-1">{t('protocol.damage.legend.damage')}</span>
                       </div>
                     </div>
-                  ))}
-                  {!isViewOnly && (
-                    <div className="grid gap-2 md:grid-cols-2">
-                      <Button variant="outline" className="w-full" onClick={addDamage}>
-                        <Plus className="w-4 h-4 mr-2" />
-                        {t('protocol.damage.add')}
-                      </Button>
-                      <Button variant="outline" className="w-full" onClick={clearDamages}>
-                        {t('protocol.damage.none')}
-                      </Button>
-                    </div>
-                  )}
-                  {formData.damages?.length === 0 && (
-                    <p className="text-center text-gray-500 py-4">{t('protocol.damage.empty')}</p>
-                  )}
-                </CardContent>
-              </Card>
+                    {formData.damages?.map((damage, index) => (
+                      <div key={index} className="p-3 border rounded-lg relative">
+                        {!isViewOnly && (
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="absolute top-2 right-2 w-6 h-6 text-red-500"
+                            onClick={() => removeDamage(index)}
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        )}
+                        <div className="space-y-3 pr-8">
+                          <div>
+                            <Label>{t('protocol.damage.location')}</Label>
+                            <Input
+                              value={damage.location}
+                              onChange={(e) => updateDamage(index, 'location', e.target.value)}
+                              placeholder={t('protocol.damage.locationPlaceholder')}
+                              disabled={isViewOnly}
+                            />
+                          </div>
+                          <div>
+                            <Label>{t('protocol.damage.type')}</Label>
+                            <Select
+                              value={damage.type || 'K'}
+                              onValueChange={(v) => updateDamage(index, 'type', v)}
+                              disabled={isViewOnly}
+                            >
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="K">{t('protocol.damage.typeOptions.scratch')}</SelectItem>
+                                <SelectItem value="S">{t('protocol.damage.typeOptions.chip')}</SelectItem>
+                                <SelectItem value="D">{t('protocol.damage.typeOptions.dent')}</SelectItem>
+                                <SelectItem value="B">{t('protocol.damage.typeOptions.damage')}</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <Label>{t('protocol.damage.description')}</Label>
+                            <Input
+                              value={damage.description}
+                              onChange={(e) => updateDamage(index, 'description', e.target.value)}
+                              placeholder={t('protocol.damage.descriptionPlaceholder')}
+                              disabled={isViewOnly}
+                            />
+                          </div>
+                          <div>
+                            <Label>{t('protocol.damage.severity')}</Label>
+                            <Select
+                              value={damage.severity}
+                              onValueChange={(v) => updateDamage(index, 'severity', v)}
+                              disabled={isViewOnly}
+                            >
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="minor">{t('protocol.damage.severityOptions.minor')}</SelectItem>
+                                <SelectItem value="medium">{t('protocol.damage.severityOptions.medium')}</SelectItem>
+                                <SelectItem value="severe">{t('protocol.damage.severityOptions.severe')}</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    {!isViewOnly && (
+                      <div className="grid gap-2 md:grid-cols-2">
+                        <Button variant="outline" className="w-full" onClick={addDamage}>
+                          <Plus className="w-4 h-4 mr-2" />
+                          {t('protocol.damage.add')}
+                        </Button>
+                        <Button variant="outline" className="w-full" onClick={clearDamages}>
+                          {t('protocol.damage.none')}
+                        </Button>
+                      </div>
+                    )}
+                    {formData.damages?.length === 0 && (
+                      <p className="text-center text-gray-500 py-4">{t('protocol.damage.empty')}</p>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
             </div>
           )}
 

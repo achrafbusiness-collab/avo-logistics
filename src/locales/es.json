@@ -214,6 +214,8 @@
       "kilometer": "Kilometraje *",
       "kilometerPlaceholder": "p. ej. 125000",
       "fuel": "Nivel de combustible",
+      "fuelCost": "Costo de combustible",
+      "fuelCostPlaceholder": "p. ej. 25.50",
       "fuelOptions": {
         "empty": "Vacío",
         "full": "Lleno"

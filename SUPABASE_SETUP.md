@@ -309,6 +309,7 @@ create table if not exists public.checklists (
   location text,
   kilometer numeric,
   fuel_level text,
+  fuel_cost numeric,
   cleanliness_inside text,
   cleanliness_outside text,
   accessories jsonb default '{}'::jsonb,

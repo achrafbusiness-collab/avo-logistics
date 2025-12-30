@@ -112,7 +112,6 @@ export default function ProtocolPdf() {
   }, [orderChecklists, checklist]);
 
   const pickupAccessories = useMemo(() => buildAccessories(pickupChecklist), [pickupChecklist]);
-  const dropoffAccessories = useMemo(() => buildAccessories(dropoffChecklist), [dropoffChecklist]);
 
   const pickupPhotos = pickupChecklist?.photos || [];
   const dropoffPhotos = dropoffChecklist?.photos || [];
@@ -386,40 +385,12 @@ export default function ProtocolPdf() {
               </div>
             </div>
             <div className="pdf-field">
-              <div className="pdf-field-label">Fahrzeugzubehör</div>
-              <div className="pdf-accessories">
-                {dropoffAccessories.map((item) => (
-                  <span key={item.key} className="pdf-accessory">
-                    <span>{item.checked ? "✓" : ""}</span>
-                    {item.label}
-                  </span>
-                ))}
+              <div className="pdf-field-label">Tankkosten</div>
+              <div className="pdf-field-value">
+                {dropoffChecklist?.fuel_cost !== null && dropoffChecklist?.fuel_cost !== undefined
+                  ? `${dropoffChecklist.fuel_cost} €`
+                  : "-"}
               </div>
-            </div>
-            <div className="pdf-field">
-              <div className="pdf-field-label">Schäden / Bemerkungen</div>
-              {dropoffChecklist?.damages?.length ? (
-                <table className="pdf-table">
-                  <thead>
-                    <tr>
-                      <th>Position</th>
-                      <th>Typ</th>
-                      <th>Beschreibung</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {dropoffChecklist.damages.map((damage, index) => (
-                      <tr key={`${damage.location}-${index}`}>
-                        <td>{damage.location}</td>
-                        <td>{damage.type || "-"}</td>
-                        <td>{damage.description || "-"}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              ) : (
-                <div className="pdf-note">Keine Schäden dokumentiert.</div>
-              )}
             </div>
             <div className="pdf-field">
               <div className="pdf-field-label">Notizen</div>

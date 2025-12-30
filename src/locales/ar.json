@@ -214,6 +214,8 @@
       "kilometer": "عداد الكيلومترات *",
       "kilometerPlaceholder": "مثال 125000",
       "fuel": "مستوى الوقود",
+      "fuelCost": "تكلفة الوقود",
+      "fuelCostPlaceholder": "مثال 25.50",
       "fuelOptions": {
         "empty": "فارغ",
         "full": "ممتلئ"
