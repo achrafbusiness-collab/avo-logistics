@@ -57,6 +57,14 @@ const buildAccessories = (checklist) => {
   }));
 };
 
+const chunkPhotos = (photos = [], size = 2) => {
+  const chunks = [];
+  for (let i = 0; i < photos.length; i += size) {
+    chunks.push(photos.slice(i, i + size));
+  }
+  return chunks;
+};
+
 const formatAddress = (address, postalCode, city) => {
   const line = [postalCode, city].filter(Boolean).join(" ");
   return [address, line].filter(Boolean).join("\n");
@@ -115,6 +123,8 @@ export default function ProtocolPdf() {
 
   const pickupPhotos = pickupChecklist?.photos || [];
   const dropoffPhotos = dropoffChecklist?.photos || [];
+  const pickupPhotoPages = useMemo(() => chunkPhotos(pickupPhotos, 2), [pickupPhotos]);
+  const dropoffPhotoPages = useMemo(() => chunkPhotos(dropoffPhotos, 2), [dropoffPhotos]);
 
   useEffect(() => {
     if (!shouldPrint || !checklist || !order || typeof orderChecklists === "undefined") return;
@@ -186,25 +196,28 @@ export default function ProtocolPdf() {
         .pdf-photo-section { margin-top: 16px; }
         .pdf-photo-section h3 { margin: 0 0 10px; font-size: 14px; color: #1e3a5f; }
         .pdf-photo-grid { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-        .pdf-photo-card { border: 1px solid #e2e8f0; padding: 8px; border-radius: 12px; background: white; }
-        .pdf-photo-card img { width: 100%; height: 220px; object-fit: contain; border-radius: 8px; background: #f8fafc; }
+        .pdf-photo-card { border: 1px solid #e2e8f0; padding: 8px; border-radius: 12px; background: white; break-inside: avoid; page-break-inside: avoid; }
+        .pdf-photo-card img { width: 100%; height: 240px; object-fit: contain; border-radius: 8px; background: #f8fafc; }
         .pdf-photo-caption { margin-top: 6px; font-size: 11px; color: #334155; }
         .pdf-divider { height: 1px; background: #e2e8f0; margin: 18px 0; }
         .pdf-actions { max-width: 980px; margin: 0 auto 16px; display: flex; gap: 12px; }
         .pdf-button { background: #1e3a5f; color: white; border: none; padding: 10px 16px; border-radius: 8px; cursor: pointer; }
         .pdf-button.secondary { background: #e2e8f0; color: #0f172a; }
+        .pdf-photo-page { page-break-before: always; }
+        .pdf-protocol-page { page-break-after: always; }
+        .pdf-photo-grid { break-inside: avoid; }
         @page { size: A4; margin: 10mm; }
         @media print {
           .pdf-actions { display: none; }
           .protocol-pdf { background: white; padding: 0; }
-          .pdf-page { box-shadow: none; border: none; margin: 0; width: 210mm; min-height: 297mm; padding: 10mm 12mm; }
+          .pdf-page { box-shadow: none; border: none; margin: 0; width: 210mm; min-height: 297mm; padding: 8mm 10mm; }
           .pdf-header { padding-bottom: 10mm; }
           .pdf-logo { height: 65px; }
           .pdf-title h1 { font-size: 18px; }
           .pdf-subtitle { font-size: 11px; }
           .pdf-protocol-column h2 { font-size: 14px; }
-          .pdf-photo-card img { height: auto; max-height: 70mm; object-fit: contain; }
-          .pdf-photo-grid { gap: 8mm; }
+          .pdf-photo-grid { gap: 8mm; grid-template-columns: 1fr; }
+          .pdf-photo-card img { height: auto; max-height: 110mm; object-fit: contain; }
         }
       `}</style>
 
@@ -217,7 +230,7 @@ export default function ProtocolPdf() {
         </button>
       </div>
 
-      <div className="pdf-page">
+      <div className="pdf-page pdf-protocol-page">
         <div className="pdf-header">
           <img className="pdf-logo" src="/IMG_5222.JPG" alt="AVO Logistics" />
           <div className="pdf-title">
@@ -425,42 +438,45 @@ export default function ProtocolPdf() {
           </div>
         </div>
 
-        <div className="pdf-photos">
+      </div>
+
+      {pickupPhotoPages.map((pagePhotos, pageIndex) => (
+        <div key={`pickup-${pageIndex}`} className="pdf-page pdf-photo-page">
           <div className="pdf-photo-section">
             <h3>Übernahme Bilder</h3>
-            {pickupPhotos.length ? (
-              <div className="pdf-photo-grid">
-                {pickupPhotos.map((photo, index) => (
-                  <div key={`${photo.type}-${index}`} className="pdf-photo-card">
-                    <img src={photo.url} alt={photo.caption || photo.type} />
-                    <div className="pdf-photo-caption">{photo.caption || photo.type}</div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="pdf-note">Keine Übernahme-Fotos vorhanden.</div>
+            {pickupPhotoPages.length > 1 && (
+              <div className="pdf-muted">Seite {pageIndex + 1} von {pickupPhotoPages.length}</div>
             )}
-          </div>
-
-          <div className="pdf-divider" />
-
-          <div className="pdf-photo-section">
-            <h3>Übergabe Bilder</h3>
-            {dropoffPhotos.length ? (
-              <div className="pdf-photo-grid">
-                {dropoffPhotos.map((photo, index) => (
-                  <div key={`${photo.type}-${index}`} className="pdf-photo-card">
-                    <img src={photo.url} alt={photo.caption || photo.type} />
-                    <div className="pdf-photo-caption">{photo.caption || photo.type}</div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="pdf-note">Keine Übergabe-Fotos vorhanden.</div>
-            )}
+            <div className="pdf-photo-grid">
+              {pagePhotos.map((photo, index) => (
+                <div key={`${photo.type}-${pageIndex}-${index}`} className="pdf-photo-card">
+                  <img src={photo.url} alt={photo.caption || photo.type} />
+                  <div className="pdf-photo-caption">{photo.caption || photo.type}</div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
-      </div>
+      ))}
+
+      {dropoffPhotoPages.map((pagePhotos, pageIndex) => (
+        <div key={`dropoff-${pageIndex}`} className="pdf-page pdf-photo-page">
+          <div className="pdf-photo-section">
+            <h3>Übergabe Bilder</h3>
+            {dropoffPhotoPages.length > 1 && (
+              <div className="pdf-muted">Seite {pageIndex + 1} von {dropoffPhotoPages.length}</div>
+            )}
+            <div className="pdf-photo-grid">
+              {pagePhotos.map((photo, index) => (
+                <div key={`${photo.type}-${pageIndex}-${index}`} className="pdf-photo-card">
+                  <img src={photo.url} alt={photo.caption || photo.type} />
+                  <div className="pdf-photo-caption">{photo.caption || photo.type}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
