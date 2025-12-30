@@ -335,13 +335,16 @@
     "start": "Iniciar cámara",
     "stop": "Cerrar cámara",
     "capture": "Tomar foto",
-    "loading": "Cargando cámara..."
+    "loading": "Cargando cámara...",
+    "retry": "Reiniciar cámara",
+    "manual": "Seleccionar foto manualmente"
   },
   "errors": {
     "uploadFailed": "La carga falló. Intenta de nuevo.",
     "cameraStartFailed": "No se pudo iniciar la cámara.",
     "captureFailed": "No se tomó la foto.",
-    "cameraNotReady": "La cámara aún no está lista. Espera un momento."
+    "cameraNotReady": "La cámara aún no está lista. Espera un momento.",
+    "cameraTimeout": "La cámara tarda demasiado. Reiníciala."
   },
     "types": {
       "front": "Frontal del vehículo",

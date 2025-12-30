@@ -44,10 +44,12 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false }
   const [cameraError, setCameraError] = useState('');
   const [capturing, setCapturing] = useState(false);
   const [cameraReady, setCameraReady] = useState(false);
+  const [cameraStarting, setCameraStarting] = useState(false);
   const [currentType, setCurrentType] = useState(null);
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
+  const manualInputRef = useRef(null);
 
   const uploadPhoto = async (type, file) => {
     if (!file) return;
@@ -101,17 +103,30 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false }
     }
     setCameraActive(false);
     setCameraReady(false);
+    setCameraStarting(false);
+  };
+
+  const getStream = async () => {
+    try {
+      return await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' } },
+        audio: false,
+      });
+    } catch (error) {
+      return await navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: false,
+      });
+    }
   };
 
   const startCamera = async () => {
     if (readOnly) return;
     setCameraError('');
     setCameraReady(false);
+    setCameraStarting(true);
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' },
-        audio: false,
-      });
+      const stream = await getStream();
       streamRef.current = stream;
       if (videoRef.current) {
         const video = videoRef.current;
@@ -126,8 +141,16 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false }
         await video.play();
       }
       setCameraActive(true);
+      const ready = await ensureVideoReady();
+      if (!ready) {
+        stopCamera();
+        setCameraError(t('photos.errors.cameraTimeout'));
+      }
     } catch (err) {
+      stopCamera();
       setCameraError(t('photos.errors.cameraStartFailed'));
+    } finally {
+      setCameraStarting(false);
     }
   };
 
@@ -282,11 +305,40 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false }
                     <Button variant="outline" onClick={stopCamera}>
                       {t('photos.review')}
                     </Button>
+                    {!cameraReady && (
+                      <Button
+                        variant="outline"
+                        className="h-12 w-full text-base"
+                        onClick={startCamera}
+                        disabled={cameraStarting}
+                      >
+                        {cameraStarting ? (
+                          <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                        ) : null}
+                        {t('photos.camera.retry')}
+                      </Button>
+                    )}
+                    <Button
+                      variant="ghost"
+                      className="h-12 w-full text-base"
+                      onClick={() => manualInputRef.current?.click()}
+                      disabled={!currentType}
+                    >
+                      {t('photos.camera.manual')}
+                    </Button>
                   </div>
                 </div>
               </div>
             )}
             <canvas ref={canvasRef} className="hidden" />
+            <input
+              ref={manualInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={(e) => uploadPhoto(currentType, e.target.files[0])}
+            />
           </CardContent>
         </Card>
       )}
