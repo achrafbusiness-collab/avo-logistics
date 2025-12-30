@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { appClient } from '@/api/appClient';
 import { Link } from 'react-router-dom';
@@ -64,6 +64,9 @@ export default function DriverProtocol() {
   const [currentStep, setCurrentStep] = useState('vehicle_check');
   const [submitError, setSubmitError] = useState('');
   const [signatureModal, setSignatureModal] = useState(null);
+  const [damageUploads, setDamageUploads] = useState({});
+  const [activeDamageIndex, setActiveDamageIndex] = useState(null);
+  const damageRefs = useRef({});
 
   const [formData, setFormData] = useState({
     order_id: orderId,
@@ -164,6 +167,14 @@ export default function DriverProtocol() {
   }, [existingChecklist]);
 
   useEffect(() => {
+    if (activeDamageIndex === null) return;
+    const node = damageRefs.current[activeDamageIndex];
+    if (node) {
+      node.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [activeDamageIndex]);
+
+  useEffect(() => {
     if (!order || formData.location || existingChecklist) {
       return;
     }
@@ -227,7 +238,7 @@ export default function DriverProtocol() {
       if (existing) return prev;
       const nextDamages = [
         ...(prev.damages || []),
-        { location: label, description: '', severity: 'minor', type: 'K' },
+        { location: label, description: '', severity: 'minor', type: 'K', photo_url: '' },
       ];
       return { ...prev, damages: nextDamages };
     });
@@ -241,7 +252,7 @@ export default function DriverProtocol() {
   const addDamage = () => {
     setFormData(prev => ({
       ...prev,
-      damages: [...prev.damages, { location: '', description: '', severity: 'minor' }]
+      damages: [...prev.damages, { location: '', description: '', severity: 'minor', type: 'K', photo_url: '' }]
     }));
   };
 
@@ -258,6 +269,53 @@ export default function DriverProtocol() {
       ...prev,
       damages: prev.damages.filter((_, i) => i !== index)
     }));
+    setDamageUploads(prev => {
+      const next = { ...prev };
+      delete next[index];
+      return next;
+    });
+  };
+
+  const handleDamageSlotClick = (slotIndex) => {
+    if (isViewOnly) return;
+    if (formData.damages?.[slotIndex]) {
+      setActiveDamageIndex(slotIndex);
+      return;
+    }
+    const nextIndex = formData.damages.length;
+    if (slotIndex !== nextIndex) {
+      setActiveDamageIndex(nextIndex);
+      addDamage();
+      return;
+    }
+    setActiveDamageIndex(slotIndex);
+    addDamage();
+  };
+
+  const uploadDamagePhoto = async (index, file) => {
+    if (!file) return;
+    setDamageUploads(prev => ({ ...prev, [index]: true }));
+    setSubmitError('');
+    try {
+      const { file_url } = await appClient.integrations.Core.UploadFile({ file });
+      setFormData(prev => {
+        const damages = [...prev.damages];
+        damages[index] = { ...damages[index], photo_url: file_url };
+        const photoType = `damage-${index + 1}`;
+        const damagePhoto = {
+          type: photoType,
+          url: file_url,
+          caption: t('protocol.damage.photoCaption', { index: index + 1 }),
+        };
+        const photos = (prev.photos || []).filter(p => p.type !== photoType);
+        return { ...prev, damages, photos: [...photos, damagePhoto] };
+      });
+    } catch (error) {
+      console.error('Damage photo upload failed', error);
+      setSubmitError(t('protocol.errors.damagePhotoMissing'));
+    } finally {
+      setDamageUploads(prev => ({ ...prev, [index]: false }));
+    }
   };
 
   const submitProtocol = async () => {
@@ -278,6 +336,12 @@ export default function DriverProtocol() {
       );
       if (damageHasGaps) {
         setSubmitError(t('protocol.errors.damageIncomplete'));
+        setCurrentStep('photos');
+        return;
+      }
+      const damagePhotoMissing = formData.damages?.some((damage) => !damage.photo_url);
+      if (damagePhotoMissing) {
+        setSubmitError(t('protocol.errors.damagePhotoMissing'));
         setCurrentStep('photos');
         return;
       }
@@ -363,6 +427,9 @@ export default function DriverProtocol() {
       }
       if (type === 'pickup' && damageHasGaps) {
         return t('protocol.errors.damageIncomplete');
+      }
+      if (type === 'pickup' && formData.damages?.some((damage) => !damage.photo_url)) {
+        return t('protocol.errors.damagePhotoMissing');
       }
     }
     if (stepId === 'signatures') {
@@ -591,11 +658,38 @@ export default function DriverProtocol() {
                       {t('protocol.damage.title')}
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="p-4 space-y-4">
-                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                      <p className="text-sm text-slate-600 mb-2">
-                        {t('protocol.damage.instructions')}
-                      </p>
+                <CardContent className="p-4 space-y-4">
+                  <div className="space-y-2">
+                    <div className="text-xs uppercase tracking-wide text-slate-500">
+                      {t('protocol.damage.slotTitle')}
+                    </div>
+                    <div className="grid grid-cols-6 gap-2">
+                      {Array.from({ length: 12 }).map((_, slotIndex) => {
+                        const hasDamage = !!formData.damages?.[slotIndex];
+                        const isActive = activeDamageIndex === slotIndex;
+                        return (
+                          <button
+                            key={`damage-slot-${slotIndex}`}
+                            type="button"
+                            className={`h-10 rounded-lg border text-sm font-semibold ${
+                              hasDamage
+                                ? 'border-blue-600 bg-blue-50 text-blue-700'
+                                : 'border-slate-200 bg-white text-slate-500'
+                            } ${isActive ? 'ring-2 ring-blue-500' : ''}`}
+                            onClick={() => handleDamageSlotClick(slotIndex)}
+                            disabled={isViewOnly}
+                          >
+                            {slotIndex + 1}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <p className="text-xs text-slate-500">{t('protocol.damage.slotHint')}</p>
+                  </div>
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                    <p className="text-sm text-slate-600 mb-2">
+                      {t('protocol.damage.instructions')}
+                    </p>
                       <div className="relative overflow-hidden rounded-lg border bg-white">
                         <img
                           src="/vehicle-sketch.svg"
@@ -621,8 +715,14 @@ export default function DriverProtocol() {
                         <span className="rounded-full border border-slate-200 px-2 py-1">{t('protocol.damage.legend.damage')}</span>
                       </div>
                     </div>
-                    {formData.damages?.map((damage, index) => (
-                      <div key={index} className="p-3 border rounded-lg relative">
+                  {formData.damages?.map((damage, index) => (
+                      <div
+                        key={index}
+                        ref={(node) => {
+                          if (node) damageRefs.current[index] = node;
+                        }}
+                        className="p-3 border rounded-lg relative"
+                      >
                         {!isViewOnly && (
                           <Button
                             size="icon"
@@ -634,6 +734,12 @@ export default function DriverProtocol() {
                           </Button>
                         )}
                         <div className="space-y-3 pr-8">
+                          <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                            <span className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-slate-200 bg-slate-50">
+                              {index + 1}
+                            </span>
+                            {t('protocol.damage.cardTitle')}
+                          </div>
                           <div>
                             <Label>{t('protocol.damage.location')}</Label>
                             <Input
@@ -661,6 +767,52 @@ export default function DriverProtocol() {
                               </SelectContent>
                             </Select>
                           </div>
+                          {!isViewOnly && (
+                            <div>
+                              <Label>{t('protocol.damage.photoLabel')}</Label>
+                              <div className="flex flex-col gap-2">
+                                <div className="flex items-center gap-3">
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => document.getElementById(`damage-photo-${index}`)?.click()}
+                                    disabled={damageUploads[index]}
+                                  >
+                                    {damageUploads[index]
+                                      ? t('protocol.damage.photoUploading')
+                                      : t('protocol.damage.photoButton')}
+                                  </Button>
+                                  {damage.photo_url && (
+                                    <img
+                                      src={damage.photo_url}
+                                      alt={t('protocol.damage.photoPreview', { index: index + 1 })}
+                                      className="h-16 w-20 rounded border object-cover"
+                                    />
+                                  )}
+                                </div>
+                                {!damage.photo_url && (
+                                  <p className="text-xs text-slate-500">
+                                    {t('protocol.damage.photoHelp')}
+                                  </p>
+                                )}
+                                <input
+                                  id={`damage-photo-${index}`}
+                                  type="file"
+                                  accept="image/*"
+                                  capture="environment"
+                                  className="hidden"
+                                  onChange={(event) => {
+                                    const file = event.target.files?.[0];
+                                    if (file) {
+                                      uploadDamagePhoto(index, file);
+                                    }
+                                    event.target.value = '';
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          )}
                           <div>
                             <Label>{t('protocol.damage.description')}</Label>
                             <Input
@@ -689,7 +841,7 @@ export default function DriverProtocol() {
                           </div>
                         </div>
                       </div>
-                    ))}
+                  ))}
                     {!isViewOnly && (
                       <div className="grid gap-2 md:grid-cols-2">
                         <Button variant="outline" className="w-full" onClick={addDamage}>

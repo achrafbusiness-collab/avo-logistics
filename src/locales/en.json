@@ -241,6 +241,8 @@
       "keysCount": "Number of keys"
     },
     "damage": {
+      "slotTitle": "Mark damages",
+      "slotHint": "Tap a box to add or edit a damage.",
       "title": "Damages",
       "instructions": "Tap the sketch to mark the damage position.",
       "sketchAlt": "Vehicle sketch",
@@ -253,6 +255,7 @@
       },
       "location": "Vehicle position",
       "locationPlaceholder": "e.g. front left, bumper",
+      "cardTitle": "Damage",
       "type": "Damage type",
       "typeOptions": {
         "scratch": "Scratch (K)",
@@ -260,6 +263,12 @@
         "dent": "Dent (D)",
         "damage": "Damage (B)"
       },
+      "photoLabel": "Damage photo",
+      "photoButton": "Take photo",
+      "photoUploading": "Uploading photo...",
+      "photoHelp": "Please capture the damage photo.",
+      "photoPreview": "Damage photo {{index}}",
+      "photoCaption": "Damage {{index}}",
       "description": "Description",
       "descriptionPlaceholder": "Damage details",
       "severity": "Severity",
@@ -306,6 +315,7 @@
       "missingKilometer": "Please enter the odometer reading.",
       "missingPhotos": "Please take all required photos.",
       "damageIncomplete": "Please complete all damage fields or remove entries.",
+      "damagePhotoMissing": "Please capture a photo for each damage.",
       "missingDriverSignature": "Please capture the driver's signature.",
       "missingCustomerSignature": "Please capture the customer's signature.",
       "missingCustomerName": "Please enter the customer's name.",

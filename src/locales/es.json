@@ -241,6 +241,8 @@
       "keysCount": "Número de llaves"
     },
     "damage": {
+      "slotTitle": "Marcar daños",
+      "slotHint": "Toca un cuadro para añadir o editar un daño.",
       "title": "Daños",
       "instructions": "Toca el esquema para marcar la posición del daño.",
       "sketchAlt": "Esquema del vehículo",
@@ -253,6 +255,7 @@
       },
       "location": "Posición en el vehículo",
       "locationPlaceholder": "p. ej. delantero izquierdo, parachoques",
+      "cardTitle": "Daño",
       "type": "Tipo de daño",
       "typeOptions": {
         "scratch": "Arañazo (K)",
@@ -260,6 +263,12 @@
         "dent": "Abolladura (D)",
         "damage": "Daño (B)"
       },
+      "photoLabel": "Foto del daño",
+      "photoButton": "Tomar foto",
+      "photoUploading": "Subiendo foto...",
+      "photoHelp": "Por favor toma la foto del daño.",
+      "photoPreview": "Foto del daño {{index}}",
+      "photoCaption": "Daño {{index}}",
       "description": "Descripción",
       "descriptionPlaceholder": "Detalles del daño",
       "severity": "Gravedad",
@@ -306,6 +315,7 @@
       "missingKilometer": "Introduce el kilometraje.",
       "missingPhotos": "Toma todas las fotos obligatorias.",
       "damageIncomplete": "Completa todos los daños o elimina las entradas.",
+      "damagePhotoMissing": "Toma una foto por cada daño.",
       "missingDriverSignature": "Captura la firma del conductor.",
       "missingCustomerSignature": "Captura la firma del cliente.",
       "missingCustomerName": "Introduce el nombre del cliente.",

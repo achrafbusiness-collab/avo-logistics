@@ -241,6 +241,8 @@
       "keysCount": "عدد المفاتيح"
     },
     "damage": {
+      "slotTitle": "تحديد الأضرار",
+      "slotHint": "اضغط على مربع لإضافة ضرر أو تعديله.",
       "title": "الأضرار",
       "instructions": "اضغط على الرسم لتحديد موقع الضرر.",
       "sketchAlt": "رسم المركبة",
@@ -253,6 +255,7 @@
       },
       "location": "موقع الضرر",
       "locationPlaceholder": "مثال: الأمام اليسار، الصدام",
+      "cardTitle": "ضرر",
       "type": "نوع الضرر",
       "typeOptions": {
         "scratch": "خدش (K)",
@@ -260,6 +263,12 @@
         "dent": "بعج (D)",
         "damage": "تلف (B)"
       },
+      "photoLabel": "صورة الضرر",
+      "photoButton": "التقاط صورة",
+      "photoUploading": "يتم رفع الصورة...",
+      "photoHelp": "يرجى التقاط صورة للضرر.",
+      "photoPreview": "صورة الضرر {{index}}",
+      "photoCaption": "ضرر {{index}}",
       "description": "الوصف",
       "descriptionPlaceholder": "تفاصيل الضرر",
       "severity": "الخطورة",
@@ -306,6 +315,7 @@
       "missingKilometer": "يرجى إدخال قراءة العداد.",
       "missingPhotos": "يرجى التقاط جميع الصور المطلوبة.",
       "damageIncomplete": "يرجى إكمال جميع حقول الضرر أو حذف الإدخالات.",
+      "damagePhotoMissing": "يرجى التقاط صورة لكل ضرر.",
       "missingDriverSignature": "يرجى التقاط توقيع السائق.",
       "missingCustomerSignature": "يرجى التقاط توقيع العميل.",
       "missingCustomerName": "يرجى إدخال اسم العميل.",
