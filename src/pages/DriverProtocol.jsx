@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { appClient } from '@/api/appClient';
 import { Link } from 'react-router-dom';
@@ -245,11 +245,11 @@ export default function DriverProtocol() {
     if (isViewOnly) return;
     const label = t(point.labelKey);
     setFormData((prev) => {
-      const existing = prev.damages?.some((damage) => damage.location === label);
+      const existing = prev.damages?.find((damage) => damage.slot_id === point.id || damage.location === label);
       if (existing) return prev;
       const nextDamages = [
         ...(prev.damages || []),
-        { location: label, description: '', severity: 'minor', type: 'K', photo_url: '' },
+        { slot_id: point.id, location: label, description: '', severity: 'minor', type: '', photo_url: '' },
       ];
       return { ...prev, damages: nextDamages };
     });
@@ -263,7 +263,7 @@ export default function DriverProtocol() {
   const addDamage = () => {
     setFormData(prev => ({
       ...prev,
-      damages: [...prev.damages, { location: '', description: '', severity: 'minor', type: 'K', photo_url: '' }]
+      damages: [...prev.damages, { location: '', description: '', severity: 'minor', type: '', photo_url: '' }]
     }));
   };
 
@@ -273,6 +273,9 @@ export default function DriverProtocol() {
       newDamages[index] = { ...newDamages[index], [field]: value };
       return { ...prev, damages: newDamages };
     });
+    if (field === 'type' && value && !formData.damages?.[index]?.photo_url) {
+      setPendingDamagePhoto(index);
+    }
   };
 
   const removeDamage = (index) => {
@@ -291,19 +294,37 @@ export default function DriverProtocol() {
     if (isViewOnly) return;
     if (formData.damages?.[slotIndex]) {
       setActiveDamageIndex(slotIndex);
-      setPendingDamagePhoto(slotIndex);
       return;
     }
     const nextIndex = formData.damages.length;
     if (slotIndex !== nextIndex) {
       setActiveDamageIndex(nextIndex);
       addDamage();
-      setPendingDamagePhoto(nextIndex);
       return;
     }
     setActiveDamageIndex(slotIndex);
     addDamage();
-    setPendingDamagePhoto(slotIndex);
+  };
+
+  const handleDamagePointClick = (point) => {
+    if (isViewOnly) return;
+    const label = t(point.labelKey);
+    const existingIndex = formData.damages.findIndex(
+      (damage) => damage.slot_id === point.id || damage.location === label
+    );
+    if (existingIndex >= 0) {
+      setActiveDamageIndex(existingIndex);
+      return;
+    }
+    const nextIndex = formData.damages.length;
+    setFormData(prev => ({
+      ...prev,
+      damages: [
+        ...prev.damages,
+        { slot_id: point.id, location: label, description: '', severity: 'minor', type: '', photo_url: '' }
+      ]
+    }));
+    setActiveDamageIndex(nextIndex);
   };
 
   const uploadDamagePhoto = async (index, file) => {
@@ -346,17 +367,17 @@ export default function DriverProtocol() {
     }
     if (type === 'pickup') {
       const damageHasGaps = formData.damages?.some(
-        (damage) => !damage.location || !damage.description
+        (damage) => !damage.location || !damage.description || !damage.type
       );
       if (damageHasGaps) {
         setSubmitError(t('protocol.errors.damageIncomplete'));
-        setCurrentStep('photos');
+        setCurrentStep('damage');
         return;
       }
       const damagePhotoMissing = formData.damages?.some((damage) => !damage.photo_url);
       if (damagePhotoMissing) {
         setSubmitError(t('protocol.errors.damagePhotoMissing'));
-        setCurrentStep('photos');
+        setCurrentStep('damage');
         return;
       }
     }
@@ -421,15 +442,16 @@ export default function DriverProtocol() {
   const isViewOnly = !!checklistId && existingChecklist?.completed;
   const damageHasGaps =
     type === 'pickup' &&
-    formData.damages?.some((damage) => !damage.location || !damage.description);
+    formData.damages?.some((damage) => !damage.location || !damage.description || !damage.type);
   const hasAllRequiredPhotos = REQUIRED_PHOTO_IDS.every((id) =>
     formData.photos?.some((photo) => photo.type === id)
   );
   const damagesComplete =
     type !== 'pickup' ||
     !formData.damages?.length ||
-    formData.damages.every((damage) => damage.location && damage.description);
-  const photosComplete = type === 'pickup' ? hasAllRequiredPhotos && damagesComplete : hasAllRequiredPhotos;
+    formData.damages.every((damage) => damage.location && damage.description && damage.type && damage.photo_url);
+  const photosComplete = hasAllRequiredPhotos;
+  const damageComplete = type !== 'pickup' ? true : damagesComplete;
 
   const getStepBlockingReason = (stepId) => {
     if (stepId === 'vehicle_check' && !formData.kilometer) {
@@ -439,10 +461,12 @@ export default function DriverProtocol() {
       if (!hasAllRequiredPhotos) {
         return t('protocol.errors.missingPhotos');
       }
-      if (type === 'pickup' && damageHasGaps) {
+    }
+    if (stepId === 'damage' && type === 'pickup') {
+      if (damageHasGaps) {
         return t('protocol.errors.damageIncomplete');
       }
-      if (type === 'pickup' && formData.damages?.some((damage) => !damage.photo_url)) {
+      if (formData.damages?.some((damage) => !damage.photo_url)) {
         return t('protocol.errors.damagePhotoMissing');
       }
     }
@@ -455,14 +479,32 @@ export default function DriverProtocol() {
   };
 
   const completedSteps = isViewOnly
-    ? ['vehicle_check', 'photos', 'signatures']
+    ? (type === 'pickup' ? ['vehicle_check', 'photos', 'damage', 'signatures'] : ['vehicle_check', 'photos', 'signatures'])
     : [
         formData.kilometer ? 'vehicle_check' : null,
         photosComplete ? 'photos' : null,
+        type === 'pickup' && damageComplete ? 'damage' : null,
         formData.signature_driver && formData.signature_customer && formData.customer_name
           ? 'signatures'
           : null,
       ].filter(Boolean);
+
+  const steps = useMemo(
+    () =>
+      type === 'pickup'
+        ? [
+            { id: 'vehicle_check', labelKey: 'protocol.steps.basics', icon: '🚗' },
+            { id: 'photos', labelKey: 'protocol.steps.photos', icon: '📸' },
+            { id: 'damage', labelKey: 'protocol.steps.damage', icon: '🧩' },
+            { id: 'signatures', labelKey: 'protocol.steps.signatures', icon: '✍️' },
+          ]
+        : [
+            { id: 'vehicle_check', labelKey: 'protocol.steps.basics', icon: '🚗' },
+            { id: 'photos', labelKey: 'protocol.steps.photos', icon: '📸' },
+            { id: 'signatures', labelKey: 'protocol.steps.signatures', icon: '✍️' },
+          ],
+    [type]
+  );
 
   const handleBeforeNext = (stepId) => {
     if (isViewOnly) return true;
@@ -499,6 +541,7 @@ export default function DriverProtocol() {
       </div>
 
       <ProtocolWizard
+        steps={steps}
         currentStep={currentStep}
         completedSteps={completedSteps}
         onStepChange={setCurrentStep}
@@ -664,216 +707,223 @@ export default function DriverProtocol() {
                 onChange={(photos) => handleChange('photos', photos)}
                 readOnly={isViewOnly}
               />
-              {type === 'pickup' && (
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="flex items-center gap-2 text-lg">
-                      <AlertTriangle className="w-5 h-5 text-gray-600" />
-                      {t('protocol.damage.title')}
-                    </CardTitle>
-                  </CardHeader>
-                <CardContent className="p-4 space-y-4">
-                  <div className="space-y-2">
-                    <div className="text-xs uppercase tracking-wide text-slate-500">
-                      {t('protocol.damage.slotTitle')}
-                    </div>
-                    <div className="grid grid-cols-6 gap-2">
-                      {Array.from({ length: 12 }).map((_, slotIndex) => {
-                        const hasDamage = !!formData.damages?.[slotIndex];
-                        const isActive = activeDamageIndex === slotIndex;
-                        return (
-                          <button
-                            key={`damage-slot-${slotIndex}`}
-                            type="button"
-                            className={`h-10 rounded-lg border text-sm font-semibold ${
-                              hasDamage
-                                ? 'border-blue-600 bg-blue-50 text-blue-700'
-                                : 'border-slate-200 bg-white text-slate-500'
-                            } ${isActive ? 'ring-2 ring-blue-500' : ''}`}
-                            onClick={() => handleDamageSlotClick(slotIndex)}
-                            disabled={isViewOnly}
-                          >
-                            {slotIndex + 1}
-                          </button>
-                        );
-                      })}
-                    </div>
-                    <p className="text-xs text-slate-500">{t('protocol.damage.slotHint')}</p>
-                  </div>
-                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                    <p className="text-sm text-slate-600 mb-2">
-                      {t('protocol.damage.instructions')}
-                    </p>
-                      <div className="relative overflow-hidden rounded-lg border bg-white">
-                        <img
-                          src="/vehicle-sketch.svg"
-                          alt={t('protocol.damage.sketchAlt')}
-                          className="w-full"
-                        />
-                        {DAMAGE_POINTS.map((point) => (
-                          <button
-                            key={point.id}
-                            type="button"
-                            className="absolute h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white bg-blue-600/80 shadow"
-                            style={{ left: `${point.x}%`, top: `${point.y}%` }}
-                            onClick={() => addDamageFromSketch(point)}
-                            disabled={isViewOnly}
-                            aria-label={t('protocol.damage.markAria', { location: t(point.labelKey) })}
-                          />
-                        ))}
-                      </div>
-                      <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-600">
-                        <span className="rounded-full border border-slate-200 px-2 py-1">{t('protocol.damage.legend.scratch')}</span>
-                        <span className="rounded-full border border-slate-200 px-2 py-1">{t('protocol.damage.legend.chip')}</span>
-                        <span className="rounded-full border border-slate-200 px-2 py-1">{t('protocol.damage.legend.dent')}</span>
-                        <span className="rounded-full border border-slate-200 px-2 py-1">{t('protocol.damage.legend.damage')}</span>
-                      </div>
-                    </div>
-                  {formData.damages?.map((damage, index) => (
-                      <div
-                        key={index}
-                        ref={(node) => {
-                          if (node) damageRefs.current[index] = node;
-                        }}
-                        className="p-3 border rounded-lg relative"
-                      >
-                        {!isViewOnly && (
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="absolute top-2 right-2 w-6 h-6 text-red-500"
-                            onClick={() => removeDamage(index)}
-                          >
-                            <X className="w-4 h-4" />
-                          </Button>
-                        )}
-                        <div className="space-y-3 pr-8">
-                          <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-                            <span className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-slate-200 bg-slate-50">
-                              {index + 1}
-                            </span>
-                            {t('protocol.damage.cardTitle')}
-                          </div>
-                          <div>
-                            <Label>{t('protocol.damage.location')}</Label>
-                            <Input
-                              value={damage.location}
-                              onChange={(e) => updateDamage(index, 'location', e.target.value)}
-                              placeholder={t('protocol.damage.locationPlaceholder')}
-                              disabled={isViewOnly}
-                            />
-                          </div>
-                          <div>
-                            <Label>{t('protocol.damage.type')}</Label>
-                            <Select
-                              value={damage.type || 'K'}
-                              onValueChange={(v) => updateDamage(index, 'type', v)}
-                              disabled={isViewOnly}
-                            >
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="K">{t('protocol.damage.typeOptions.scratch')}</SelectItem>
-                                <SelectItem value="S">{t('protocol.damage.typeOptions.chip')}</SelectItem>
-                                <SelectItem value="D">{t('protocol.damage.typeOptions.dent')}</SelectItem>
-                                <SelectItem value="B">{t('protocol.damage.typeOptions.damage')}</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          {!isViewOnly && (
-                            <div>
-                              <Label>{t('protocol.damage.photoLabel')}</Label>
-                              <div className="flex flex-col gap-2">
-                                <div className="flex items-center gap-3">
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => document.getElementById(`damage-photo-${index}`)?.click()}
-                                    disabled={damageUploads[index]}
-                                  >
-                                    {damageUploads[index]
-                                      ? t('protocol.damage.photoUploading')
-                                      : t('protocol.damage.photoButton')}
-                                  </Button>
-                                  {damage.photo_url && (
-                                    <img
-                                      src={damage.photo_url}
-                                      alt={t('protocol.damage.photoPreview', { index: index + 1 })}
-                                      className="h-16 w-20 rounded border object-cover"
-                                    />
-                                  )}
-                                </div>
-                                {!damage.photo_url && (
-                                  <p className="text-xs text-slate-500">
-                                    {t('protocol.damage.photoHelp')}
-                                  </p>
-                                )}
-                                <input
-                                  id={`damage-photo-${index}`}
-                                  type="file"
-                                  accept="image/*"
-                                  capture="environment"
-                                  className="hidden"
-                                  onChange={(event) => {
-                                    const file = event.target.files?.[0];
-                                    if (file) {
-                                      uploadDamagePhoto(index, file);
-                                    }
-                                    event.target.value = '';
-                                  }}
-                                />
-                              </div>
-                            </div>
-                          )}
-                          <div>
-                            <Label>{t('protocol.damage.description')}</Label>
-                            <Input
-                              value={damage.description}
-                              onChange={(e) => updateDamage(index, 'description', e.target.value)}
-                              placeholder={t('protocol.damage.descriptionPlaceholder')}
-                              disabled={isViewOnly}
-                            />
-                          </div>
-                          <div>
-                            <Label>{t('protocol.damage.severity')}</Label>
-                            <Select
-                              value={damage.severity}
-                              onValueChange={(v) => updateDamage(index, 'severity', v)}
-                              disabled={isViewOnly}
-                            >
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="minor">{t('protocol.damage.severityOptions.minor')}</SelectItem>
-                                <SelectItem value="medium">{t('protocol.damage.severityOptions.medium')}</SelectItem>
-                                <SelectItem value="severe">{t('protocol.damage.severityOptions.severe')}</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </div>
-                      </div>
-                  ))}
-                    {!isViewOnly && (
-                      <div className="grid gap-2 md:grid-cols-2">
-                        <Button variant="outline" className="w-full" onClick={addDamage}>
-                          <Plus className="w-4 h-4 mr-2" />
-                          {t('protocol.damage.add')}
-                        </Button>
-                        <Button variant="outline" className="w-full" onClick={clearDamages}>
-                          {t('protocol.damage.none')}
-                        </Button>
-                      </div>
-                    )}
-                    {formData.damages?.length === 0 && (
-                      <p className="text-center text-gray-500 py-4">{t('protocol.damage.empty')}</p>
-                    )}
-                  </CardContent>
-                </Card>
-              )}
             </div>
+          )}
+
+          {currentStep === 'damage' && type === 'pickup' && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <AlertTriangle className="w-5 h-5 text-gray-600" />
+                  {t('protocol.damage.title')}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-4 space-y-4">
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <p className="text-sm text-slate-600 mb-2">
+                    {t('protocol.damage.instructions')}
+                  </p>
+                  <div className="relative overflow-hidden rounded-lg border bg-white">
+                    <img
+                      src="/vehicle-sketch.svg"
+                      alt={t('protocol.damage.sketchAlt')}
+                      className="w-full"
+                    />
+                    {DAMAGE_POINTS.map((point) => {
+                      const damageIndex = formData.damages.findIndex(
+                        (damage) => damage.slot_id === point.id
+                      );
+                      const damage = damageIndex >= 0 ? formData.damages[damageIndex] : null;
+                      return (
+                        <button
+                          key={point.id}
+                          type="button"
+                          className={`absolute h-8 w-8 -translate-x-1/2 -translate-y-1/2 rounded-md border text-xs font-semibold ${
+                            damage
+                              ? 'border-blue-600 bg-blue-50 text-blue-700'
+                              : 'border-slate-300 bg-white text-slate-500'
+                          }`}
+                          style={{ left: `${point.x}%`, top: `${point.y}%` }}
+                          onClick={() => handleDamagePointClick(point)}
+                          disabled={isViewOnly}
+                          aria-label={t('protocol.damage.markAria', { location: t(point.labelKey) })}
+                        >
+                          {damage?.type || '+'}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-600">
+                    <span className="rounded-full border border-slate-200 px-2 py-1">{t('protocol.damage.legend.scratch')}</span>
+                    <span className="rounded-full border border-slate-200 px-2 py-1">{t('protocol.damage.legend.chip')}</span>
+                    <span className="rounded-full border border-slate-200 px-2 py-1">{t('protocol.damage.legend.dent')}</span>
+                    <span className="rounded-full border border-slate-200 px-2 py-1">{t('protocol.damage.legend.damage')}</span>
+                  </div>
+                </div>
+
+                {activeDamageIndex !== null && formData.damages?.[activeDamageIndex] && (
+                  <div className="rounded-lg border border-blue-100 bg-blue-50/60 p-3">
+                    <div className="text-sm font-semibold text-blue-800 mb-2">
+                      {t('protocol.damage.cardTitle')} {activeDamageIndex + 1}: {formData.damages[activeDamageIndex].location}
+                    </div>
+                    <div className="grid grid-cols-4 gap-2">
+                      {[
+                        { code: 'K', label: t('protocol.damage.typeOptions.scratch') },
+                        { code: 'S', label: t('protocol.damage.typeOptions.chip') },
+                        { code: 'D', label: t('protocol.damage.typeOptions.dent') },
+                        { code: 'B', label: t('protocol.damage.typeOptions.damage') },
+                      ].map((item) => (
+                        <Button
+                          key={item.code}
+                          type="button"
+                          variant={formData.damages[activeDamageIndex].type === item.code ? 'default' : 'outline'}
+                          className={formData.damages[activeDamageIndex].type === item.code ? 'bg-blue-600 hover:bg-blue-700' : ''}
+                          onClick={() => updateDamage(activeDamageIndex, 'type', item.code)}
+                        >
+                          {item.code}
+                        </Button>
+                      ))}
+                    </div>
+                    <div className="mt-3">
+                      <Label>{t('protocol.damage.photoLabel')}</Label>
+                      <div className="flex items-center gap-3 mt-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => document.getElementById(`damage-photo-${activeDamageIndex}`)?.click()}
+                          disabled={!formData.damages[activeDamageIndex].type || damageUploads[activeDamageIndex]}
+                        >
+                          {damageUploads[activeDamageIndex]
+                            ? t('protocol.damage.photoUploading')
+                            : t('protocol.damage.photoButton')}
+                        </Button>
+                        {formData.damages[activeDamageIndex].photo_url && (
+                          <img
+                            src={formData.damages[activeDamageIndex].photo_url}
+                            alt={t('protocol.damage.photoPreview', { index: activeDamageIndex + 1 })}
+                            className="h-16 w-20 rounded border object-cover"
+                          />
+                        )}
+                      </div>
+                      {!formData.damages[activeDamageIndex].photo_url && (
+                        <p className="text-xs text-slate-500 mt-2">{t('protocol.damage.photoHelp')}</p>
+                      )}
+                      <input
+                        id={`damage-photo-${activeDamageIndex}`}
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        className="hidden"
+                        onChange={(event) => {
+                          const file = event.target.files?.[0];
+                          if (file) {
+                            uploadDamagePhoto(activeDamageIndex, file);
+                          }
+                          event.target.value = '';
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {formData.damages?.map((damage, index) => (
+                  <div
+                    key={index}
+                    ref={(node) => {
+                      if (node) damageRefs.current[index] = node;
+                    }}
+                    className="p-3 border rounded-lg relative"
+                  >
+                    {!isViewOnly && (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="absolute top-2 right-2 w-6 h-6 text-red-500"
+                        onClick={() => removeDamage(index)}
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    )}
+                    <div className="space-y-3 pr-8">
+                      <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                        <span className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-slate-200 bg-slate-50">
+                          {index + 1}
+                        </span>
+                        {t('protocol.damage.cardTitle')}
+                      </div>
+                      <div>
+                        <Label>{t('protocol.damage.location')}</Label>
+                        <Input
+                          value={damage.location}
+                          onChange={(e) => updateDamage(index, 'location', e.target.value)}
+                          placeholder={t('protocol.damage.locationPlaceholder')}
+                          disabled={isViewOnly}
+                        />
+                      </div>
+                      <div>
+                        <Label>{t('protocol.damage.type')}</Label>
+                        <Select
+                          value={damage.type || undefined}
+                          onValueChange={(v) => updateDamage(index, 'type', v)}
+                          disabled={isViewOnly}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder={t('protocol.damage.typePlaceholder')} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="K">{t('protocol.damage.typeOptions.scratch')}</SelectItem>
+                            <SelectItem value="S">{t('protocol.damage.typeOptions.chip')}</SelectItem>
+                            <SelectItem value="D">{t('protocol.damage.typeOptions.dent')}</SelectItem>
+                            <SelectItem value="B">{t('protocol.damage.typeOptions.damage')}</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label>{t('protocol.damage.description')}</Label>
+                        <Input
+                          value={damage.description}
+                          onChange={(e) => updateDamage(index, 'description', e.target.value)}
+                          placeholder={t('protocol.damage.descriptionPlaceholder')}
+                          disabled={isViewOnly}
+                        />
+                      </div>
+                      <div>
+                        <Label>{t('protocol.damage.severity')}</Label>
+                        <Select
+                          value={damage.severity}
+                          onValueChange={(v) => updateDamage(index, 'severity', v)}
+                          disabled={isViewOnly}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="minor">{t('protocol.damage.severityOptions.minor')}</SelectItem>
+                            <SelectItem value="medium">{t('protocol.damage.severityOptions.medium')}</SelectItem>
+                            <SelectItem value="severe">{t('protocol.damage.severityOptions.severe')}</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {!isViewOnly && (
+                  <div className="grid gap-2 md:grid-cols-2">
+                    <Button variant="outline" className="w-full" onClick={addDamage}>
+                      <Plus className="w-4 h-4 mr-2" />
+                      {t('protocol.damage.add')}
+                    </Button>
+                    <Button variant="outline" className="w-full" onClick={clearDamages}>
+                      {t('protocol.damage.none')}
+                    </Button>
+                  </div>
+                )}
+                {formData.damages?.length === 0 && (
+                  <p className="text-center text-gray-500 py-4">{t('protocol.damage.empty')}</p>
+                )}
+              </CardContent>
+            </Card>
           )}
 
           {currentStep === 'signatures' && (

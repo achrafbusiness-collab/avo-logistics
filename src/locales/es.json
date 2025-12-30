@@ -204,6 +204,7 @@
     "steps": {
       "basics": "Datos básicos",
       "photos": "Fotos",
+      "damage": "Daños",
       "signatures": "Firmas"
     },
     "driverNotesTitle": "Notas para conductores",
@@ -257,6 +258,7 @@
       "locationPlaceholder": "p. ej. delantero izquierdo, parachoques",
       "cardTitle": "Daño",
       "type": "Tipo de daño",
+      "typePlaceholder": "Selecciona el tipo de daño",
       "typeOptions": {
         "scratch": "Arañazo (K)",
         "chip": "Piedra (S)",

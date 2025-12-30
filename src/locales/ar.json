@@ -204,6 +204,7 @@
     "steps": {
       "basics": "البيانات الأساسية",
       "photos": "الصور",
+      "damage": "الأضرار",
       "signatures": "التواقيع"
     },
     "driverNotesTitle": "ملاحظات للسائق",
@@ -257,6 +258,7 @@
       "locationPlaceholder": "مثال: الأمام اليسار، الصدام",
       "cardTitle": "ضرر",
       "type": "نوع الضرر",
+      "typePlaceholder": "اختر نوع الضرر",
       "typeOptions": {
         "scratch": "خدش (K)",
         "chip": "حجر (S)",

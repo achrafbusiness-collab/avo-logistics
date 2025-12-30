@@ -204,6 +204,7 @@
     "steps": {
       "basics": "Grunddaten",
       "photos": "Fotos",
+      "damage": "Schäden",
       "signatures": "Unterschriften"
     },
     "driverNotesTitle": "Hinweise für Fahrer",
@@ -257,6 +258,7 @@
       "locationPlaceholder": "z.B. Vorne links, Stoßstange",
       "cardTitle": "Schaden",
       "type": "Art des Schadens",
+      "typePlaceholder": "Schadentyp wählen",
       "typeOptions": {
         "scratch": "Kratzer (K)",
         "chip": "Steinschlag (S)",

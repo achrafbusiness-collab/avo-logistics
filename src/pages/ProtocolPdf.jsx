@@ -39,6 +39,19 @@ const accessories = [
   { key: "spare_wheel", label: "Ersatzrad" },
 ];
 
+const DAMAGE_POINTS = [
+  { id: 'front-left', x: 18, y: 20 },
+  { id: 'front-right', x: 82, y: 20 },
+  { id: 'hood', x: 50, y: 18 },
+  { id: 'roof', x: 50, y: 38 },
+  { id: 'left-side', x: 20, y: 50 },
+  { id: 'right-side', x: 80, y: 50 },
+  { id: 'rear-left', x: 18, y: 78 },
+  { id: 'rear-right', x: 82, y: 78 },
+  { id: 'trunk', x: 50, y: 80 },
+  { id: 'glass', x: 50, y: 55 },
+];
+
 const pickLatestChecklist = (items, type) => {
   const list = (items || []).filter((item) => item?.type === type);
   if (!list.length) return null;
@@ -184,6 +197,9 @@ export default function ProtocolPdf() {
         .pdf-photos { margin-top: 22px; }
         .pdf-photo-section { margin-top: 16px; }
         .pdf-photo-section h3 { margin: 0 0 10px; font-size: 14px; color: #1e3a5f; }
+        .pdf-sketch { position: relative; border: 1px solid #e2e8f0; border-radius: 12px; background: #fff; padding: 8px; margin-top: 8px; }
+        .pdf-sketch img { width: 100%; display: block; }
+        .pdf-sketch-marker { position: absolute; width: 16px; height: 16px; border: 1px solid #0f172a; background: #fff; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: #1e3a5f; }
         .pdf-photo-grid { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
         .pdf-photo-card { border: 1px solid #e2e8f0; padding: 8px; border-radius: 12px; background: white; }
         .pdf-photo-card img { width: 100%; height: 260px; object-fit: contain; border-radius: 8px; background: #f8fafc; }
@@ -314,6 +330,22 @@ export default function ProtocolPdf() {
             </div>
             <div className="pdf-field">
               <div className="pdf-field-label">Schäden / Bemerkungen</div>
+              <div className="pdf-sketch">
+                <img src="/vehicle-sketch.svg" alt="Fahrzeugskizze" />
+                {DAMAGE_POINTS.map((point) => {
+                  const damage = pickupChecklist?.damages?.find((item) => item.slot_id === point.id);
+                  if (!damage?.type) return null;
+                  return (
+                    <div
+                      key={point.id}
+                      className="pdf-sketch-marker"
+                      style={{ left: `${point.x}%`, top: `${point.y}%`, transform: 'translate(-50%, -50%)' }}
+                    >
+                      {damage.type}
+                    </div>
+                  );
+                })}
+              </div>
               {pickupChecklist?.damages?.length ? (
                 <table className="pdf-table">
                   <thead>

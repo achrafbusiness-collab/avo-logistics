@@ -204,6 +204,7 @@
     "steps": {
       "basics": "Basics",
       "photos": "Photos",
+      "damage": "Damage",
       "signatures": "Signatures"
     },
     "driverNotesTitle": "Driver notes",
@@ -257,6 +258,7 @@
       "locationPlaceholder": "e.g. front left, bumper",
       "cardTitle": "Damage",
       "type": "Damage type",
+      "typePlaceholder": "Select damage type",
       "typeOptions": {
         "scratch": "Scratch (K)",
         "chip": "Stone chip (S)",

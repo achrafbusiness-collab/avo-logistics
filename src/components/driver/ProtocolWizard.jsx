@@ -12,6 +12,7 @@ const WIZARD_STEPS = [
 ];
 
 export default function ProtocolWizard({ 
+  steps = WIZARD_STEPS,
   currentStep, 
   completedSteps = [], 
   onStepChange,
@@ -19,15 +20,15 @@ export default function ProtocolWizard({
   children 
 }) {
   const { t } = useI18n();
-  const currentIndex = WIZARD_STEPS.findIndex(s => s.id === currentStep);
-  const progress = ((completedSteps.length) / WIZARD_STEPS.length) * 100;
+  const currentIndex = steps.findIndex(s => s.id === currentStep);
+  const progress = ((completedSteps.length) / steps.length) * 100;
 
   const canGoNext = completedSteps.includes(currentStep);
   const canGoBack = currentIndex > 0;
 
   const handleNext = () => {
-    if (currentIndex < WIZARD_STEPS.length - 1) {
-      const nextStep = WIZARD_STEPS[currentIndex + 1].id;
+    if (currentIndex < steps.length - 1) {
+      const nextStep = steps[currentIndex + 1].id;
       if (typeof onBeforeNext === "function") {
         const canProceed = onBeforeNext(currentStep, nextStep);
         if (!canProceed) return;
@@ -38,7 +39,7 @@ export default function ProtocolWizard({
 
   const handleBack = () => {
     if (currentIndex > 0) {
-      onStepChange(WIZARD_STEPS[currentIndex - 1].id);
+      onStepChange(steps[currentIndex - 1].id);
     }
   };
 
@@ -49,7 +50,7 @@ export default function ProtocolWizard({
         <div className="mx-auto max-w-3xl p-4 text-slate-100">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium text-slate-300">
-              {t('protocol.stepProgress', { current: currentIndex + 1, total: WIZARD_STEPS.length })}
+              {t('protocol.stepProgress', { current: currentIndex + 1, total: steps.length })}
             </span>
             <span className="text-sm font-medium text-blue-200">
               {Math.round(progress)}%
@@ -60,7 +61,7 @@ export default function ProtocolWizard({
 
         {/* Step Indicators */}
         <div className="mx-auto max-w-3xl flex items-center justify-between px-2 pb-3 overflow-x-auto text-slate-200">
-          {WIZARD_STEPS.map((step, index) => (
+          {steps.map((step, index) => (
             <div 
               key={step.id}
               className={`flex flex-col items-center min-w-[60px] ${
@@ -103,7 +104,7 @@ export default function ProtocolWizard({
           </Button>
           <Button 
             onClick={handleNext}
-            disabled={!canGoNext || currentIndex === WIZARD_STEPS.length - 1}
+            disabled={!canGoNext || currentIndex === steps.length - 1}
             className="flex-1 bg-[#1e3a5f] hover:bg-[#2d5a8a]"
           >
             {t('common.next')}
