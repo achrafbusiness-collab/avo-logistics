@@ -331,16 +331,18 @@
     "requiredTitle": "الصور المطلوبة",
     "requiredComplete": "تم التقاط جميع الصور المطلوبة",
     "requiredRemaining": "متبقٍ {{count}} صورة",
-    "camera": {
-      "start": "تشغيل الكاميرا",
-      "stop": "إغلاق الكاميرا",
-      "capture": "التقاط صورة"
-    },
-    "errors": {
-      "uploadFailed": "فشل الرفع. حاول مرة أخرى.",
-      "cameraStartFailed": "تعذر تشغيل الكاميرا.",
-      "captureFailed": "لم يتم التقاط صورة."
-    },
+  "camera": {
+    "start": "تشغيل الكاميرا",
+    "stop": "إغلاق الكاميرا",
+    "capture": "التقاط صورة",
+    "loading": "جاري تحميل الكاميرا..."
+  },
+  "errors": {
+    "uploadFailed": "فشل الرفع. حاول مرة أخرى.",
+    "cameraStartFailed": "تعذر تشغيل الكاميرا.",
+    "captureFailed": "لم يتم التقاط صورة.",
+    "cameraNotReady": "الكاميرا غير جاهزة بعد. الرجاء الانتظار قليلاً."
+  },
     "types": {
       "front": "واجهة المركبة",
       "frontLeft": "الأمام يسار",

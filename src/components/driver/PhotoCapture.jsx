@@ -43,6 +43,7 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false }
   const [cameraActive, setCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState('');
   const [capturing, setCapturing] = useState(false);
+  const [cameraReady, setCameraReady] = useState(false);
   const [currentType, setCurrentType] = useState(null);
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
@@ -99,11 +100,13 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false }
       streamRef.current = null;
     }
     setCameraActive(false);
+    setCameraReady(false);
   };
 
   const startCamera = async () => {
     if (readOnly) return;
     setCameraError('');
+    setCameraReady(false);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'environment' },
@@ -111,8 +114,16 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false }
       });
       streamRef.current = stream;
       if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
+        const video = videoRef.current;
+        video.srcObject = stream;
+        video.muted = true;
+        video.playsInline = true;
+        video.setAttribute('muted', '');
+        video.setAttribute('playsinline', '');
+        const handleReady = () => setCameraReady(true);
+        video.addEventListener('loadedmetadata', handleReady, { once: true });
+        video.addEventListener('canplay', handleReady, { once: true });
+        await video.play();
       }
       setCameraActive(true);
     } catch (err) {
@@ -120,14 +131,35 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false }
     }
   };
 
+  const ensureVideoReady = async () => {
+    const video = videoRef.current;
+    if (!video) return false;
+    if (video.readyState >= 2 && video.videoWidth > 0) return true;
+    await new Promise((resolve) => {
+      const timeout = setTimeout(resolve, 2000);
+      const onReady = () => {
+        clearTimeout(timeout);
+        resolve();
+      };
+      video.addEventListener('loadedmetadata', onReady, { once: true });
+      video.addEventListener('canplay', onReady, { once: true });
+    });
+    return video.readyState >= 2 && video.videoWidth > 0;
+  };
+
   const captureFromCamera = async () => {
     if (!videoRef.current || !currentType) return;
     setCapturing(true);
     try {
+      const ready = await ensureVideoReady();
+      if (!ready) {
+        setCameraError(t('photos.errors.cameraNotReady'));
+        return;
+      }
       const video = videoRef.current;
       const canvas = canvasRef.current;
-      const width = video.videoWidth || 1280;
-      const height = video.videoHeight || 720;
+      const width = video.videoWidth || video.clientWidth || 1280;
+      const height = video.videoHeight || video.clientHeight || 720;
       canvas.width = width;
       canvas.height = height;
       const ctx = canvas.getContext('2d');
@@ -197,6 +229,7 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false }
                     ref={videoRef}
                     autoPlay
                     playsInline
+                    muted
                     className="h-full w-full object-cover"
                   />
                   <div className="absolute left-4 top-4 rounded-full bg-black/60 px-3 py-1 text-sm text-white">
@@ -204,6 +237,11 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false }
                       ? t(PHOTO_TYPES.find((photo) => photo.id === currentType)?.labelKey || "photos.types.other")
                       : t("photos.camera.capture")}
                   </div>
+                  {!cameraReady && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/40 text-sm text-white">
+                      {t('photos.camera.loading')}
+                    </div>
+                  )}
                 </div>
                 <div className="flex flex-col gap-2 border-t bg-white px-4 py-3">
                   <div>
@@ -230,9 +268,9 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false }
                   </div>
                   <div className="grid gap-2 sm:grid-cols-2">
                     <Button
-                      className="bg-[#1e3a5f] hover:bg-[#2d5a8a]"
+                      className="h-12 w-full text-base bg-[#1e3a5f] hover:bg-[#2d5a8a]"
                       onClick={captureFromCamera}
-                      disabled={capturing || !currentType}
+                      disabled={capturing || !currentType || !cameraReady}
                     >
                       {capturing || uploading[currentType] ? (
                         <Loader2 className="w-4 h-4 animate-spin mr-2" />

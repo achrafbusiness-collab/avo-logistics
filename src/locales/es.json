@@ -331,16 +331,18 @@
     "requiredTitle": "Fotos obligatorias",
     "requiredComplete": "Todas las fotos obligatorias capturadas",
     "requiredRemaining": "Faltan {{count}} fotos",
-    "camera": {
-      "start": "Iniciar cámara",
-      "stop": "Cerrar cámara",
-      "capture": "Tomar foto"
-    },
-    "errors": {
-      "uploadFailed": "La carga falló. Intenta de nuevo.",
-      "cameraStartFailed": "No se pudo iniciar la cámara.",
-      "captureFailed": "No se tomó la foto."
-    },
+  "camera": {
+    "start": "Iniciar cámara",
+    "stop": "Cerrar cámara",
+    "capture": "Tomar foto",
+    "loading": "Cargando cámara..."
+  },
+  "errors": {
+    "uploadFailed": "La carga falló. Intenta de nuevo.",
+    "cameraStartFailed": "No se pudo iniciar la cámara.",
+    "captureFailed": "No se tomó la foto.",
+    "cameraNotReady": "La cámara aún no está lista. Espera un momento."
+  },
     "types": {
       "front": "Frontal del vehículo",
       "frontLeft": "Frontal izquierdo",

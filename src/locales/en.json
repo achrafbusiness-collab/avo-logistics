@@ -331,16 +331,18 @@
     "requiredTitle": "Required photos",
     "requiredComplete": "All required photos captured",
     "requiredRemaining": "{{count}} photos remaining",
-    "camera": {
-      "start": "Start camera",
-      "stop": "Close camera",
-      "capture": "Take photo"
-    },
-    "errors": {
-      "uploadFailed": "Upload failed. Please try again.",
-      "cameraStartFailed": "Camera could not be started.",
-      "captureFailed": "No photo captured."
-    },
+  "camera": {
+    "start": "Start camera",
+    "stop": "Close camera",
+    "capture": "Take photo",
+    "loading": "Camera is loading..."
+  },
+  "errors": {
+    "uploadFailed": "Upload failed. Please try again.",
+    "cameraStartFailed": "Camera could not be started.",
+    "captureFailed": "No photo captured.",
+    "cameraNotReady": "Camera not ready yet. Please wait a moment."
+  },
     "types": {
       "front": "Vehicle front",
       "frontLeft": "Front left",

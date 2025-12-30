@@ -331,16 +331,18 @@
     "requiredTitle": "Pflichtfotos",
     "requiredComplete": "Alle Pflichtfotos aufgenommen",
     "requiredRemaining": "Noch {{count}} Fotos erforderlich",
-    "camera": {
-      "start": "Kamera starten",
-      "stop": "Kamera schließen",
-      "capture": "Foto aufnehmen"
-    },
-    "errors": {
-      "uploadFailed": "Upload fehlgeschlagen. Bitte erneut versuchen.",
-      "cameraStartFailed": "Kamera konnte nicht gestartet werden.",
-      "captureFailed": "Kein Foto aufgenommen."
-    },
+  "camera": {
+    "start": "Kamera starten",
+    "stop": "Kamera schließen",
+    "capture": "Foto aufnehmen",
+    "loading": "Kamera wird geladen..."
+  },
+  "errors": {
+    "uploadFailed": "Upload fehlgeschlagen. Bitte erneut versuchen.",
+    "cameraStartFailed": "Kamera konnte nicht gestartet werden.",
+    "captureFailed": "Kein Foto aufgenommen.",
+    "cameraNotReady": "Kamera noch nicht bereit. Bitte kurz warten."
+  },
     "types": {
       "front": "Fahrzeug Front",
       "frontLeft": "Front links",
