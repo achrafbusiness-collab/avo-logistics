@@ -725,42 +725,10 @@ export default function DriverProtocol() {
                   </p>
                   <div className="relative overflow-visible rounded-lg border bg-white">
                     <img
-                      src="/vehicle-damage-sketch.svg"
+                      src="/PHOTO-2025-12-30-13-15-46.jpg"
                       alt={t('protocol.damage.sketchAlt')}
                       className="w-full"
                     />
-                    <svg
-                      className="absolute inset-0 h-full w-full pointer-events-none"
-                      viewBox="0 0 100 100"
-                      preserveAspectRatio="none"
-                    >
-                      <defs>
-                        <marker
-                          id="damage-arrow"
-                          markerWidth="6"
-                          markerHeight="6"
-                          refX="5"
-                          refY="3"
-                          orient="auto"
-                        >
-                          <path d="M0,0 L6,3 L0,6 Z" fill="#94a3b8" />
-                        </marker>
-                      </defs>
-                      {DAMAGE_POINTS.map((point) => (
-                        <g key={`${point.id}-line`}>
-                          <line
-                            x1={point.boxX}
-                            y1={point.boxY}
-                            x2={point.targetX}
-                            y2={point.targetY}
-                            stroke="#94a3b8"
-                            strokeWidth="0.6"
-                            markerEnd="url(#damage-arrow)"
-                          />
-                          <circle cx={point.targetX} cy={point.targetY} r="1.2" fill="#94a3b8" />
-                        </g>
-                      ))}
-                    </svg>
                     {DAMAGE_POINTS.map((point) => {
                       const damageIndex = formData.damages.findIndex(
                         (damage) => damage.slot_id === point.id
