@@ -332,7 +332,7 @@ export default function ProtocolPdf() {
             <div className="pdf-field">
               <div className="pdf-field-label">Schäden / Bemerkungen</div>
               <div className="pdf-sketch">
-                <img src="/PHOTO-2025-12-30-13-15-46.jpg" alt="Fahrzeugskizze" />
+                <img src="/Bildschirmfoto 2025-12-30 um 14.49.39.png" alt="Fahrzeugskizze" />
                 <svg viewBox="0 0 100 100" preserveAspectRatio="none">
                   <defs>
                     <marker
