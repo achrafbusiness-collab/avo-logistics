@@ -50,6 +50,7 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false }
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
   const manualInputRef = useRef(null);
+  const cameraTimeoutRef = useRef(null);
 
   const uploadPhoto = async (type, file) => {
     if (!file) return;
@@ -97,6 +98,10 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false }
   const nextRequired = requiredPhotos.find((photo) => !getPhotoByType(photo.id)) || null;
 
   const stopCamera = () => {
+    if (cameraTimeoutRef.current) {
+      clearTimeout(cameraTimeoutRef.current);
+      cameraTimeoutRef.current = null;
+    }
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
@@ -125,6 +130,9 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false }
     setCameraError('');
     setCameraReady(false);
     setCameraStarting(true);
+    if (cameraTimeoutRef.current) {
+      clearTimeout(cameraTimeoutRef.current);
+    }
     try {
       const stream = await getStream();
       streamRef.current = stream;
@@ -135,17 +143,16 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false }
         video.playsInline = true;
         video.setAttribute('muted', '');
         video.setAttribute('playsinline', '');
-        const handleReady = () => setCameraReady(true);
-        video.addEventListener('loadedmetadata', handleReady, { once: true });
-        video.addEventListener('canplay', handleReady, { once: true });
         await video.play();
       }
       setCameraActive(true);
-      const ready = await ensureVideoReady();
-      if (!ready) {
-        stopCamera();
-        setCameraError(t('photos.errors.cameraTimeout'));
-      }
+      cameraTimeoutRef.current = setTimeout(() => {
+        const video = videoRef.current;
+        const ready = video && video.readyState >= 2 && video.videoWidth > 0;
+        if (!ready) {
+          setCameraError(t('photos.errors.cameraTimeout'));
+        }
+      }, 7000);
     } catch (err) {
       stopCamera();
       setCameraError(t('photos.errors.cameraStartFailed'));
@@ -154,28 +161,11 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false }
     }
   };
 
-  const ensureVideoReady = async () => {
-    const video = videoRef.current;
-    if (!video) return false;
-    if (video.readyState >= 2 && video.videoWidth > 0) return true;
-    await new Promise((resolve) => {
-      const timeout = setTimeout(resolve, 2000);
-      const onReady = () => {
-        clearTimeout(timeout);
-        resolve();
-      };
-      video.addEventListener('loadedmetadata', onReady, { once: true });
-      video.addEventListener('canplay', onReady, { once: true });
-    });
-    return video.readyState >= 2 && video.videoWidth > 0;
-  };
-
   const captureFromCamera = async () => {
     if (!videoRef.current || !currentType) return;
     setCapturing(true);
     try {
-      const ready = await ensureVideoReady();
-      if (!ready) {
+      if (!cameraReady || videoRef.current.videoWidth === 0) {
         setCameraError(t('photos.errors.cameraNotReady'));
         return;
       }
@@ -253,6 +243,18 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false }
                     autoPlay
                     playsInline
                     muted
+                    onLoadedMetadata={() => {
+                      setCameraReady(true);
+                      setCameraError('');
+                    }}
+                    onCanPlay={() => {
+                      setCameraReady(true);
+                      setCameraError('');
+                    }}
+                    onPlaying={() => {
+                      setCameraReady(true);
+                      setCameraError('');
+                    }}
                     className="h-full w-full object-cover"
                   />
                   <div className="absolute left-4 top-4 rounded-full bg-black/60 px-3 py-1 text-sm text-white">
