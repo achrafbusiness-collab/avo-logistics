@@ -12,6 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -66,6 +67,7 @@ export default function DriverProtocol() {
   const [signatureModal, setSignatureModal] = useState(null);
   const [damageUploads, setDamageUploads] = useState({});
   const [activeDamageIndex, setActiveDamageIndex] = useState(null);
+  const [pendingDamagePhoto, setPendingDamagePhoto] = useState(null);
   const damageRefs = useRef({});
 
   const [formData, setFormData] = useState({
@@ -175,6 +177,15 @@ export default function DriverProtocol() {
   }, [activeDamageIndex]);
 
   useEffect(() => {
+    if (pendingDamagePhoto === null) return;
+    const input = document.getElementById(`damage-photo-${pendingDamagePhoto}`);
+    if (input) {
+      input.click();
+      setPendingDamagePhoto(null);
+    }
+  }, [pendingDamagePhoto]);
+
+  useEffect(() => {
     if (!order || formData.location || existingChecklist) {
       return;
     }
@@ -280,16 +291,19 @@ export default function DriverProtocol() {
     if (isViewOnly) return;
     if (formData.damages?.[slotIndex]) {
       setActiveDamageIndex(slotIndex);
+      setPendingDamagePhoto(slotIndex);
       return;
     }
     const nextIndex = formData.damages.length;
     if (slotIndex !== nextIndex) {
       setActiveDamageIndex(nextIndex);
       addDamage();
+      setPendingDamagePhoto(nextIndex);
       return;
     }
     setActiveDamageIndex(slotIndex);
     addDamage();
+    setPendingDamagePhoto(slotIndex);
   };
 
   const uploadDamagePhoto = async (index, file) => {
@@ -995,6 +1009,9 @@ export default function DriverProtocol() {
                 ? t('protocol.signatures.driverSignature')
                 : t('protocol.signatures.customerSignature')}
             </DialogTitle>
+            <DialogDescription className="sr-only">
+              {t('protocol.signatures.signatureHint')}
+            </DialogDescription>
           </DialogHeader>
           {signatureModal && (
             <SignaturePad
