@@ -346,9 +346,11 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false }
               ref={manualInputRef}
               type="file"
               accept="image/*"
-              capture="environment"
               className="hidden"
-              onChange={(e) => uploadPhoto(currentType, e.target.files[0])}
+              onChange={(e) => {
+                if (!currentType) return;
+                uploadPhoto(currentType, e.target.files[0]);
+              }}
             />
           </CardContent>
         </Card>
@@ -443,7 +445,6 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false }
                       <input
                         type="file"
                         accept="image/*"
-                        capture="environment"
                         className="hidden"
                         onChange={(e) => uploadPhoto(photoType.id, e.target.files[0])}
                         disabled={isUploading}
@@ -505,7 +506,6 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false }
                       <input
                         type="file"
                         accept="image/*"
-                        capture="environment"
                         className="hidden"
                         onChange={(e) => uploadPhoto(photoType.id, e.target.files[0])}
                         disabled={isUploading}

@@ -887,7 +887,6 @@ export default function DriverProtocol() {
                         id={`damage-photo-${activeDamageIndex}`}
                         type="file"
                         accept="image/*"
-                        capture="environment"
                         className="hidden"
                         onChange={(event) => {
                           const file = event.target.files?.[0];
