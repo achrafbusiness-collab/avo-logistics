@@ -18,6 +18,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -499,6 +500,9 @@ export default function Checklists() {
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Protokoll Details</DialogTitle>
+            <DialogDescription className="sr-only">
+              Detailansicht eines Fahrerprotokolls mit allen Angaben und Bildern.
+            </DialogDescription>
           </DialogHeader>
           {selectedChecklist && (
             <ChecklistDetails
