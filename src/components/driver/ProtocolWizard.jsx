@@ -17,6 +17,7 @@ export default function ProtocolWizard({
   completedSteps = [], 
   onStepChange,
   onBeforeNext,
+  hideFooter = false,
   children 
 }) {
   const { t } = useI18n();
@@ -91,27 +92,29 @@ export default function ProtocolWizard({
       </div>
 
       {/* Navigation Footer */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 border-t border-slate-200 p-4 backdrop-blur">
-        <div className="mx-auto max-w-3xl flex gap-3">
-          <Button 
-            variant="outline" 
-            onClick={handleBack}
-            disabled={!canGoBack}
-            className="flex-1"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2 rtl-flip" />
-            {t('common.back')}
-          </Button>
-          <Button 
-            onClick={handleNext}
-            disabled={!canGoNext || currentIndex === steps.length - 1}
-            className="flex-1 bg-[#1e3a5f] hover:bg-[#2d5a8a]"
-          >
-            {t('common.next')}
-            <ArrowRight className="w-4 h-4 ml-2 rtl-flip" />
-          </Button>
+      {!hideFooter && (
+        <div className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 border-t border-slate-200 p-4 backdrop-blur">
+          <div className="mx-auto max-w-3xl flex gap-3">
+            <Button 
+              variant="outline" 
+              onClick={handleBack}
+              disabled={!canGoBack}
+              className="flex-1"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2 rtl-flip" />
+              {t('common.back')}
+            </Button>
+            <Button 
+              onClick={handleNext}
+              disabled={!canGoNext || currentIndex === steps.length - 1}
+              className="flex-1 bg-[#1e3a5f] hover:bg-[#2d5a8a]"
+            >
+              {t('common.next')}
+              <ArrowRight className="w-4 h-4 ml-2 rtl-flip" />
+            </Button>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

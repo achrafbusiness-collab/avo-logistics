@@ -78,6 +78,7 @@ export default function DriverProtocol() {
   const [pendingDamagePhoto, setPendingDamagePhoto] = useState(null);
   const damageRefs = useRef({});
   const [expenseUploads, setExpenseUploads] = useState({});
+  const [photoCameraActive, setPhotoCameraActive] = useState(false);
 
   const [formData, setFormData] = useState({
     order_id: orderId,
@@ -652,6 +653,7 @@ export default function DriverProtocol() {
         completedSteps={completedSteps}
         onStepChange={setCurrentStep}
         onBeforeNext={handleBeforeNext}
+        hideFooter={photoCameraActive}
       >
         <div className="space-y-4">
           {submitError && (
@@ -812,6 +814,7 @@ export default function DriverProtocol() {
                 photos={formData.photos}
                 onChange={(photos) => handleChange('photos', photos)}
                 readOnly={isViewOnly}
+                onCameraActiveChange={setPhotoCameraActive}
               />
             </div>
           )}

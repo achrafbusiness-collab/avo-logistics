@@ -35,7 +35,7 @@ export const REQUIRED_PHOTO_IDS = PHOTO_TYPES.filter((photo) => photo.required).
   (photo) => photo.id
 );
 
-export default function PhotoCapture({ photos = [], onChange, readOnly = false }) {
+export default function PhotoCapture({ photos = [], onChange, readOnly = false, onCameraActiveChange }) {
   const { t } = useI18n();
   const [uploading, setUploading] = useState({});
   const [cameraActive, setCameraActive] = useState(false);
@@ -219,6 +219,12 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    if (typeof onCameraActiveChange === 'function') {
+      onCameraActiveChange(cameraActive);
+    }
+  }, [cameraActive, onCameraActiveChange]);
+
   return (
     <div className="space-y-6">
       {!readOnly && (
@@ -281,6 +287,20 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false }
                     }}
                     className="h-full w-full object-cover"
                   />
+                  <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2">
+                    <Button
+                      className="h-16 w-16 rounded-full bg-white text-slate-900 hover:bg-slate-100 shadow-lg"
+                      onClick={captureFromCamera}
+                      disabled={capturing || !currentType || !cameraReady}
+                    >
+                      {capturing || uploading[currentType] ? (
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                      ) : (
+                        <Camera className="w-6 h-6" />
+                      )}
+                    </Button>
+                    <span className="text-xs text-white">{t('photos.camera.capture')}</span>
+                  </div>
                   {!cameraReady && (
                     <div className="absolute inset-0 flex items-center justify-center bg-black/40 text-sm text-white">
                       {t('photos.camera.loading')}
@@ -288,7 +308,7 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false }
                   )}
                 </div>
 
-                <div className="bg-white px-4 py-4 space-y-3">
+                <div className="bg-white px-4 py-4 space-y-3 pb-[calc(env(safe-area-inset-bottom)+16px)]">
                   <div>
                     <p className="text-xs text-slate-500">{t('photos.captureType')}</p>
                     <select
@@ -307,18 +327,6 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false }
                     </select>
                   </div>
                   <div className="grid gap-2 sm:grid-cols-2">
-                    <Button
-                      className="h-16 w-full text-base bg-[#1e3a5f] hover:bg-[#2d5a8a]"
-                      onClick={captureFromCamera}
-                      disabled={capturing || !currentType || !cameraReady}
-                    >
-                      {capturing || uploading[currentType] ? (
-                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                      ) : (
-                        <Camera className="w-4 h-4 mr-2" />
-                      )}
-                      {t('photos.camera.capture')}
-                    </Button>
                     {(!cameraReady || cameraError) && (
                       <Button
                         variant="outline"
