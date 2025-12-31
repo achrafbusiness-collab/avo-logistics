@@ -35,11 +35,18 @@ export const REQUIRED_PHOTO_IDS = PHOTO_TYPES.filter((photo) => photo.required).
   (photo) => photo.id
 );
 
-export default function PhotoCapture({ photos = [], onChange, readOnly = false, onCameraActiveChange }) {
+export default function PhotoCapture({
+  photos = [],
+  onChange,
+  readOnly = false,
+  onCameraActiveChange,
+  lighting = 'day'
+}) {
   const { t } = useI18n();
   const [uploading, setUploading] = useState({});
   const [cameraActive, setCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState('');
+  const [torchWarning, setTorchWarning] = useState('');
   const [capturing, setCapturing] = useState(false);
   const [cameraReady, setCameraReady] = useState(false);
   const [cameraStarting, setCameraStarting] = useState(false);
@@ -132,9 +139,25 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false, 
     }
   };
 
+  const applyTorch = async (enabled) => {
+    const stream = streamRef.current;
+    if (!stream) return false;
+    const [track] = stream.getVideoTracks();
+    if (!track) return false;
+    const capabilities = track.getCapabilities?.();
+    if (!capabilities?.torch) return false;
+    try {
+      await track.applyConstraints({ advanced: [{ torch: enabled }] });
+      return true;
+    } catch (error) {
+      return false;
+    }
+  };
+
   const startCamera = async () => {
     if (readOnly) return;
     setCameraError('');
+    setTorchWarning('');
     setCameraReady(false);
     setCameraStarting(true);
     setCameraActive(true);
@@ -160,6 +183,12 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false, 
         video.setAttribute('playsinline', '');
         await video.play();
       }
+      if (lighting === 'dark') {
+        const torchOk = await applyTorch(true);
+        if (!torchOk) {
+          setTorchWarning(t('photos.camera.torchUnavailable'));
+        }
+      }
       cameraTimeoutRef.current = setTimeout(() => {
         const video = videoRef.current;
         const ready = video && video.readyState >= 2 && video.videoWidth > 0;
@@ -181,6 +210,9 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false, 
       if (!cameraReady || videoRef.current.videoWidth === 0) {
         setCameraError(t('photos.errors.cameraNotReady'));
         return;
+      }
+      if (lighting === 'dark') {
+        await applyTorch(true);
       }
       const video = videoRef.current;
       const canvas = canvasRef.current;
@@ -225,6 +257,21 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false, 
     }
   }, [cameraActive, onCameraActiveChange]);
 
+  useEffect(() => {
+    if (!cameraActive) return;
+    if (lighting === 'dark') {
+      applyTorch(true).then((ok) => {
+        if (!ok) {
+          setTorchWarning(t('photos.camera.torchUnavailable'));
+        }
+      });
+    } else {
+      applyTorch(false);
+      setTorchWarning('');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lighting, cameraActive]);
+
   return (
     <div className="space-y-6">
       {!readOnly && (
@@ -265,6 +312,9 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false, 
                 </div>
                 {cameraError && (
                   <div className="px-4 pb-2 text-sm text-red-200">{cameraError}</div>
+                )}
+                {torchWarning && (
+                  <div className="px-4 pb-2 text-xs text-amber-200">{torchWarning}</div>
                 )}
 
                 <div className="relative flex-1 bg-black">

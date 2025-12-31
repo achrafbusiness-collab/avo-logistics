@@ -229,6 +229,11 @@
         "normal": "عادي",
         "dirty": "متسخ"
       },
+      "lighting": "الإضاءة",
+      "lightingOptions": {
+        "day": "مضيء",
+        "dark": "مظلم"
+      },
       "accessories": {
         "spareWheel": "عجلة احتياطية",
         "warningTriangle": "مثلث تحذير",
@@ -386,6 +391,7 @@
     "capture": "التقاط صورة",
     "loading": "جاري تحميل الكاميرا...",
     "retry": "إعادة تشغيل الكاميرا",
+    "torchUnavailable": "الفلاش غير متاح. يرجى توفير إضاءة كافية.",
     "manual": "اختيار صورة يدويًا"
   },
   "errors": {

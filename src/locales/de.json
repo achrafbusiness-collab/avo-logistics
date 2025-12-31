@@ -229,6 +229,11 @@
         "normal": "Normal",
         "dirty": "Verschmutzt"
       },
+      "lighting": "Lichtverhältnisse",
+      "lightingOptions": {
+        "day": "Hell",
+        "dark": "Dunkel"
+      },
       "accessories": {
         "spareWheel": "Reserverad",
         "warningTriangle": "Warndreieck",
@@ -386,6 +391,7 @@
     "capture": "Foto aufnehmen",
     "loading": "Kamera wird geladen...",
     "retry": "Kamera neu starten",
+    "torchUnavailable": "Blitzlicht nicht verfügbar. Bitte manuell Licht sicherstellen.",
     "manual": "Foto manuell wählen"
   },
   "errors": {

@@ -229,6 +229,11 @@
         "normal": "Normal",
         "dirty": "Dirty"
       },
+      "lighting": "Lighting",
+      "lightingOptions": {
+        "day": "Bright",
+        "dark": "Dark"
+      },
       "accessories": {
         "spareWheel": "Spare wheel",
         "warningTriangle": "Warning triangle",
@@ -386,6 +391,7 @@
     "capture": "Take photo",
     "loading": "Camera is loading...",
     "retry": "Restart camera",
+    "torchUnavailable": "Flashlight not available. Please ensure sufficient light.",
     "manual": "Select photo manually"
   },
   "errors": {

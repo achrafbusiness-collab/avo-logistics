@@ -90,6 +90,7 @@ export default function DriverProtocol() {
     fuel_cost: '',
     cleanliness_inside: 'normal',
     cleanliness_outside: 'normal',
+    lighting: 'day',
     accessories: {
       spare_wheel: false,
       warning_triangle: false,
@@ -179,6 +180,7 @@ export default function DriverProtocol() {
         kilometer: existingChecklist.kilometer?.toString() || '',
         fuel_cost: existingChecklist.fuel_cost?.toString() || '',
         expenses: existingChecklist.expenses || [],
+        lighting: existingChecklist.lighting || 'day',
         signature_refused: existingChecklist.signature_refused ?? false,
         signature_refused_by: existingChecklist.signature_refused_by || '',
         signature_refused_reason: existingChecklist.signature_refused_reason || ''
@@ -755,6 +757,24 @@ export default function DriverProtocol() {
                     </Select>
                   </div>
                 </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>{t('protocol.basics.lighting')}</Label>
+                    <Select
+                      value={formData.lighting}
+                      onValueChange={(v) => handleChange('lighting', v)}
+                      disabled={isViewOnly}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="day">{t('protocol.basics.lightingOptions.day')}</SelectItem>
+                        <SelectItem value="dark">{t('protocol.basics.lightingOptions.dark')}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
                 {type === 'dropoff' && (
                   <div>
                     <Label>{t('protocol.basics.fuelCost')}</Label>
@@ -815,6 +835,7 @@ export default function DriverProtocol() {
                 onChange={(photos) => handleChange('photos', photos)}
                 readOnly={isViewOnly}
                 onCameraActiveChange={setPhotoCameraActive}
+                lighting={formData.lighting}
               />
             </div>
           )}

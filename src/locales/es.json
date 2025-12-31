@@ -229,6 +229,11 @@
         "normal": "Normal",
         "dirty": "Sucio"
       },
+      "lighting": "Iluminación",
+      "lightingOptions": {
+        "day": "Claro",
+        "dark": "Oscuro"
+      },
       "accessories": {
         "spareWheel": "Rueda de repuesto",
         "warningTriangle": "Triángulo",
@@ -386,6 +391,7 @@
     "capture": "Tomar foto",
     "loading": "Cargando cámara...",
     "retry": "Reiniciar cámara",
+    "torchUnavailable": "Flash no disponible. Asegura suficiente luz.",
     "manual": "Seleccionar foto manualmente"
   },
   "errors": {

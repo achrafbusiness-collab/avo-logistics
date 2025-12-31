@@ -27,6 +27,12 @@ const labelForFuel = (value) => {
   return value;
 };
 
+const labelForLighting = (value) => {
+  if (!value) return "-";
+  if (value === "dark") return "Dunkel";
+  return "Hell";
+};
+
 const accessories = [
   { key: "registration_doc", label: "Fahrzeugschein" },
   { key: "warning_triangle", label: "Warndreieck" },
@@ -319,6 +325,10 @@ export default function ProtocolPdf() {
               </div>
             </div>
             <div className="pdf-field">
+              <div className="pdf-field-label">Lichtverhältnisse</div>
+              <div className="pdf-field-value">{labelForLighting(pickupChecklist?.lighting)}</div>
+            </div>
+            <div className="pdf-field">
               <div className="pdf-field-label">Fahrzeugzubehör</div>
               <div className="pdf-accessories">
                 {pickupAccessories.map((item) => (
@@ -426,6 +436,10 @@ export default function ProtocolPdf() {
                   {dropoffChecklist?.cleanliness_inside || "-"} / {dropoffChecklist?.cleanliness_outside || "-"}
                 </div>
               </div>
+            </div>
+            <div className="pdf-field">
+              <div className="pdf-field-label">Lichtverhältnisse</div>
+              <div className="pdf-field-value">{labelForLighting(dropoffChecklist?.lighting)}</div>
             </div>
             <div className="pdf-field">
               <div className="pdf-field-label">Tankkosten</div>

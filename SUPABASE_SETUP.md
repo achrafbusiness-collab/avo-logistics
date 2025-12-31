@@ -338,6 +338,9 @@ alter table public.checklists
 alter table public.checklists
   add column if not exists signature_refused_reason text;
 
+alter table public.checklists
+  add column if not exists lighting text;
+
 create table if not exists public.app_settings (
   id uuid primary key default gen_random_uuid(),
   company_name text,
