@@ -329,6 +329,15 @@ create table if not exists public.checklists (
 alter table public.checklists
   add column if not exists expenses jsonb default '[]'::jsonb;
 
+alter table public.checklists
+  add column if not exists signature_refused boolean default false;
+
+alter table public.checklists
+  add column if not exists signature_refused_by text;
+
+alter table public.checklists
+  add column if not exists signature_refused_reason text;
+
 create table if not exists public.app_settings (
   id uuid primary key default gen_random_uuid(),
   company_name text,

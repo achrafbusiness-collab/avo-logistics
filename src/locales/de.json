@@ -331,6 +331,12 @@
     "edit": "Unterschrift ändern",
     "empty": "Noch keine Unterschrift vorhanden",
     "signatureHint": "Bitte hier unterschreiben",
+    "refusedLabel": "Unterschrift verweigert",
+    "refusedHelp": "Falls der Kunde nicht unterschreibt, bitte aktivieren und begründen.",
+    "refusedBy": "Verweigert von",
+    "refusedByPlaceholder": "Name der Person",
+    "refusedReason": "Begründung",
+    "refusedReasonPlaceholder": "Warum wurde die Unterschrift verweigert?",
     "submit": "Protokoll abschließen"
   },
     "confirm": {
@@ -345,7 +351,8 @@
       "missingDriverSignature": "Bitte die Unterschrift des Fahrers erfassen.",
       "missingCustomerSignature": "Bitte die Unterschrift des Kunden erfassen.",
       "missingCustomerName": "Bitte den Namen des Kunden eintragen.",
-      "missingSignatures": "Bitte Name und Unterschriften vollständig erfassen."
+      "missingSignatures": "Bitte Name und Unterschriften vollständig erfassen.",
+      "signatureRefusalIncomplete": "Bitte Name und Begründung für die verweigerte Unterschrift eintragen."
     },
     "confirmations": {
       "vehicle": {

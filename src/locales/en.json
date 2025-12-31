@@ -331,6 +331,12 @@
     "edit": "Edit signature",
     "empty": "No signature yet",
     "signatureHint": "Please sign here",
+    "refusedLabel": "Signature refused",
+    "refusedHelp": "If the customer refuses to sign, enable this and provide a reason.",
+    "refusedBy": "Refused by",
+    "refusedByPlaceholder": "Name of the person",
+    "refusedReason": "Reason",
+    "refusedReasonPlaceholder": "Why was the signature refused?",
     "submit": "Complete protocol"
   },
     "confirm": {
@@ -345,7 +351,8 @@
       "missingDriverSignature": "Please capture the driver's signature.",
       "missingCustomerSignature": "Please capture the customer's signature.",
       "missingCustomerName": "Please enter the customer's name.",
-      "missingSignatures": "Please complete name and signatures."
+      "missingSignatures": "Please complete name and signatures.",
+      "signatureRefusalIncomplete": "Please enter who refused and the reason."
     },
     "confirmations": {
       "vehicle": {

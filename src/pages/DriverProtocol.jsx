@@ -109,6 +109,9 @@ export default function DriverProtocol() {
     signature_driver: '',
     signature_customer: '',
     customer_name: '',
+    signature_refused: false,
+    signature_refused_by: '',
+    signature_refused_reason: '',
     completed: false
   });
 
@@ -174,7 +177,10 @@ export default function DriverProtocol() {
         ...existingChecklist,
         kilometer: existingChecklist.kilometer?.toString() || '',
         fuel_cost: existingChecklist.fuel_cost?.toString() || '',
-        expenses: existingChecklist.expenses || []
+        expenses: existingChecklist.expenses || [],
+        signature_refused: existingChecklist.signature_refused ?? false,
+        signature_refused_by: existingChecklist.signature_refused_by || '',
+        signature_refused_reason: existingChecklist.signature_refused_reason || ''
       });
     }
   }, [existingChecklist]);
@@ -450,15 +456,24 @@ export default function DriverProtocol() {
       setCurrentStep('signatures');
       return;
     }
-    if (!formData.signature_customer) {
-      setSubmitError(t('protocol.errors.missingCustomerSignature'));
-      setCurrentStep('signatures');
-      return;
-    }
-    if (!formData.customer_name) {
-      setSubmitError(t('protocol.errors.missingCustomerName'));
-      setCurrentStep('signatures');
-      return;
+    const dropoffRefused = type === 'dropoff' && formData.signature_refused;
+    if (dropoffRefused) {
+      if (!formData.signature_refused_by || !formData.signature_refused_reason) {
+        setSubmitError(t('protocol.errors.signatureRefusalIncomplete'));
+        setCurrentStep('signatures');
+        return;
+      }
+    } else {
+      if (!formData.signature_customer) {
+        setSubmitError(t('protocol.errors.missingCustomerSignature'));
+        setCurrentStep('signatures');
+        return;
+      }
+      if (!formData.customer_name) {
+        setSubmitError(t('protocol.errors.missingCustomerName'));
+        setCurrentStep('signatures');
+        return;
+      }
     }
 
     setSubmitError('');
@@ -517,6 +532,16 @@ export default function DriverProtocol() {
   const photosComplete = hasAllRequiredPhotos;
   const damageComplete = type !== 'pickup' ? true : damagesComplete;
   const expensesComplete = !Object.values(expenseUploads).some(Boolean);
+  const signatureRefused = type === 'dropoff' && formData.signature_refused;
+  const signatureRefusedComplete = signatureRefused
+    ? Boolean(formData.signature_refused_by && formData.signature_refused_reason)
+    : false;
+  const signaturesComplete = Boolean(
+    formData.signature_driver &&
+      (signatureRefused
+        ? signatureRefusedComplete
+        : formData.signature_customer && formData.customer_name)
+  );
   const finalStep = type === 'dropoff' ? 'expenses' : 'signatures';
 
   const isImageFile = (expense) => {
@@ -543,7 +568,16 @@ export default function DriverProtocol() {
       }
     }
     if (stepId === 'signatures') {
-      if (!formData.customer_name || !formData.signature_driver || !formData.signature_customer) {
+      if (!formData.signature_driver) {
+        return t('protocol.errors.missingSignatures');
+      }
+      if (signatureRefused) {
+        if (!signatureRefusedComplete) {
+          return t('protocol.errors.signatureRefusalIncomplete');
+        }
+        return '';
+      }
+      if (!formData.customer_name || !formData.signature_customer) {
         return t('protocol.errors.missingSignatures');
       }
     }
@@ -556,9 +590,7 @@ export default function DriverProtocol() {
         formData.kilometer ? 'vehicle_check' : null,
         photosComplete ? 'photos' : null,
         type === 'pickup' && damageComplete ? 'damage' : null,
-        formData.signature_driver && formData.signature_customer && formData.customer_name
-          ? 'signatures'
-          : null,
+        signaturesComplete ? 'signatures' : null,
         type === 'dropoff' && expensesComplete ? 'expenses' : null,
       ].filter(Boolean);
 
@@ -1028,6 +1060,45 @@ export default function DriverProtocol() {
                     disabled={isViewOnly}
                   />
                 </div>
+                {type === 'dropoff' && !isViewOnly && (
+                  <Card className="border-slate-200">
+                    <CardContent className="p-4 space-y-3">
+                      <div className="flex items-center justify-between gap-4">
+                        <div>
+                          <Label>{t('protocol.signatures.refusedLabel')}</Label>
+                          <p className="text-xs text-slate-500">{t('protocol.signatures.refusedHelp')}</p>
+                        </div>
+                        <Switch
+                          checked={formData.signature_refused}
+                          onCheckedChange={(value) => handleChange('signature_refused', value)}
+                        />
+                      </div>
+                      {formData.signature_refused && (
+                        <div className="space-y-3">
+                          <div>
+                            <Label>{t('protocol.signatures.refusedBy')}</Label>
+                            <Input
+                              value={formData.signature_refused_by}
+                              onChange={(e) => handleChange('signature_refused_by', e.target.value)}
+                              placeholder={t('protocol.signatures.refusedByPlaceholder')}
+                              disabled={isViewOnly}
+                            />
+                          </div>
+                          <div>
+                            <Label>{t('protocol.signatures.refusedReason')}</Label>
+                            <Textarea
+                              value={formData.signature_refused_reason}
+                              onChange={(e) => handleChange('signature_refused_reason', e.target.value)}
+                              placeholder={t('protocol.signatures.refusedReasonPlaceholder')}
+                              rows={3}
+                              disabled={isViewOnly}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
                 {appSettings && (appSettings.legal_text || appSettings.delivery_legal_text) && (
                   <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
                     {(type === 'pickup' ? appSettings.legal_text : appSettings.delivery_legal_text) ||
@@ -1044,12 +1115,14 @@ export default function DriverProtocol() {
                         value: formData.signature_driver,
                         onChange: (v) => handleChange('signature_driver', v),
                       },
-                      {
+                      ...(signatureRefused
+                        ? []
+                        : [{
                         key: 'customer',
                         label: t('protocol.signatures.customerSignature'),
                         value: formData.signature_customer,
                         onChange: (v) => handleChange('signature_customer', v),
-                      },
+                      }]),
                     ].map((item) => (
                       <Card key={item.key} className="border-slate-200">
                         <CardContent className="p-4 space-y-3">
@@ -1080,25 +1153,38 @@ export default function DriverProtocol() {
                     ))}
                   </div>
                 ) : (
-                  <div className="grid grid-cols-2 gap-4">
-                    {formData.signature_driver && (
-                      <div>
-                        <Label>{t('protocol.signatures.driverSignature')}</Label>
-                        <img
-                          src={formData.signature_driver}
-                          alt={t('protocol.signatures.driverSignature')}
-                          className="border rounded mt-2 max-h-24"
-                        />
-                      </div>
-                    )}
-                    {formData.signature_customer && (
-                      <div>
-                        <Label>{t('protocol.signatures.customerSignature')}</Label>
-                        <img
-                          src={formData.signature_customer}
-                          alt={t('protocol.signatures.customerSignature')}
-                          className="border rounded mt-2 max-h-24"
-                        />
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-4">
+                      {formData.signature_driver && (
+                        <div>
+                          <Label>{t('protocol.signatures.driverSignature')}</Label>
+                          <img
+                            src={formData.signature_driver}
+                            alt={t('protocol.signatures.driverSignature')}
+                            className="border rounded mt-2 max-h-24"
+                          />
+                        </div>
+                      )}
+                      {formData.signature_customer && !signatureRefused && (
+                        <div>
+                          <Label>{t('protocol.signatures.customerSignature')}</Label>
+                          <img
+                            src={formData.signature_customer}
+                            alt={t('protocol.signatures.customerSignature')}
+                            className="border rounded mt-2 max-h-24"
+                          />
+                        </div>
+                      )}
+                    </div>
+                    {signatureRefused && (
+                      <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700">
+                        <p className="font-semibold">{t('protocol.signatures.refusedLabel')}</p>
+                        <p className="mt-1">
+                          {t('protocol.signatures.refusedBy')}: {formData.signature_refused_by || "-"}
+                        </p>
+                        <p className="mt-1">
+                          {t('protocol.signatures.refusedReason')}: {formData.signature_refused_reason || "-"}
+                        </p>
                       </div>
                     )}
                   </div>

@@ -29,8 +29,6 @@ const PHOTO_TYPES = [
   { id: 'interior_rear', labelKey: 'photos.types.interiorRear', required: true },
   { id: 'trunk', labelKey: 'photos.types.trunk', required: true },
   { id: 'odometer', labelKey: 'photos.types.odometer', required: true },
-  { id: 'damage', labelKey: 'photos.types.damage', required: false },
-  { id: 'other', labelKey: 'photos.types.other', required: false },
 ];
 
 export const REQUIRED_PHOTO_IDS = PHOTO_TYPES.filter((photo) => photo.required).map(
@@ -78,6 +76,12 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false }
       }
       
       onChange(newPhotos);
+      const isNowComplete = REQUIRED_PHOTO_IDS.every((id) =>
+        newPhotos.some((photo) => photo.type === id)
+      );
+      if (isNowComplete) {
+        stopCamera();
+      }
     } catch (error) {
       console.error('Upload failed:', error);
       setCameraError(error?.message || t('photos.errors.uploadFailed'));
@@ -93,7 +97,6 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false }
   const getPhotoByType = (type) => photos.find(p => p.type === type);
 
   const requiredPhotos = useMemo(() => PHOTO_TYPES.filter(p => p.required), []);
-  const optionalPhotos = useMemo(() => PHOTO_TYPES.filter(p => !p.required), []);
   const completedRequired = requiredPhotos.filter(p => getPhotoByType(p.id)).length;
   const nextRequired = requiredPhotos.find((photo) => !getPhotoByType(photo.id)) || null;
 
@@ -134,10 +137,18 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false }
     setCameraError('');
     setCameraReady(false);
     setCameraStarting(true);
+    setCameraActive(true);
+    if (currentType === null && nextRequired?.id) {
+      setCurrentType(nextRequired.id);
+    }
     if (cameraTimeoutRef.current) {
       clearTimeout(cameraTimeoutRef.current);
     }
     try {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+        streamRef.current = null;
+      }
       const stream = await getStream();
       streamRef.current = stream;
       if (videoRef.current) {
@@ -149,7 +160,6 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false }
         video.setAttribute('playsinline', '');
         await video.play();
       }
-      setCameraActive(true);
       cameraTimeoutRef.current = setTimeout(() => {
         const video = videoRef.current;
         const ready = video && video.readyState >= 2 && video.videoWidth > 0;
@@ -158,7 +168,6 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false }
         }
       }, 7000);
     } catch (err) {
-      stopCamera();
       setCameraError(t('photos.errors.cameraStartFailed'));
     } finally {
       setCameraStarting(false);
@@ -198,12 +207,8 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false }
     if (!cameraActive) return;
     if (nextRequired?.id && currentType !== nextRequired.id) {
       setCurrentType(nextRequired.id);
-      return;
     }
-    if (!currentType && optionalPhotos[0]?.id) {
-      setCurrentType(optionalPhotos[0].id);
-    }
-  }, [cameraActive, nextRequired, optionalPhotos, currentType]);
+  }, [cameraActive, nextRequired, currentType]);
 
   useEffect(() => {
     if (readOnly) return;
@@ -223,7 +228,7 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false }
               <div>
                 <p className="text-xs uppercase tracking-wide text-slate-400">{t('photos.nextLabel')}</p>
                 <p className="font-semibold text-slate-900">
-                  {nextRequired ? t(nextRequired.labelKey) : t('photos.optionalTitle')}
+                  {nextRequired ? t(nextRequired.labelKey) : t('photos.requiredTitle')}
                 </p>
               </div>
               <Button
@@ -252,6 +257,9 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false }
                     {t('photos.review')}
                   </Button>
                 </div>
+                {cameraError && (
+                  <div className="px-4 pb-2 text-sm text-red-200">{cameraError}</div>
+                )}
 
                 <div className="relative flex-1 bg-black">
                   <video
@@ -296,16 +304,11 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false }
                             {t(photo.labelKey)}
                           </option>
                         ))}
-                      {optionalPhotos.map((photo) => (
-                        <option key={photo.id} value={photo.id}>
-                          {t(photo.labelKey)} ({t('common.optional')})
-                        </option>
-                      ))}
                     </select>
                   </div>
                   <div className="grid gap-2 sm:grid-cols-2">
                     <Button
-                      className="h-14 w-full text-base bg-[#1e3a5f] hover:bg-[#2d5a8a]"
+                      className="h-16 w-full text-base bg-[#1e3a5f] hover:bg-[#2d5a8a]"
                       onClick={captureFromCamera}
                       disabled={capturing || !currentType || !cameraReady}
                     >
@@ -316,10 +319,10 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false }
                       )}
                       {t('photos.camera.capture')}
                     </Button>
-                    {!cameraReady && (
+                    {(!cameraReady || cameraError) && (
                       <Button
                         variant="outline"
-                        className="h-14 w-full text-base"
+                        className="h-16 w-full text-base"
                         onClick={startCamera}
                         disabled={cameraStarting}
                       >
@@ -408,7 +411,7 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false }
                       <img 
                         src={photo.url} 
                         alt={label}
-                        className="w-full aspect-video object-cover rounded"
+                        className="w-full aspect-[4/3] object-contain rounded bg-slate-50"
                       />
                       {!readOnly && (
                         <Button
@@ -426,14 +429,14 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false }
                       </div>
                     </div>
                   ) : readOnly ? (
-                    <div className="flex flex-col items-center justify-center aspect-video bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
+                    <div className="flex flex-col items-center justify-center aspect-[4/3] bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
                       <Camera className="w-8 h-8 text-gray-300" />
                       <span className="text-xs text-gray-400 mt-2 text-center px-2">
                         {label}
                       </span>
                     </div>
                   ) : (
-                    <label className={`flex flex-col items-center justify-center aspect-video bg-gray-50 rounded-lg border-2 border-dashed cursor-pointer hover:bg-gray-100 transition-colors ${isUploading ? 'border-blue-300' : 'border-gray-200'}`}>
+                    <label className={`flex flex-col items-center justify-center aspect-[4/3] bg-gray-50 rounded-lg border-2 border-dashed cursor-pointer hover:bg-gray-100 transition-colors ${isUploading ? 'border-blue-300' : 'border-gray-200'}`}>
                       {isUploading ? (
                         <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
                       ) : (
@@ -458,66 +461,6 @@ export default function PhotoCapture({ photos = [], onChange, readOnly = false }
         </div>
       </div>
 
-      {/* Optional Photos */}
-      <div>
-        <h3 className="font-semibold mb-3">{t('photos.optionalTitle')}</h3>
-        <div className="grid grid-cols-2 gap-3">
-          {optionalPhotos.map((photoType) => {
-            const photo = getPhotoByType(photoType.id);
-            const isUploading = uploading[photoType.id];
-            const label = t(photoType.labelKey);
-            
-            return (
-              <Card key={photoType.id} className={photo ? 'border-green-300' : ''}>
-                <CardContent className="p-3">
-                  {photo ? (
-                    <div className="relative">
-                      <img 
-                        src={photo.url} 
-                        alt={label}
-                        className="w-full aspect-video object-cover rounded"
-                      />
-                      <Button
-                        size="icon"
-                        variant="destructive"
-                        className="absolute top-1 right-1 w-6 h-6"
-                        onClick={() => removePhoto(photoType.id)}
-                      >
-                        <X className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  ) : readOnly ? (
-                    <div className="flex flex-col items-center justify-center aspect-video bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
-                      <Camera className="w-8 h-8 text-gray-300" />
-                      <span className="text-xs text-gray-400 mt-2 text-center px-2">
-                        {label}
-                      </span>
-                    </div>
-                  ) : (
-                    <label className={`flex flex-col items-center justify-center aspect-video bg-gray-50 rounded-lg border-2 border-dashed cursor-pointer hover:bg-gray-100 transition-colors ${isUploading ? 'border-blue-300' : 'border-gray-200'}`}>
-                      {isUploading ? (
-                        <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
-                      ) : (
-                        <Camera className="w-8 h-8 text-gray-400" />
-                      )}
-                      <span className="text-xs text-gray-500 mt-2 text-center px-2">
-                        {label}
-                      </span>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={(e) => uploadPhoto(photoType.id, e.target.files[0])}
-                        disabled={isUploading}
-                      />
-                    </label>
-                  )}
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-      </div>
     </div>
   );
 }

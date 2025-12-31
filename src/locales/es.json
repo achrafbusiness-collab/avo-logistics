@@ -331,6 +331,12 @@
     "edit": "Editar firma",
     "empty": "Sin firma todavía",
     "signatureHint": "Firma aquí, por favor",
+    "refusedLabel": "Firma rechazada",
+    "refusedHelp": "Si el cliente se niega a firmar, actívalo e indica el motivo.",
+    "refusedBy": "Rechazado por",
+    "refusedByPlaceholder": "Nombre de la persona",
+    "refusedReason": "Motivo",
+    "refusedReasonPlaceholder": "¿Por qué se rechazó la firma?",
     "submit": "Finalizar protocolo"
   },
     "confirm": {
@@ -345,7 +351,8 @@
       "missingDriverSignature": "Captura la firma del conductor.",
       "missingCustomerSignature": "Captura la firma del cliente.",
       "missingCustomerName": "Introduce el nombre del cliente.",
-      "missingSignatures": "Completa nombre y firmas."
+      "missingSignatures": "Completa nombre y firmas.",
+      "signatureRefusalIncomplete": "Indica quién rechazó y el motivo."
     },
     "confirmations": {
       "vehicle": {

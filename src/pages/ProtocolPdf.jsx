@@ -128,6 +128,7 @@ export default function ProtocolPdf() {
 
   const pickupPhotos = pickupChecklist?.photos || [];
   const dropoffPhotos = dropoffChecklist?.photos || [];
+  const dropoffSignatureRefused = Boolean(dropoffChecklist?.signature_refused);
   useEffect(() => {
     if (!shouldPrint || !checklist || !order || typeof orderChecklists === "undefined") return;
     const timeout = setTimeout(() => {
@@ -449,12 +450,18 @@ export default function ProtocolPdf() {
               </div>
               <div className="pdf-signature-box">
                 <div className="pdf-field-label">Unterschrift Kunde</div>
-                {dropoffChecklist?.signature_customer ? (
+                {dropoffSignatureRefused ? (
+                  <div className="pdf-signature-placeholder">Unterschrift verweigert</div>
+                ) : dropoffChecklist?.signature_customer ? (
                   <img src={dropoffChecklist.signature_customer} alt="Unterschrift Kunde" />
                 ) : (
                   <div className="pdf-signature-placeholder">Nicht vorhanden</div>
                 )}
-                <div className="pdf-note">{dropoffChecklist?.customer_name || order.customer_name || "-"}</div>
+                <div className="pdf-note">
+                  {dropoffSignatureRefused
+                    ? `Verweigert von: ${dropoffChecklist?.signature_refused_by || "-"}\nGrund: ${dropoffChecklist?.signature_refused_reason || "-"}`
+                    : dropoffChecklist?.customer_name || order.customer_name || "-"}
+                </div>
               </div>
             </div>
           </div>

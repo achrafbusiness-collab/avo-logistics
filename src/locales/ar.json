@@ -331,6 +331,12 @@
     "edit": "تعديل التوقيع",
     "empty": "لا يوجد توقيع بعد",
     "signatureHint": "يرجى التوقيع هنا",
+    "refusedLabel": "تم رفض التوقيع",
+    "refusedHelp": "إذا رفض العميل التوقيع، فعّل ذلك وقدّم السبب.",
+    "refusedBy": "الرافض",
+    "refusedByPlaceholder": "اسم الشخص",
+    "refusedReason": "السبب",
+    "refusedReasonPlaceholder": "لماذا تم رفض التوقيع؟",
     "submit": "إنهاء البروتوكول"
   },
     "confirm": {
@@ -345,7 +351,8 @@
       "missingDriverSignature": "يرجى التقاط توقيع السائق.",
       "missingCustomerSignature": "يرجى التقاط توقيع العميل.",
       "missingCustomerName": "يرجى إدخال اسم العميل.",
-      "missingSignatures": "يرجى إكمال الاسم والتواقيع."
+      "missingSignatures": "يرجى إكمال الاسم والتواقيع.",
+      "signatureRefusalIncomplete": "يرجى إدخال اسم الرافض وسبب الرفض."
     },
     "confirmations": {
       "vehicle": {
