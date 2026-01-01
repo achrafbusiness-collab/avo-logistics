@@ -12,6 +12,7 @@ const REQUIRED_PHOTOS = [
   { id: 'door_passenger', label: 'Beifahrertür', instruction: 'Fotografieren Sie die Beifahrertür' },
   { id: 'door_rear_right', label: 'Hintere Tür rechts', instruction: 'Fotografieren Sie die rechte hintere Tür' },
   { id: 'wheel_rear_right', label: 'Felge hinten rechts', instruction: 'Fotografieren Sie die rechte Hinterfelge' },
+  { id: 'rear_right', label: 'Heck rechts', instruction: 'Fotografieren Sie die rechte Heckseite' },
   { id: 'rear', label: 'Fahrzeug hinten', instruction: 'Fotografieren Sie das Fahrzeug von hinten' },
   { id: 'rear_left', label: 'Heck links', instruction: 'Fotografieren Sie die linke Heckseite' },
   { id: 'wheel_rear_left', label: 'Felge hinten links', instruction: 'Fotografieren Sie die linke Hinterfelge' },

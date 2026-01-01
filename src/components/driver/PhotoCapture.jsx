@@ -19,6 +19,7 @@ const PHOTO_TYPES = [
   { id: 'door_passenger', labelKey: 'photos.types.doorPassenger', required: true },
   { id: 'door_rear_right', labelKey: 'photos.types.doorRearRight', required: true },
   { id: 'wheel_rear_right', labelKey: 'photos.types.wheelRearRight', required: true },
+  { id: 'rear_right', labelKey: 'photos.types.rearRight', required: true },
   { id: 'rear', labelKey: 'photos.types.rear', required: true },
   { id: 'rear_left', labelKey: 'photos.types.rearLeft', required: true },
   { id: 'wheel_rear_left', labelKey: 'photos.types.wheelRearLeft', required: true },

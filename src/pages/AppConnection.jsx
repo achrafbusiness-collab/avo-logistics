@@ -230,7 +230,7 @@ export default function AppConnection() {
           <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
             <h4 className="font-semibold text-blue-900 mb-2">Pflicht-Fotos</h4>
             <p className="text-sm text-blue-800">
-              Die App fordert 18 Pflicht-Fotos in fester Reihenfolge:
+              Die App fordert 19 Pflicht-Fotos in fester Reihenfolge:
             </p>
             <ol className="text-sm text-blue-800 mt-2 ml-4 list-decimal space-y-1">
               <li>Fahrzeug Front</li>
@@ -240,6 +240,7 @@ export default function AppConnection() {
               <li>Beifahrertür</li>
               <li>Hintere Tür rechts</li>
               <li>Felge hinten rechts</li>
+              <li>Heck rechts</li>
               <li>Fahrzeug hinten</li>
               <li>Heck links</li>
               <li>Felge hinten links</li>
