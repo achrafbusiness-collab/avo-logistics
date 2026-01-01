@@ -835,7 +835,6 @@ export default function DriverProtocol() {
                 onChange={(photos) => handleChange('photos', photos)}
                 readOnly={isViewOnly}
                 onCameraActiveChange={setPhotoCameraActive}
-                lighting={formData.lighting}
               />
             </div>
           )}

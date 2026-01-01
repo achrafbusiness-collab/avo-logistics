@@ -391,6 +391,8 @@
     "capture": "Foto aufnehmen",
     "loading": "Kamera wird geladen...",
     "retry": "Kamera neu starten",
+    "torchOn": "Licht an",
+    "torchOff": "Licht aus",
     "torchUnavailable": "Blitzlicht nicht verfügbar. Bitte manuell Licht sicherstellen.",
     "manual": "Foto manuell wählen"
   },

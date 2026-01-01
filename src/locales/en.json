@@ -391,6 +391,8 @@
     "capture": "Take photo",
     "loading": "Camera is loading...",
     "retry": "Restart camera",
+    "torchOn": "Light on",
+    "torchOff": "Light off",
     "torchUnavailable": "Flashlight not available. Please ensure sufficient light.",
     "manual": "Select photo manually"
   },

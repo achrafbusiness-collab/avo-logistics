@@ -6,7 +6,8 @@ import {
   Camera, 
   X, 
   Loader2,
-  CheckCircle2
+  CheckCircle2,
+  Zap
 } from 'lucide-react';
 import { useI18n } from '@/i18n';
 
@@ -39,8 +40,7 @@ export default function PhotoCapture({
   photos = [],
   onChange,
   readOnly = false,
-  onCameraActiveChange,
-  lighting = 'day'
+  onCameraActiveChange
 }) {
   const { t } = useI18n();
   const [uploading, setUploading] = useState({});
@@ -51,6 +51,7 @@ export default function PhotoCapture({
   const [cameraReady, setCameraReady] = useState(false);
   const [cameraStarting, setCameraStarting] = useState(false);
   const [currentType, setCurrentType] = useState(null);
+  const [torchEnabled, setTorchEnabled] = useState(false);
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
@@ -119,6 +120,8 @@ export default function PhotoCapture({
     setCameraActive(false);
     setCameraReady(false);
     setCameraStarting(false);
+    setTorchEnabled(false);
+    setTorchWarning('');
   };
 
   const getStream = async () => {
@@ -183,12 +186,6 @@ export default function PhotoCapture({
         video.setAttribute('playsinline', '');
         await video.play();
       }
-      if (lighting === 'dark') {
-        const torchOk = await applyTorch(true);
-        if (!torchOk) {
-          setTorchWarning(t('photos.camera.torchUnavailable'));
-        }
-      }
       cameraTimeoutRef.current = setTimeout(() => {
         const video = videoRef.current;
         const ready = video && video.readyState >= 2 && video.videoWidth > 0;
@@ -210,9 +207,6 @@ export default function PhotoCapture({
       if (!cameraReady || videoRef.current.videoWidth === 0) {
         setCameraError(t('photos.errors.cameraNotReady'));
         return;
-      }
-      if (lighting === 'dark') {
-        await applyTorch(true);
       }
       const video = videoRef.current;
       const canvas = canvasRef.current;
@@ -257,20 +251,17 @@ export default function PhotoCapture({
     }
   }, [cameraActive, onCameraActiveChange]);
 
-  useEffect(() => {
-    if (!cameraActive) return;
-    if (lighting === 'dark') {
-      applyTorch(true).then((ok) => {
-        if (!ok) {
-          setTorchWarning(t('photos.camera.torchUnavailable'));
-        }
-      });
-    } else {
-      applyTorch(false);
-      setTorchWarning('');
+  const toggleTorch = async () => {
+    const nextValue = !torchEnabled;
+    const ok = await applyTorch(nextValue);
+    if (!ok) {
+      setTorchWarning(t('photos.camera.torchUnavailable'));
+      setTorchEnabled(false);
+      return;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lighting, cameraActive]);
+    setTorchWarning('');
+    setTorchEnabled(nextValue);
+  };
 
   return (
     <div className="space-y-6">
@@ -337,19 +328,33 @@ export default function PhotoCapture({
                     }}
                     className="h-full w-full object-cover"
                   />
-                  <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2">
-                    <Button
-                      className="h-16 w-16 rounded-full bg-white text-slate-900 hover:bg-slate-100 shadow-lg"
-                      onClick={captureFromCamera}
-                      disabled={capturing || !currentType || !cameraReady}
-                    >
-                      {capturing || uploading[currentType] ? (
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                      ) : (
-                        <Camera className="w-6 h-6" />
-                      )}
-                    </Button>
-                    <span className="text-xs text-white">{t('photos.camera.capture')}</span>
+                  <div className="absolute bottom-6 left-0 right-0 flex items-end justify-center gap-4">
+                    <div className="flex flex-col items-center gap-2">
+                      <Button
+                        className="h-16 w-16 rounded-full bg-white text-slate-900 hover:bg-slate-100 shadow-lg"
+                        onClick={captureFromCamera}
+                        disabled={capturing || !currentType || !cameraReady}
+                      >
+                        {capturing || uploading[currentType] ? (
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                        ) : (
+                          <Camera className="w-6 h-6" />
+                        )}
+                      </Button>
+                      <span className="text-xs text-white">{t('photos.camera.capture')}</span>
+                    </div>
+                    <div className="flex flex-col items-center gap-2">
+                      <Button
+                        variant="outline"
+                        className="h-12 w-12 rounded-full border-white text-white hover:bg-white/20"
+                        onClick={toggleTorch}
+                      >
+                        <Zap className={`w-5 h-5 ${torchEnabled ? 'text-amber-300' : 'text-white'}`} />
+                      </Button>
+                      <span className="text-xs text-white">
+                        {torchEnabled ? t('photos.camera.torchOn') : t('photos.camera.torchOff')}
+                      </span>
+                    </div>
                   </div>
                   {!cameraReady && (
                     <div className="absolute inset-0 flex items-center justify-center bg-black/40 text-sm text-white">
