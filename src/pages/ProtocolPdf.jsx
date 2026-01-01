@@ -135,6 +135,9 @@ export default function ProtocolPdf() {
   const pickupPhotos = pickupChecklist?.photos || [];
   const dropoffPhotos = dropoffChecklist?.photos || [];
   const dropoffSignatureRefused = Boolean(dropoffChecklist?.signature_refused);
+  const pickupDamages = pickupChecklist?.damages || [];
+  const damageRows = Array.from({ length: 5 }, (_, index) => pickupDamages[index] || null);
+  const extraDamageCount = Math.max(0, pickupDamages.length - damageRows.length);
   useEffect(() => {
     if (!shouldPrint || !checklist || !order || typeof orderChecklists === "undefined") return;
     const timeout = setTimeout(() => {
@@ -206,6 +209,9 @@ export default function ProtocolPdf() {
         .pdf-photo-section h3 { margin: 0 0 10px; font-size: 14px; color: #1e3a5f; }
         .pdf-sketch { position: relative; border: 1px solid #e2e8f0; border-radius: 12px; background: #fff; overflow: hidden; margin-top: 8px; }
         .pdf-sketch img { width: 100%; display: block; }
+        .pdf-damage-grid { display: grid; grid-template-columns: 150px 1fr; gap: 10px; align-items: start; }
+        .pdf-sketch.compact { margin-top: 0; height: 150px; }
+        .pdf-sketch.compact img { height: 150px; object-fit: contain; }
         .pdf-sketch-marker { position: absolute; width: 16px; height: 16px; border: 1px solid #0f172a; background: #fff; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: #1e3a5f; }
         .pdf-photo-grid { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
         .pdf-photo-card { border: 1px solid #e2e8f0; padding: 8px; border-radius: 12px; background: white; }
@@ -231,6 +237,8 @@ export default function ProtocolPdf() {
           .pdf-field-value { font-size: 12px; }
           .pdf-photo-grid { gap: 6mm; grid-template-columns: repeat(2, minmax(0, 1fr)); }
           .pdf-photo-card img { height: 260px; object-fit: contain; }
+          .pdf-sketch.compact { height: 135px; }
+          .pdf-sketch.compact img { height: 135px; }
         }
       `}</style>
 
@@ -341,44 +349,50 @@ export default function ProtocolPdf() {
             </div>
             <div className="pdf-field">
               <div className="pdf-field-label">Schäden / Bemerkungen</div>
-              <div className="pdf-sketch">
-                <img src="/PHOTO-2025-12-30-13-15-46.jpg" alt="Fahrzeugskizze" />
-                {DAMAGE_POINTS.map((point) => {
-                  const damage = pickupChecklist?.damages?.find((item) => item.slot_id === point.id);
-                  if (!damage?.type) return null;
-                  return (
-                    <div
-                      key={point.id}
-                      className="pdf-sketch-marker"
-                      style={{ left: `${point.boxX}%`, top: `${point.boxY}%`, transform: 'translate(-50%, -50%)' }}
-                    >
-                      {damage.type}
-                    </div>
-                  );
-                })}
-              </div>
-              {pickupChecklist?.damages?.length ? (
-                <table className="pdf-table">
-                  <thead>
-                    <tr>
-                      <th>Position</th>
-                      <th>Typ</th>
-                      <th>Beschreibung</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {pickupChecklist.damages.map((damage, index) => (
-                      <tr key={`${damage.location}-${index}`}>
-                        <td>{damage.location}</td>
-                        <td>{damage.type || "-"}</td>
-                        <td>{damage.description || "-"}</td>
+              <div className="pdf-damage-grid">
+                <div className="pdf-sketch compact">
+                  <img src="/PHOTO-2025-12-30-13-15-46.jpg" alt="Fahrzeugskizze" />
+                  {DAMAGE_POINTS.map((point) => {
+                    const damage = pickupChecklist?.damages?.find((item) => item.slot_id === point.id);
+                    if (!damage?.type) return null;
+                    return (
+                      <div
+                        key={point.id}
+                        className="pdf-sketch-marker"
+                        style={{ left: `${point.boxX}%`, top: `${point.boxY}%`, transform: 'translate(-50%, -50%)' }}
+                      >
+                        {damage.type}
+                      </div>
+                    );
+                  })}
+                </div>
+                <div>
+                  <table className="pdf-table">
+                    <thead>
+                      <tr>
+                        <th>Position</th>
+                        <th>Typ</th>
+                        <th>Beschreibung</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              ) : (
-                <div className="pdf-note">Keine Schäden dokumentiert.</div>
-              )}
+                    </thead>
+                    <tbody>
+                      {damageRows.map((damage, index) => (
+                        <tr key={`damage-row-${index}`}>
+                          <td>{damage?.location || ""}</td>
+                          <td>{damage?.type || ""}</td>
+                          <td>{damage?.description || ""}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {!pickupChecklist?.damages?.length && (
+                    <div className="pdf-note">Keine Schäden dokumentiert.</div>
+                  )}
+                  {extraDamageCount > 0 && (
+                    <div className="pdf-note">{`Weitere Schäden: ${extraDamageCount}`}</div>
+                  )}
+                </div>
+              </div>
             </div>
             <div className="pdf-field">
               <div className="pdf-field-label">Notizen</div>
