@@ -38,17 +38,26 @@ import {
   X
 } from 'lucide-react';
 
-const DAMAGE_POINTS = [
-  { id: 'front-left', labelKey: 'protocol.damagePoints.frontLeft', boxX: 10, boxY: 12, targetX: 32, targetY: 32 },
-  { id: 'front-right', labelKey: 'protocol.damagePoints.frontRight', boxX: 90, boxY: 12, targetX: 68, targetY: 32 },
-  { id: 'hood', labelKey: 'protocol.damagePoints.hood', boxX: 50, boxY: 6, targetX: 50, targetY: 26 },
-  { id: 'roof', labelKey: 'protocol.damagePoints.roof', boxX: 50, boxY: 22, targetX: 50, targetY: 42 },
-  { id: 'left-side', labelKey: 'protocol.damagePoints.leftSide', boxX: 10, boxY: 50, targetX: 32, targetY: 50 },
-  { id: 'right-side', labelKey: 'protocol.damagePoints.rightSide', boxX: 90, boxY: 50, targetX: 68, targetY: 50 },
-  { id: 'rear-left', labelKey: 'protocol.damagePoints.rearLeft', boxX: 10, boxY: 88, targetX: 32, targetY: 66 },
-  { id: 'rear-right', labelKey: 'protocol.damagePoints.rearRight', boxX: 90, boxY: 88, targetX: 68, targetY: 66 },
-  { id: 'trunk', labelKey: 'protocol.damagePoints.trunk', boxX: 50, boxY: 94, targetX: 50, targetY: 72 },
-  { id: 'glass', labelKey: 'protocol.damagePoints.glass', boxX: 50, boxY: 32, targetX: 50, targetY: 50 },
+const DAMAGE_LOCATIONS = [
+  { id: 'odometer', labelKey: 'photos.types.odometer' },
+  { id: 'door_driver', labelKey: 'photos.types.doorDriver' },
+  { id: 'wheel_front_left', labelKey: 'photos.types.wheelFrontLeft' },
+  { id: 'front_right', labelKey: 'photos.types.frontRight' },
+  { id: 'front', labelKey: 'photos.types.front' },
+  { id: 'front_left', labelKey: 'photos.types.frontLeft' },
+  { id: 'wheel_front_right', labelKey: 'photos.types.wheelFrontRight' },
+  { id: 'door_passenger', labelKey: 'photos.types.doorPassenger' },
+  { id: 'door_rear_right', labelKey: 'photos.types.doorRearRight' },
+  { id: 'wheel_rear_right', labelKey: 'photos.types.wheelRearRight' },
+  { id: 'rear_right', labelKey: 'photos.types.rearRight' },
+  { id: 'rear', labelKey: 'photos.types.rear' },
+  { id: 'trunk', labelKey: 'photos.types.trunk' },
+  { id: 'rear_left', labelKey: 'photos.types.rearLeft' },
+  { id: 'wheel_rear_left', labelKey: 'photos.types.wheelRearLeft' },
+  { id: 'door_rear_left', labelKey: 'photos.types.doorRearLeft' },
+  { id: 'windshield', labelKey: 'photos.types.windshield' },
+  { id: 'interior_front', labelKey: 'photos.types.interiorFront' },
+  { id: 'interior_rear', labelKey: 'photos.types.interiorRear' },
 ];
 
 const EXPENSE_TYPES = [
@@ -74,9 +83,7 @@ export default function DriverProtocol() {
   const [submitError, setSubmitError] = useState('');
   const [signatureModal, setSignatureModal] = useState(null);
   const [damageUploads, setDamageUploads] = useState({});
-  const [activeDamageIndex, setActiveDamageIndex] = useState(null);
   const [pendingDamagePhoto, setPendingDamagePhoto] = useState(null);
-  const damageRefs = useRef({});
   const [expenseUploads, setExpenseUploads] = useState({});
   const [photoCameraActive, setPhotoCameraActive] = useState(false);
 
@@ -189,14 +196,6 @@ export default function DriverProtocol() {
   }, [existingChecklist]);
 
   useEffect(() => {
-    if (activeDamageIndex === null) return;
-    const node = damageRefs.current[activeDamageIndex];
-    if (node) {
-      node.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
-  }, [activeDamageIndex]);
-
-  useEffect(() => {
     if (pendingDamagePhoto === null) return;
     const input = document.getElementById(`damage-photo-${pendingDamagePhoto}`);
     if (input) {
@@ -261,39 +260,56 @@ export default function DriverProtocol() {
     }));
   };
 
-  const addDamageFromSketch = (point) => {
-    if (isViewOnly) return;
-    const label = t(point.labelKey);
-    setFormData((prev) => {
-      const existing = prev.damages?.find((damage) => damage.slot_id === point.id || damage.location === label);
-      if (existing) return prev;
-      const nextDamages = [
-        ...(prev.damages || []),
-        { slot_id: point.id, location: label, description: '', severity: 'minor', type: '', photo_url: '' },
-      ];
-      return { ...prev, damages: nextDamages };
-    });
-  };
-
   const clearDamages = () => {
     if (isViewOnly) return;
     setFormData((prev) => ({ ...prev, damages: [] }));
   };
 
   const addDamage = () => {
-    setFormData(prev => ({
-      ...prev,
-      damages: [...prev.damages, { location: '', description: '', severity: 'minor', type: '', photo_url: '' }]
-    }));
+    setFormData((prev) => {
+      const used = new Set((prev.damages || []).map((damage) => damage.slot_id).filter(Boolean));
+      const nextLocation = DAMAGE_LOCATIONS.find((location) => !used.has(location.id)) || null;
+      return {
+        ...prev,
+        damages: [
+          ...prev.damages,
+          {
+            slot_id: nextLocation?.id || '',
+            location: nextLocation ? t(nextLocation.labelKey) : '',
+            description: '',
+            severity: 'minor',
+            type: '',
+            photo_url: '',
+          },
+        ],
+      };
+    });
+  };
+
+  const updateDamageLocation = (index, locationId) => {
+    const selected = DAMAGE_LOCATIONS.find((location) => location.id === locationId);
+    setFormData((prev) => {
+      const newDamages = [...prev.damages];
+      newDamages[index] = {
+        ...newDamages[index],
+        slot_id: locationId,
+        location: selected ? t(selected.labelKey) : '',
+      };
+      return { ...prev, damages: newDamages };
+    });
   };
 
   const updateDamage = (index, field, value) => {
-    setFormData(prev => {
+    setFormData((prev) => {
       const newDamages = [...prev.damages];
       newDamages[index] = { ...newDamages[index], [field]: value };
       return { ...prev, damages: newDamages };
     });
     if (field === 'type' && value && !formData.damages?.[index]?.photo_url) {
+      const locationValue = formData.damages?.[index]?.location;
+      if (!locationValue) {
+        return;
+      }
       setPendingDamagePhoto(index);
     }
   };
@@ -310,41 +326,13 @@ export default function DriverProtocol() {
     });
   };
 
-  const handleDamageSlotClick = (slotIndex) => {
-    if (isViewOnly) return;
-    if (formData.damages?.[slotIndex]) {
-      setActiveDamageIndex(slotIndex);
-      return;
+  const getDamageLocationValue = (damage) => {
+    if (!damage) return '';
+    if (damage.slot_id && DAMAGE_LOCATIONS.some((location) => location.id === damage.slot_id)) {
+      return damage.slot_id;
     }
-    const nextIndex = formData.damages.length;
-    if (slotIndex !== nextIndex) {
-      setActiveDamageIndex(nextIndex);
-      addDamage();
-      return;
-    }
-    setActiveDamageIndex(slotIndex);
-    addDamage();
-  };
-
-  const handleDamagePointClick = (point) => {
-    if (isViewOnly) return;
-    const label = t(point.labelKey);
-    const existingIndex = formData.damages.findIndex(
-      (damage) => damage.slot_id === point.id || damage.location === label
-    );
-    if (existingIndex >= 0) {
-      setActiveDamageIndex(existingIndex);
-      return;
-    }
-    const nextIndex = formData.damages.length;
-    setFormData(prev => ({
-      ...prev,
-      damages: [
-        ...prev.damages,
-        { slot_id: point.id, location: label, description: '', severity: 'minor', type: '', photo_url: '' }
-      ]
-    }));
-    setActiveDamageIndex(nextIndex);
+    const match = DAMAGE_LOCATIONS.find((location) => t(location.labelKey) === damage.location);
+    return match?.id || '';
   };
 
   const uploadDamagePhoto = async (index, file) => {
@@ -849,118 +837,14 @@ export default function DriverProtocol() {
               </CardHeader>
               <CardContent className="p-4 space-y-4">
                 <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                  <p className="text-sm text-slate-600 mb-2">
+                  <p className="text-sm text-slate-600">
                     {t('protocol.damage.instructions')}
                   </p>
-                  <div className="relative overflow-visible rounded-lg border bg-white">
-                    <img
-                      src="/PHOTO-2025-12-30-13-15-46.jpg"
-                      alt={t('protocol.damage.sketchAlt')}
-                      className="w-full"
-                    />
-                    {DAMAGE_POINTS.map((point) => {
-                      const damageIndex = formData.damages.findIndex(
-                        (damage) => damage.slot_id === point.id
-                      );
-                      const damage = damageIndex >= 0 ? formData.damages[damageIndex] : null;
-                      return (
-                        <button
-                          key={point.id}
-                          type="button"
-                          className={`absolute h-8 w-8 -translate-x-1/2 -translate-y-1/2 rounded-md border text-xs font-semibold ${
-                            damage
-                              ? 'border-blue-600 bg-blue-50 text-blue-700'
-                              : 'border-slate-300 bg-white text-slate-500'
-                          }`}
-                          style={{ left: `${point.boxX}%`, top: `${point.boxY}%` }}
-                          onClick={() => handleDamagePointClick(point)}
-                          disabled={isViewOnly}
-                          aria-label={t('protocol.damage.markAria', { location: t(point.labelKey) })}
-                        >
-                          {damage?.type || '+'}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-600">
-                    <span className="rounded-full border border-slate-200 px-2 py-1">{t('protocol.damage.legend.scratch')}</span>
-                    <span className="rounded-full border border-slate-200 px-2 py-1">{t('protocol.damage.legend.chip')}</span>
-                    <span className="rounded-full border border-slate-200 px-2 py-1">{t('protocol.damage.legend.dent')}</span>
-                    <span className="rounded-full border border-slate-200 px-2 py-1">{t('protocol.damage.legend.damage')}</span>
-                  </div>
                 </div>
-
-                {activeDamageIndex !== null && formData.damages?.[activeDamageIndex] && (
-                  <div className="rounded-lg border border-blue-100 bg-blue-50/60 p-3">
-                    <div className="text-sm font-semibold text-blue-800 mb-2">
-                      {t('protocol.damage.cardTitle')} {activeDamageIndex + 1}: {formData.damages[activeDamageIndex].location}
-                    </div>
-                    <div className="grid grid-cols-4 gap-2">
-                      {[
-                        { code: 'K', label: t('protocol.damage.typeOptions.scratch') },
-                        { code: 'S', label: t('protocol.damage.typeOptions.chip') },
-                        { code: 'D', label: t('protocol.damage.typeOptions.dent') },
-                        { code: 'B', label: t('protocol.damage.typeOptions.damage') },
-                      ].map((item) => (
-                        <Button
-                          key={item.code}
-                          type="button"
-                          variant={formData.damages[activeDamageIndex].type === item.code ? 'default' : 'outline'}
-                          className={formData.damages[activeDamageIndex].type === item.code ? 'bg-blue-600 hover:bg-blue-700' : ''}
-                          onClick={() => updateDamage(activeDamageIndex, 'type', item.code)}
-                        >
-                          {item.code}
-                        </Button>
-                      ))}
-                    </div>
-                    <div className="mt-3">
-                      <Label>{t('protocol.damage.photoLabel')}</Label>
-                      <div className="flex items-center gap-3 mt-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => document.getElementById(`damage-photo-${activeDamageIndex}`)?.click()}
-                          disabled={!formData.damages[activeDamageIndex].type || damageUploads[activeDamageIndex]}
-                        >
-                          {damageUploads[activeDamageIndex]
-                            ? t('protocol.damage.photoUploading')
-                            : t('protocol.damage.photoButton')}
-                        </Button>
-                        {formData.damages[activeDamageIndex].photo_url && (
-                          <img
-                            src={formData.damages[activeDamageIndex].photo_url}
-                            alt={t('protocol.damage.photoPreview', { index: activeDamageIndex + 1 })}
-                            className="h-16 w-20 rounded border object-cover"
-                          />
-                        )}
-                      </div>
-                      {!formData.damages[activeDamageIndex].photo_url && (
-                        <p className="text-xs text-slate-500 mt-2">{t('protocol.damage.photoHelp')}</p>
-                      )}
-                      <input
-                        id={`damage-photo-${activeDamageIndex}`}
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={(event) => {
-                          const file = event.target.files?.[0];
-                          if (file) {
-                            uploadDamagePhoto(activeDamageIndex, file);
-                          }
-                          event.target.value = '';
-                        }}
-                      />
-                    </div>
-                  </div>
-                )}
 
                 {formData.damages?.map((damage, index) => (
                   <div
                     key={index}
-                    ref={(node) => {
-                      if (node) damageRefs.current[index] = node;
-                    }}
                     className="p-3 border rounded-lg relative"
                   >
                     {!isViewOnly && (
@@ -982,19 +866,29 @@ export default function DriverProtocol() {
                       </div>
                       <div>
                         <Label>{t('protocol.damage.location')}</Label>
-                        <Input
-                          value={damage.location}
-                          onChange={(e) => updateDamage(index, 'location', e.target.value)}
-                          placeholder={t('protocol.damage.locationPlaceholder')}
+                        <Select
+                          value={getDamageLocationValue(damage)}
+                          onValueChange={(value) => updateDamageLocation(index, value)}
                           disabled={isViewOnly}
-                        />
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder={t('protocol.damage.locationPlaceholder')} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {DAMAGE_LOCATIONS.map((location) => (
+                              <SelectItem key={location.id} value={location.id}>
+                                {t(location.labelKey)}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div>
                         <Label>{t('protocol.damage.type')}</Label>
                         <Select
                           value={damage.type || undefined}
                           onValueChange={(v) => updateDamage(index, 'type', v)}
-                          disabled={isViewOnly}
+                          disabled={isViewOnly || !damage.location}
                         >
                           <SelectTrigger>
                             <SelectValue placeholder={t('protocol.damage.typePlaceholder')} />
@@ -1032,6 +926,46 @@ export default function DriverProtocol() {
                             <SelectItem value="severe">{t('protocol.damage.severityOptions.severe')}</SelectItem>
                           </SelectContent>
                         </Select>
+                      </div>
+                      <div>
+                        <Label>{t('protocol.damage.photoLabel')}</Label>
+                        <div className="flex items-center gap-3 mt-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => document.getElementById(`damage-photo-${index}`)?.click()}
+                            disabled={!damage.type || !damage.location || damageUploads[index]}
+                          >
+                            {damageUploads[index]
+                              ? t('protocol.damage.photoUploading')
+                              : t('protocol.damage.photoButton')}
+                          </Button>
+                          {damage.photo_url && (
+                            <img
+                              src={damage.photo_url}
+                              alt={t('protocol.damage.photoPreview', { index: index + 1 })}
+                              className="h-16 w-20 rounded border object-cover"
+                            />
+                          )}
+                        </div>
+                        {!damage.photo_url && (
+                          <p className="text-xs text-slate-500 mt-2">{t('protocol.damage.photoHelp')}</p>
+                        )}
+                        <input
+                          id={`damage-photo-${index}`}
+                          type="file"
+                          accept="image/*"
+                          capture="environment"
+                          className="hidden"
+                          onChange={(event) => {
+                            const file = event.target.files?.[0];
+                            if (file) {
+                              uploadDamagePhoto(index, file);
+                            }
+                            event.target.value = '';
+                          }}
+                        />
                       </div>
                     </div>
                   </div>

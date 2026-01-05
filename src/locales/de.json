@@ -164,6 +164,23 @@
         "es": "Spanisch",
         "ar": "Arabisch"
       }
+    },
+    "password": {
+      "title": "Passwort ändern",
+      "helper": "Ändere dein Passwort über dein aktuelles Passwort.",
+      "show": "Passwort ändern",
+      "hide": "Abbrechen",
+      "current": "Aktuelles Passwort",
+      "next": "Neues Passwort",
+      "confirm": "Neues Passwort bestätigen",
+      "submit": "Bestätigen",
+      "saving": "Wird gespeichert...",
+      "required": "Bitte alle Felder ausfüllen.",
+      "mismatch": "Die neuen Passwörter stimmen nicht überein.",
+      "invalidCurrent": "Das aktuelle Passwort ist falsch.",
+      "updated": "Passwort wurde aktualisiert.",
+      "failed": "Passwort konnte nicht geändert werden.",
+      "sessionMissing": "Sitzung abgelaufen. Bitte erneut anmelden."
     }
   },
   "checklist": {
@@ -251,7 +268,7 @@
       "slotTitle": "Schäden markieren",
       "slotHint": "Tippe auf ein Feld, um einen Schaden hinzuzufügen oder zu bearbeiten.",
       "title": "Schäden",
-      "instructions": "Tippe auf die Skizze, um die Schadensposition zu markieren.",
+      "instructions": "Wähle den Fahrzeugbereich aus der Liste, dann den Schadentyp. Danach wird ein Foto aufgenommen.",
       "sketchAlt": "Fahrzeugskizze",
       "markAria": "Schaden markieren: {{location}}",
       "legend": {
@@ -261,7 +278,7 @@
         "damage": "B = Beschädigung"
       },
       "location": "Position am Fahrzeug",
-      "locationPlaceholder": "z.B. Vorne links, Stoßstange",
+      "locationPlaceholder": "Position auswählen",
       "cardTitle": "Schaden",
       "type": "Art des Schadens",
       "typePlaceholder": "Schadentyp wählen",

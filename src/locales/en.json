@@ -164,6 +164,23 @@
         "es": "Spanish",
         "ar": "Arabic"
       }
+    },
+    "password": {
+      "title": "Change password",
+      "helper": "Update your password using your current password.",
+      "show": "Change password",
+      "hide": "Cancel",
+      "current": "Current password",
+      "next": "New password",
+      "confirm": "Confirm new password",
+      "submit": "Confirm",
+      "saving": "Saving...",
+      "required": "Please fill in all fields.",
+      "mismatch": "The new passwords do not match.",
+      "invalidCurrent": "The current password is incorrect.",
+      "updated": "Password updated.",
+      "failed": "Password could not be updated.",
+      "sessionMissing": "Session expired. Please log in again."
     }
   },
   "checklist": {
@@ -251,7 +268,7 @@
       "slotTitle": "Mark damages",
       "slotHint": "Tap a box to add or edit a damage.",
       "title": "Damages",
-      "instructions": "Tap the sketch to mark the damage position.",
+      "instructions": "Choose the vehicle area from the list, then the damage type. A photo is required.",
       "sketchAlt": "Vehicle sketch",
       "markAria": "Mark damage: {{location}}",
       "legend": {
@@ -261,7 +278,7 @@
         "damage": "B = Damage"
       },
       "location": "Vehicle position",
-      "locationPlaceholder": "e.g. front left, bumper",
+      "locationPlaceholder": "Select location",
       "cardTitle": "Damage",
       "type": "Damage type",
       "typePlaceholder": "Select damage type",

@@ -164,6 +164,23 @@
         "es": "Español",
         "ar": "Árabe"
       }
+    },
+    "password": {
+      "title": "Cambiar contraseña",
+      "helper": "Actualiza tu contraseña usando tu contraseña actual.",
+      "show": "Cambiar contraseña",
+      "hide": "Cancelar",
+      "current": "Contraseña actual",
+      "next": "Nueva contraseña",
+      "confirm": "Confirmar nueva contraseña",
+      "submit": "Confirmar",
+      "saving": "Guardando...",
+      "required": "Por favor completa todos los campos.",
+      "mismatch": "Las nuevas contraseñas no coinciden.",
+      "invalidCurrent": "La contraseña actual es incorrecta.",
+      "updated": "Contraseña actualizada.",
+      "failed": "No se pudo actualizar la contraseña.",
+      "sessionMissing": "Sesión caducada. Inicia sesión de nuevo."
     }
   },
   "checklist": {
@@ -251,7 +268,7 @@
       "slotTitle": "Marcar daños",
       "slotHint": "Toca un cuadro para añadir o editar un daño.",
       "title": "Daños",
-      "instructions": "Toca el esquema para marcar la posición del daño.",
+      "instructions": "Elige el área del vehículo en la lista y luego el tipo de daño. Se requiere una foto.",
       "sketchAlt": "Esquema del vehículo",
       "markAria": "Marcar daño: {{location}}",
       "legend": {
@@ -261,7 +278,7 @@
         "damage": "B = Daño"
       },
       "location": "Posición en el vehículo",
-      "locationPlaceholder": "p. ej. delantero izquierdo, parachoques",
+      "locationPlaceholder": "Selecciona la ubicación",
       "cardTitle": "Daño",
       "type": "Tipo de daño",
       "typePlaceholder": "Selecciona el tipo de daño",
