@@ -12,25 +12,25 @@ import {
 import { useI18n } from '@/i18n';
 
 const PHOTO_TYPES = [
+  { id: 'odometer', labelKey: 'photos.types.odometer', required: true },
+  { id: 'door_driver', labelKey: 'photos.types.doorDriver', required: true },
+  { id: 'wheel_front_left', labelKey: 'photos.types.wheelFrontLeft', required: true },
+  { id: 'front_right', labelKey: 'photos.types.frontRight', required: true },
   { id: 'front', labelKey: 'photos.types.front', required: true },
   { id: 'front_left', labelKey: 'photos.types.frontLeft', required: true },
-  { id: 'front_right', labelKey: 'photos.types.frontRight', required: true },
   { id: 'wheel_front_right', labelKey: 'photos.types.wheelFrontRight', required: true },
   { id: 'door_passenger', labelKey: 'photos.types.doorPassenger', required: true },
   { id: 'door_rear_right', labelKey: 'photos.types.doorRearRight', required: true },
   { id: 'wheel_rear_right', labelKey: 'photos.types.wheelRearRight', required: true },
   { id: 'rear_right', labelKey: 'photos.types.rearRight', required: true },
   { id: 'rear', labelKey: 'photos.types.rear', required: true },
+  { id: 'trunk', labelKey: 'photos.types.trunk', required: true },
   { id: 'rear_left', labelKey: 'photos.types.rearLeft', required: true },
   { id: 'wheel_rear_left', labelKey: 'photos.types.wheelRearLeft', required: true },
   { id: 'door_rear_left', labelKey: 'photos.types.doorRearLeft', required: true },
-  { id: 'door_driver', labelKey: 'photos.types.doorDriver', required: true },
-  { id: 'wheel_front_left', labelKey: 'photos.types.wheelFrontLeft', required: true },
   { id: 'windshield', labelKey: 'photos.types.windshield', required: true },
   { id: 'interior_front', labelKey: 'photos.types.interiorFront', required: true },
   { id: 'interior_rear', labelKey: 'photos.types.interiorRear', required: true },
-  { id: 'trunk', labelKey: 'photos.types.trunk', required: true },
-  { id: 'odometer', labelKey: 'photos.types.odometer', required: true },
 ];
 
 export const REQUIRED_PHOTO_IDS = PHOTO_TYPES.filter((photo) => photo.required).map(

@@ -5,25 +5,25 @@ import { Button } from "@/components/ui/button";
 import { Camera, Check, Loader2, X } from 'lucide-react';
 
 const REQUIRED_PHOTOS = [
+  { id: 'odometer', label: 'Kilometerstand', instruction: 'Fotografieren Sie den Tachostand deutlich lesbar' },
+  { id: 'door_driver', label: 'Fahrertür', instruction: 'Fotografieren Sie die Fahrertür' },
+  { id: 'wheel_front_left', label: 'Felge vorne links', instruction: 'Fotografieren Sie die linke Vorderfelge' },
+  { id: 'front_right', label: 'Front rechts', instruction: 'Fotografieren Sie die rechte Frontseite' },
   { id: 'front', label: 'Fahrzeug Front', instruction: 'Fotografieren Sie das Fahrzeug von vorne' },
   { id: 'front_left', label: 'Front links', instruction: 'Fotografieren Sie die linke Frontseite' },
-  { id: 'front_right', label: 'Front rechts', instruction: 'Fotografieren Sie die rechte Frontseite' },
   { id: 'wheel_front_right', label: 'Felge vorne rechts', instruction: 'Fotografieren Sie die rechte Vorderfelge' },
   { id: 'door_passenger', label: 'Beifahrertür', instruction: 'Fotografieren Sie die Beifahrertür' },
   { id: 'door_rear_right', label: 'Hintere Tür rechts', instruction: 'Fotografieren Sie die rechte hintere Tür' },
   { id: 'wheel_rear_right', label: 'Felge hinten rechts', instruction: 'Fotografieren Sie die rechte Hinterfelge' },
   { id: 'rear_right', label: 'Heck rechts', instruction: 'Fotografieren Sie die rechte Heckseite' },
   { id: 'rear', label: 'Fahrzeug hinten', instruction: 'Fotografieren Sie das Fahrzeug von hinten' },
+  { id: 'trunk', label: 'Kofferraum', instruction: 'Fotografieren Sie den Kofferraum' },
   { id: 'rear_left', label: 'Heck links', instruction: 'Fotografieren Sie die linke Heckseite' },
   { id: 'wheel_rear_left', label: 'Felge hinten links', instruction: 'Fotografieren Sie die linke Hinterfelge' },
   { id: 'door_rear_left', label: 'Hintere Tür links', instruction: 'Fotografieren Sie die linke hintere Tür' },
-  { id: 'door_driver', label: 'Fahrertür', instruction: 'Fotografieren Sie die Fahrertür' },
-  { id: 'wheel_front_left', label: 'Felge vorne links', instruction: 'Fotografieren Sie die linke Vorderfelge' },
   { id: 'windshield', label: 'Windschutzscheibe', instruction: 'Fotografieren Sie die Windschutzscheibe' },
   { id: 'interior_front', label: 'Innenraum vorne', instruction: 'Fotografieren Sie den vorderen Innenraum' },
   { id: 'interior_rear', label: 'Innenraum hinten', instruction: 'Fotografieren Sie den hinteren Innenraum' },
-  { id: 'trunk', label: 'Kofferraum', instruction: 'Fotografieren Sie den Kofferraum' },
-  { id: 'odometer', label: 'Kilometerstand', instruction: 'Fotografieren Sie den Tachostand deutlich lesbar' },
 ];
 
 export default function RequiredPhotos({ photos = [], onChange, onComplete }) {

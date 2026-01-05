@@ -233,25 +233,25 @@ export default function AppConnection() {
               Die App fordert 19 Pflicht-Fotos in fester Reihenfolge:
             </p>
             <ol className="text-sm text-blue-800 mt-2 ml-4 list-decimal space-y-1">
+              <li>Kilometerstand</li>
+              <li>Fahrertür</li>
+              <li>Felge vorne links</li>
+              <li>Front rechts</li>
               <li>Fahrzeug Front</li>
               <li>Front links</li>
-              <li>Front rechts</li>
               <li>Felge vorne rechts</li>
               <li>Beifahrertür</li>
               <li>Hintere Tür rechts</li>
               <li>Felge hinten rechts</li>
               <li>Heck rechts</li>
               <li>Fahrzeug hinten</li>
+              <li>Kofferraum</li>
               <li>Heck links</li>
               <li>Felge hinten links</li>
               <li>Hintere Tür links</li>
-              <li>Fahrertür</li>
-              <li>Felge vorne links</li>
               <li>Windschutzscheibe</li>
               <li>Innenraum vorne</li>
               <li>Innenraum hinten</li>
-              <li>Kofferraum</li>
-              <li>Kilometerstand</li>
             </ol>
           </div>
 
