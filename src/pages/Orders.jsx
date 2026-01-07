@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { appClient } from '@/api/appClient';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
-import { format } from 'date-fns';
+import { format, differenceInCalendarDays, isSameDay } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -213,6 +213,42 @@ export default function Orders() {
     
     return matchesSearch && matchesStatus;
   });
+
+  const getDueDateTime = (order) => {
+    if (!order?.dropoff_date) return null;
+    const time = order.dropoff_time ? `${order.dropoff_time}:00` : '23:59:00';
+    const date = new Date(`${order.dropoff_date}T${time}`);
+    if (Number.isNaN(date.getTime())) return null;
+    return date;
+  };
+
+  const getDueStatus = (order) => {
+    const dueAt = getDueDateTime(order);
+    if (!dueAt) {
+      return { state: 'normal', label: '-', detail: '' };
+    }
+    const now = new Date();
+    if (dueAt.getTime() < now.getTime()) {
+      const days = Math.max(1, differenceInCalendarDays(now, dueAt));
+      return {
+        state: 'overdue',
+        label: format(dueAt, 'dd.MM.yyyy', { locale: de }),
+        detail: `Überfällig seit ${days} Tag${days > 1 ? 'en' : ''}`,
+      };
+    }
+    if (isSameDay(dueAt, now)) {
+      return {
+        state: 'today',
+        label: format(dueAt, 'dd.MM.yyyy', { locale: de }),
+        detail: 'Heute fällig',
+      };
+    }
+    return {
+      state: 'normal',
+      label: format(dueAt, 'dd.MM.yyyy', { locale: de }),
+      detail: '',
+    };
+  };
 
   const latestNotesByOrder = useMemo(() => {
     const map = {};
@@ -617,17 +653,25 @@ export default function Orders() {
                     </TableHead>
                     <TableHead>Auftrag</TableHead>
                     <TableHead>Fahrzeug</TableHead>
-                    <TableHead className="hidden md:table-cell">Route</TableHead>
-                    <TableHead className="hidden lg:table-cell">Fahrer</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="hidden lg:table-cell">Erstellt</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredOrders.map((order) => (
+                  <TableHead className="hidden md:table-cell">Route</TableHead>
+                  <TableHead className="hidden lg:table-cell">Fahrer</TableHead>
+                  <TableHead>Fällig bis</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                  {filteredOrders.map((order) => {
+                    const dueStatus = getDueStatus(order);
+                    const rowTone =
+                      dueStatus.state === 'overdue'
+                        ? 'bg-red-50 hover:bg-red-100'
+                        : dueStatus.state === 'today'
+                        ? 'bg-yellow-50 hover:bg-yellow-100'
+                        : 'bg-green-50 hover:bg-green-100';
+                    return (
                     <TableRow 
                       key={order.id}
-                      className="cursor-pointer hover:bg-gray-50"
+                      className={`cursor-pointer ${rowTone}`}
                       onClick={() => {
                         setSelectedOrder(order);
                         setView('details');
@@ -802,13 +846,27 @@ export default function Orders() {
                         )}
                       </TableCell>
                       <TableCell>
+                        <div className="text-sm font-medium text-gray-900">
+                          {dueStatus.label}
+                        </div>
+                        {dueStatus.detail && (
+                          <div className={`text-xs ${
+                            dueStatus.state === 'overdue'
+                              ? 'text-red-700'
+                              : dueStatus.state === 'today'
+                              ? 'text-yellow-700'
+                              : 'text-green-700'
+                          }`}>
+                            {dueStatus.detail}
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell>
                         <StatusBadge status={order.status} />
                       </TableCell>
-                      <TableCell className="hidden lg:table-cell text-sm text-gray-500">
-                        {format(new Date(order.created_date), 'dd.MM.yyyy', { locale: de })}
-                      </TableCell>
                     </TableRow>
-                  ))}
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
