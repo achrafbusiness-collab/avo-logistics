@@ -31,65 +31,118 @@ const buildQuery = (table, criteria, order, limit) => {
   return query;
 };
 
+const getErrorMessage = (error) => {
+  if (!error) return "Unbekannter Fehler";
+  if (typeof error === "string") return error;
+  if (error.message) return error.message;
+  return String(error);
+};
+
+const isNetworkError = (message) => {
+  if (!message) return false;
+  return (
+    message.includes("Load failed") ||
+    message.includes("Failed to fetch") ||
+    message.includes("NetworkError") ||
+    message.includes("fetch")
+  );
+};
+
 const createEntityClient = (name) => {
   const table = tableMap[name] || name.toLowerCase();
   return {
     list: async (order, limit) => {
-      const { data, error } = await buildQuery(table, null, order, limit);
-      if (error) {
-        console.error(`Supabase list error (${table}):`, error.message);
+      try {
+        const { data, error } = await buildQuery(table, null, order, limit);
+        if (error) {
+          console.error(`Supabase list error (${table}):`, error.message);
+          return [];
+        }
+        return data || [];
+      } catch (err) {
+        const message = getErrorMessage(err);
+        console.error(`Supabase list error (${table}):`, message);
         return [];
       }
-      return data || [];
     },
     filter: async (criteria, order, limit) => {
-      const { data, error } = await buildQuery(table, criteria, order, limit);
-      if (error) {
-        console.error(`Supabase filter error (${table}):`, error.message);
+      try {
+        const { data, error } = await buildQuery(table, criteria, order, limit);
+        if (error) {
+          console.error(`Supabase filter error (${table}):`, error.message);
+          return [];
+        }
+        return data || [];
+      } catch (err) {
+        const message = getErrorMessage(err);
+        console.error(`Supabase filter error (${table}):`, message);
         return [];
       }
-      return data || [];
     },
     create: async (data) => {
-      const now = new Date().toISOString();
-      const payload = {
-        ...data,
-        created_date: data?.created_date || now,
-        updated_date: now,
-      };
-      const { data: created, error } = await supabase
-        .from(table)
-        .insert(payload)
-        .select("*")
-        .single();
-      if (error) {
-        throw new Error(error.message);
+      try {
+        const now = new Date().toISOString();
+        const payload = {
+          ...data,
+          created_date: data?.created_date || now,
+          updated_date: now,
+        };
+        const { data: created, error } = await supabase
+          .from(table)
+          .insert(payload)
+          .select("*")
+          .single();
+        if (error) {
+          throw new Error(error.message);
+        }
+        return created;
+      } catch (err) {
+        const message = getErrorMessage(err);
+        const prefix = isNetworkError(message)
+          ? "Netzwerkfehler beim Speichern. Bitte Verbindung prüfen und erneut versuchen."
+          : message;
+        throw new Error(prefix);
       }
-      return created;
     },
     update: async (id, data) => {
-      const now = new Date().toISOString();
-      const payload = {
-        ...data,
-        updated_date: now,
-      };
-      const { data: updated, error } = await supabase
-        .from(table)
-        .update(payload)
-        .eq("id", id)
-        .select("*")
-        .single();
-      if (error) {
-        throw new Error(error.message);
+      try {
+        const now = new Date().toISOString();
+        const payload = {
+          ...data,
+          updated_date: now,
+        };
+        const { data: updated, error } = await supabase
+          .from(table)
+          .update(payload)
+          .eq("id", id)
+          .select("*")
+          .single();
+        if (error) {
+          throw new Error(error.message);
+        }
+        return updated;
+      } catch (err) {
+        const message = getErrorMessage(err);
+        const prefix = isNetworkError(message)
+          ? "Netzwerkfehler beim Speichern. Bitte Verbindung prüfen und erneut versuchen."
+          : message;
+        throw new Error(prefix);
       }
-      return updated;
     },
     delete: async (id) => {
-      const { error } = await supabase.from(table).delete().eq("id", id);
-      if (error) {
-        throw new Error(error.message);
+      try {
+        const { error } = await supabase.from(table).delete().eq("id", id);
+        if (error) {
+          throw new Error(error.message);
+        }
+        return { id };
+      } catch (err) {
+        const message = getErrorMessage(err);
+        const prefix = isNetworkError(message)
+          ? "Netzwerkfehler beim Löschen. Bitte Verbindung prüfen und erneut versuchen."
+          : message;
+        throw new Error(prefix);
       }
-      return { id };
     },
   };
 };
@@ -125,31 +178,39 @@ const getCompanyIdForCurrentUser = async () => {
 };
 
 const uploadFileToStorage = async ({ file, bucket = "documents", pathPrefix = "uploads" }) => {
-  if (!file) {
-    throw new Error("Keine Datei angegeben");
+  try {
+    if (!file) {
+      throw new Error("Keine Datei angegeben");
+    }
+    const { data } = await supabase.auth.getSession();
+    const userId = data?.session?.user?.id || "public";
+    const companyId = await getCompanyIdForCurrentUser();
+    if (!companyId) {
+      throw new Error("Unternehmen nicht gefunden. Bitte erneut anmelden.");
+    }
+    const safeName = file.name.replace(/[^a-z0-9._-]/gi, "_");
+    const filePath = `${pathPrefix}/${companyId}/${userId}/${Date.now()}_${safeName}`;
+    const { error: uploadError } = await supabase.storage
+      .from(bucket)
+      .upload(filePath, file, {
+        upsert: true,
+        contentType: file.type,
+        metadata: {
+          company_id: companyId,
+        },
+      });
+    if (uploadError) {
+      throw new Error(uploadError.message);
+    }
+    const { data: publicUrl } = supabase.storage.from(bucket).getPublicUrl(filePath);
+    return { file_url: publicUrl.publicUrl };
+  } catch (err) {
+    const message = getErrorMessage(err);
+    const prefix = isNetworkError(message)
+      ? "Netzwerkfehler beim Hochladen. Bitte Verbindung prüfen und erneut versuchen."
+      : message;
+    throw new Error(prefix);
   }
-  const { data } = await supabase.auth.getSession();
-  const userId = data?.session?.user?.id || "public";
-  const companyId = await getCompanyIdForCurrentUser();
-  if (!companyId) {
-    throw new Error("Unternehmen nicht gefunden. Bitte erneut anmelden.");
-  }
-  const safeName = file.name.replace(/[^a-z0-9._-]/gi, "_");
-  const filePath = `${pathPrefix}/${companyId}/${userId}/${Date.now()}_${safeName}`;
-  const { error: uploadError } = await supabase.storage
-    .from(bucket)
-    .upload(filePath, file, {
-      upsert: true,
-      contentType: file.type,
-      metadata: {
-        company_id: companyId,
-      },
-    });
-  if (uploadError) {
-    throw new Error(uploadError.message);
-  }
-  const { data: publicUrl } = supabase.storage.from(bucket).getPublicUrl(filePath);
-  return { file_url: publicUrl.publicUrl };
 };
 
 const Core = {
