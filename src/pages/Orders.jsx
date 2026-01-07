@@ -662,12 +662,15 @@ export default function Orders() {
               <TableBody>
                   {filteredOrders.map((order) => {
                     const dueStatus = getDueStatus(order);
-                    const rowTone =
-                      dueStatus.state === 'overdue'
-                        ? 'bg-red-50 hover:bg-red-100'
-                        : dueStatus.state === 'today'
-                        ? 'bg-yellow-50 hover:bg-yellow-100'
-                        : 'bg-green-50 hover:bg-green-100';
+                    const isCompleted = order.status === 'completed';
+                    const rowTone = isCompleted
+                      ? 'bg-blue-50 hover:bg-blue-100'
+                      : dueStatus.state === 'overdue'
+                      ? 'bg-red-50 hover:bg-red-100'
+                      : dueStatus.state === 'today'
+                      ? 'bg-yellow-50 hover:bg-yellow-100'
+                      : 'bg-green-50 hover:bg-green-100';
+                    const dueDetail = isCompleted ? null : dueStatus.detail;
                     return (
                     <TableRow 
                       key={order.id}
@@ -849,7 +852,7 @@ export default function Orders() {
                         <div className="text-sm font-medium text-gray-900">
                           {dueStatus.label}
                         </div>
-                        {dueStatus.detail && (
+                        {dueDetail && (
                           <div className={`text-xs ${
                             dueStatus.state === 'overdue'
                               ? 'text-red-700'
@@ -857,7 +860,7 @@ export default function Orders() {
                               ? 'text-yellow-700'
                               : 'text-green-700'
                           }`}>
-                            {dueStatus.detail}
+                            {dueDetail}
                           </div>
                         )}
                       </TableCell>

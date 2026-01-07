@@ -8,7 +8,7 @@ const statusConfig = {
   pickup_started: { label: 'Übernahme läuft', className: 'bg-cyan-100 text-cyan-800 border-cyan-200' },
   in_transit: { label: 'In Lieferung', className: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
   delivery_started: { label: 'Übergabe läuft', className: 'bg-orange-100 text-orange-800 border-orange-200' },
-  completed: { label: 'Erfolgreich beendet', className: 'bg-green-100 text-green-800 border-green-200' },
+  completed: { label: 'Erfolgreich beendet', className: 'bg-blue-100 text-blue-800 border-blue-200' },
   review: { label: 'Prüfung', className: 'bg-slate-100 text-slate-800 border-slate-200' },
   ready_for_billing: { label: 'Freigabe Abrechnung', className: 'bg-indigo-100 text-indigo-800 border-indigo-200' },
   approved: { label: 'Freigegeben', className: 'bg-emerald-100 text-emerald-800 border-emerald-200' },
