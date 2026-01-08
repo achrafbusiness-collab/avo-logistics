@@ -55,6 +55,7 @@ export default function Orders() {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [listMode, setListMode] = useState('active');
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]);
@@ -100,6 +101,15 @@ export default function Orders() {
     queryFn: () => appClient.entities.Driver.filter({ status: 'active' }),
   });
 
+  const activeOrdersCount = useMemo(
+    () => orders.filter((order) => order.status !== 'completed').length,
+    [orders]
+  );
+  const completedOrdersCount = useMemo(
+    () => orders.filter((order) => order.status === 'completed').length,
+    [orders]
+  );
+
   const createMutation = useMutation({
     mutationFn: (data) => appClient.entities.Order.create(data),
     onSuccess: () => {
@@ -116,6 +126,18 @@ export default function Orders() {
       setSelectedOrder(null);
     },
   });
+
+  const handleListModeChange = (nextMode) => {
+    setListMode(nextMode);
+    setSelectedIds([]);
+    setBulkMessage('');
+    setBulkError('');
+    if (nextMode === 'completed') {
+      setStatusFilter('completed');
+    } else if (statusFilter === 'completed') {
+      setStatusFilter('all');
+    }
+  };
 
   const deleteMutation = useMutation({
     mutationFn: (id) => appClient.entities.Order.delete(id),
@@ -209,9 +231,11 @@ export default function Orders() {
       order.dropoff_postal_code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order.assigned_driver_name?.toLowerCase().includes(searchTerm.toLowerCase());
     
+    const matchesListMode =
+      listMode === 'completed' ? order.status === 'completed' : order.status !== 'completed';
     const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
     
-    return matchesSearch && matchesStatus;
+    return matchesSearch && matchesStatus && matchesListMode;
   });
 
   const getDueDateTime = (order) => {
@@ -532,6 +556,23 @@ export default function Orders() {
         </div>
       </div>
 
+      <div className="flex flex-wrap gap-2">
+        <Button
+          variant={listMode === 'active' ? 'default' : 'outline'}
+          className={listMode === 'active' ? 'bg-[#1e3a5f] hover:bg-[#2d5a8a]' : ''}
+          onClick={() => handleListModeChange('active')}
+        >
+          Aktive Aufträge ({activeOrdersCount})
+        </Button>
+        <Button
+          variant={listMode === 'completed' ? 'default' : 'outline'}
+          className={listMode === 'completed' ? 'bg-[#1e3a5f] hover:bg-[#2d5a8a]' : ''}
+          onClick={() => handleListModeChange('completed')}
+        >
+          Abgeschlossene Aufträge ({completedOrdersCount})
+        </Button>
+      </div>
+
       {/* Filters */}
       <Card>
         <CardContent className="p-4">
@@ -552,16 +593,21 @@ export default function Orders() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Alle Status</SelectItem>
-                <SelectItem value="new">Offen</SelectItem>
-                <SelectItem value="assigned">Zugewiesen</SelectItem>
-                <SelectItem value="pickup_started">Übernahme läuft</SelectItem>
-                <SelectItem value="in_transit">In Lieferung</SelectItem>
-                <SelectItem value="delivery_started">Übergabe läuft</SelectItem>
-                <SelectItem value="completed">Erfolgreich beendet</SelectItem>
-                <SelectItem value="review">Prüfung</SelectItem>
-                <SelectItem value="ready_for_billing">Freigabe Abrechnung</SelectItem>
-                <SelectItem value="approved">Freigegeben</SelectItem>
-                <SelectItem value="cancelled">Storniert</SelectItem>
+                {listMode === 'active' ? (
+                  <>
+                    <SelectItem value="new">Offen</SelectItem>
+                    <SelectItem value="assigned">Zugewiesen</SelectItem>
+                    <SelectItem value="pickup_started">Übernahme läuft</SelectItem>
+                    <SelectItem value="in_transit">In Lieferung</SelectItem>
+                    <SelectItem value="delivery_started">Übergabe läuft</SelectItem>
+                    <SelectItem value="review">Prüfung</SelectItem>
+                    <SelectItem value="ready_for_billing">Freigabe Abrechnung</SelectItem>
+                    <SelectItem value="approved">Freigegeben</SelectItem>
+                    <SelectItem value="cancelled">Storniert</SelectItem>
+                  </>
+                ) : (
+                  <SelectItem value="completed">Erfolgreich beendet</SelectItem>
+                )}
               </SelectContent>
             </Select>
           </div>
