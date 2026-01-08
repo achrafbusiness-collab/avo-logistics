@@ -68,10 +68,19 @@ const emptyFeatureCollection = {
   features: [],
 };
 
-export default function OrdersMap({ orders, selectedOrderId, onSelectOrder }) {
+export default function OrdersMap({
+  orders,
+  selectedOrderId,
+  onSelectOrder,
+  maxRoutes = 20,
+  enableClusters = false,
+  showPopups = false,
+  extraRoute,
+}) {
   const token = import.meta.env.VITE_MAPBOX_TOKEN;
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
+  const popupRef = useRef(null);
   const [mapReady, setMapReady] = useState(false);
   const [routes, setRoutes] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -84,6 +93,8 @@ export default function OrdersMap({ orders, selectedOrderId, onSelectOrder }) {
       return pickup && dropoff;
     });
   }, [orders]);
+
+  const routeOrders = useMemo(() => mapOrders.slice(0, maxRoutes), [mapOrders, maxRoutes]);
 
   useEffect(() => {
     if (!token || mapRef.current || !mapContainerRef.current) {
@@ -106,8 +117,15 @@ export default function OrdersMap({ orders, selectedOrderId, onSelectOrder }) {
       map.addSource("orders-points", {
         type: "geojson",
         data: emptyFeatureCollection,
+        cluster: enableClusters,
+        clusterRadius: 40,
+        clusterMaxZoom: 11,
       });
       map.addSource("selected-route", {
+        type: "geojson",
+        data: emptyFeatureCollection,
+      });
+      map.addSource("distance-route", {
         type: "geojson",
         data: emptyFeatureCollection,
       });
@@ -124,16 +142,71 @@ export default function OrdersMap({ orders, selectedOrderId, onSelectOrder }) {
       });
 
       map.addLayer({
-        id: "orders-points-layer",
-        type: "circle",
-        source: "orders-points",
+        id: "distance-route-line",
+        type: "line",
+        source: "distance-route",
         paint: {
-          "circle-radius": 6,
-          "circle-color": "#94a3b8",
-          "circle-stroke-color": "#0f172a",
-          "circle-stroke-width": 1,
+          "line-color": "#38bdf8",
+          "line-width": 3,
+          "line-opacity": 0.75,
+          "line-dasharray": [1.5, 1.5],
         },
       });
+
+      if (enableClusters) {
+        map.addLayer({
+          id: "orders-points-clusters",
+          type: "circle",
+          source: "orders-points",
+          filter: ["has", "point_count"],
+          paint: {
+            "circle-color": "#94a3b8",
+            "circle-radius": ["step", ["get", "point_count"], 16, 25, 20, 50, 26],
+            "circle-stroke-color": "#0f172a",
+            "circle-stroke-width": 1,
+          },
+        });
+
+        map.addLayer({
+          id: "orders-points-cluster-count",
+          type: "symbol",
+          source: "orders-points",
+          filter: ["has", "point_count"],
+          layout: {
+            "text-field": "{point_count_abbreviated}",
+            "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
+            "text-size": 12,
+          },
+          paint: {
+            "text-color": "#0f172a",
+          },
+        });
+
+        map.addLayer({
+          id: "orders-points-unclustered",
+          type: "circle",
+          source: "orders-points",
+          filter: ["!", ["has", "point_count"]],
+          paint: {
+            "circle-radius": 6,
+            "circle-color": "#94a3b8",
+            "circle-stroke-color": "#0f172a",
+            "circle-stroke-width": 1,
+          },
+        });
+      } else {
+        map.addLayer({
+          id: "orders-points-layer",
+          type: "circle",
+          source: "orders-points",
+          paint: {
+            "circle-radius": 6,
+            "circle-color": "#94a3b8",
+            "circle-stroke-color": "#0f172a",
+            "circle-stroke-width": 1,
+          },
+        });
+      }
 
       setMapReady(true);
     };
@@ -160,6 +233,7 @@ export default function OrdersMap({ orders, selectedOrderId, onSelectOrder }) {
       setError("");
       const geocodeCache = getGeocodeCache();
       const routeCache = getRouteCache();
+      const routeOrderIds = new Set(routeOrders.map((order) => order.id));
       const results = [];
 
       for (const order of mapOrders) {
@@ -207,9 +281,10 @@ export default function OrdersMap({ orders, selectedOrderId, onSelectOrder }) {
         }
 
         const routeKey = buildRouteKey(start, end);
-        let geometry = routeCache[routeKey];
+        const shouldFetchRoute = routeOrderIds.has(order.id);
+        let geometry = shouldFetchRoute ? routeCache[routeKey] : null;
 
-        if (!geometry) {
+        if (!geometry && shouldFetchRoute) {
           const directionsUrl = `https://api.mapbox.com/directions/v5/mapbox/driving/${start.join(
             ","
           )};${end.join(",")}?geometries=geojson&overview=full&access_token=${token}`;
@@ -225,7 +300,7 @@ export default function OrdersMap({ orders, selectedOrderId, onSelectOrder }) {
           order,
           start,
           end,
-          geometry,
+          geometry: geometry || null,
         });
       }
 
@@ -249,7 +324,7 @@ export default function OrdersMap({ orders, selectedOrderId, onSelectOrder }) {
     return () => {
       cancelled = true;
     };
-  }, [mapOrders, token]);
+  }, [mapOrders, token, routeOrders]);
 
   const pointsData = useMemo(() => {
     if (!routes.length) return emptyFeatureCollection;
@@ -265,6 +340,12 @@ export default function OrdersMap({ orders, selectedOrderId, onSelectOrder }) {
           properties: {
             orderId: route.order.id,
             type: "pickup",
+            orderNumber: route.order.order_number,
+            licensePlate: route.order.license_plate,
+            status: route.order.status,
+            driver: route.order.assigned_driver_name,
+            pickup: route.order.pickup_city || route.order.pickup_address,
+            dropoff: route.order.dropoff_city || route.order.dropoff_address,
           },
         },
         {
@@ -276,6 +357,12 @@ export default function OrdersMap({ orders, selectedOrderId, onSelectOrder }) {
           properties: {
             orderId: route.order.id,
             type: "dropoff",
+            orderNumber: route.order.order_number,
+            licensePlate: route.order.license_plate,
+            status: route.order.status,
+            driver: route.order.assigned_driver_name,
+            pickup: route.order.pickup_city || route.order.pickup_address,
+            dropoff: route.order.dropoff_city || route.order.dropoff_address,
           },
         },
       ]),
@@ -306,6 +393,20 @@ export default function OrdersMap({ orders, selectedOrderId, onSelectOrder }) {
     };
   }, [selectedRoute]);
 
+  const extraRouteData = useMemo(() => {
+    if (!extraRoute?.geometry) return emptyFeatureCollection;
+    return {
+      type: "FeatureCollection",
+      features: [
+        {
+          type: "Feature",
+          geometry: extraRoute.geometry,
+          properties: {},
+        },
+      ],
+    };
+  }, [extraRoute]);
+
   useEffect(() => {
     if (!routes.length || !onSelectOrder) {
       return;
@@ -320,6 +421,7 @@ export default function OrdersMap({ orders, selectedOrderId, onSelectOrder }) {
     const map = mapRef.current;
     const pointsSource = map.getSource("orders-points");
     const routeSource = map.getSource("selected-route");
+    const extraSource = map.getSource("distance-route");
 
     if (pointsSource) {
       pointsSource.setData(pointsData);
@@ -327,23 +429,27 @@ export default function OrdersMap({ orders, selectedOrderId, onSelectOrder }) {
     if (routeSource) {
       routeSource.setData(selectedRouteData);
     }
+    if (extraSource) {
+      extraSource.setData(extraRouteData);
+    }
 
     const highlight = selectedRoute?.order?.id || "";
-    if (map.getLayer("orders-points-layer")) {
-      map.setPaintProperty("orders-points-layer", "circle-color", [
+    const pointLayerId = enableClusters ? "orders-points-unclustered" : "orders-points-layer";
+    if (map.getLayer(pointLayerId)) {
+      map.setPaintProperty(pointLayerId, "circle-color", [
         "case",
         ["==", ["get", "orderId"], highlight],
         ["match", ["get", "type"], "pickup", "#2563eb", "dropoff", "#0f172a", "#2563eb"],
         ["match", ["get", "type"], "pickup", "#94a3b8", "dropoff", "#64748b", "#94a3b8"],
       ]);
-      map.setPaintProperty("orders-points-layer", "circle-radius", [
+      map.setPaintProperty(pointLayerId, "circle-radius", [
         "case",
         ["==", ["get", "orderId"], highlight],
         8,
         6,
       ]);
     }
-  }, [mapReady, pointsData, selectedRouteData, selectedRoute]);
+  }, [mapReady, pointsData, selectedRouteData, selectedRoute, enableClusters, extraRouteData]);
 
   useEffect(() => {
     if (!mapReady || !mapRef.current || !pointsData.features.length) return;
@@ -358,26 +464,74 @@ export default function OrdersMap({ orders, selectedOrderId, onSelectOrder }) {
   useEffect(() => {
     if (!mapReady || !mapRef.current) return;
     const map = mapRef.current;
+    const pointLayerId = enableClusters ? "orders-points-unclustered" : "orders-points-layer";
 
     const handleClick = (event) => {
-      const orderId = event.features?.[0]?.properties?.orderId;
+      const feature = event.features?.[0];
+      const orderId = feature?.properties?.orderId;
       if (orderId && onSelectOrder) {
         onSelectOrder(orderId);
       }
+      if (showPopups && feature) {
+        const props = feature.properties || {};
+        const popupHtml = `
+          <div style="font-family: Arial, sans-serif; font-size: 12px;">
+            <div style="font-weight: 600; margin-bottom: 4px;">${props.orderNumber || 'Auftrag'}</div>
+            <div>${props.licensePlate || '-'}</div>
+            <div style="margin-top: 4px; color: #475569;">
+              ${props.pickup || 'Start'} → ${props.dropoff || 'Ziel'}
+            </div>
+            <div style="margin-top: 4px;">
+              Status: ${props.status || '-'}
+            </div>
+            <div style="margin-top: 4px;">
+              Fahrer: ${props.driver || '-'}
+            </div>
+          </div>
+        `;
+        if (popupRef.current) {
+          popupRef.current.remove();
+        }
+        popupRef.current = new mapboxgl.Popup({ offset: 12 })
+          .setLngLat(feature.geometry.coordinates)
+          .setHTML(popupHtml)
+          .addTo(map);
+      }
     };
 
-    map.on("click", "orders-points-layer", handleClick);
-    map.on("mouseenter", "orders-points-layer", () => {
+    if (enableClusters) {
+      map.on("click", "orders-points-clusters", (event) => {
+        const features = map.queryRenderedFeatures(event.point, {
+          layers: ["orders-points-clusters"],
+        });
+        const clusterId = features[0]?.properties?.cluster_id;
+        const source = map.getSource("orders-points");
+        if (!source || clusterId == null) return;
+        source.getClusterExpansionZoom(clusterId, (err, zoom) => {
+          if (err) return;
+          map.easeTo({
+            center: features[0].geometry.coordinates,
+            zoom,
+          });
+        });
+      });
+    }
+
+    map.on("click", pointLayerId, handleClick);
+    map.on("mouseenter", pointLayerId, () => {
       map.getCanvas().style.cursor = "pointer";
     });
-    map.on("mouseleave", "orders-points-layer", () => {
+    map.on("mouseleave", pointLayerId, () => {
       map.getCanvas().style.cursor = "";
     });
 
     return () => {
-      map.off("click", "orders-points-layer", handleClick);
+      map.off("click", pointLayerId, handleClick);
+      if (enableClusters) {
+        map.off("click", "orders-points-clusters");
+      }
     };
-  }, [mapReady, onSelectOrder]);
+  }, [mapReady, onSelectOrder, enableClusters, showPopups]);
 
   if (!token) {
     return (

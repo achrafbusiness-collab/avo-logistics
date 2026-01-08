@@ -20,7 +20,8 @@ import {
   Terminal,
   Building2,
   History,
-  LifeBuoy
+  LifeBuoy,
+  Route
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import {
@@ -38,6 +39,7 @@ const adminPages = [
   { name: 'Dashboard', icon: LayoutDashboard, page: 'Dashboard' },
   { name: 'AVO AI', icon: Sparkles, page: 'AVOAI' },
   { name: 'Aufträge', icon: Truck, page: 'Orders' },
+  { name: 'Routenansicht', icon: Route, page: 'Routes' },
   { name: 'Kunden', icon: User, page: 'Customers' },
   { name: 'Fahrer', icon: Users, page: 'Drivers' },
   { name: 'Protokolle', icon: ClipboardList, page: 'Checklists' },

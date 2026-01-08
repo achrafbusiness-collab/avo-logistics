@@ -281,12 +281,19 @@ export default function Dashboard() {
               <CardTitle className="text-lg font-semibold text-slate-900">Tagesrouten & Übersicht</CardTitle>
               <p className="text-sm text-slate-500">Klicke auf einen Auftrag, um die Route zu sehen</p>
             </div>
-            <Link to={createPageUrl('Orders')}>
-              <Button variant="ghost" size="sm">
-                Alle anzeigen
-                <ArrowRight className="w-4 h-4 ml-1" />
-              </Button>
-            </Link>
+            <div className="flex items-center gap-2">
+              <Link to={createPageUrl('Routes')}>
+                <Button variant="outline" size="sm">
+                  Routenansicht
+                </Button>
+              </Link>
+              <Link to={createPageUrl('Orders')}>
+                <Button variant="ghost" size="sm">
+                  Alle anzeigen
+                  <ArrowRight className="w-4 h-4 ml-1" />
+                </Button>
+              </Link>
+            </div>
           </CardHeader>
           <CardContent>
             {ordersLoading ? (
