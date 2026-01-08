@@ -8,7 +8,6 @@ import {
   Truck, 
   Users, 
   ClipboardList,
-  FileText,
   Search,
   Menu,
   X,
@@ -103,7 +102,6 @@ export default function Layout({ children, currentPageName }) {
   if (isDriver) {
     const driverPages = [
       { name: t('nav.orders'), icon: Truck, page: 'DriverOrders' },
-      { name: t('nav.documents'), icon: FileText, page: 'DriverDocuments' },
       { name: t('nav.profile'), icon: User, page: 'DriverProfile' },
       { name: t('nav.support'), icon: LifeBuoy, page: 'DriverSupport' },
     ];

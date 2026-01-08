@@ -384,7 +384,49 @@ create table if not exists public.driver_documents (
   updated_date timestamptz default now()
 );
 
+create table if not exists public.order_documents (
+  id uuid primary key default gen_random_uuid(),
+  order_id uuid references public.orders on delete cascade,
+  company_id uuid references public.companies,
+  file_url text not null,
+  file_name text,
+  title text,
+  category text,
+  uploaded_by_user_id uuid,
+  uploaded_by_name text,
+  uploaded_by_email text,
+  created_date timestamptz default now(),
+  updated_date timestamptz default now()
+);
+
 alter table public.driver_documents enable row level security;
+alter table public.order_documents enable row level security;
+
+create or replace function public.is_staff_user()
+returns boolean
+language sql
+stable
+as $$
+  select exists (
+    select 1 from public.profiles p
+    where p.id = auth.uid()
+      and p.role <> 'driver'
+  )
+$$;
+
+create or replace function public.is_driver_for_order(order_id uuid)
+returns boolean
+language sql
+stable
+as $$
+  select exists (
+    select 1
+    from public.orders o
+    join public.drivers d on d.id = o.assigned_driver_id
+    where o.id = order_id
+      and lower(d.email) = lower((current_setting('request.jwt.claims', true)::jsonb ->> 'email'))
+  )
+$$;
 
 drop policy if exists "Driver documents select" on public.driver_documents;
 create policy "Driver documents select" on public.driver_documents
@@ -421,6 +463,27 @@ with check (
       and p.company_id = driver_documents.company_id
       and p.role <> 'driver'
   )
+);
+
+drop policy if exists "Order documents select" on public.order_documents;
+create policy "Order documents select" on public.order_documents
+for select using (
+  company_id = public.current_company_id()
+  and (
+    public.is_staff_user()
+    or public.is_driver_for_order(order_id)
+  )
+);
+
+drop policy if exists "Order documents manage" on public.order_documents;
+create policy "Order documents manage" on public.order_documents
+for all using (
+  company_id = public.current_company_id()
+  and public.is_staff_user()
+)
+with check (
+  company_id = public.current_company_id()
+  and public.is_staff_user()
 );
 
 alter table public.order_notes enable row level security;
@@ -870,6 +933,11 @@ for each row execute procedure public.write_audit_log();
 drop trigger if exists audit_driver_documents on public.driver_documents;
 create trigger audit_driver_documents
 after insert or update or delete on public.driver_documents
+for each row execute procedure public.write_audit_log();
+
+drop trigger if exists audit_order_documents on public.order_documents;
+create trigger audit_order_documents
+after insert or update or delete on public.order_documents
 for each row execute procedure public.write_audit_log();
 
 create or replace function public.write_storage_audit_log()

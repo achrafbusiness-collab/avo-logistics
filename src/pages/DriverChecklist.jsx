@@ -75,6 +75,12 @@ export default function DriverChecklist() {
     enabled: !!orderId,
   });
 
+  const { data: orderDocuments = [], isLoading: docsLoading } = useQuery({
+    queryKey: ['order-documents', orderId],
+    queryFn: () => appClient.entities.OrderDocument.filter({ order_id: orderId }, '-created_date', 200),
+    enabled: !!orderId,
+  });
+
   const pickupChecklist = checklists.find(c => c.type === 'pickup');
   const dropoffChecklist = checklists.find(c => c.type === 'dropoff');
 
@@ -85,7 +91,7 @@ export default function DriverChecklist() {
     },
   });
 
-  const isLoading = orderLoading || checklistsLoading;
+  const isLoading = orderLoading || checklistsLoading || docsLoading;
 
   if (isLoading) {
     return (
@@ -236,6 +242,43 @@ export default function DriverChecklist() {
                 {t('checklist.route.openMaps')}
               </a>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Documents */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">{t('checklist.documents.title')}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {docsLoading ? (
+              <div className="flex items-center justify-center py-4">
+                <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+              </div>
+            ) : orderDocuments.length === 0 ? (
+              <p className="text-sm text-gray-500">{t('checklist.documents.empty')}</p>
+            ) : (
+              <div className="space-y-2">
+                {orderDocuments.map((doc) => (
+                  <div key={doc.id} className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white p-3">
+                    <div>
+                      <p className="font-medium text-slate-900">{doc.title || doc.file_name}</p>
+                      <p className="text-xs text-slate-500">{doc.file_name}</p>
+                      {doc.category && (
+                        <p className="text-xs text-slate-500">{doc.category}</p>
+                      )}
+                    </div>
+                    {doc.file_url && (
+                      <a href={doc.file_url} target="_blank" rel="noreferrer">
+                        <Button size="sm" variant="outline">
+                          {t('checklist.documents.open')}
+                        </Button>
+                      </a>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 

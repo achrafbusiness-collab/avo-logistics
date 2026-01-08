@@ -202,6 +202,11 @@
     "notes": {
       "title": "Hinweise"
     },
+    "documents": {
+      "title": "Dokumente / Anhänge",
+      "empty": "Keine Dokumente für diesen Auftrag.",
+      "open": "Öffnen"
+    },
     "protocols": {
       "title": "Protokolle",
       "pickupTitle": "Abholprotokoll",

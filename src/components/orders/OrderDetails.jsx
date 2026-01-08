@@ -5,6 +5,7 @@ import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -37,7 +38,9 @@ import {
   Mail,
   Trash2,
   ExternalLink,
-  Loader2
+  Loader2,
+  Paperclip,
+  Upload
 } from 'lucide-react';
 
 const STATUS_FLOW = [
@@ -88,6 +91,13 @@ export default function OrderDetails({
   const [notesLoading, setNotesLoading] = useState(false);
   const [notesSaving, setNotesSaving] = useState(false);
   const [notesError, setNotesError] = useState('');
+  const [documents, setDocuments] = useState([]);
+  const [docsLoading, setDocsLoading] = useState(false);
+  const [docsUploading, setDocsUploading] = useState(false);
+  const [docsError, setDocsError] = useState('');
+  const [docEdits, setDocEdits] = useState({});
+  const [docSaving, setDocSaving] = useState({});
+  const [docDeleting, setDocDeleting] = useState({});
   const pickupChecklist = checklists.find(c => c.type === 'pickup');
   const dropoffChecklist = checklists.find(c => c.type === 'dropoff');
   const formatDateSafe = (value, pattern) => {
@@ -136,7 +146,125 @@ export default function OrderDetails({
     loadNotes();
   }, [order?.id]);
 
+  useEffect(() => {
+    const loadDocuments = async () => {
+      if (!order?.id) return;
+      setDocsLoading(true);
+      setDocsError('');
+      try {
+        const list = await appClient.entities.OrderDocument.filter(
+          { order_id: order.id },
+          '-created_date',
+          200
+        );
+        setDocuments(list || []);
+      } catch (err) {
+        setDocsError(err?.message || 'Dokumente konnten nicht geladen werden.');
+      } finally {
+        setDocsLoading(false);
+      }
+    };
+    loadDocuments();
+  }, [order?.id]);
+
+  const startDocEdit = (doc) => {
+    setDocEdits((prev) => ({
+      ...prev,
+      [doc.id]: {
+        title: doc.title ?? doc.file_name ?? '',
+        category: doc.category ?? '',
+        editing: true,
+      },
+    }));
+  };
+
+  const cancelDocEdit = (docId) => {
+    setDocEdits((prev) => ({
+      ...prev,
+      [docId]: {
+        ...prev[docId],
+        editing: false,
+      },
+    }));
+  };
+
+  const handleDocFieldChange = (docId, field, value) => {
+    setDocEdits((prev) => ({
+      ...prev,
+      [docId]: {
+        ...prev[docId],
+        [field]: value,
+      },
+    }));
+  };
+
+  const saveDocEdit = async (doc) => {
+    const draft = docEdits[doc.id];
+    if (!draft) return;
+    setDocSaving((prev) => ({ ...prev, [doc.id]: true }));
+    setDocsError('');
+    try {
+      const updated = await appClient.entities.OrderDocument.update(doc.id, {
+        title: draft.title?.trim() || null,
+        category: draft.category?.trim() || null,
+      });
+      setDocuments((prev) =>
+        prev.map((item) => (item.id === updated.id ? updated : item))
+      );
+      setDocEdits((prev) => ({
+        ...prev,
+        [doc.id]: { ...draft, editing: false },
+      }));
+    } catch (error) {
+      setDocsError(error?.message || 'Dokument konnte nicht gespeichert werden.');
+    } finally {
+      setDocSaving((prev) => ({ ...prev, [doc.id]: false }));
+    }
+  };
+
+  const handleDocDelete = async (doc) => {
+    if (!doc?.id) return;
+    setDocDeleting((prev) => ({ ...prev, [doc.id]: true }));
+    setDocsError('');
+    try {
+      await appClient.entities.OrderDocument.delete(doc.id);
+      setDocuments((prev) => prev.filter((item) => item.id !== doc.id));
+    } catch (error) {
+      setDocsError(error?.message || 'Dokument konnte nicht gelöscht werden.');
+    } finally {
+      setDocDeleting((prev) => ({ ...prev, [doc.id]: false }));
+    }
+  };
+
+  const handleDocUpload = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file || !order?.id) return;
+    setDocsUploading(true);
+    setDocsError('');
+    try {
+      const { file_url } = await appClient.integrations.Core.UploadFile({ file });
+      const created = await appClient.entities.OrderDocument.create({
+        order_id: order.id,
+        company_id: order.company_id,
+        file_url,
+        file_name: file.name,
+        title: file.name,
+        category: '',
+        uploaded_by_user_id: currentUser?.id || null,
+        uploaded_by_name: currentUser?.full_name || currentUser?.email || '',
+        uploaded_by_email: currentUser?.email || '',
+      });
+      setDocuments((prev) => [created, ...prev]);
+    } catch (error) {
+      setDocsError(error?.message || 'Dokument konnte nicht hochgeladen werden.');
+    } finally {
+      setDocsUploading(false);
+      event.target.value = '';
+    }
+  };
+
   const isAdmin = currentUser?.role === 'admin';
+  const canManageDocs = currentUser?.role !== 'driver';
   const reviewComplete = useMemo(
     () => REVIEW_CHECKS.every((item) => reviewChecks[item.key]),
     [reviewChecks]
@@ -766,16 +894,193 @@ export default function OrderDetails({
             </CardContent>
           </Card>
 
+          {/* Documents */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Paperclip className="w-5 h-5 text-[#1e3a5f]" />
+                Anhänge / Dokumente
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {canManageDocs && (
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-sm text-gray-500">PDF, JPG/PNG oder DOCX</p>
+                  <div className="flex items-center gap-2">
+                    <input
+                      id={`doc-upload-${order.id}`}
+                      type="file"
+                      className="hidden"
+                      accept=".pdf,.png,.jpg,.jpeg,.docx"
+                      onChange={handleDocUpload}
+                    />
+                    <label htmlFor={`doc-upload-${order.id}`}>
+                      <Button
+                        size="sm"
+                        className="bg-[#1e3a5f] hover:bg-[#2d5a8a]"
+                        disabled={docsUploading}
+                      >
+                        {docsUploading ? (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                          <Upload className="w-4 h-4 mr-2" />
+                        )}
+                        Dokument hinzufügen
+                      </Button>
+                    </label>
+                  </div>
+                </div>
+              )}
+
+              {docsError && (
+                <p className="text-sm text-red-600">{docsError}</p>
+              )}
+
+              {docsLoading ? (
+                <div className="flex items-center justify-center py-6">
+                  <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+                </div>
+              ) : documents.length === 0 ? (
+                <p className="text-sm text-gray-500">
+                  Noch keine Dokumente hinterlegt.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {documents.map((doc) => {
+                    const editState = docEdits[doc.id];
+                    const isEditing = editState?.editing;
+                    return (
+                      <div key={doc.id} className="rounded-lg border border-slate-200 bg-white p-3">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                          <div className="flex-1 space-y-2">
+                            {isEditing ? (
+                              <Input
+                                value={editState.title}
+                                onChange={(e) =>
+                                  handleDocFieldChange(doc.id, 'title', e.target.value)
+                                }
+                                placeholder="Titel"
+                              />
+                            ) : (
+                              <p className="font-semibold text-slate-900">
+                                {doc.title || doc.file_name || 'Dokument'}
+                              </p>
+                            )}
+                            <p className="text-xs text-slate-500">{doc.file_name}</p>
+                            {isEditing ? (
+                              <Input
+                                value={editState.category}
+                                onChange={(e) =>
+                                  handleDocFieldChange(doc.id, 'category', e.target.value)
+                                }
+                                placeholder="Kategorie (optional)"
+                              />
+                            ) : (
+                              doc.category && (
+                                <p className="text-xs text-slate-500">
+                                  Kategorie: {doc.category}
+                                </p>
+                              )
+                            )}
+                            <div className="flex flex-wrap gap-2 text-xs text-slate-500">
+                              <span>
+                                {formatDateSafe(doc.created_date || doc.created_at, 'dd.MM.yyyy')}
+                              </span>
+                              <span>•</span>
+                              <span>
+                                {doc.uploaded_by_name || doc.uploaded_by_email || 'Unbekannt'}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            {doc.file_url && (
+                              <a href={doc.file_url} target="_blank" rel="noreferrer">
+                                <Button size="sm" variant="outline">
+                                  <FileText className="w-4 h-4 mr-2" />
+                                  Öffnen
+                                </Button>
+                              </a>
+                            )}
+                            {canManageDocs && !isEditing && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => startDocEdit(doc)}
+                              >
+                                Bearbeiten
+                              </Button>
+                            )}
+                            {canManageDocs && isEditing && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  className="bg-[#1e3a5f] hover:bg-[#2d5a8a]"
+                                  disabled={docSaving[doc.id]}
+                                  onClick={() => saveDocEdit(doc)}
+                                >
+                                  {docSaving[doc.id] ? (
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                  ) : null}
+                                  Speichern
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => cancelDocEdit(doc.id)}
+                                >
+                                  Abbrechen
+                                </Button>
+                              </>
+                            )}
+                            {canManageDocs && (
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                disabled={docDeleting[doc.id]}
+                                onClick={() => handleDocDelete(doc)}
+                              >
+                                {docDeleting[doc.id] ? (
+                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                ) : (
+                                  <Trash2 className="w-4 h-4 mr-2" />
+                                )}
+                                Löschen
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           {/* PDF */}
           {order.pdf_url && (
             <Card>
               <CardContent className="pt-6">
-                <a href={order.pdf_url} target="_blank" rel="noopener noreferrer">
-                  <Button className="w-full bg-[#1e3a5f] hover:bg-[#2d5a8a]">
-                    <FileText className="w-4 h-4 mr-2" />
-                    Protokoll-PDF öffnen
-                  </Button>
-                </a>
+                <div className="flex flex-col gap-3">
+                  <a href={order.pdf_url} target="_blank" rel="noopener noreferrer">
+                    <Button className="w-full bg-[#1e3a5f] hover:bg-[#2d5a8a]">
+                      <FileText className="w-4 h-4 mr-2" />
+                      Protokoll-PDF öffnen
+                    </Button>
+                  </a>
+                  {dropoffChecklist && (
+                    <a
+                      href={`/expenses-pdf?checklistId=${dropoffChecklist.id}&print=1`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Button variant="outline" className="w-full">
+                        <FileText className="w-4 h-4 mr-2" />
+                        Auslagen-PDF öffnen
+                      </Button>
+                    </a>
+                  )}
+                </div>
               </CardContent>
             </Card>
           )}

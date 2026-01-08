@@ -202,6 +202,11 @@
     "notes": {
       "title": "Notas"
     },
+    "documents": {
+      "title": "Documentos / Adjuntos",
+      "empty": "No hay documentos para este pedido.",
+      "open": "Abrir"
+    },
     "protocols": {
       "title": "Protocolos",
       "pickupTitle": "Protocolo de recogida",

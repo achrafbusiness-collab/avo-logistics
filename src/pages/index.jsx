@@ -14,7 +14,6 @@ import DriverOrders from "./DriverOrders";
 
 import DriverProtocol from "./DriverProtocol";
 
-import DriverDocuments from "./DriverDocuments";
 
 import DriverProfile from "./DriverProfile";
 
@@ -67,7 +66,6 @@ const PAGES = {
     
     DriverProtocol: DriverProtocol,
 
-    DriverDocuments: DriverDocuments,
 
     DriverProfile: DriverProfile,
 
@@ -164,7 +162,6 @@ function PagesContent() {
         'DriverOrders',
         'DriverChecklist',
         'DriverProtocol',
-        'DriverDocuments',
         'DriverProfile',
         'DriverSupport',
     ];
@@ -202,7 +199,6 @@ function PagesContent() {
                 
                 <Route path="/DriverProtocol" element={<DriverProtocol />} />
 
-                <Route path="/DriverDocuments" element={<DriverDocuments />} />
 
                 <Route path="/DriverProfile" element={<DriverProfile />} />
 
