@@ -38,7 +38,6 @@ import {
 import StatusBadge from '@/components/ui/StatusBadge';
 import OrderForm from '@/components/orders/OrderForm';
 import OrderDetails from '@/components/orders/OrderDetails';
-import OrdersMap from '@/components/dashboard/OrdersMap';
 import { 
   Plus, 
   Search, 
@@ -71,7 +70,6 @@ export default function Orders() {
   const [noteEditOpen, setNoteEditOpen] = useState({});
   const [noteEditDrafts, setNoteEditDrafts] = useState({});
   const [noteEditSaving, setNoteEditSaving] = useState({});
-  const [mapSelectedOrderId, setMapSelectedOrderId] = useState(null);
 
   useEffect(() => {
     let active = true;
@@ -240,17 +238,6 @@ export default function Orders() {
     return matchesSearch && matchesStatus && matchesListMode;
   });
 
-  useEffect(() => {
-    if (!filteredOrders.length) {
-      setMapSelectedOrderId(null);
-      return;
-    }
-    if (!mapSelectedOrderId || !filteredOrders.some((order) => order.id === mapSelectedOrderId)) {
-      setMapSelectedOrderId(filteredOrders[0].id);
-    }
-  }, [filteredOrders, mapSelectedOrderId]);
-
-  const mapSelectedOrder = filteredOrders.find((order) => order.id === mapSelectedOrderId);
 
   const getDueDateTime = (order) => {
     if (!order?.dropoff_date) return null;
@@ -628,49 +615,6 @@ export default function Orders() {
         </CardContent>
       </Card>
 
-      <Card className="border border-slate-200 bg-white">
-        <CardContent className="p-4 space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p className="text-sm font-semibold text-slate-900">Routenansicht (Mapbox)</p>
-              <p className="text-xs text-slate-500">Aufträge direkt auf der Karte prüfen.</p>
-            </div>
-            <Link to={createPageUrl('Routes')}>
-              <Button variant="outline" size="sm">
-                Routenansicht öffnen
-              </Button>
-            </Link>
-          </div>
-          <div className="h-[320px] sm:h-[360px]">
-            <OrdersMap
-              orders={filteredOrders}
-              selectedOrderId={mapSelectedOrderId}
-              onSelectOrder={setMapSelectedOrderId}
-            />
-          </div>
-          {mapSelectedOrder && (
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
-              <div>
-                <div className="font-semibold text-slate-900">{mapSelectedOrder.order_number}</div>
-                <div className="text-slate-500">
-                  {mapSelectedOrder.pickup_city || 'Start'} → {mapSelectedOrder.dropoff_city || 'Ziel'}
-                </div>
-              </div>
-              <Button
-                size="sm"
-                className="bg-[#1e3a5f] hover:bg-[#2d5a8a]"
-                onClick={() => {
-                  setSelectedOrder(mapSelectedOrder);
-                  setView('details');
-                  window.history.pushState({}, '', createPageUrl('Orders') + `?id=${mapSelectedOrder.id}`);
-                }}
-              >
-                Auftrag öffnen
-              </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
 
       {selectedIds.length > 0 && (
         <Card className="border border-slate-200 bg-slate-50">

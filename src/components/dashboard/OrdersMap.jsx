@@ -125,9 +125,24 @@ export default function OrdersMap({
         type: "geojson",
         data: emptyFeatureCollection,
       });
+      map.addSource("all-routes", {
+        type: "geojson",
+        data: emptyFeatureCollection,
+      });
       map.addSource("distance-route", {
         type: "geojson",
         data: emptyFeatureCollection,
+      });
+
+      map.addLayer({
+        id: "all-routes-line",
+        type: "line",
+        source: "all-routes",
+        paint: {
+          "line-color": "#94a3b8",
+          "line-width": 2,
+          "line-opacity": 0.4,
+        },
       });
 
       map.addLayer({
@@ -138,6 +153,24 @@ export default function OrdersMap({
           "line-color": "#1e3a5f",
           "line-width": 4,
           "line-opacity": 0.75,
+        },
+      });
+
+      map.addLayer({
+        id: "selected-route-arrows",
+        type: "symbol",
+        source: "selected-route",
+        layout: {
+          "symbol-placement": "line",
+          "symbol-spacing": 110,
+          "icon-image": "triangle-11",
+          "icon-size": 0.8,
+          "icon-allow-overlap": true,
+          "icon-rotation-alignment": "map",
+        },
+        paint: {
+          "icon-color": "#1e3a5f",
+          "icon-opacity": 0.7,
         },
       });
 
@@ -393,6 +426,22 @@ export default function OrdersMap({
     };
   }, [selectedRoute]);
 
+  const allRoutesData = useMemo(() => {
+    if (!routes.length) return emptyFeatureCollection;
+    return {
+      type: "FeatureCollection",
+      features: routes
+        .filter((route) => route.geometry)
+        .map((route) => ({
+          type: "Feature",
+          geometry: route.geometry,
+          properties: {
+            orderId: route.order.id,
+          },
+        })),
+    };
+  }, [routes]);
+
   const extraRouteData = useMemo(() => {
     if (!extraRoute?.geometry) return emptyFeatureCollection;
     return {
@@ -421,6 +470,7 @@ export default function OrdersMap({
     const map = mapRef.current;
     const pointsSource = map.getSource("orders-points");
     const routeSource = map.getSource("selected-route");
+    const allRoutesSource = map.getSource("all-routes");
     const extraSource = map.getSource("distance-route");
 
     if (pointsSource) {
@@ -428,6 +478,9 @@ export default function OrdersMap({
     }
     if (routeSource) {
       routeSource.setData(selectedRouteData);
+    }
+    if (allRoutesSource) {
+      allRoutesSource.setData(allRoutesData);
     }
     if (extraSource) {
       extraSource.setData(extraRouteData);
@@ -449,7 +502,7 @@ export default function OrdersMap({
         6,
       ]);
     }
-  }, [mapReady, pointsData, selectedRouteData, selectedRoute, enableClusters, extraRouteData]);
+  }, [mapReady, pointsData, selectedRouteData, selectedRoute, enableClusters, extraRouteData, allRoutesData]);
 
   useEffect(() => {
     if (!mapReady || !mapRef.current || !pointsData.features.length) return;
@@ -517,6 +570,7 @@ export default function OrdersMap({
       });
     }
 
+    map.on("click", "all-routes-line", handleClick);
     map.on("click", pointLayerId, handleClick);
     map.on("mouseenter", pointLayerId, () => {
       map.getCanvas().style.cursor = "pointer";
@@ -526,6 +580,7 @@ export default function OrdersMap({
     });
 
     return () => {
+      map.off("click", "all-routes-line", handleClick);
       map.off("click", pointLayerId, handleClick);
       if (enableClusters) {
         map.off("click", "orders-points-clusters");
