@@ -421,6 +421,11 @@ export default function OrderDetails({
             <p className="text-gray-500">
               {order.vehicle_brand} {order.vehicle_model} • {order.license_plate}
             </p>
+            {order.customer_order_number && (
+              <p className="text-sm text-gray-500">
+                Kunden-Ref: {order.customer_order_number}
+              </p>
+            )}
           </div>
           <div className="flex gap-2">
             <Button variant="outline" onClick={onEdit}>

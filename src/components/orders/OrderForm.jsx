@@ -39,6 +39,7 @@ const Section = ({ title, icon: Icon, children }) => (
 export default function OrderForm({ order, onSave, onCancel }) {
   const [formData, setFormData] = useState({
     order_number: '',
+    customer_order_number: '',
     status: 'new',
     customer_id: '',
     license_plate: '',
@@ -175,6 +176,14 @@ export default function OrderForm({ order, onSave, onCancel }) {
                   Wird beim Speichern automatisch vergeben (z. B. AVO-2025-00001).
                 </p>
               )}
+            </div>
+            <div>
+              <Label>Auftragsnummer (Kunde)</Label>
+              <Input
+                value={formData.customer_order_number}
+                onChange={(e) => handleChange('customer_order_number', e.target.value)}
+                placeholder="Kunden-Referenz"
+              />
             </div>
             <div>
               <Label>Status</Label>

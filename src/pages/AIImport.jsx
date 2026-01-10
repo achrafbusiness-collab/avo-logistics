@@ -52,6 +52,7 @@ export default function AIImport() {
   });
 
   const normalizeExtractedData = (data) => ({
+    customer_order_number: data?.customer_order_number || '',
     license_plate: data?.license_plate || '',
     vehicle_brand: data?.vehicle_brand || '',
     vehicle_model: data?.vehicle_model || '',
@@ -93,6 +94,7 @@ Text:
 ${emailText}
 
 Extrahiere diese Felder. Wenn ein Feld nicht gefunden wird, gib "" (leerer String) zurück. Preis darf eine Zahl oder "" sein:
+- customer_order_number (Kunden-Auftragsnummer / Referenz / Bestellnummer)
 - license_plate (Kennzeichen)
 - vehicle_brand (Marke)
 - vehicle_model (Modell)
@@ -125,6 +127,7 @@ Gib ausschließlich die strukturierten Daten zurück.`,
                 type: "object",
                 additionalProperties: false,
                 properties: {
+                  customer_order_number: { type: ["string", "null"] },
                   license_plate: { type: ["string", "null"] },
                   vehicle_brand: { type: ["string", "null"] },
                   vehicle_model: { type: ["string", "null"] },
@@ -147,6 +150,7 @@ Gib ausschließlich die strukturierten Daten zurück.`,
                   price: { type: ["number", "null"] }
                 },
                 required: [
+                  "customer_order_number",
                   "license_plate",
                   "vehicle_brand",
                   "vehicle_model",
@@ -400,6 +404,14 @@ Gib ausschließlich die strukturierten Daten zurück.`,
                         <p className="mt-1 text-xs text-gray-500">
                           Leer lassen für automatische Vergabe (AVO-YYYY-xxxxx).
                         </p>
+                      </div>
+                      <div>
+                        <Label>Auftragsnummer (Kunde)</Label>
+                        <Input
+                          value={currentOrder.customer_order_number || ''}
+                          onChange={(e) => updateExtractedData('customer_order_number', e.target.value)}
+                          placeholder="z. B. Kunden-Ref. / Bestellnummer"
+                        />
                       </div>
                       <div>
                         <Label>Status</Label>

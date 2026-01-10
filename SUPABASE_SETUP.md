@@ -179,6 +179,7 @@ create extension if not exists "pgcrypto";
 create table if not exists public.orders (
   id uuid primary key default gen_random_uuid(),
   order_number text,
+  customer_order_number text,
   status text,
   customer_id uuid,
   customer_name text,
@@ -250,6 +251,9 @@ where order_number is null or order_number = '';
 
 alter table public.orders
 alter column order_number set not null;
+
+alter table public.orders
+add column if not exists customer_order_number text;
 
 create unique index if not exists orders_order_number_unique
 on public.orders(order_number);

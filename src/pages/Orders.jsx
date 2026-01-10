@@ -263,14 +263,24 @@ export default function Orders() {
     return updated;
   };
 
+  const searchLower = searchTerm.trim().toLowerCase();
   const filteredOrders = orders.filter(order => {
-    const matchesSearch = 
-      order.order_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.license_plate?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.vehicle_brand?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.pickup_postal_code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.dropoff_postal_code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.assigned_driver_name?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch =
+      !searchLower ||
+      order.order_number?.toLowerCase().includes(searchLower) ||
+      order.customer_order_number?.toLowerCase().includes(searchLower) ||
+      order.license_plate?.toLowerCase().includes(searchLower) ||
+      order.vehicle_brand?.toLowerCase().includes(searchLower) ||
+      order.vehicle_model?.toLowerCase().includes(searchLower) ||
+      order.vin?.toLowerCase().includes(searchLower) ||
+      order.pickup_address?.toLowerCase().includes(searchLower) ||
+      order.pickup_city?.toLowerCase().includes(searchLower) ||
+      order.pickup_postal_code?.toLowerCase().includes(searchLower) ||
+      order.dropoff_address?.toLowerCase().includes(searchLower) ||
+      order.dropoff_city?.toLowerCase().includes(searchLower) ||
+      order.dropoff_postal_code?.toLowerCase().includes(searchLower) ||
+      order.customer_name?.toLowerCase().includes(searchLower) ||
+      order.assigned_driver_name?.toLowerCase().includes(searchLower);
     
     const matchesListMode =
       listMode === 'completed' ? order.status === 'completed' : order.status !== 'completed';
@@ -645,7 +655,7 @@ export default function Orders() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <Input 
-                placeholder="Suche nach Auftragsnummer, Kennzeichen, Fahrer..."
+                placeholder="Suche nach Auftragsnummer, Kunde, Kennzeichen, Ort, PLZ, Straße..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
