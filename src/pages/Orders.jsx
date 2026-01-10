@@ -289,6 +289,7 @@ export default function Orders() {
       return { state: 'normal', label: '-', detail: '' };
     }
     const now = new Date();
+    const tomorrow = addDays(now, 1);
     if (dueAt.getTime() < now.getTime()) {
       const days = Math.max(1, differenceInCalendarDays(now, dueAt));
       return {
@@ -297,11 +298,11 @@ export default function Orders() {
         detail: `Überfällig seit ${days} Tag${days > 1 ? 'en' : ''}`,
       };
     }
-    if (isSameDay(dueAt, now)) {
+    if (isSameDay(dueAt, now) || isSameDay(dueAt, tomorrow)) {
       return {
         state: 'today',
         label: format(dueAt, 'dd.MM.yyyy', { locale: de }),
-        detail: 'Heute fällig',
+        detail: isSameDay(dueAt, now) ? 'Heute fällig' : 'Morgen fällig',
       };
     }
     return {
