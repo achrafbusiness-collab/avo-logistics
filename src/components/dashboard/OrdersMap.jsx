@@ -68,6 +68,23 @@ const emptyFeatureCollection = {
   features: [],
 };
 
+const createArrowImage = () => {
+  const size = 32;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return canvas;
+  ctx.fillStyle = "#1e3a5f";
+  ctx.beginPath();
+  ctx.moveTo(size / 2, 4);
+  ctx.lineTo(size - 4, size - 4);
+  ctx.lineTo(4, size - 4);
+  ctx.closePath();
+  ctx.fill();
+  return canvas;
+};
+
 export default function OrdersMap({
   orders,
   selectedOrderId,
@@ -114,6 +131,19 @@ export default function OrdersMap({
     map.addControl(new mapboxgl.AttributionControl({ compact: true }));
 
     const handleLoad = () => {
+      const addArrowImage = () => {
+        if (!map.hasImage("route-arrow")) {
+          map.addImage("route-arrow", createArrowImage(), { sdf: true });
+        }
+      };
+
+      addArrowImage();
+      map.on("styleimagemissing", (event) => {
+        if (event.id === "route-arrow") {
+          addArrowImage();
+        }
+      });
+
       map.addSource("orders-points", {
         type: "geojson",
         data: emptyFeatureCollection,
@@ -163,8 +193,8 @@ export default function OrdersMap({
         layout: {
           "symbol-placement": "line",
           "symbol-spacing": 110,
-          "icon-image": "triangle-11",
-          "icon-size": 0.8,
+          "icon-image": "route-arrow",
+          "icon-size": 0.6,
           "icon-allow-overlap": true,
           "icon-rotation-alignment": "map",
         },
