@@ -25,7 +25,6 @@ import Orders from "./Orders";
 
 import Search from "./Search";
 
-import RoutesPage from "./Routes";
 
 import AIImport from "./AIImport";
 
@@ -79,7 +78,6 @@ const PAGES = {
     
     Search: Search,
 
-    Routes: RoutesPage,
     
     AIImport: AIImport,
     
@@ -214,7 +212,6 @@ function PagesContent() {
                 
                 <Route path="/Search" element={<Search />} />
 
-                <Route path="/routes" element={<RoutesPage />} />
                 
                 <Route path="/AIImport" element={<AIImport />} />
                 

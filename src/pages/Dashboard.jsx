@@ -339,11 +339,6 @@ export default function Dashboard() {
               <p className="text-sm text-slate-500">Klicke auf einen Auftrag, um die Route zu sehen</p>
             </div>
             <div className="flex items-center gap-2">
-              <Link to={createPageUrl('Routes')}>
-                <Button variant="outline" size="sm">
-                  Routenansicht
-                </Button>
-              </Link>
               <Link to={createPageUrl('Orders')}>
                 <Button variant="ghost" size="sm">
                   Alle anzeigen
