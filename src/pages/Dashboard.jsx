@@ -37,6 +37,7 @@ export default function Dashboard() {
   const [dateFrom, setDateFrom] = useState(todayKey);
   const [dateTo, setDateTo] = useState(todayKey);
   const [selectedOrderId, setSelectedOrderId] = useState(null);
+  const [mapMode, setMapMode] = useState('open');
 
   const { data: orders = [], isLoading: ordersLoading } = useQuery({
     queryKey: ['orders'],
@@ -111,7 +112,16 @@ export default function Dashboard() {
     return fromLabel || toLabel || 'Kein Zeitraum';
   }, [dateFrom, dateTo]);
 
+  const mapCounts = useMemo(() => {
+    const openStatuses = ['new', 'assigned', 'pickup_started', 'delivery_started'];
+    return {
+      open: rangeOrders.filter((order) => openStatuses.includes(order.status)).length,
+      inDelivery: rangeOrders.filter((order) => order.status === 'in_transit').length,
+    };
+  }, [rangeOrders]);
+
   const mapOrders = useMemo(() => {
+    const openStatuses = ['new', 'assigned', 'pickup_started', 'delivery_started'];
     return rangeOrders.filter((order) => {
       const pickup = [order.pickup_address, order.pickup_postal_code, order.pickup_city]
         .filter(Boolean)
@@ -121,9 +131,12 @@ export default function Dashboard() {
         .filter(Boolean)
         .join(", ")
         .trim();
-      return pickup && dropoff;
+      if (!pickup || !dropoff) return false;
+      if (mapMode === 'open') return openStatuses.includes(order.status);
+      if (mapMode === 'in_transit') return order.status === 'in_transit';
+      return true;
     });
-  }, [rangeOrders]);
+  }, [rangeOrders, mapMode]);
 
   const recentOrders = mapOrders.slice(0, 8);
 
@@ -315,9 +328,27 @@ export default function Dashboard() {
             ) : (
               <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                 <div className="space-y-3">
-                  <div className="flex items-center gap-2 text-sm text-slate-500">
+                  <div className="flex flex-wrap items-center gap-2 text-sm text-slate-500">
                     <Route className="w-4 h-4 text-[#1e3a5f]" />
-                    Routenansicht (Mapbox)
+                    <span>Routenansicht (Mapbox)</span>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant={mapMode === 'open' ? 'default' : 'outline'}
+                        className={mapMode === 'open' ? 'bg-[#1e3a5f] hover:bg-[#2d5a8a]' : ''}
+                        onClick={() => setMapMode('open')}
+                      >
+                        Offen ({mapCounts.open})
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant={mapMode === 'in_transit' ? 'default' : 'outline'}
+                        className={mapMode === 'in_transit' ? 'bg-[#1e3a5f] hover:bg-[#2d5a8a]' : ''}
+                        onClick={() => setMapMode('in_transit')}
+                      >
+                        In Lieferung ({mapCounts.inDelivery})
+                      </Button>
+                    </div>
                   </div>
                   <OrdersMap
                     orders={mapOrders}
