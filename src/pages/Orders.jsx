@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { appClient } from '@/api/appClient';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
-import { format, differenceInCalendarDays, isSameDay } from 'date-fns';
+import { addDays, format, differenceInCalendarDays, isSameDay } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -56,6 +56,7 @@ export default function Orders() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [listMode, setListMode] = useState('active');
+  const [driverFilter, setDriverFilter] = useState('all');
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]);
@@ -100,6 +101,46 @@ export default function Orders() {
     queryKey: ['drivers'],
     queryFn: () => appClient.entities.Driver.filter({ status: 'active' }),
   });
+
+  const getDueDateTime = (order) => {
+    if (!order?.dropoff_date) return null;
+    const time = order.dropoff_time ? `${order.dropoff_time}:00` : '23:59:00';
+    const date = new Date(`${order.dropoff_date}T${time}`);
+    if (Number.isNaN(date.getTime())) return null;
+    return date;
+  };
+
+  const summaryCounts = useMemo(() => {
+    const now = new Date();
+    const tomorrow = addDays(now, 1);
+    let open = 0;
+    let inDelivery = 0;
+    let dueTomorrow = 0;
+    let overdue = 0;
+
+    orders.forEach((order) => {
+      if (order.status === 'cancelled') return;
+      if (order.status === 'in_transit') {
+        inDelivery += 1;
+      } else if (order.status !== 'completed') {
+        open += 1;
+      }
+
+      if (order.status !== 'completed') {
+        const dueAt = getDueDateTime(order);
+        if (dueAt) {
+          if (isSameDay(dueAt, tomorrow)) {
+            dueTomorrow += 1;
+          }
+          if (dueAt.getTime() < now.getTime()) {
+            overdue += 1;
+          }
+        }
+      }
+    });
+
+    return { open, inDelivery, dueTomorrow, overdue };
+  }, [orders]);
 
   const activeOrdersCount = useMemo(
     () => orders.filter((order) => order.status !== 'completed').length,
@@ -235,17 +276,12 @@ export default function Orders() {
       listMode === 'completed' ? order.status === 'completed' : order.status !== 'completed';
     const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
     
-    return matchesSearch && matchesStatus && matchesListMode;
+    const matchesDriver =
+      driverFilter === 'all' || order.assigned_driver_id === driverFilter;
+    
+    return matchesSearch && matchesStatus && matchesListMode && matchesDriver;
   });
 
-
-  const getDueDateTime = (order) => {
-    if (!order?.dropoff_date) return null;
-    const time = order.dropoff_time ? `${order.dropoff_time}:00` : '23:59:00';
-    const date = new Date(`${order.dropoff_date}T${time}`);
-    if (Number.isNaN(date.getTime())) return null;
-    return date;
-  };
 
   const getDueStatus = (order) => {
     const dueAt = getDueDateTime(order);
@@ -574,6 +610,33 @@ export default function Orders() {
         </Button>
       </div>
 
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs uppercase tracking-wide text-slate-500">Offen</p>
+            <p className="text-2xl font-semibold text-slate-900">{summaryCounts.open}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs uppercase tracking-wide text-slate-500">In Lieferung</p>
+            <p className="text-2xl font-semibold text-slate-900">{summaryCounts.inDelivery}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs uppercase tracking-wide text-slate-500">Noch 1 Tag</p>
+            <p className="text-2xl font-semibold text-slate-900">{summaryCounts.dueTomorrow}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs uppercase tracking-wide text-slate-500">Überfällig</p>
+            <p className="text-2xl font-semibold text-red-600">{summaryCounts.overdue}</p>
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Filters */}
       <Card>
         <CardContent className="p-4">
@@ -611,6 +674,31 @@ export default function Orders() {
                 )}
               </SelectContent>
             </Select>
+            <Select value={driverFilter} onValueChange={setDriverFilter}>
+              <SelectTrigger className="w-full sm:w-56">
+                <SelectValue placeholder="Fahrer" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Alle Fahrer</SelectItem>
+                {drivers.map((driver) => {
+                  const label =
+                    driver.name ||
+                    [driver.first_name, driver.last_name].filter(Boolean).join(' ') ||
+                    driver.email ||
+                    'Fahrer';
+                  return (
+                    <SelectItem key={driver.id} value={driver.id}>
+                      {label}
+                    </SelectItem>
+                  );
+                })}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="mt-3">
+            <Button variant="outline" size="sm" onClick={() => window.location.href = createPageUrl('Search')}>
+              Fahrer suchen
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -702,7 +790,7 @@ export default function Orders() {
                     <TableHead>Auftrag</TableHead>
                     <TableHead>Fahrzeug</TableHead>
                   <TableHead>Route</TableHead>
-                  <TableHead className="hidden lg:table-cell">Fahrer</TableHead>
+                  <TableHead>Fahrer</TableHead>
                   <TableHead>Fällig bis</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
@@ -891,7 +979,7 @@ export default function Orders() {
                           <p>{order.dropoff_city || 'N/A'}</p>
                         </div>
                       </TableCell>
-                      <TableCell className="hidden lg:table-cell">
+                      <TableCell>
                         {order.assigned_driver_name || (
                           <span className="text-gray-400">Nicht zugewiesen</span>
                         )}
