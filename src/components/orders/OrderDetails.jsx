@@ -240,10 +240,18 @@ export default function OrderDetails({
 
   const handleDocFile = async (file) => {
     if (!file || !order?.id) return;
+    if (!order?.company_id) {
+      setDocsError('Unternehmen fehlt am Auftrag. Bitte Auftrag neu laden.');
+      return;
+    }
     setDocsUploading(true);
     setDocsError('');
     try {
-      const { file_url } = await appClient.integrations.Core.UploadFile({ file });
+      const { file_url } = await appClient.integrations.Core.UploadFile({
+        file,
+        companyId: order.company_id,
+        pathPrefix: 'orders',
+      });
       const created = await appClient.entities.OrderDocument.create({
         order_id: order.id,
         company_id: order.company_id,

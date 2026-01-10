@@ -178,14 +178,19 @@ const getCompanyIdForCurrentUser = async () => {
   return null;
 };
 
-const uploadFileToStorage = async ({ file, bucket = "documents", pathPrefix = "uploads" }) => {
+const uploadFileToStorage = async ({
+  file,
+  bucket = "documents",
+  pathPrefix = "uploads",
+  companyId: overrideCompanyId,
+}) => {
   try {
     if (!file) {
       throw new Error("Keine Datei angegeben");
     }
     const { data } = await supabase.auth.getSession();
     const userId = data?.session?.user?.id || "public";
-    const companyId = await getCompanyIdForCurrentUser();
+    const companyId = overrideCompanyId || (await getCompanyIdForCurrentUser());
     if (!companyId) {
       throw new Error("Unternehmen nicht gefunden. Bitte erneut anmelden.");
     }
@@ -230,8 +235,8 @@ const Core = {
     }
     return payload.data;
   },
-  UploadFile: async ({ file }) => {
-    return uploadFileToStorage({ file });
+  UploadFile: async ({ file, bucket, pathPrefix, companyId }) => {
+    return uploadFileToStorage({ file, bucket, pathPrefix, companyId });
   },
   SendEmail: async () => ({ ok: false, message: 'E-Mail ist im lokalen Modus deaktiviert.' }),
   GenerateImage: async () => ({ ok: false, message: 'Bildgenerierung ist im lokalen Modus deaktiviert.' }),
