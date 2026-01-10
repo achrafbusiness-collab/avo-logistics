@@ -176,7 +176,7 @@ export default function Layout({ children, currentPageName }) {
 
   // Admin Layout
   return (
-    <div className="min-h-screen flex bg-slate-950">
+    <div className="h-screen overflow-hidden flex bg-slate-950">
       <style>{`
         :root {
           --primary: #1e3a5f;
@@ -187,7 +187,7 @@ export default function Layout({ children, currentPageName }) {
 
       {/* Sidebar */}
       <aside className={`
-        fixed lg:static inset-y-0 left-0 z-50
+        fixed inset-y-0 left-0 z-50
         w-64 text-white
         transform transition-transform duration-300 ease-in-out
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
@@ -264,7 +264,7 @@ export default function Layout({ children, currentPageName }) {
       )}
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col min-h-screen">
+      <div className="flex-1 flex flex-col min-h-0 lg:ml-64">
         {/* Top Bar */}
         <header className={`border-b px-4 py-3 flex items-center justify-between lg:px-6 ${
           darkMode ? 'bg-slate-950/90 border-slate-800 backdrop-blur' : 'bg-white/90 border-slate-200 backdrop-blur'
@@ -309,7 +309,7 @@ export default function Layout({ children, currentPageName }) {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 p-4 lg:p-6 overflow-auto bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950">
+        <main className="flex-1 p-4 lg:p-6 overflow-y-auto bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950">
           <div className="min-h-full rounded-[28px] bg-gradient-to-br from-white via-slate-50 to-blue-50/70 p-5 lg:p-8 shadow-[0_30px_60px_-40px_rgba(15,23,42,0.8)]">
             {children}
           </div>
