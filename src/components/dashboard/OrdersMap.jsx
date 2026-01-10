@@ -535,7 +535,7 @@ export default function OrdersMap({
 
   if (!token) {
     return (
-      <div className="flex min-h-[320px] flex-col items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 px-6 text-center">
+      <div className="flex min-h-[360px] lg:min-h-[460px] flex-col items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 px-6 text-center">
         <AlertTriangle className="h-8 w-8 text-amber-500" />
         <p className="mt-3 text-sm font-medium text-slate-700">Mapbox Token fehlt</p>
         <p className="mt-1 text-xs text-slate-500">
@@ -547,7 +547,7 @@ export default function OrdersMap({
 
   if (!orders || orders.length === 0) {
     return (
-      <div className="flex min-h-[320px] flex-col items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 px-6 text-center">
+      <div className="flex min-h-[360px] lg:min-h-[460px] flex-col items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 px-6 text-center">
         <MapPin className="h-8 w-8 text-slate-400" />
         <p className="mt-3 text-sm font-medium text-slate-700">Keine Routen im Zeitraum</p>
         <p className="mt-1 text-xs text-slate-500">Es liegen noch keine Aufträge mit Adressen vor.</p>
@@ -556,7 +556,7 @@ export default function OrdersMap({
   }
 
   return (
-    <div className="relative min-h-[320px] overflow-hidden rounded-2xl border border-slate-200 bg-slate-100">
+    <div className="relative min-h-[360px] lg:min-h-[460px] overflow-hidden rounded-2xl border border-slate-200 bg-slate-100">
       <div ref={mapContainerRef} className="absolute inset-0" />
       {(loading || error) && (
         <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/80 px-4 text-center text-sm text-slate-600">

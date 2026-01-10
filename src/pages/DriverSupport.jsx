@@ -3,6 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import { appClient } from "@/api/appClient";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -20,10 +22,20 @@ import {
   Shield,
 } from "lucide-react";
 import { useI18n } from "@/i18n";
+import { supabase } from "@/lib/supabaseClient";
 
 export default function DriverSupport() {
   const { t, getValue, language, setLanguage } = useI18n();
   const [savingLanguage, setSavingLanguage] = useState(false);
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({
+    current: "",
+    next: "",
+    confirm: "",
+  });
+  const [passwordError, setPasswordError] = useState("");
+  const [passwordSuccess, setPasswordSuccess] = useState("");
+  const [savingPassword, setSavingPassword] = useState(false);
   const { data: appSettingsList = [] } = useQuery({
     queryKey: ["appSettings"],
     queryFn: () => appClient.entities.AppSettings.list("-created_date", 1),
@@ -40,6 +52,53 @@ export default function DriverSupport() {
     setSavingLanguage(true);
     await setLanguage(value);
     setSavingLanguage(false);
+  };
+
+  const handlePasswordChange = async (event) => {
+    event.preventDefault();
+    setPasswordError("");
+    setPasswordSuccess("");
+
+    if (!passwordForm.current || !passwordForm.next || !passwordForm.confirm) {
+      setPasswordError(t("settings.password.required"));
+      return;
+    }
+
+    if (passwordForm.next !== passwordForm.confirm) {
+      setPasswordError(t("settings.password.mismatch"));
+      return;
+    }
+
+    setSavingPassword(true);
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      const user = userData?.user;
+      if (!user?.email) {
+        throw new Error(t("settings.password.sessionMissing"));
+      }
+
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: passwordForm.current,
+      });
+      if (signInError) {
+        throw new Error(t("settings.password.invalidCurrent"));
+      }
+
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: passwordForm.next,
+      });
+      if (updateError) {
+        throw new Error(updateError.message);
+      }
+
+      setPasswordForm({ current: "", next: "", confirm: "" });
+      setPasswordSuccess(t("settings.password.updated"));
+    } catch (error) {
+      setPasswordError(error?.message || t("settings.password.failed"));
+    } finally {
+      setSavingPassword(false);
+    }
   };
 
   return (
@@ -67,6 +126,70 @@ export default function DriverSupport() {
               <SelectItem value="ar">{t("settings.language.options.ar")}</SelectItem>
             </SelectContent>
           </Select>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="p-4 space-y-4">
+          <div className="flex items-center gap-2 text-slate-700">
+            <Shield className="h-5 w-5 text-[#1e3a5f]" />
+            <h2 className="text-base font-semibold">{t("settings.password.title")}</h2>
+          </div>
+          <p className="text-xs text-slate-500">{t("settings.password.helper")}</p>
+
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full justify-center"
+            onClick={() => setShowPasswordForm((prev) => !prev)}
+          >
+            {showPasswordForm ? t("settings.password.hide") : t("settings.password.show")}
+          </Button>
+
+          {showPasswordForm && (
+            <form className="space-y-3" onSubmit={handlePasswordChange}>
+              <div className="space-y-2">
+                <Label htmlFor="currentPassword">{t("settings.password.current")}</Label>
+                <Input
+                  id="currentPassword"
+                  type="password"
+                  value={passwordForm.current}
+                  onChange={(event) =>
+                    setPasswordForm((prev) => ({ ...prev, current: event.target.value }))
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="newPassword">{t("settings.password.next")}</Label>
+                <Input
+                  id="newPassword"
+                  type="password"
+                  value={passwordForm.next}
+                  onChange={(event) =>
+                    setPasswordForm((prev) => ({ ...prev, next: event.target.value }))
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword">{t("settings.password.confirm")}</Label>
+                <Input
+                  id="confirmPassword"
+                  type="password"
+                  value={passwordForm.confirm}
+                  onChange={(event) =>
+                    setPasswordForm((prev) => ({ ...prev, confirm: event.target.value }))
+                  }
+                />
+              </div>
+
+              {passwordError && <p className="text-xs text-red-600">{passwordError}</p>}
+              {passwordSuccess && <p className="text-xs text-green-600">{passwordSuccess}</p>}
+
+              <Button type="submit" className="w-full" disabled={savingPassword}>
+                {savingPassword ? t("settings.password.saving") : t("settings.password.submit")}
+              </Button>
+            </form>
+          )}
         </CardContent>
       </Card>
 
