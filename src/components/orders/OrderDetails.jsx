@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { format } from 'date-fns';
@@ -98,6 +98,8 @@ export default function OrderDetails({
   const [docEdits, setDocEdits] = useState({});
   const [docSaving, setDocSaving] = useState({});
   const [docDeleting, setDocDeleting] = useState({});
+  const [docDragActive, setDocDragActive] = useState(false);
+  const docInputRef = useRef(null);
   const pickupChecklist = checklists.find(c => c.type === 'pickup');
   const dropoffChecklist = checklists.find(c => c.type === 'dropoff');
   const formatDateSafe = (value, pattern) => {
@@ -236,8 +238,7 @@ export default function OrderDetails({
     }
   };
 
-  const handleDocUpload = async (event) => {
-    const file = event.target.files?.[0];
+  const handleDocFile = async (file) => {
     if (!file || !order?.id) return;
     setDocsUploading(true);
     setDocsError('');
@@ -259,8 +260,36 @@ export default function OrderDetails({
       setDocsError(error?.message || 'Dokument konnte nicht hochgeladen werden.');
     } finally {
       setDocsUploading(false);
-      event.target.value = '';
     }
+  };
+
+  const handleDocUpload = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    await handleDocFile(file);
+    event.target.value = '';
+  };
+
+  const handleDocDrop = async (event) => {
+    event.preventDefault();
+    setDocDragActive(false);
+    const file = event.dataTransfer?.files?.[0];
+    if (!file) return;
+    await handleDocFile(file);
+  };
+
+  const handleDocDragOver = (event) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'copy';
+    setDocDragActive(true);
+  };
+
+  const handleDocDragLeave = () => {
+    setDocDragActive(false);
+  };
+
+  const openDocPicker = () => {
+    docInputRef.current?.click();
   };
 
   const isAdmin = currentUser?.role === 'admin';
@@ -908,32 +937,49 @@ export default function OrderDetails({
                   <p className="text-sm text-gray-500">PDF, JPG/PNG oder DOCX</p>
                   <div className="flex items-center gap-2">
                     <input
-                      id={`doc-upload-${order.id}`}
+                      ref={docInputRef}
                       type="file"
                       className="hidden"
                       accept=".pdf,.png,.jpg,.jpeg,.docx"
                       onChange={handleDocUpload}
                     />
-                    <label htmlFor={`doc-upload-${order.id}`}>
-                      <Button
-                        size="sm"
-                        className="bg-[#1e3a5f] hover:bg-[#2d5a8a]"
-                        disabled={docsUploading}
-                      >
-                        {docsUploading ? (
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        ) : (
-                          <Upload className="w-4 h-4 mr-2" />
-                        )}
-                        Dokument hinzufügen
-                      </Button>
-                    </label>
+                    <Button
+                      size="sm"
+                      className="bg-[#1e3a5f] hover:bg-[#2d5a8a]"
+                      disabled={docsUploading}
+                      onClick={openDocPicker}
+                    >
+                      {docsUploading ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <Upload className="w-4 h-4 mr-2" />
+                      )}
+                      Dokument hinzufügen
+                    </Button>
                   </div>
                 </div>
               )}
 
               {docsError && (
                 <p className="text-sm text-red-600">{docsError}</p>
+              )}
+
+              {canManageDocs && (
+                <button
+                  type="button"
+                  onClick={openDocPicker}
+                  onDragOver={handleDocDragOver}
+                  onDragLeave={handleDocDragLeave}
+                  onDrop={handleDocDrop}
+                  className={`w-full rounded-xl border-2 border-dashed px-4 py-6 text-sm transition ${
+                    docDragActive
+                      ? 'border-blue-500 bg-blue-50 text-blue-700'
+                      : 'border-slate-200 bg-slate-50 text-slate-500 hover:border-blue-300 hover:bg-blue-50/60'
+                  }`}
+                  disabled={docsUploading}
+                >
+                  Dateien hier ablegen oder klicken, um auszuwählen
+                </button>
               )}
 
               {docsLoading ? (

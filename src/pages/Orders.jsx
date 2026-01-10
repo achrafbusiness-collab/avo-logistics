@@ -696,11 +696,6 @@ export default function Orders() {
               </SelectContent>
             </Select>
           </div>
-          <div className="mt-3">
-            <Button variant="outline" size="sm" onClick={() => window.location.href = createPageUrl('Search')}>
-              Fahrer suchen
-            </Button>
-          </div>
         </CardContent>
       </Card>
 
