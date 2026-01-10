@@ -38,6 +38,7 @@ export default function Dashboard() {
   const [dateTo, setDateTo] = useState(todayKey);
   const [selectedOrderId, setSelectedOrderId] = useState(null);
   const [mapMode, setMapMode] = useState('open');
+  const [onlyDue, setOnlyDue] = useState(false);
 
   const { data: orders = [], isLoading: ordersLoading } = useQuery({
     queryKey: ['orders'],
@@ -68,9 +69,14 @@ export default function Dashboard() {
       if (!orderDate) return false;
       if (start && orderDate < start) return false;
       if (end && orderDate > end) return false;
+      if (onlyDue) {
+        const dueDate = toDateKey(order.dropoff_date) || toDateKey(order.pickup_date);
+        if (!dueDate) return false;
+        if (dueDate > todayKey) return false;
+      }
       return true;
     });
-  }, [orders, dateFrom, dateTo]);
+  }, [orders, dateFrom, dateTo, onlyDue, todayKey]);
 
   // Kundenstatistik im Zeitraum
   const customerStats = {};
@@ -182,6 +188,20 @@ export default function Dashboard() {
     setDateTo(format(end, 'yyyy-MM-dd'));
   };
 
+  const setTomorrowRange = () => {
+    const tomorrow = subDays(new Date(), -1);
+    const key = format(tomorrow, 'yyyy-MM-dd');
+    setDateFrom(key);
+    setDateTo(key);
+  };
+
+  const setThisWeekRange = () => {
+    const start = subDays(new Date(), new Date().getDay() === 0 ? 6 : new Date().getDay() - 1);
+    const end = subDays(start, -6);
+    setDateFrom(format(start, 'yyyy-MM-dd'));
+    setDateTo(format(end, 'yyyy-MM-dd'));
+  };
+
   return (
     <div className="space-y-6">
       {/* Hero Header */}
@@ -245,9 +265,33 @@ export default function Dashboard() {
               variant="outline"
               size="sm"
               className="border-slate-300 text-slate-700 hover:bg-slate-900 hover:text-white"
+              onClick={setTomorrowRange}
+            >
+              Morgen
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-slate-300 text-slate-700 hover:bg-slate-900 hover:text-white"
+              onClick={setThisWeekRange}
+            >
+              Diese Woche
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-slate-300 text-slate-700 hover:bg-slate-900 hover:text-white"
               onClick={setLastSevenDays}
             >
               Letzte 7 Tage
+            </Button>
+            <Button
+              variant={onlyDue ? "default" : "outline"}
+              size="sm"
+              className={onlyDue ? "bg-[#1e3a5f] hover:bg-[#2d5a8a]" : "border-slate-300 text-slate-700 hover:bg-slate-900 hover:text-white"}
+              onClick={() => setOnlyDue((prev) => !prev)}
+            >
+              Nur fällige Aufträge
             </Button>
           </div>
         </CardContent>
