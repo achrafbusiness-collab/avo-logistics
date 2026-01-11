@@ -56,11 +56,13 @@ export default function Customers() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [priceTierRows, setPriceTierRows] = useState([]);
+  const [priceTiersDirty, setPriceTiersDirty] = useState(false);
   const [pricingError, setPricingError] = useState('');
   const [pricingFile, setPricingFile] = useState(null);
   const [pricingFileUrl, setPricingFileUrl] = useState('');
   const [pricingUploading, setPricingUploading] = useState(false);
   const pricingFileInputRef = useRef(null);
+  const priceTierSeedRef = useRef(null);
   
   const [formData, setFormData] = useState({
     customer_number: '',
@@ -165,17 +167,41 @@ export default function Customers() {
   }, [selectedCustomer, view]);
 
   useEffect(() => {
-    if (view !== 'form') return;
+    if (view !== 'form') {
+      setPriceTiersDirty(false);
+      priceTierSeedRef.current = null;
+      return;
+    }
+
+    const seedKey = selectedCustomer ? selectedCustomer.id : 'new';
+    const seedChanged = priceTierSeedRef.current !== seedKey;
+
+    if (!seedChanged && priceTiersDirty) {
+      return;
+    }
+
+    priceTierSeedRef.current = seedKey;
+
     if (selectedCustomer) {
       const tiers = tiersByCustomer[selectedCustomer.id] || [];
       setPriceTierRows(
-        tiers.map((tier) => ({
-          id: tier.id,
-          min_km: tier.min_km?.toString() || '',
-          max_km: tier.max_km?.toString() || '',
-          customer_price: tier.customer_price?.toString() || '',
-          driver_price: tier.driver_price?.toString() || '',
-        }))
+        tiers.length > 0
+          ? tiers.map((tier) => ({
+              id: tier.id,
+              min_km: tier.min_km?.toString() || '',
+              max_km: tier.max_km?.toString() || '',
+              customer_price: tier.customer_price?.toString() || '',
+              driver_price: tier.driver_price?.toString() || '',
+            }))
+          : [
+              {
+                id: `tier-${Date.now()}`,
+                min_km: '',
+                max_km: '',
+                customer_price: '',
+                driver_price: '',
+              },
+            ]
       );
       setPricingFileUrl(selectedCustomer.pricing_file_url || '');
       setPricingFile(null);
@@ -193,7 +219,8 @@ export default function Customers() {
       setPricingFile(null);
     }
     setPricingError('');
-  }, [selectedCustomer, tiersByCustomer, view]);
+    setPriceTiersDirty(false);
+  }, [selectedCustomer, tiersByCustomer, view, priceTiersDirty]);
 
   const addPriceTier = () => {
     setPriceTierRows((prev) => [
@@ -206,16 +233,19 @@ export default function Customers() {
         driver_price: '',
       },
     ]);
+    setPriceTiersDirty(true);
   };
 
   const updatePriceTier = (id, field, value) => {
     setPriceTierRows((prev) =>
       prev.map((row) => (row.id === id ? { ...row, [field]: value } : row))
     );
+    setPriceTiersDirty(true);
   };
 
   const removePriceTier = (id) => {
     setPriceTierRows((prev) => prev.filter((row) => row.id !== id));
+    setPriceTiersDirty(true);
   };
 
   const normalizePriceTiers = () => {
