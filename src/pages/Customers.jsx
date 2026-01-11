@@ -17,6 +17,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -43,8 +51,10 @@ import {
   Phone,
   MapPin,
   UploadCloud,
-  FileText
+  FileText,
+  Sparkles
 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 
 export default function Customers() {
   const queryClient = useQueryClient();
@@ -63,6 +73,15 @@ export default function Customers() {
   const [pricingUploading, setPricingUploading] = useState(false);
   const pricingFileInputRef = useRef(null);
   const priceTierSeedRef = useRef(null);
+  const priceImportFileInputRef = useRef(null);
+  const [priceImportOpen, setPriceImportOpen] = useState(false);
+  const [priceImportFile, setPriceImportFile] = useState(null);
+  const [priceImportText, setPriceImportText] = useState('');
+  const [priceImportLoading, setPriceImportLoading] = useState(false);
+  const [priceImportError, setPriceImportError] = useState('');
+  const [priceImportCustomerTiers, setPriceImportCustomerTiers] = useState([]);
+  const [priceImportDriverTiers, setPriceImportDriverTiers] = useState([]);
+  const [priceImportMerged, setPriceImportMerged] = useState([]);
   
   const [formData, setFormData] = useState({
     customer_number: '',
@@ -246,6 +265,222 @@ export default function Customers() {
   const removePriceTier = (id) => {
     setPriceTierRows((prev) => prev.filter((row) => row.id !== id));
     setPriceTiersDirty(true);
+  };
+
+  const resetPriceImportState = () => {
+    setPriceImportFile(null);
+    setPriceImportText('');
+    setPriceImportError('');
+    setPriceImportCustomerTiers([]);
+    setPriceImportDriverTiers([]);
+    setPriceImportMerged([]);
+    setPriceImportLoading(false);
+  };
+
+  const toNumberOrNull = (value) => {
+    if (value === null || value === undefined || value === '') return null;
+    const num = Number(String(value).replace(',', '.'));
+    return Number.isFinite(num) ? num : null;
+  };
+
+  const mergePriceTierLists = (customerTiers, driverTiers) => {
+    if (!customerTiers.length) {
+      throw new Error('Keine Kunden-Preisstaffeln erkannt.');
+    }
+
+    if (!driverTiers.length) {
+      return customerTiers.map((tier) => ({
+        ...tier,
+        driver_price: tier.customer_price,
+      }));
+    }
+
+    const driverMap = new Map(
+      driverTiers.map((tier) => [`${tier.min_km}-${tier.max_km ?? 'open'}`, tier])
+    );
+    const merged = customerTiers.map((tier) => {
+      const key = `${tier.min_km}-${tier.max_km ?? 'open'}`;
+      const driverTier = driverMap.get(key);
+      return {
+        ...tier,
+        driver_price: driverTier ? driverTier.driver_price : tier.customer_price,
+      };
+    });
+
+    const missing = merged.filter((tier) => tier.driver_price == null);
+    if (missing.length) {
+      throw new Error('Fahrer-Preise konnten nicht zugeordnet werden.');
+    }
+
+    return merged;
+  };
+
+  const fileToText = async (file) => {
+    const name = file.name.toLowerCase();
+    const isCsv = name.endsWith('.csv') || file.type === 'text/csv';
+    const isXlsx = name.endsWith('.xlsx') || name.endsWith('.xls');
+    const isPdf = name.endsWith('.pdf') || file.type === 'application/pdf';
+    const isDocx = name.endsWith('.docx');
+    const isImage = file.type.startsWith('image/');
+
+    if (isCsv || file.type.startsWith('text/')) {
+      return await file.text();
+    }
+
+    if (isXlsx) {
+      const buffer = await file.arrayBuffer();
+      const workbook = XLSX.read(buffer, { type: 'array' });
+      const sheetName = workbook.SheetNames[0];
+      const sheet = workbook.Sheets[sheetName];
+      return XLSX.utils.sheet_to_csv(sheet);
+    }
+
+    if (isDocx) {
+      const { extractRawText } = await import('mammoth');
+      const buffer = await file.arrayBuffer();
+      const result = await extractRawText({ arrayBuffer: buffer });
+      return result.value || '';
+    }
+
+    if (isPdf) {
+      const pdfjs = await import('pdfjs-dist/legacy/build/pdf');
+      const workerSrc = new URL(
+        'pdfjs-dist/legacy/build/pdf.worker.min.js',
+        import.meta.url
+      );
+      pdfjs.GlobalWorkerOptions.workerSrc = workerSrc.toString();
+      const buffer = await file.arrayBuffer();
+      const pdf = await pdfjs.getDocument({ data: buffer }).promise;
+      const pages = [];
+      for (let i = 1; i <= pdf.numPages; i += 1) {
+        const page = await pdf.getPage(i);
+        const content = await page.getTextContent();
+        const text = content.items.map((item) => item.str).join(' ');
+        pages.push(text);
+      }
+      return pages.join('\n');
+    }
+
+    if (isImage) {
+      const Tesseract = await import('tesseract.js');
+      const result = await Tesseract.recognize(file, 'deu+eng');
+      return result?.data?.text || '';
+    }
+
+    return '';
+  };
+
+  const analyzePriceTiers = async () => {
+    if (!priceImportFile && !priceImportText.trim()) {
+      setPriceImportError('Bitte Datei hochladen oder Text einfuegen.');
+      return;
+    }
+
+    setPriceImportLoading(true);
+    setPriceImportError('');
+
+    try {
+      const rawText = priceImportFile
+        ? await fileToText(priceImportFile)
+        : priceImportText;
+
+      if (!rawText.trim()) {
+        throw new Error('Keine lesbaren Daten gefunden.');
+      }
+
+      const result = await appClient.integrations.Core.InvokeLLM({
+        prompt: `Extrahiere aus dem folgenden Inhalt die Preisstaffeln fuer Kunden und Fahrer.
+Es koennen eine oder zwei Tabellen enthalten sein.
+Gib IMMER ein Objekt mit "customer_tiers" und "driver_tiers" zurueck.
+
+Regeln:
+- Preise sind Nettopreise (Euro).
+- Jede Staffel hat min_km, max_km (oder null fuer offen), price.
+- Wenn nur eine Tabelle vorhanden ist, nutze sie als customer_tiers.
+- Wenn Fahrerpreise fehlen, lasse driver_tiers leer.
+
+Inhalt:
+${rawText}`,
+        response_json_schema: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            customer_tiers: {
+              type: "array",
+              items: {
+                type: "object",
+                additionalProperties: false,
+                properties: {
+                  min_km: { type: ["number", "string", "null"] },
+                  max_km: { type: ["number", "string", "null"] },
+                  price: { type: ["number", "string", "null"] },
+                },
+                required: ["min_km", "max_km", "price"],
+              },
+            },
+            driver_tiers: {
+              type: "array",
+              items: {
+                type: "object",
+                additionalProperties: false,
+                properties: {
+                  min_km: { type: ["number", "string", "null"] },
+                  max_km: { type: ["number", "string", "null"] },
+                  price: { type: ["number", "string", "null"] },
+                },
+                required: ["min_km", "max_km", "price"],
+              },
+            },
+          },
+          required: ["customer_tiers", "driver_tiers"],
+        },
+      });
+
+      const customerTiers = (result.customer_tiers || [])
+        .map((tier) => ({
+          min_km: toNumberOrNull(tier.min_km),
+          max_km: toNumberOrNull(tier.max_km),
+          customer_price: toNumberOrNull(tier.price),
+        }))
+        .filter((tier) => tier.min_km !== null && tier.customer_price !== null);
+
+      const driverTiers = (result.driver_tiers || [])
+        .map((tier) => ({
+          min_km: toNumberOrNull(tier.min_km),
+          max_km: toNumberOrNull(tier.max_km),
+          driver_price: toNumberOrNull(tier.price),
+        }))
+        .filter((tier) => tier.min_km !== null && tier.driver_price !== null);
+
+      const merged = mergePriceTierLists(customerTiers, driverTiers);
+      setPriceImportCustomerTiers(customerTiers);
+      setPriceImportDriverTiers(driverTiers);
+      setPriceImportMerged(merged);
+    } catch (err) {
+      setPriceImportError(err?.message || 'Analyse fehlgeschlagen.');
+    } finally {
+      setPriceImportLoading(false);
+    }
+  };
+
+  const applyImportedPriceTiers = () => {
+    if (!priceImportMerged.length) {
+      setPriceImportError('Keine Preisstaffeln zum Uebernehmen.');
+      return;
+    }
+
+    setPriceTierRows(
+      priceImportMerged.map((tier) => ({
+        id: `tier-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        min_km: tier.min_km?.toString() || '',
+        max_km: tier.max_km?.toString() || '',
+        customer_price: tier.customer_price?.toString() || '',
+        driver_price: tier.driver_price?.toString() || '',
+      }))
+    );
+    setPriceTiersDirty(true);
+    setPriceImportOpen(false);
+    resetPriceImportState();
   };
 
   const normalizePriceTiers = () => {
@@ -473,6 +708,169 @@ export default function Customers() {
                 </div>
               </div>
 
+              <Dialog open={priceImportOpen} onOpenChange={(open) => {
+                if (!open) resetPriceImportState();
+                setPriceImportOpen(open);
+              }}>
+                <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>Preisstaffeln importieren</DialogTitle>
+                    <DialogDescription>
+                      CSV, Excel, PDF, Bilder oder Text werden gescannt und in Kunden- sowie Fahrerpreise umgewandelt.
+                    </DialogDescription>
+                  </DialogHeader>
+
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label>Datei hochladen</Label>
+                      <div
+                        className="flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-gray-200 bg-gray-50 px-4 py-6 text-center"
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          setPriceImportFile(e.dataTransfer.files?.[0] || null);
+                        }}
+                      >
+                        <UploadCloud className="w-6 h-6 text-gray-400" />
+                        <div className="text-sm text-gray-600">
+                          Datei hierher ziehen oder
+                          <Button
+                            type="button"
+                            variant="link"
+                            className="px-1 text-[#1e3a5f]"
+                            onClick={() => priceImportFileInputRef.current?.click()}
+                          >
+                            auswaehlen
+                          </Button>
+                        </div>
+                        <input
+                          ref={priceImportFileInputRef}
+                          type="file"
+                          accept=".pdf,.png,.jpg,.jpeg,.csv,.xlsx,.xls,.txt,.docx"
+                          className="hidden"
+                          onChange={(e) => setPriceImportFile(e.target.files?.[0] || null)}
+                        />
+                        {priceImportFile && (
+                          <p className="text-xs text-gray-600">
+                            Ausgewaehlt: {priceImportFile.name}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Oder Text einfuegen</Label>
+                      <Textarea
+                        value={priceImportText}
+                        onChange={(e) => setPriceImportText(e.target.value)}
+                        rows={5}
+                        placeholder="Preisliste hier einfuegen (z. B. Tabelle aus Excel oder E-Mail)"
+                      />
+                    </div>
+
+                    {priceImportError && (
+                      <p className="text-sm text-red-600">{priceImportError}</p>
+                    )}
+
+                    <Button
+                      type="button"
+                      onClick={analyzePriceTiers}
+                      disabled={priceImportLoading}
+                      className="bg-[#1e3a5f] hover:bg-[#2d5a8a]"
+                    >
+                      {priceImportLoading ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Analyse laeuft...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-4 h-4 mr-2" />
+                          Tabelle scannen
+                        </>
+                      )}
+                    </Button>
+
+                    {priceImportMerged.length > 0 && (
+                      <div className="space-y-4">
+                        <div>
+                          <h4 className="font-semibold">Vorschau (zusammengefuehrt)</h4>
+                          <div className="overflow-x-auto border rounded-lg">
+                            <table className="min-w-full text-sm">
+                              <thead className="bg-gray-50">
+                                <tr>
+                                  <th className="px-3 py-2 text-left">Von km</th>
+                                  <th className="px-3 py-2 text-left">Bis km</th>
+                                  <th className="px-3 py-2 text-left">Kundenpreis (€)</th>
+                                  <th className="px-3 py-2 text-left">Fahrerpreis (€)</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {priceImportMerged.map((tier, index) => (
+                                  <tr key={`${tier.min_km}-${tier.max_km}-${index}`} className="border-t">
+                                    <td className="px-3 py-2">{tier.min_km}</td>
+                                    <td className="px-3 py-2">{tier.max_km ?? 'offen'}</td>
+                                    <td className="px-3 py-2">{tier.customer_price}</td>
+                                    <td className="px-3 py-2">{tier.driver_price}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="border rounded-lg p-3">
+                            <h4 className="font-semibold mb-2">Kundenpreise</h4>
+                            {priceImportCustomerTiers.length ? (
+                              <ul className="text-sm text-gray-600 space-y-1">
+                                {priceImportCustomerTiers.map((tier, index) => (
+                                  <li key={`customer-${index}`}>
+                                    {tier.min_km} – {tier.max_km ?? 'offen'} km: {tier.customer_price} €
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : (
+                              <p className="text-sm text-gray-500">Nicht erkannt</p>
+                            )}
+                          </div>
+                          <div className="border rounded-lg p-3">
+                            <h4 className="font-semibold mb-2">Fahrerpreise</h4>
+                            {priceImportDriverTiers.length ? (
+                              <ul className="text-sm text-gray-600 space-y-1">
+                                {priceImportDriverTiers.map((tier, index) => (
+                                  <li key={`driver-${index}`}>
+                                    {tier.min_km} – {tier.max_km ?? 'offen'} km: {tier.driver_price} €
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : (
+                              <p className="text-sm text-gray-500">
+                                Keine Fahrerpreise gefunden (wird aus Kundenpreis uebernommen).
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <DialogFooter className="gap-2">
+                    <Button type="button" variant="outline" onClick={() => setPriceImportOpen(false)}>
+                      Abbrechen
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={applyImportedPriceTiers}
+                      disabled={!priceImportMerged.length}
+                      className="bg-[#1e3a5f] hover:bg-[#2d5a8a]"
+                    >
+                      Uebernehmen
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+
               <Separator />
 
               {formData.type === 'business' && (
@@ -582,10 +980,23 @@ export default function Customers() {
               <div className="space-y-4">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <h3 className="font-semibold">Preisstaffeln (fix pro Auftrag)</h3>
-                  <Button type="button" variant="outline" onClick={addPriceTier}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Staffel hinzufügen
-                  </Button>
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <Button type="button" variant="outline" onClick={addPriceTier}>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Staffel hinzufügen
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => {
+                        resetPriceImportState();
+                        setPriceImportOpen(true);
+                      }}
+                    >
+                      <Sparkles className="w-4 h-4 mr-2" />
+                      Preisstaffeln per AI importieren
+                    </Button>
+                  </div>
                 </div>
                 <div className="space-y-3">
                   {priceTierRows.map((tier) => (
