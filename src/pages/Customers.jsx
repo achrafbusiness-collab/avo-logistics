@@ -302,8 +302,12 @@ export default function Customers() {
       }
 
       const customerId = savedCustomer?.id || selectedCustomer?.id;
+      const companyId = savedCustomer?.company_id || selectedCustomer?.company_id;
       if (!customerId) {
         throw new Error('Kunde konnte nicht gespeichert werden.');
+      }
+      if (!companyId) {
+        throw new Error('Company ID fehlt. Bitte erneut anmelden.');
       }
 
       if (pricingFile) {
@@ -324,6 +328,7 @@ export default function Customers() {
         max_km: tier.max_km,
         customer_price: tier.customer_price,
         driver_price: tier.driver_price,
+        company_id: companyId,
       }));
 
       const { error: deleteError } = await supabase
