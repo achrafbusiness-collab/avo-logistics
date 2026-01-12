@@ -193,66 +193,68 @@ export default function Layout({ children, currentPageName }) {
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
         bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950
       `}>
-        <div className={`flex items-center justify-between p-4 border-b ${darkMode ? 'border-slate-800' : 'border-white/10'}`}>
-          <div>
-            <p className="text-xs uppercase tracking-[0.35em] text-blue-200">AVO SYSTEM</p>
-            <h1 className="font-semibold text-lg mt-1">Logistics Control</h1>
-            <p className={`text-xs ${darkMode ? 'text-slate-400' : 'text-white/60'}`}>Achraf Bolakhrif</p>
+        <div className="flex h-full flex-col">
+          <div className={`flex items-center justify-between p-4 border-b ${darkMode ? 'border-slate-800' : 'border-white/10'}`}>
+            <div>
+              <p className="text-xs uppercase tracking-[0.35em] text-blue-200">AVO SYSTEM</p>
+              <h1 className="font-semibold text-lg mt-1">Logistics Control</h1>
+              <p className={`text-xs ${darkMode ? 'text-slate-400' : 'text-white/60'}`}>Achraf Bolakhrif</p>
+            </div>
+            <button 
+              onClick={() => setSidebarOpen(false)}
+              className={`lg:hidden p-1 rounded ${darkMode ? 'hover:bg-slate-800' : 'hover:bg-white/10'}`}
+            >
+              <X className="w-5 h-5" />
+            </button>
           </div>
-          <button 
-            onClick={() => setSidebarOpen(false)}
-            className={`lg:hidden p-1 rounded ${darkMode ? 'hover:bg-slate-800' : 'hover:bg-white/10'}`}
-          >
-            <X className="w-5 h-5" />
-          </button>
+
+          <nav className="flex-1 overflow-y-auto p-4 space-y-1">
+            {visibleAdminPages.map((item) => {
+              const isActive = currentPageName === item.page;
+              return (
+                <Link
+                  key={item.page}
+                  to={createPageUrl(item.page)}
+                  onClick={() => setSidebarOpen(false)}
+                  className={`
+                    flex items-center gap-3 px-4 py-3 rounded-lg transition-all
+                    ${isActive 
+                      ? darkMode ? 'bg-slate-800 text-white' : 'bg-white/20 text-white'
+                      : darkMode ? 'text-slate-300 hover:bg-slate-800 hover:text-white' : 'text-white/70 hover:bg-white/10 hover:text-white'}
+                  `}
+                >
+                  <item.icon className="w-5 h-5" />
+                  <span className="font-medium">{item.name}</span>
+                </Link>
+              );
+            })}
+          </nav>
+
+          {user && (
+            <div className={`p-4 border-t ${darkMode ? 'border-slate-800' : 'border-white/10'}`}>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${darkMode ? 'hover:bg-slate-800' : 'hover:bg-white/10'}`}>
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${darkMode ? 'bg-slate-800' : 'bg-white/20'}`}>
+                      <User className="w-4 h-4" />
+                    </div>
+                    <div className="flex-1 text-left">
+                      <p className="text-sm font-medium truncate">{user.full_name || 'Admin'}</p>
+                      <p className={`text-xs truncate ${darkMode ? 'text-slate-400' : 'text-white/60'}`}>{user.email}</p>
+                    </div>
+                    <ChevronDown className={`w-4 h-4 ${darkMode ? 'text-slate-400' : 'text-white/60'}`} />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuItem onClick={handleLogout}>
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Abmelden
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          )}
         </div>
-
-        <nav className="p-4 space-y-1">
-          {visibleAdminPages.map((item) => {
-            const isActive = currentPageName === item.page;
-            return (
-              <Link
-                key={item.page}
-                to={createPageUrl(item.page)}
-                onClick={() => setSidebarOpen(false)}
-                className={`
-                  flex items-center gap-3 px-4 py-3 rounded-lg transition-all
-                  ${isActive 
-                    ? darkMode ? 'bg-slate-800 text-white' : 'bg-white/20 text-white'
-                    : darkMode ? 'text-slate-300 hover:bg-slate-800 hover:text-white' : 'text-white/70 hover:bg-white/10 hover:text-white'}
-                `}
-              >
-                <item.icon className="w-5 h-5" />
-                <span className="font-medium">{item.name}</span>
-              </Link>
-            );
-          })}
-        </nav>
-
-        {user && (
-          <div className={`absolute bottom-0 left-0 right-0 p-4 border-t ${darkMode ? 'border-slate-800' : 'border-white/10'}`}>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${darkMode ? 'hover:bg-slate-800' : 'hover:bg-white/10'}`}>
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${darkMode ? 'bg-slate-800' : 'bg-white/20'}`}>
-                    <User className="w-4 h-4" />
-                  </div>
-                  <div className="flex-1 text-left">
-                    <p className="text-sm font-medium truncate">{user.full_name || 'Admin'}</p>
-                    <p className={`text-xs truncate ${darkMode ? 'text-slate-400' : 'text-white/60'}`}>{user.email}</p>
-                  </div>
-                  <ChevronDown className={`w-4 h-4 ${darkMode ? 'text-slate-400' : 'text-white/60'}`} />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuItem onClick={handleLogout}>
-                  <LogOut className="w-4 h-4 mr-2" />
-                  Abmelden
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        )}
       </aside>
 
       {/* Overlay */}
