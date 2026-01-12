@@ -339,9 +339,13 @@ export default function OrderForm({ order, onSave, onCancel, currentUser }) {
                 type="number"
                 step="0.1"
                 value={formData.distance_km}
-                onChange={(e) => handleChange('distance_km', e.target.value)}
+                readOnly
                 placeholder="wird berechnet"
+                className="bg-slate-100 text-slate-600"
               />
+              <p className="mt-1 text-xs text-gray-500">
+                Wird automatisch aus Abhol- und Abgabeadresse berechnet.
+              </p>
             </div>
             {isAdmin && (
               <div>
