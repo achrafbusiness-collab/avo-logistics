@@ -182,6 +182,7 @@ export default function DriverProtocol() {
     },
     enabled: !!activeChecklistId,
   });
+  const isViewOnly = Boolean(activeChecklistId && existingChecklist?.completed);
 
   useEffect(() => {
     if (existingChecklist) {
@@ -567,7 +568,6 @@ export default function DriverProtocol() {
     }
   };
 
-  const isViewOnly = !!activeChecklistId && existingChecklist?.completed;
   const damageHasGaps =
     type === 'pickup' &&
     formData.damages?.some((damage) => !damage.location || !damage.description || !damage.type);
