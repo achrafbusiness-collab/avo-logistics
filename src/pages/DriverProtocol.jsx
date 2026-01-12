@@ -88,7 +88,6 @@ export default function DriverProtocol() {
   const [photoCameraActive, setPhotoCameraActive] = useState(false);
   const [activeChecklistId, setActiveChecklistId] = useState(checklistId);
   const draftCreateRef = useRef(null);
-  const lastSavedPhotosRef = useRef('');
 
   const [formData, setFormData] = useState({
     order_id: orderId,
@@ -449,29 +448,7 @@ export default function DriverProtocol() {
     return draftCreateRef.current;
   };
 
-  const persistDraft = async (patch) => {
-    if (isViewOnly || !orderId || !type) return;
-    try {
-      const result = await ensureChecklistDraft(patch);
-      if (!result.created) {
-        await updateMutation.mutateAsync({ id: result.id, data: patch });
-      }
-    } catch (error) {
-      console.error('Draft save failed', error);
-    }
-  };
-
-  useEffect(() => {
-    if (isViewOnly) return;
-    const photoList = formData.photos || [];
-    if (!photoList.length && !activeChecklistId) {
-      return;
-    }
-    const serialized = JSON.stringify(photoList);
-    if (serialized === lastSavedPhotosRef.current) return;
-    lastSavedPhotosRef.current = serialized;
-    persistDraft({ photos: photoList });
-  }, [formData.photos, isViewOnly, activeChecklistId]);
+  // Draft auto-save removed: only save when the protocol is submitted.
 
   const submitProtocol = async () => {
     const missingPhotoIds = REQUIRED_PHOTO_IDS.filter((id) => !formData.photos?.some((photo) => photo.type === id));
