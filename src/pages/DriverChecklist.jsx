@@ -249,25 +249,12 @@ export default function DriverChecklist() {
               </a>
             </div>
 
-            {(order.distance_km !== null || order.driver_price !== null) && (
+            {order.distance_km !== null && order.distance_km !== undefined && (
               <div className="rounded-lg border border-slate-200 bg-white p-3 text-sm text-slate-600">
                 <div className="flex flex-wrap gap-4">
-                  {order.distance_km !== null && order.distance_km !== undefined && (
-                    <span>
-                      {t('orders.distance')}: <strong>{order.distance_km} km</strong>
-                    </span>
-                  )}
-                  {order.driver_price !== null && order.driver_price !== undefined && (
-                    <span>
-                      {t('orders.driverPrice')}:{" "}
-                      <strong>
-                        {Number(order.driver_price).toLocaleString('de-DE', {
-                          style: 'currency',
-                          currency: 'EUR',
-                        })}
-                      </strong>
-                    </span>
-                  )}
+                  <span>
+                    {t('orders.distance')}: <strong>{order.distance_km} km</strong>
+                  </span>
                 </div>
               </div>
             )}

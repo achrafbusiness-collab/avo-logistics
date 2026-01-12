@@ -1,7 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { appClient } from '@/api/appClient';
 import { createPageUrl } from '@/utils';
+import { supabase } from '@/lib/supabaseClient';
+import { getMapboxDistanceKm } from '@/utils/mapboxDistance';
+import { calculatePricing, formatKm } from '@/utils/pricing';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -33,6 +36,18 @@ export default function AIImport() {
   const [selectedOrderIndex, setSelectedOrderIndex] = useState(0);
   const [importSuccess, setImportSuccess] = useState(false);
   const [error, setError] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
+  const isAdmin = currentUser?.role === 'admin';
+
+  useEffect(() => {
+    let active = true;
+    appClient.auth.getCurrentUser().then((user) => {
+      if (active) setCurrentUser(user);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const { data: drivers = [] } = useQuery({
     queryKey: ['drivers'],
@@ -42,6 +57,11 @@ export default function AIImport() {
   const { data: customers = [] } = useQuery({
     queryKey: ['customers'],
     queryFn: () => appClient.entities.Customer.list(),
+  });
+
+  const { data: customerPriceTiers = [] } = useQuery({
+    queryKey: ['customer-price-tiers'],
+    queryFn: () => appClient.entities.CustomerPriceTier.list('min_km', 1000),
   });
 
   const createOrderMutation = useMutation({
@@ -72,7 +92,9 @@ export default function AIImport() {
     customer_phone: data?.customer_phone || '',
     customer_email: data?.customer_email || '',
     notes: data?.notes || '',
-    price: data?.price ?? '',
+    distance_km: data?.distance_km ?? '',
+    customer_price: data?.customer_price ?? '',
+    pricing_tier_id: data?.pricing_tier_id ?? null,
   });
 
   const analyzeEmail = async () => {
@@ -93,7 +115,7 @@ Es können ein oder mehrere Aufträge enthalten sein. Gib IMMER ein Objekt mit d
 Text:
 ${emailText}
 
-Extrahiere diese Felder. Wenn ein Feld nicht gefunden wird, gib "" (leerer String) zurück. Preis darf eine Zahl oder "" sein:
+Extrahiere diese Felder. Wenn ein Feld nicht gefunden wird, gib "" (leerer String) zurück:
 - customer_order_number (Kunden-Auftragsnummer / Referenz / Bestellnummer)
 - license_plate (Kennzeichen)
 - vehicle_brand (Marke)
@@ -114,7 +136,6 @@ Extrahiere diese Felder. Wenn ein Feld nicht gefunden wird, gib "" (leerer Strin
 - customer_phone
 - customer_email
 - notes (Besondere Hinweise)
-- price (nur Zahl, sonst "")
 
 Gib ausschließlich die strukturierten Daten zurück.`,
         response_json_schema: {
@@ -146,8 +167,7 @@ Gib ausschließlich die strukturierten Daten zurück.`,
                   customer_name: { type: ["string", "null"] },
                   customer_phone: { type: ["string", "null"] },
                   customer_email: { type: ["string", "null"] },
-                  notes: { type: ["string", "null"] },
-                  price: { type: ["number", "null"] }
+                  notes: { type: ["string", "null"] }
                 },
                 required: [
                   "customer_order_number",
@@ -169,8 +189,7 @@ Gib ausschließlich die strukturierten Daten zurück.`,
                   "customer_name",
                   "customer_phone",
                   "customer_email",
-                  "notes",
-                  "price"
+                  "notes"
                 ]
               }
             }
@@ -214,11 +233,61 @@ Gib ausschließlich die strukturierten Daten zurück.`,
       setError('Bitte Abhol- und Ziel-PLZ ausfuellen.');
       return;
     }
+    let distanceKm = currentOrder.distance_km ? parseFloat(currentOrder.distance_km) : null;
+    let customerPrice = currentOrder.customer_price ? parseFloat(currentOrder.customer_price) : null;
+    let pricingTierId = currentOrder.pricing_tier_id || null;
+
+    if (currentOrder.customer_id) {
+      try {
+        if (distanceKm === null) {
+          distanceKm = await getMapboxDistanceKm({
+            pickupAddress: currentOrder.pickup_address,
+            pickupCity: currentOrder.pickup_city,
+            pickupPostalCode: currentOrder.pickup_postal_code,
+            dropoffAddress: currentOrder.dropoff_address,
+            dropoffCity: currentOrder.dropoff_city,
+            dropoffPostalCode: currentOrder.dropoff_postal_code,
+          });
+        }
+        const tiers = customerPriceTiers.filter(
+          (tier) => tier.customer_id === currentOrder.customer_id
+        );
+        const pricing = calculatePricing(tiers, distanceKm);
+        if (!pricing) {
+          setError('Keine passende Preisstaffel gefunden.');
+          return;
+        }
+        customerPrice = pricing.customer_price;
+        pricingTierId = pricing.pricing_tier_id || null;
+      } catch (err) {
+        setError(err?.message || 'Preisberechnung fehlgeschlagen.');
+        return;
+      }
+    }
+
     const dataToSave = {
       ...currentOrder,
-      price: currentOrder.price ? parseFloat(currentOrder.price) : null,
+      distance_km: distanceKm,
     };
-    await createOrderMutation.mutateAsync(dataToSave);
+    delete dataToSave.customer_price;
+    delete dataToSave.pricing_tier_id;
+
+    const created = await createOrderMutation.mutateAsync(dataToSave);
+    if (isAdmin && currentOrder.customer_id && created?.id) {
+      const { error: pricingError } = await supabase.from('order_pricing').upsert(
+        {
+          order_id: created.id,
+          customer_id: currentOrder.customer_id,
+          distance_km: distanceKm,
+          customer_price: customerPrice,
+          pricing_tier_id: pricingTierId,
+        },
+        { onConflict: 'order_id' }
+      );
+      if (pricingError) {
+        setError(pricingError.message);
+      }
+    }
     const nextOrders = extractedOrders.filter((_, index) => index !== selectedOrderIndex);
     setExtractedOrders(nextOrders);
     if (!nextOrders.length) {
@@ -259,9 +328,9 @@ Gib ausschließlich die strukturierten Daten zurück.`,
       updateExtractedData('customer_name', customer.company_name || `${customer.first_name} ${customer.last_name}`);
       updateExtractedData('customer_phone', customer.phone);
       updateExtractedData('customer_email', customer.email);
-      if (customer.base_price) {
-        updateExtractedData('price', customer.base_price);
-      }
+      updateExtractedData('distance_km', '');
+      updateExtractedData('customer_price', '');
+      updateExtractedData('pricing_tier_id', null);
     }
   };
 
@@ -656,14 +725,27 @@ Gib ausschließlich die strukturierten Daten zurück.`,
                         />
                       </div>
                       <div>
-                        <Label>Preis (€)</Label>
-                        <Input 
+                        <Label>Strecke (km)</Label>
+                        <Input
                           type="number"
-                          step="0.01"
-                          value={currentOrder.price || ''} 
-                          onChange={(e) => updateExtractedData('price', e.target.value)}
+                          step="0.1"
+                          value={currentOrder.distance_km || ''}
+                          onChange={(e) => updateExtractedData('distance_km', e.target.value)}
+                          placeholder="wird berechnet"
                         />
                       </div>
+                      {isAdmin && (
+                        <div>
+                          <Label>Kundenpreis (€)</Label>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={currentOrder.customer_price || ''}
+                            onChange={(e) => updateExtractedData('customer_price', e.target.value)}
+                            placeholder="0.00"
+                          />
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>

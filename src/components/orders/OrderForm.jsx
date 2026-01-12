@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { appClient } from '@/api/appClient';
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,8 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import StatusBadge from "@/components/ui/StatusBadge";
+import { getMapboxDistanceKm } from "@/utils/mapboxDistance";
+import { calculatePricing, formatKm } from "@/utils/pricing";
 import { 
   Car, 
   MapPin, 
@@ -36,7 +38,7 @@ const Section = ({ title, icon: Icon, children }) => (
   </div>
 );
 
-export default function OrderForm({ order, onSave, onCancel }) {
+export default function OrderForm({ order, onSave, onCancel, currentUser }) {
   const [formData, setFormData] = useState({
     order_number: '',
     customer_order_number: '',
@@ -63,10 +65,17 @@ export default function OrderForm({ order, onSave, onCancel }) {
     customer_phone: '',
     customer_email: '',
     notes: '',
-    price: '',
+    distance_km: '',
+    customer_price: '',
+    pricing_tier_id: null,
   });
 
   const [saving, setSaving] = useState(false);
+  const [pricingError, setPricingError] = useState('');
+  const [pricingLoading, setPricingLoading] = useState(false);
+  const [priceManuallyEdited, setPriceManuallyEdited] = useState(false);
+  const lastPricingKeyRef = useRef('');
+  const isAdmin = currentUser?.role === 'admin';
 
   const { data: drivers = [] } = useQuery({
     queryKey: ['drivers'],
@@ -78,22 +87,47 @@ export default function OrderForm({ order, onSave, onCancel }) {
     queryFn: () => appClient.entities.Customer.filter({ status: 'active' }),
   });
 
+  const { data: priceTiers = [] } = useQuery({
+    queryKey: ['customer-price-tiers', formData.customer_id],
+    queryFn: () =>
+      appClient.entities.CustomerPriceTier.filter(
+        { customer_id: formData.customer_id },
+        'min_km',
+        200
+      ),
+    enabled: !!formData.customer_id,
+  });
+
   useEffect(() => {
     if (order) {
       setFormData({
         ...order,
-        price: order.price?.toString() || '',
+        distance_km: formatKm(order.distance_km),
+        customer_price: order.customer_price?.toString?.() || '',
+        pricing_tier_id: order.pricing_tier_id || null,
       });
+      setPriceManuallyEdited(false);
     } else {
       setFormData(prev => ({
         ...prev,
         order_number: '',
       }));
+      setPriceManuallyEdited(false);
     }
   }, [order]);
 
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleCustomerPriceChange = (value) => {
+    setPriceManuallyEdited(true);
+    handleChange('customer_price', value);
+  };
+
+  const handleRecalculatePrice = () => {
+    setPriceManuallyEdited(false);
+    lastPricingKeyRef.current = '';
   };
 
   const handleDriverChange = (driverId) => {
@@ -122,9 +156,91 @@ export default function OrderForm({ order, onSave, onCancel }) {
       customer_name: customerName,
       customer_email: customer?.email || '',
       customer_phone: customer?.phone || '',
-      price: customer?.base_price?.toString() || prev.price,
+      pricing_tier_id: null,
     }));
+    setPriceManuallyEdited(false);
+    lastPricingKeyRef.current = '';
   };
+
+  const pricingKey = useMemo(() => {
+    const pickupKey = [formData.pickup_address, formData.pickup_postal_code, formData.pickup_city]
+      .filter(Boolean)
+      .join('|');
+    const dropoffKey = [formData.dropoff_address, formData.dropoff_postal_code, formData.dropoff_city]
+      .filter(Boolean)
+      .join('|');
+    return `${formData.customer_id || 'none'}::${pickupKey}::${dropoffKey}`;
+  }, [
+    formData.customer_id,
+    formData.pickup_address,
+    formData.pickup_postal_code,
+    formData.pickup_city,
+    formData.dropoff_address,
+    formData.dropoff_postal_code,
+    formData.dropoff_city,
+  ]);
+
+  useEffect(() => {
+    const shouldCompute =
+      formData.customer_id &&
+      formData.pickup_address &&
+      formData.dropoff_address;
+    if (!shouldCompute) {
+      setPricingError('');
+      return;
+    }
+    if (priceManuallyEdited) return;
+    if (pricingKey === lastPricingKeyRef.current) return;
+    lastPricingKeyRef.current = pricingKey;
+
+    let active = true;
+    const run = async () => {
+      setPricingLoading(true);
+      setPricingError('');
+      try {
+        const distance = await getMapboxDistanceKm({
+          pickupAddress: formData.pickup_address,
+          pickupCity: formData.pickup_city,
+          pickupPostalCode: formData.pickup_postal_code,
+          dropoffAddress: formData.dropoff_address,
+          dropoffCity: formData.dropoff_city,
+          dropoffPostalCode: formData.dropoff_postal_code,
+        });
+        if (!active) return;
+        if (distance === null) {
+          setPricingError('Entfernung konnte nicht berechnet werden.');
+          return;
+        }
+        const pricing = calculatePricing(priceTiers, distance);
+        if (!pricing) {
+        setFormData((prev) => ({
+          ...prev,
+          distance_km: formatKm(distance),
+          customer_price: prev.customer_price,
+          pricing_tier_id: null,
+        }));
+        setPricingError('Keine passende Preisstaffel gefunden.');
+        return;
+      }
+      setFormData((prev) => ({
+        ...prev,
+        distance_km: formatKm(distance),
+        customer_price: pricing.customer_price?.toString?.() || '',
+        pricing_tier_id: pricing.pricing_tier_id || null,
+      }));
+      } catch (err) {
+        if (!active) return;
+        setPricingError(err?.message || 'Preisberechnung fehlgeschlagen.');
+      } finally {
+        if (active) setPricingLoading(false);
+      }
+    };
+
+    run();
+    return () => {
+      active = false;
+    };
+  }, [pricingKey, priceTiers, formData.customer_id, priceManuallyEdited]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -132,7 +248,8 @@ export default function OrderForm({ order, onSave, onCancel }) {
     try {
       const dataToSave = {
         ...formData,
-        price: formData.price ? parseFloat(formData.price) : null,
+        distance_km: formData.distance_km ? parseFloat(formData.distance_km) : null,
+        customer_price: formData.customer_price ? parseFloat(formData.customer_price) : null,
       };
       await onSave(dataToSave);
     } finally {
@@ -217,16 +334,43 @@ export default function OrderForm({ order, onSave, onCancel }) {
                 </Select>
                 </div>
             <div>
-              <Label>Preis (€)</Label>
-              <Input 
+              <Label>Strecke (km)</Label>
+              <Input
                 type="number"
-                step="0.01"
-                value={formData.price}
-                onChange={(e) => handleChange('price', e.target.value)}
-                placeholder="0.00"
+                step="0.1"
+                value={formData.distance_km}
+                onChange={(e) => handleChange('distance_km', e.target.value)}
+                placeholder="wird berechnet"
               />
             </div>
+            {isAdmin && (
+              <div>
+                <Label>Kundenpreis (€)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={formData.customer_price}
+                  onChange={(e) => handleCustomerPriceChange(e.target.value)}
+                  placeholder="0.00"
+                />
+                {priceManuallyEdited && (
+                  <button
+                    type="button"
+                    onClick={handleRecalculatePrice}
+                    className="mt-1 text-xs text-blue-600 hover:text-blue-700"
+                  >
+                    Preis neu berechnen
+                  </button>
+                )}
+              </div>
+            )}
           </div>
+          {pricingLoading && (
+            <p className="text-xs text-slate-500">Preis wird berechnet…</p>
+          )}
+          {pricingError && (
+            <p className="text-xs text-red-600">{pricingError}</p>
+          )}
 
           <Separator />
 

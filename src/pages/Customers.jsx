@@ -51,7 +51,6 @@ import {
   Phone,
   MapPin,
   UploadCloud,
-  FileText,
   Sparkles
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
@@ -68,10 +67,6 @@ export default function Customers() {
   const [priceTierRows, setPriceTierRows] = useState([]);
   const [priceTiersDirty, setPriceTiersDirty] = useState(false);
   const [pricingError, setPricingError] = useState('');
-  const [pricingFile, setPricingFile] = useState(null);
-  const [pricingFileUrl, setPricingFileUrl] = useState('');
-  const [pricingUploading, setPricingUploading] = useState(false);
-  const pricingFileInputRef = useRef(null);
   const priceTierSeedRef = useRef(null);
   const priceImportFileInputRef = useRef(null);
   const [priceImportOpen, setPriceImportOpen] = useState(false);
@@ -79,9 +74,7 @@ export default function Customers() {
   const [priceImportText, setPriceImportText] = useState('');
   const [priceImportLoading, setPriceImportLoading] = useState(false);
   const [priceImportError, setPriceImportError] = useState('');
-  const [priceImportCustomerTiers, setPriceImportCustomerTiers] = useState([]);
-  const [priceImportDriverTiers, setPriceImportDriverTiers] = useState([]);
-  const [priceImportMerged, setPriceImportMerged] = useState([]);
+  const [priceImportTiers, setPriceImportTiers] = useState([]);
   
   const [formData, setFormData] = useState({
     customer_number: '',
@@ -210,7 +203,6 @@ export default function Customers() {
               min_km: tier.min_km?.toString() || '',
               max_km: tier.max_km?.toString() || '',
               customer_price: tier.customer_price?.toString() || '',
-              driver_price: tier.driver_price?.toString() || '',
             }))
           : [
               {
@@ -218,12 +210,9 @@ export default function Customers() {
                 min_km: '',
                 max_km: '',
                 customer_price: '',
-                driver_price: '',
               },
             ]
       );
-      setPricingFileUrl(selectedCustomer.pricing_file_url || '');
-      setPricingFile(null);
     } else {
       setPriceTierRows([
         {
@@ -231,11 +220,8 @@ export default function Customers() {
           min_km: '',
           max_km: '',
           customer_price: '',
-          driver_price: '',
         },
       ]);
-      setPricingFileUrl('');
-      setPricingFile(null);
     }
     setPricingError('');
     setPriceTiersDirty(false);
@@ -249,7 +235,6 @@ export default function Customers() {
         min_km: '',
         max_km: '',
         customer_price: '',
-        driver_price: '',
       },
     ]);
     setPriceTiersDirty(true);
@@ -271,9 +256,7 @@ export default function Customers() {
     setPriceImportFile(null);
     setPriceImportText('');
     setPriceImportError('');
-    setPriceImportCustomerTiers([]);
-    setPriceImportDriverTiers([]);
-    setPriceImportMerged([]);
+    setPriceImportTiers([]);
     setPriceImportLoading(false);
   };
 
@@ -283,36 +266,11 @@ export default function Customers() {
     return Number.isFinite(num) ? num : null;
   };
 
-  const mergePriceTierLists = (customerTiers, driverTiers) => {
-    if (!customerTiers.length) {
-      throw new Error('Keine Kunden-Preisstaffeln erkannt.');
+  const ensureValidImport = (tiers) => {
+    if (!tiers.length) {
+      throw new Error('Keine Preisstaffeln erkannt.');
     }
-
-    if (!driverTiers.length) {
-      return customerTiers.map((tier) => ({
-        ...tier,
-        driver_price: tier.customer_price,
-      }));
-    }
-
-    const driverMap = new Map(
-      driverTiers.map((tier) => [`${tier.min_km}-${tier.max_km ?? 'open'}`, tier])
-    );
-    const merged = customerTiers.map((tier) => {
-      const key = `${tier.min_km}-${tier.max_km ?? 'open'}`;
-      const driverTier = driverMap.get(key);
-      return {
-        ...tier,
-        driver_price: driverTier ? driverTier.driver_price : tier.customer_price,
-      };
-    });
-
-    const missing = merged.filter((tier) => tier.driver_price == null);
-    if (missing.length) {
-      throw new Error('Fahrer-Preise konnten nicht zugeordnet werden.');
-    }
-
-    return merged;
+    return tiers;
   };
 
   const fileToText = async (file) => {
@@ -389,15 +347,13 @@ export default function Customers() {
       }
 
       const result = await appClient.integrations.Core.InvokeLLM({
-        prompt: `Extrahiere aus dem folgenden Inhalt die Preisstaffeln fuer Kunden und Fahrer.
-Es koennen eine oder zwei Tabellen enthalten sein.
-Gib IMMER ein Objekt mit "customer_tiers" und "driver_tiers" zurueck.
+        prompt: `Extrahiere aus dem folgenden Inhalt die Preisstaffeln.
+Es gibt nur Kundenpreise (Nettopreise in Euro).
+Gib IMMER ein Objekt mit "tiers" zurueck.
 
 Regeln:
-- Preise sind Nettopreise (Euro).
 - Jede Staffel hat min_km, max_km (oder null fuer offen), price.
-- Wenn nur eine Tabelle vorhanden ist, nutze sie als customer_tiers.
-- Wenn Fahrerpreise fehlen, lasse driver_tiers leer.
+- min_km und price sind Pflicht.
 
 Inhalt:
 ${rawText}`,
@@ -405,7 +361,7 @@ ${rawText}`,
           type: "object",
           additionalProperties: false,
           properties: {
-            customer_tiers: {
+            tiers: {
               type: "array",
               items: {
                 type: "object",
@@ -415,28 +371,15 @@ ${rawText}`,
                   max_km: { type: ["number", "string", "null"] },
                   price: { type: ["number", "string", "null"] },
                 },
-                required: ["min_km", "max_km", "price"],
-              },
-            },
-            driver_tiers: {
-              type: "array",
-              items: {
-                type: "object",
-                additionalProperties: false,
-                properties: {
-                  min_km: { type: ["number", "string", "null"] },
-                  max_km: { type: ["number", "string", "null"] },
-                  price: { type: ["number", "string", "null"] },
-                },
-                required: ["min_km", "max_km", "price"],
+                required: ["min_km", "price"],
               },
             },
           },
-          required: ["customer_tiers", "driver_tiers"],
+          required: ["tiers"],
         },
       });
 
-      const customerTiers = (result.customer_tiers || [])
+      const tiers = (result.tiers || [])
         .map((tier) => ({
           min_km: toNumberOrNull(tier.min_km),
           max_km: toNumberOrNull(tier.max_km),
@@ -444,18 +387,7 @@ ${rawText}`,
         }))
         .filter((tier) => tier.min_km !== null && tier.customer_price !== null);
 
-      const driverTiers = (result.driver_tiers || [])
-        .map((tier) => ({
-          min_km: toNumberOrNull(tier.min_km),
-          max_km: toNumberOrNull(tier.max_km),
-          driver_price: toNumberOrNull(tier.price),
-        }))
-        .filter((tier) => tier.min_km !== null && tier.driver_price !== null);
-
-      const merged = mergePriceTierLists(customerTiers, driverTiers);
-      setPriceImportCustomerTiers(customerTiers);
-      setPriceImportDriverTiers(driverTiers);
-      setPriceImportMerged(merged);
+      setPriceImportTiers(ensureValidImport(tiers));
     } catch (err) {
       setPriceImportError(err?.message || 'Analyse fehlgeschlagen.');
     } finally {
@@ -464,18 +396,17 @@ ${rawText}`,
   };
 
   const applyImportedPriceTiers = () => {
-    if (!priceImportMerged.length) {
+    if (!priceImportTiers.length) {
       setPriceImportError('Keine Preisstaffeln zum Uebernehmen.');
       return;
     }
 
     setPriceTierRows(
-      priceImportMerged.map((tier) => ({
+      priceImportTiers.map((tier) => ({
         id: `tier-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
         min_km: tier.min_km?.toString() || '',
         max_km: tier.max_km?.toString() || '',
         customer_price: tier.customer_price?.toString() || '',
-        driver_price: tier.driver_price?.toString() || '',
       }))
     );
     setPriceTiersDirty(true);
@@ -490,13 +421,11 @@ ${rawText}`,
         min_km: row.min_km === '' ? null : Number(row.min_km),
         max_km: row.max_km === '' ? null : Number(row.max_km),
         customer_price: row.customer_price === '' ? null : Number(row.customer_price),
-        driver_price: row.driver_price === '' ? null : Number(row.driver_price),
       }))
       .filter((row) =>
         row.min_km !== null ||
         row.max_km !== null ||
-        row.customer_price !== null ||
-        row.driver_price !== null
+        row.customer_price !== null
       );
 
     if (rows.length === 0) {
@@ -513,8 +442,8 @@ ${rawText}`,
         setPricingError('Max-km darf nicht kleiner als Min-km sein.');
         return null;
       }
-      if (!Number.isFinite(row.customer_price) || !Number.isFinite(row.driver_price)) {
-        setPricingError('Bitte Kunden- und Fahrerpreis für jede Staffel angeben.');
+      if (!Number.isFinite(row.customer_price)) {
+        setPricingError('Bitte den Kundenpreis für jede Staffel angeben.');
         return null;
       }
     }
@@ -536,11 +465,6 @@ ${rawText}`,
     return sorted;
   };
 
-  const handlePricingFilePick = (file) => {
-    if (!file) return;
-    setPricingFile(file);
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
@@ -548,7 +472,6 @@ ${rawText}`,
     try {
       const dataToSave = {
         ...formData,
-        pricing_file_url: pricingFileUrl || null,
       };
 
       const normalizedTiers = normalizePriceTiers();
@@ -575,24 +498,11 @@ ${rawText}`,
         throw new Error('Company ID fehlt. Bitte erneut anmelden.');
       }
 
-      if (pricingFile) {
-        setPricingUploading(true);
-        const { file_url } = await appClient.integrations.Core.UploadFile({
-          file: pricingFile,
-          bucket: 'documents',
-          pathPrefix: `pricing/${customerId}`,
-        });
-        await appClient.entities.Customer.update(customerId, { pricing_file_url: file_url });
-        setPricingFileUrl(file_url);
-        setPricingFile(null);
-      }
-
       const tiersToSave = normalizedTiers.map((tier) => ({
         customer_id: customerId,
         min_km: tier.min_km,
         max_km: tier.max_km,
         customer_price: tier.customer_price,
-        driver_price: tier.driver_price,
         company_id: companyId,
       }));
 
@@ -619,7 +529,6 @@ ${rawText}`,
     } catch (err) {
       setPricingError(err?.message || 'Speichern fehlgeschlagen.');
     } finally {
-      setPricingUploading(false);
       setSaving(false);
     }
   };
@@ -714,11 +623,11 @@ ${rawText}`,
               }}>
                 <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
                   <DialogHeader>
-                    <DialogTitle>Preisstaffeln importieren</DialogTitle>
-                    <DialogDescription>
-                      CSV, Excel, PDF, Bilder oder Text werden gescannt und in Kunden- sowie Fahrerpreise umgewandelt.
-                    </DialogDescription>
-                  </DialogHeader>
+                  <DialogTitle>Preisstaffeln importieren</DialogTitle>
+                  <DialogDescription>
+                      CSV, Excel, PDF, Bilder oder Text werden gescannt und in Preisstaffeln umgewandelt.
+                  </DialogDescription>
+                </DialogHeader>
 
                   <div className="space-y-4">
                     <div className="space-y-2">
@@ -791,10 +700,10 @@ ${rawText}`,
                       )}
                     </Button>
 
-                    {priceImportMerged.length > 0 && (
+                    {priceImportTiers.length > 0 && (
                       <div className="space-y-4">
                         <div>
-                          <h4 className="font-semibold">Vorschau (zusammengefuehrt)</h4>
+                          <h4 className="font-semibold">Vorschau</h4>
                           <div className="overflow-x-auto border rounded-lg">
                             <table className="min-w-full text-sm">
                               <thead className="bg-gray-50">
@@ -802,53 +711,18 @@ ${rawText}`,
                                   <th className="px-3 py-2 text-left">Von km</th>
                                   <th className="px-3 py-2 text-left">Bis km</th>
                                   <th className="px-3 py-2 text-left">Kundenpreis (€)</th>
-                                  <th className="px-3 py-2 text-left">Fahrerpreis (€)</th>
                                 </tr>
                               </thead>
                               <tbody>
-                                {priceImportMerged.map((tier, index) => (
+                                {priceImportTiers.map((tier, index) => (
                                   <tr key={`${tier.min_km}-${tier.max_km}-${index}`} className="border-t">
                                     <td className="px-3 py-2">{tier.min_km}</td>
                                     <td className="px-3 py-2">{tier.max_km ?? 'offen'}</td>
                                     <td className="px-3 py-2">{tier.customer_price}</td>
-                                    <td className="px-3 py-2">{tier.driver_price}</td>
                                   </tr>
                                 ))}
                               </tbody>
                             </table>
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div className="border rounded-lg p-3">
-                            <h4 className="font-semibold mb-2">Kundenpreise</h4>
-                            {priceImportCustomerTiers.length ? (
-                              <ul className="text-sm text-gray-600 space-y-1">
-                                {priceImportCustomerTiers.map((tier, index) => (
-                                  <li key={`customer-${index}`}>
-                                    {tier.min_km} – {tier.max_km ?? 'offen'} km: {tier.customer_price} €
-                                  </li>
-                                ))}
-                              </ul>
-                            ) : (
-                              <p className="text-sm text-gray-500">Nicht erkannt</p>
-                            )}
-                          </div>
-                          <div className="border rounded-lg p-3">
-                            <h4 className="font-semibold mb-2">Fahrerpreise</h4>
-                            {priceImportDriverTiers.length ? (
-                              <ul className="text-sm text-gray-600 space-y-1">
-                                {priceImportDriverTiers.map((tier, index) => (
-                                  <li key={`driver-${index}`}>
-                                    {tier.min_km} – {tier.max_km ?? 'offen'} km: {tier.driver_price} €
-                                  </li>
-                                ))}
-                              </ul>
-                            ) : (
-                              <p className="text-sm text-gray-500">
-                                Keine Fahrerpreise gefunden (wird aus Kundenpreis uebernommen).
-                              </p>
-                            )}
                           </div>
                         </div>
                       </div>
@@ -862,7 +736,7 @@ ${rawText}`,
                     <Button
                       type="button"
                       onClick={applyImportedPriceTiers}
-                      disabled={!priceImportMerged.length}
+                      disabled={!priceImportTiers.length}
                       className="bg-[#1e3a5f] hover:bg-[#2d5a8a]"
                     >
                       Uebernehmen
@@ -1034,18 +908,6 @@ ${rawText}`,
                           placeholder="0.00"
                         />
                       </div>
-                      <div className="md:col-span-3">
-                        <Label>Fahrerpreis (€)</Label>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          value={tier.driver_price}
-                          onChange={(e) =>
-                            updatePriceTier(tier.id, 'driver_price', e.target.value)
-                          }
-                          placeholder="0.00"
-                        />
-                      </div>
                       <div className="md:col-span-2 flex justify-end">
                         <Button
                           type="button"
@@ -1064,54 +926,6 @@ ${rawText}`,
                 <p className="text-xs text-gray-500">
                   Preise werden als fixer Betrag pro Auftrag je Kilometer-Staffel gespeichert.
                 </p>
-                <div className="space-y-2">
-                  <Label>Preisliste Datei (optional)</Label>
-                  <div
-                    className="flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-gray-200 bg-gray-50 px-4 py-6 text-center"
-                    onDragOver={(e) => e.preventDefault()}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      handlePricingFilePick(e.dataTransfer.files?.[0]);
-                    }}
-                  >
-                    <UploadCloud className="w-6 h-6 text-gray-400" />
-                    <div className="text-sm text-gray-600">
-                      Datei hierher ziehen oder
-                      <Button
-                        type="button"
-                        variant="link"
-                        className="px-1 text-[#1e3a5f]"
-                        onClick={() => pricingFileInputRef.current?.click()}
-                        disabled={pricingUploading}
-                      >
-                        auswählen
-                      </Button>
-                    </div>
-                    <input
-                      ref={pricingFileInputRef}
-                      type="file"
-                      accept=".pdf,.png,.jpg,.jpeg,.docx"
-                      className="hidden"
-                      onChange={(e) => handlePricingFilePick(e.target.files?.[0])}
-                    />
-                    {pricingFile && (
-                      <p className="text-xs text-gray-600">
-                        Ausgewählt: {pricingFile.name}
-                      </p>
-                    )}
-                    {!pricingFile && pricingFileUrl && (
-                      <a
-                        href={pricingFileUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-xs text-[#1e3a5f] underline flex items-center gap-1"
-                      >
-                        <FileText className="w-3 h-3" />
-                        Aktuelle Preisliste öffnen
-                      </a>
-                    )}
-                  </div>
-                </div>
               </div>
 
               <Separator />
@@ -1259,22 +1073,10 @@ ${rawText}`,
                         </div>
                         <div className="mt-1 flex items-center justify-between text-gray-700">
                           <span>Kunde: {Number(tier.customer_price).toFixed(2)} €</span>
-                          <span>Fahrer: {Number(tier.driver_price).toFixed(2)} €</span>
                         </div>
                       </div>
                     ))}
                   </div>
-                )}
-                {selectedCustomer.pricing_file_url && (
-                  <a
-                    href={selectedCustomer.pricing_file_url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-2 text-sm text-[#1e3a5f] underline"
-                  >
-                    <FileText className="w-4 h-4" />
-                    Preisliste herunterladen
-                  </a>
                 )}
               </CardContent>
             </Card>

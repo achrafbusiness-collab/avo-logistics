@@ -134,24 +134,11 @@ export default function DriverOrders() {
               </div>
             </div>
 
-            {(order.distance_km !== null || order.driver_price !== null) && (
+            {order.distance_km !== null && order.distance_km !== undefined && (
               <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 mb-3">
-                {order.distance_km !== null && order.distance_km !== undefined && (
-                  <span>
-                    {t('orders.distance')}: <strong>{order.distance_km} km</strong>
-                  </span>
-                )}
-                {order.driver_price !== null && order.driver_price !== undefined && (
-                  <span>
-                    {t('orders.driverPrice')}:{" "}
-                    <strong>
-                      {Number(order.driver_price).toLocaleString('de-DE', {
-                        style: 'currency',
-                        currency: 'EUR',
-                      })}
-                    </strong>
-                  </span>
-                )}
+                <span>
+                  {t('orders.distance')}: <strong>{order.distance_km} km</strong>
+                </span>
               </div>
             )}
 
