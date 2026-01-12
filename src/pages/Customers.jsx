@@ -465,6 +465,10 @@ ${rawText}`,
     return sorted;
   };
 
+  const isUuid = (value) =>
+    typeof value === 'string' &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
@@ -499,6 +503,7 @@ ${rawText}`,
       }
 
       const tiersToSave = normalizedTiers.map((tier) => ({
+        id: isUuid(tier.id) ? tier.id : undefined,
         customer_id: customerId,
         min_km: tier.min_km,
         max_km: tier.max_km,
@@ -506,26 +511,50 @@ ${rawText}`,
         company_id: companyId,
       }));
 
-      const { error: deleteError } = await supabase
-        .from('customer_price_tiers')
-        .delete()
-        .eq('customer_id', customerId);
-      if (deleteError) {
-        throw new Error(deleteError.message);
+      const existingRows = tiersToSave.filter((tier) => tier.id);
+      const newRows = tiersToSave
+        .filter((tier) => !tier.id)
+        .map(({ id, ...rest }) => rest);
+
+      const keepIds = [];
+
+      if (existingRows.length > 0) {
+        const { data: upserted, error: upsertError } = await supabase
+          .from('customer_price_tiers')
+          .upsert(existingRows, { onConflict: 'id' })
+          .select('id');
+        if (upsertError) {
+          throw new Error(upsertError.message);
+        }
+        keepIds.push(...(upserted || []).map((row) => row.id));
       }
 
-      if (tiersToSave.length > 0) {
-        const { error: insertError } = await supabase
+      if (newRows.length > 0) {
+        const { data: inserted, error: insertError } = await supabase
           .from('customer_price_tiers')
-          .insert(tiersToSave);
+          .insert(newRows)
+          .select('id');
         if (insertError) {
           throw new Error(insertError.message);
+        }
+        keepIds.push(...(inserted || []).map((row) => row.id));
+      }
+
+      if (keepIds.length > 0) {
+        const { error: deleteError } = await supabase
+          .from('customer_price_tiers')
+          .delete()
+          .eq('customer_id', customerId)
+          .not('id', 'in', `(${keepIds.join(',')})`);
+        if (deleteError) {
+          throw new Error(deleteError.message);
         }
       }
 
       queryClient.invalidateQueries({ queryKey: ['customer-price-tiers'] });
-      setView('list');
-      setSelectedCustomer(null);
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
+      setSelectedCustomer(savedCustomer);
+      setView('details');
     } catch (err) {
       setPricingError(err?.message || 'Speichern fehlgeschlagen.');
     } finally {
