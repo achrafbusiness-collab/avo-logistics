@@ -63,8 +63,11 @@
     "pending": "Pending"
   },
   "orders": {
+    "customerOrderNumber": "Customer order no.",
     "pickup": "Pickup",
     "dropoff": "Drop-off",
+    "distance": "Distance",
+    "driverPrice": "Driver payout",
     "greeting": "Hello, {{name}}!",
     "driverFallback": "Driver",
     "summary": {

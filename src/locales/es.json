@@ -63,6 +63,7 @@
     "pending": "Pendiente"
   },
   "orders": {
+    "customerOrderNumber": "N.º de pedido del cliente",
     "pickup": "Recogida",
     "dropoff": "Entrega",
     "distance": "Distancia",

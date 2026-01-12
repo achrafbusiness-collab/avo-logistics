@@ -63,6 +63,7 @@
     "pending": "قيد المعالجة"
   },
   "orders": {
+    "customerOrderNumber": "رقم طلب العميل",
     "pickup": "الاستلام",
     "dropoff": "التسليم",
     "distance": "المسافة",

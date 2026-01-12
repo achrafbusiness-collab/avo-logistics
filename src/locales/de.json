@@ -63,6 +63,7 @@
     "pending": "Bearbeitung"
   },
   "orders": {
+    "customerOrderNumber": "Kunden-Auftragsnr.",
     "pickup": "Abholung",
     "dropoff": "Abgabe",
     "distance": "Strecke",

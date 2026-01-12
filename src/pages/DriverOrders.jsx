@@ -93,6 +93,12 @@ export default function DriverOrders() {
                   <StatusBadge status={order.status} size="sm" label={t(`status.${order.status}`)} />
                 </div>
                 <p className="text-sm text-gray-500">{order.license_plate}</p>
+                {order.customer_order_number && (
+                  <p className="text-xs text-gray-500">
+                    {t('orders.customerOrderNumber')}:{" "}
+                    <span className="font-medium text-gray-700">{order.customer_order_number}</span>
+                  </p>
+                )}
               </div>
               <ArrowRight className="w-5 h-5 text-gray-400 rtl-flip" />
             </div>
@@ -127,6 +133,27 @@ export default function DriverOrders() {
                 </div>
               </div>
             </div>
+
+            {(order.distance_km !== null || order.driver_price !== null) && (
+              <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 mb-3">
+                {order.distance_km !== null && order.distance_km !== undefined && (
+                  <span>
+                    {t('orders.distance')}: <strong>{order.distance_km} km</strong>
+                  </span>
+                )}
+                {order.driver_price !== null && order.driver_price !== undefined && (
+                  <span>
+                    {t('orders.driverPrice')}:{" "}
+                    <strong>
+                      {Number(order.driver_price).toLocaleString('de-DE', {
+                        style: 'currency',
+                        currency: 'EUR',
+                      })}
+                    </strong>
+                  </span>
+                )}
+              </div>
+            )}
 
             {/* Date/Time */}
             {order.pickup_date && (
