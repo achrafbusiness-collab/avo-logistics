@@ -334,7 +334,6 @@ export default function OrderDetails({
     docInputRef.current?.click();
   };
 
-  const isAdmin = currentUser?.role === 'admin';
   const canManageDocs = currentUser?.role !== 'driver';
   const reviewComplete = useMemo(
     () => REVIEW_CHECKS.every((item) => reviewChecks[item.key]),
