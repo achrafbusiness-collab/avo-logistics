@@ -86,6 +86,9 @@ export default function DriverProtocol() {
   const [pendingDamagePhoto, setPendingDamagePhoto] = useState(null);
   const [expenseUploads, setExpenseUploads] = useState({});
   const [photoCameraActive, setPhotoCameraActive] = useState(false);
+  const [activeChecklistId, setActiveChecklistId] = useState(checklistId);
+  const draftCreateRef = useRef(null);
+  const lastSavedPhotosRef = useRef('');
 
   const [formData, setFormData] = useState({
     order_id: orderId,
@@ -171,13 +174,13 @@ export default function DriverProtocol() {
   const appSettings = appSettingsList[0] || null;
 
   const { data: existingChecklist } = useQuery({
-    queryKey: ['checklist', checklistId],
+    queryKey: ['checklist', activeChecklistId],
     queryFn: async () => {
-      if (!checklistId) return null;
-      const checklists = await appClient.entities.Checklist.filter({ id: checklistId });
+      if (!activeChecklistId) return null;
+      const checklists = await appClient.entities.Checklist.filter({ id: activeChecklistId });
       return checklists[0];
     },
-    enabled: !!checklistId,
+    enabled: !!activeChecklistId,
   });
 
   useEffect(() => {
@@ -414,6 +417,61 @@ export default function DriverProtocol() {
     }
   };
 
+  const buildDraftPayload = (overrides = {}) => ({
+    ...formData,
+    ...overrides,
+    order_id: orderId,
+    order_number: order?.order_number,
+    driver_id: currentDriver?.id,
+    driver_name: currentDriver?.name,
+    kilometer: formData.kilometer ? parseFloat(formData.kilometer) : null,
+    fuel_cost: formData.fuel_cost ? parseFloat(formData.fuel_cost) : null,
+    completed: false,
+  });
+
+  const ensureChecklistDraft = async (overrides = {}) => {
+    if (activeChecklistId) {
+      return { id: activeChecklistId, created: false };
+    }
+    if (draftCreateRef.current) {
+      return draftCreateRef.current;
+    }
+    draftCreateRef.current = (async () => {
+      const created = await createMutation.mutateAsync(buildDraftPayload(overrides));
+      setActiveChecklistId(created.id);
+      const params = new URLSearchParams(window.location.search);
+      params.set('checklistId', created.id);
+      window.history.replaceState(null, '', `${window.location.pathname}?${params.toString()}`);
+      draftCreateRef.current = null;
+      return { id: created.id, created: true };
+    })();
+    return draftCreateRef.current;
+  };
+
+  const persistDraft = async (patch) => {
+    if (isViewOnly || !orderId || !type) return;
+    try {
+      const result = await ensureChecklistDraft(patch);
+      if (!result.created) {
+        await updateMutation.mutateAsync({ id: result.id, data: patch });
+      }
+    } catch (error) {
+      console.error('Draft save failed', error);
+    }
+  };
+
+  useEffect(() => {
+    if (isViewOnly) return;
+    const photoList = formData.photos || [];
+    if (!photoList.length && !activeChecklistId) {
+      return;
+    }
+    const serialized = JSON.stringify(photoList);
+    if (serialized === lastSavedPhotosRef.current) return;
+    lastSavedPhotosRef.current = serialized;
+    persistDraft({ photos: photoList });
+  }, [formData.photos, isViewOnly, activeChecklistId]);
+
   const submitProtocol = async () => {
     const missingPhotoIds = REQUIRED_PHOTO_IDS.filter((id) => !formData.photos?.some((photo) => photo.type === id));
     if (!formData.kilometer) {
@@ -481,8 +539,8 @@ export default function DriverProtocol() {
         completed: true
       };
 
-      if (checklistId) {
-        await updateMutation.mutateAsync({ id: checklistId, data: dataToSave });
+      if (activeChecklistId) {
+        await updateMutation.mutateAsync({ id: activeChecklistId, data: dataToSave });
       } else {
         await createMutation.mutateAsync(dataToSave);
       }
@@ -509,7 +567,7 @@ export default function DriverProtocol() {
     }
   };
 
-  const isViewOnly = !!checklistId && existingChecklist?.completed;
+  const isViewOnly = !!activeChecklistId && existingChecklist?.completed;
   const damageHasGaps =
     type === 'pickup' &&
     formData.damages?.some((damage) => !damage.location || !damage.description || !damage.type);
