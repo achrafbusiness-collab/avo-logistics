@@ -414,13 +414,34 @@ ${rawText}`,
     resetPriceImportState();
   };
 
+  const createUuid = () => {
+    if (typeof crypto !== 'undefined') {
+      if (crypto.randomUUID) return crypto.randomUUID();
+      if (crypto.getRandomValues) {
+        const bytes = new Uint8Array(16);
+        crypto.getRandomValues(bytes);
+        bytes[6] = (bytes[6] & 0x0f) | 0x40;
+        bytes[8] = (bytes[8] & 0x3f) | 0x80;
+        const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0'));
+        return [
+          hex.slice(0, 4).join(''),
+          hex.slice(4, 6).join(''),
+          hex.slice(6, 8).join(''),
+          hex.slice(8, 10).join(''),
+          hex.slice(10, 16).join(''),
+        ].join('-');
+      }
+    }
+    return `00000000-0000-4000-8000-${Math.random().toString(16).slice(2, 14).padEnd(12, '0')}`;
+  };
+
   const normalizePriceTiers = () => {
     const rows = priceTierRows
       .map((row) => ({
         id: row.id,
-        min_km: row.min_km === '' ? null : Number(row.min_km),
-        max_km: row.max_km === '' ? null : Number(row.max_km),
-        customer_price: row.customer_price === '' ? null : Number(row.customer_price),
+        min_km: toNumberOrNull(row.min_km),
+        max_km: toNumberOrNull(row.max_km),
+        customer_price: toNumberOrNull(row.customer_price),
       }))
       .filter((row) =>
         row.min_km !== null ||
@@ -503,7 +524,7 @@ ${rawText}`,
       }
 
       const tiersToSave = normalizedTiers.map((tier) => ({
-        id: isUuid(tier.id) ? tier.id : undefined,
+        id: isUuid(tier.id) ? tier.id : createUuid(),
         customer_id: customerId,
         min_km: tier.min_km,
         max_km: tier.max_km,
@@ -511,34 +532,16 @@ ${rawText}`,
         company_id: companyId,
       }));
 
-      const existingRows = tiersToSave.filter((tier) => tier.id);
-      const newRows = tiersToSave
-        .filter((tier) => !tier.id)
-        .map(({ id, ...rest }) => rest);
+      const { data: savedTiers, error: tierError } = await supabase
+        .from('customer_price_tiers')
+        .upsert(tiersToSave, { onConflict: 'id' })
+        .select('*');
 
-      const keepIds = [];
-
-      if (existingRows.length > 0) {
-        const { data: upserted, error: upsertError } = await supabase
-          .from('customer_price_tiers')
-          .upsert(existingRows, { onConflict: 'id' })
-          .select('id');
-        if (upsertError) {
-          throw new Error(upsertError.message);
-        }
-        keepIds.push(...(upserted || []).map((row) => row.id));
+      if (tierError) {
+        throw new Error(tierError.message);
       }
 
-      if (newRows.length > 0) {
-        const { data: inserted, error: insertError } = await supabase
-          .from('customer_price_tiers')
-          .insert(newRows)
-          .select('id');
-        if (insertError) {
-          throw new Error(insertError.message);
-        }
-        keepIds.push(...(inserted || []).map((row) => row.id));
-      }
+      const keepIds = (savedTiers || []).map((tier) => tier.id);
 
       if (keepIds.length > 0) {
         const { error: deleteError } = await supabase
@@ -551,7 +554,10 @@ ${rawText}`,
         }
       }
 
-      queryClient.invalidateQueries({ queryKey: ['customer-price-tiers'] });
+      queryClient.setQueryData(['customer-price-tiers'], (prev = []) => {
+        const filtered = prev.filter((tier) => tier.customer_id !== customerId);
+        return [...filtered, ...(savedTiers || tiersToSave)];
+      });
       queryClient.invalidateQueries({ queryKey: ['customers'] });
       setSelectedCustomer(savedCustomer);
       setView('details');
