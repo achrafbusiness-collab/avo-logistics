@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { appClient } from '@/api/appClient';
 import { createPageUrl } from '@/utils';
@@ -36,8 +36,11 @@ export default function AIImport() {
   const [selectedOrderIndex, setSelectedOrderIndex] = useState(0);
   const [importSuccess, setImportSuccess] = useState(false);
   const [error, setError] = useState(null);
+  const [calcLoading, setCalcLoading] = useState(false);
+  const [calcError, setCalcError] = useState('');
   const [currentUser, setCurrentUser] = useState(null);
   const isAdmin = currentUser?.role === 'admin';
+  const lastCalcKeyRef = useRef('');
 
   useEffect(() => {
     let active = true;
@@ -95,6 +98,7 @@ export default function AIImport() {
     distance_km: data?.distance_km ?? '',
     customer_price: data?.customer_price ?? '',
     pricing_tier_id: data?.pricing_tier_id ?? null,
+    price_manually_edited: false,
   });
 
   const analyzeEmail = async () => {
@@ -236,19 +240,24 @@ Gib ausschließlich die strukturierten Daten zurück.`,
     let distanceKm = currentOrder.distance_km ? parseFloat(currentOrder.distance_km) : null;
     let customerPrice = currentOrder.customer_price ? parseFloat(currentOrder.customer_price) : null;
     let pricingTierId = currentOrder.pricing_tier_id || null;
+    const priceManuallyEdited = !!currentOrder.price_manually_edited;
 
-    if (currentOrder.customer_id) {
-      try {
-        if (distanceKm === null) {
-          distanceKm = await getMapboxDistanceKm({
-            pickupAddress: currentOrder.pickup_address,
-            pickupCity: currentOrder.pickup_city,
-            pickupPostalCode: currentOrder.pickup_postal_code,
-            dropoffAddress: currentOrder.dropoff_address,
-            dropoffCity: currentOrder.dropoff_city,
-            dropoffPostalCode: currentOrder.dropoff_postal_code,
-          });
-        }
+    try {
+      if (distanceKm === null) {
+        distanceKm = await getMapboxDistanceKm({
+          pickupAddress: currentOrder.pickup_address,
+          pickupCity: currentOrder.pickup_city,
+          pickupPostalCode: currentOrder.pickup_postal_code,
+          dropoffAddress: currentOrder.dropoff_address,
+          dropoffCity: currentOrder.dropoff_city,
+          dropoffPostalCode: currentOrder.dropoff_postal_code,
+        });
+      }
+      if (distanceKm === null) {
+        setError('Entfernung konnte nicht berechnet werden.');
+        return;
+      }
+      if (currentOrder.customer_id) {
         const tiers = customerPriceTiers.filter(
           (tier) => tier.customer_id === currentOrder.customer_id
         );
@@ -257,12 +266,14 @@ Gib ausschließlich die strukturierten Daten zurück.`,
           setError('Keine passende Preisstaffel gefunden.');
           return;
         }
-        customerPrice = pricing.customer_price;
+        if (!priceManuallyEdited) {
+          customerPrice = pricing.customer_price;
+        }
         pricingTierId = pricing.pricing_tier_id || null;
-      } catch (err) {
-        setError(err?.message || 'Preisberechnung fehlgeschlagen.');
-        return;
       }
+    } catch (err) {
+      setError(err?.message || 'Preisberechnung fehlgeschlagen.');
+      return;
     }
 
     const dataToSave = {
@@ -323,15 +334,23 @@ Gib ausschließlich die strukturierten Daten zurück.`,
 
   const handleCustomerChange = (customerId) => {
     const customer = customers.find(c => c.id === customerId);
-    if (customer) {
-      updateExtractedData('customer_id', customer.id);
-      updateExtractedData('customer_name', customer.company_name || `${customer.first_name} ${customer.last_name}`);
-      updateExtractedData('customer_phone', customer.phone);
-      updateExtractedData('customer_email', customer.email);
-      updateExtractedData('distance_km', '');
+    if (!customerId || !customer) {
+      updateExtractedData('customer_id', '');
+      updateExtractedData('customer_name', '');
+      updateExtractedData('customer_phone', '');
+      updateExtractedData('customer_email', '');
       updateExtractedData('customer_price', '');
       updateExtractedData('pricing_tier_id', null);
+      updateExtractedData('price_manually_edited', false);
+      return;
     }
+    updateExtractedData('customer_id', customer.id);
+    updateExtractedData('customer_name', customer.company_name || `${customer.first_name} ${customer.last_name}`);
+    updateExtractedData('customer_phone', customer.phone);
+    updateExtractedData('customer_email', customer.email);
+    updateExtractedData('customer_price', '');
+    updateExtractedData('pricing_tier_id', null);
+    updateExtractedData('price_manually_edited', false);
   };
 
   const removeOrder = (index) => {
@@ -346,6 +365,86 @@ Gib ausschließlich die strukturierten Daten zurück.`,
   };
 
   const currentOrder = extractedOrders[selectedOrderIndex];
+  const distanceKey = useMemo(() => {
+    if (!currentOrder) return '';
+    const pickupKey = [currentOrder.pickup_address, currentOrder.pickup_postal_code, currentOrder.pickup_city]
+      .filter(Boolean)
+      .join('|');
+    const dropoffKey = [currentOrder.dropoff_address, currentOrder.dropoff_postal_code, currentOrder.dropoff_city]
+      .filter(Boolean)
+      .join('|');
+    return `${selectedOrderIndex}::${currentOrder.customer_id || ''}::${pickupKey}::${dropoffKey}`;
+  }, [
+    selectedOrderIndex,
+    currentOrder?.customer_id,
+    currentOrder?.pickup_address,
+    currentOrder?.pickup_postal_code,
+    currentOrder?.pickup_city,
+    currentOrder?.dropoff_address,
+    currentOrder?.dropoff_postal_code,
+    currentOrder?.dropoff_city,
+  ]);
+
+  const computeDistanceAndPrice = async (forcePrice = false) => {
+    const order = extractedOrders[selectedOrderIndex];
+    if (!order || !order.pickup_address || !order.dropoff_address) {
+      setCalcError('');
+      return;
+    }
+    setCalcLoading(true);
+    setCalcError('');
+    try {
+      const distanceKm = await getMapboxDistanceKm({
+        pickupAddress: order.pickup_address,
+        pickupCity: order.pickup_city,
+        pickupPostalCode: order.pickup_postal_code,
+        dropoffAddress: order.dropoff_address,
+        dropoffCity: order.dropoff_city,
+        dropoffPostalCode: order.dropoff_postal_code,
+      });
+      if (distanceKm === null) {
+        setCalcError('Entfernung konnte nicht berechnet werden.');
+        return;
+      }
+      updateExtractedData('distance_km', formatKm(distanceKm));
+      if (order.customer_id) {
+        const tiers = customerPriceTiers.filter((tier) => tier.customer_id === order.customer_id);
+        const pricing = calculatePricing(tiers, distanceKm);
+        if (!pricing) {
+          updateExtractedData('pricing_tier_id', null);
+          if (!order.price_manually_edited || forcePrice) {
+            updateExtractedData('customer_price', '');
+          }
+          setCalcError('Keine passende Preisstaffel gefunden.');
+          return;
+        }
+        updateExtractedData('pricing_tier_id', pricing.pricing_tier_id || null);
+        if (!order.price_manually_edited || forcePrice) {
+          updateExtractedData('customer_price', pricing.customer_price?.toString?.() || '');
+        }
+      } else {
+        updateExtractedData('pricing_tier_id', null);
+        if (!order.price_manually_edited || forcePrice) {
+          updateExtractedData('customer_price', '');
+        }
+      }
+    } catch (err) {
+      setCalcError(err?.message || 'Entfernung konnte nicht berechnet werden.');
+    } finally {
+      setCalcLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!currentOrder) return;
+    if (!currentOrder.pickup_address || !currentOrder.dropoff_address) {
+      setCalcError('');
+      return;
+    }
+    if (distanceKey === lastCalcKeyRef.current) return;
+    lastCalcKeyRef.current = distanceKey;
+    computeDistanceAndPrice();
+  }, [distanceKey, currentOrder]);
 
   return (
     <div className="space-y-6">
@@ -726,13 +825,34 @@ Gib ausschließlich die strukturierten Daten zurück.`,
                       </div>
                       <div>
                         <Label>Strecke (km)</Label>
-                        <Input
-                          type="number"
-                          step="0.1"
-                          value={currentOrder.distance_km || ''}
-                          onChange={(e) => updateExtractedData('distance_km', e.target.value)}
-                          placeholder="wird berechnet"
-                        />
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="number"
+                            step="0.1"
+                            value={currentOrder.distance_km || ''}
+                            readOnly
+                            placeholder="wird berechnet"
+                            className="bg-slate-100 text-slate-600"
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="shrink-0"
+                            onClick={() => {
+                              updateExtractedData('price_manually_edited', false);
+                              computeDistanceAndPrice(true);
+                            }}
+                            disabled={!currentOrder.pickup_address || !currentOrder.dropoff_address || calcLoading}
+                          >
+                            Strecke berechnen
+                          </Button>
+                        </div>
+                        {calcError && (
+                          <p className="mt-1 text-xs text-red-600">{calcError}</p>
+                        )}
+                        {calcLoading && (
+                          <p className="mt-1 text-xs text-slate-500">Strecke wird berechnet…</p>
+                        )}
                       </div>
                       {isAdmin && (
                         <div>
@@ -741,7 +861,10 @@ Gib ausschließlich die strukturierten Daten zurück.`,
                             type="number"
                             step="0.01"
                             value={currentOrder.customer_price || ''}
-                            onChange={(e) => updateExtractedData('customer_price', e.target.value)}
+                            onChange={(e) => {
+                              updateExtractedData('customer_price', e.target.value);
+                              updateExtractedData('price_manually_edited', true);
+                            }}
                             placeholder="0.00"
                           />
                         </div>

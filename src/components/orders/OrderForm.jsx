@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { appClient } from '@/api/appClient';
 import { Button } from "@/components/ui/button";
@@ -73,8 +73,9 @@ export default function OrderForm({ order, onSave, onCancel, currentUser }) {
   const [saving, setSaving] = useState(false);
   const [pricingError, setPricingError] = useState('');
   const [pricingLoading, setPricingLoading] = useState(false);
+  const [distanceError, setDistanceError] = useState('');
+  const [distanceRecalcToken, setDistanceRecalcToken] = useState(0);
   const [priceManuallyEdited, setPriceManuallyEdited] = useState(false);
-  const lastPricingKeyRef = useRef('');
   const isAdmin = currentUser?.role === 'admin';
 
   const { data: drivers = [] } = useQuery({
@@ -127,7 +128,11 @@ export default function OrderForm({ order, onSave, onCancel, currentUser }) {
 
   const handleRecalculatePrice = () => {
     setPriceManuallyEdited(false);
-    lastPricingKeyRef.current = '';
+    setDistanceRecalcToken((prev) => prev + 1);
+  };
+
+  const handleRecalculateDistance = () => {
+    setDistanceRecalcToken((prev) => prev + 1);
   };
 
   const handleDriverChange = (driverId) => {
@@ -156,47 +161,46 @@ export default function OrderForm({ order, onSave, onCancel, currentUser }) {
       customer_name: customerName,
       customer_email: customer?.email || '',
       customer_phone: customer?.phone || '',
+      customer_price: '',
       pricing_tier_id: null,
     }));
     setPriceManuallyEdited(false);
-    lastPricingKeyRef.current = '';
+    setPricingError('');
   };
 
-  const pricingKey = useMemo(() => {
+  const distanceKey = useMemo(() => {
     const pickupKey = [formData.pickup_address, formData.pickup_postal_code, formData.pickup_city]
       .filter(Boolean)
       .join('|');
     const dropoffKey = [formData.dropoff_address, formData.dropoff_postal_code, formData.dropoff_city]
       .filter(Boolean)
       .join('|');
-    return `${formData.customer_id || 'none'}::${pickupKey}::${dropoffKey}`;
+    return `${pickupKey}::${dropoffKey}::${distanceRecalcToken}`;
   }, [
-    formData.customer_id,
     formData.pickup_address,
     formData.pickup_postal_code,
     formData.pickup_city,
     formData.dropoff_address,
     formData.dropoff_postal_code,
     formData.dropoff_city,
+    distanceRecalcToken,
   ]);
 
   useEffect(() => {
     const shouldCompute =
-      formData.customer_id &&
       formData.pickup_address &&
       formData.dropoff_address;
     if (!shouldCompute) {
       setPricingError('');
+      setDistanceError('');
       return;
     }
-    if (priceManuallyEdited) return;
-    if (pricingKey === lastPricingKeyRef.current) return;
-    lastPricingKeyRef.current = pricingKey;
 
     let active = true;
     const run = async () => {
       setPricingLoading(true);
       setPricingError('');
+      setDistanceError('');
       try {
         const distance = await getMapboxDistanceKm({
           pickupAddress: formData.pickup_address,
@@ -208,29 +212,40 @@ export default function OrderForm({ order, onSave, onCancel, currentUser }) {
         });
         if (!active) return;
         if (distance === null) {
-          setPricingError('Entfernung konnte nicht berechnet werden.');
+          setDistanceError('Entfernung konnte nicht berechnet werden.');
           return;
         }
-        const pricing = calculatePricing(priceTiers, distance);
-        if (!pricing) {
+        if (formData.customer_id) {
+          const pricing = calculatePricing(priceTiers, distance);
+          if (!pricing) {
+            setFormData((prev) => ({
+              ...prev,
+              distance_km: formatKm(distance),
+              pricing_tier_id: null,
+              customer_price: priceManuallyEdited ? prev.customer_price : '',
+            }));
+            setPricingError('Keine passende Preisstaffel gefunden.');
+            return;
+          }
+          setFormData((prev) => ({
+            ...prev,
+            distance_km: formatKm(distance),
+            customer_price: priceManuallyEdited
+              ? prev.customer_price
+              : pricing.customer_price?.toString?.() || '',
+            pricing_tier_id: pricing.pricing_tier_id || null,
+          }));
+          return;
+        }
         setFormData((prev) => ({
           ...prev,
           distance_km: formatKm(distance),
-          customer_price: prev.customer_price,
           pricing_tier_id: null,
+          customer_price: '',
         }));
-        setPricingError('Keine passende Preisstaffel gefunden.');
-        return;
-      }
-      setFormData((prev) => ({
-        ...prev,
-        distance_km: formatKm(distance),
-        customer_price: pricing.customer_price?.toString?.() || '',
-        pricing_tier_id: pricing.pricing_tier_id || null,
-      }));
       } catch (err) {
         if (!active) return;
-        setPricingError(err?.message || 'Preisberechnung fehlgeschlagen.');
+        setDistanceError(err?.message || 'Entfernung konnte nicht berechnet werden.');
       } finally {
         if (active) setPricingLoading(false);
       }
@@ -240,7 +255,7 @@ export default function OrderForm({ order, onSave, onCancel, currentUser }) {
     return () => {
       active = false;
     };
-  }, [pricingKey, priceTiers, formData.customer_id, priceManuallyEdited]);
+  }, [distanceKey, priceTiers, formData.customer_id, priceManuallyEdited]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -335,17 +350,31 @@ export default function OrderForm({ order, onSave, onCancel, currentUser }) {
                 </div>
             <div>
               <Label>Strecke (km)</Label>
-              <Input
-                type="number"
-                step="0.1"
-                value={formData.distance_km}
-                readOnly
-                placeholder="wird berechnet"
-                className="bg-slate-100 text-slate-600"
-              />
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  step="0.1"
+                  value={formData.distance_km}
+                  readOnly
+                  placeholder="wird berechnet"
+                  className="bg-slate-100 text-slate-600"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="shrink-0"
+                  onClick={handleRecalculateDistance}
+                  disabled={!formData.pickup_address || !formData.dropoff_address || pricingLoading}
+                >
+                  Strecke berechnen
+                </Button>
+              </div>
               <p className="mt-1 text-xs text-gray-500">
                 Wird automatisch aus Abhol- und Abgabeadresse berechnet.
               </p>
+              {distanceError && (
+                <p className="mt-1 text-xs text-red-600">{distanceError}</p>
+              )}
             </div>
             {isAdmin && (
               <div>
