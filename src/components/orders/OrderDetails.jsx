@@ -25,7 +25,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { appClient } from "@/api/appClient";
-import { supabase } from "@/lib/supabaseClient";
 import StatusBadge from '@/components/ui/StatusBadge';
 import { 
   Car, 
@@ -100,9 +99,6 @@ export default function OrderDetails({
   const [docSaving, setDocSaving] = useState({});
   const [docDeleting, setDocDeleting] = useState({});
   const [docDragActive, setDocDragActive] = useState(false);
-  const [pricing, setPricing] = useState(null);
-  const [pricingLoading, setPricingLoading] = useState(false);
-  const [pricingError, setPricingError] = useState('');
   const docInputRef = useRef(null);
   const pickupChecklist = checklists.find(c => c.type === 'pickup');
   const dropoffChecklist = checklists.find(c => c.type === 'dropoff');
@@ -175,33 +171,6 @@ export default function OrderDetails({
     loadDocuments();
   }, [order?.id]);
 
-  useEffect(() => {
-    const loadPricing = async () => {
-      if (!order?.id || !isAdmin) {
-        setPricing(null);
-        setPricingError('');
-        return;
-      }
-      setPricingLoading(true);
-      setPricingError('');
-      try {
-        const { data, error } = await supabase
-          .from('order_pricing')
-          .select('*')
-          .eq('order_id', order.id)
-          .maybeSingle();
-        if (error) {
-          throw new Error(error.message);
-        }
-        setPricing(data || null);
-      } catch (err) {
-        setPricingError(err?.message || 'Preisinfo konnte nicht geladen werden.');
-      } finally {
-        setPricingLoading(false);
-      }
-    };
-    loadPricing();
-  }, [order?.id, isAdmin]);
 
   const startDocEdit = (doc) => {
     setDocEdits((prev) => ({
@@ -900,36 +869,15 @@ export default function OrderDetails({
             </CardContent>
           </Card>
 
-          {/* Pricing */}
-          {(distanceKm !== null || isAdmin) && (
+          {distanceKm !== null && (
             <Card>
               <CardContent className="pt-6 space-y-3">
                 <div>
                   <p className="text-sm text-gray-500">Strecke</p>
                   <p className="text-xl font-semibold text-slate-900">
-                    {distanceKm !== null ? `${distanceKm} km` : '—'}
+                    {distanceKm} km
                   </p>
                 </div>
-                {isAdmin && (
-                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                    <p className="text-sm text-slate-500">Kundenpreis</p>
-                    {pricingLoading ? (
-                      <p className="text-sm text-slate-500">Lade Preis…</p>
-                    ) : pricing?.customer_price !== null && pricing?.customer_price !== undefined ? (
-                      <p className="text-2xl font-semibold text-slate-900">
-                        {pricing.customer_price.toLocaleString('de-DE', {
-                          style: 'currency',
-                          currency: 'EUR',
-                        })}
-                      </p>
-                    ) : (
-                      <p className="text-sm text-slate-500">Keine Preisinfo</p>
-                    )}
-                    {pricingError && (
-                      <p className="mt-2 text-xs text-red-600">{pricingError}</p>
-                    )}
-                  </div>
-                )}
               </CardContent>
             </Card>
           )}

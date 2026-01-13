@@ -67,7 +67,6 @@
     "pickup": "Abholung",
     "dropoff": "Abgabe",
     "distance": "Strecke",
-    "driverPrice": "Fahrerpreis",
     "greeting": "Hallo, {{name}}!",
     "driverFallback": "Fahrer",
     "summary": {

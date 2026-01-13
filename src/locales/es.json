@@ -67,7 +67,6 @@
     "pickup": "Recogida",
     "dropoff": "Entrega",
     "distance": "Distancia",
-    "driverPrice": "Pago al conductor",
     "greeting": "Hola, {{name}}!",
     "driverFallback": "Conductor",
     "summary": {

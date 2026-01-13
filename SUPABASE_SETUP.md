@@ -206,7 +206,7 @@ create table if not exists public.orders (
   review_checks jsonb default '{}'::jsonb,
   review_notes text,
   status_override_reason text,
-  price numeric,
+  distance_km numeric,
   created_date timestamptz default now(),
   updated_date timestamptz default now()
 );
@@ -255,6 +255,9 @@ alter column order_number set not null;
 alter table public.orders
 add column if not exists customer_order_number text;
 
+alter table public.orders
+add column if not exists distance_km numeric;
+
 create unique index if not exists orders_order_number_unique
 on public.orders(order_number);
 
@@ -294,8 +297,6 @@ create table if not exists public.customers (
   postal_code text,
   country text,
   tax_id text,
-  price_per_km numeric,
-  base_price numeric,
   notes text,
   status text default 'active',
   created_date timestamptz default now(),

@@ -17,7 +17,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import StatusBadge from "@/components/ui/StatusBadge";
 import { getMapboxDistanceKm } from "@/utils/mapboxDistance";
-import { calculatePricing, formatKm } from "@/utils/pricing";
 import { 
   Car, 
   MapPin, 
@@ -37,6 +36,11 @@ const Section = ({ title, icon: Icon, children }) => (
     {children}
   </div>
 );
+
+const formatKm = (value) => {
+  if (value === null || value === undefined || value === '') return '';
+  return String(value);
+};
 
 export default function OrderForm({ order, onSave, onCancel, currentUser }) {
   const [formData, setFormData] = useState({
@@ -66,17 +70,12 @@ export default function OrderForm({ order, onSave, onCancel, currentUser }) {
     customer_email: '',
     notes: '',
     distance_km: '',
-    customer_price: '',
-    pricing_tier_id: null,
   });
 
   const [saving, setSaving] = useState(false);
-  const [pricingError, setPricingError] = useState('');
-  const [pricingLoading, setPricingLoading] = useState(false);
+  const [distanceLoading, setDistanceLoading] = useState(false);
   const [distanceError, setDistanceError] = useState('');
   const [distanceRecalcToken, setDistanceRecalcToken] = useState(0);
-  const [priceManuallyEdited, setPriceManuallyEdited] = useState(false);
-  const isAdmin = currentUser?.role === 'admin';
 
   const { data: drivers = [] } = useQuery({
     queryKey: ['drivers'],
@@ -88,47 +87,22 @@ export default function OrderForm({ order, onSave, onCancel, currentUser }) {
     queryFn: () => appClient.entities.Customer.filter({ status: 'active' }),
   });
 
-  const { data: priceTiers = [] } = useQuery({
-    queryKey: ['customer-price-tiers', formData.customer_id],
-    queryFn: () =>
-      appClient.entities.CustomerPriceTier.filter(
-        { customer_id: formData.customer_id },
-        'min_km',
-        200
-      ),
-    enabled: !!formData.customer_id,
-  });
-
   useEffect(() => {
     if (order) {
       setFormData({
         ...order,
         distance_km: formatKm(order.distance_km),
-        customer_price: order.customer_price?.toString?.() || '',
-        pricing_tier_id: order.pricing_tier_id || null,
       });
-      setPriceManuallyEdited(false);
     } else {
       setFormData(prev => ({
         ...prev,
         order_number: '',
       }));
-      setPriceManuallyEdited(false);
     }
   }, [order]);
 
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-  };
-
-  const handleCustomerPriceChange = (value) => {
-    setPriceManuallyEdited(true);
-    handleChange('customer_price', value);
-  };
-
-  const handleRecalculatePrice = () => {
-    setPriceManuallyEdited(false);
-    setDistanceRecalcToken((prev) => prev + 1);
   };
 
   const handleRecalculateDistance = () => {
@@ -161,11 +135,7 @@ export default function OrderForm({ order, onSave, onCancel, currentUser }) {
       customer_name: customerName,
       customer_email: customer?.email || '',
       customer_phone: customer?.phone || '',
-      customer_price: '',
-      pricing_tier_id: null,
     }));
-    setPriceManuallyEdited(false);
-    setPricingError('');
   };
 
   const distanceKey = useMemo(() => {
@@ -191,15 +161,13 @@ export default function OrderForm({ order, onSave, onCancel, currentUser }) {
       formData.pickup_address &&
       formData.dropoff_address;
     if (!shouldCompute) {
-      setPricingError('');
       setDistanceError('');
       return;
     }
 
     let active = true;
     const run = async () => {
-      setPricingLoading(true);
-      setPricingError('');
+      setDistanceLoading(true);
       setDistanceError('');
       try {
         const distance = await getMapboxDistanceKm({
@@ -215,39 +183,15 @@ export default function OrderForm({ order, onSave, onCancel, currentUser }) {
           setDistanceError('Entfernung konnte nicht berechnet werden.');
           return;
         }
-        if (formData.customer_id) {
-          const pricing = calculatePricing(priceTiers, distance);
-          if (!pricing) {
-            setFormData((prev) => ({
-              ...prev,
-              distance_km: formatKm(distance),
-              pricing_tier_id: null,
-              customer_price: priceManuallyEdited ? prev.customer_price : '',
-            }));
-            setPricingError('Keine passende Preisstaffel gefunden.');
-            return;
-          }
-          setFormData((prev) => ({
-            ...prev,
-            distance_km: formatKm(distance),
-            customer_price: priceManuallyEdited
-              ? prev.customer_price
-              : pricing.customer_price?.toString?.() || '',
-            pricing_tier_id: pricing.pricing_tier_id || null,
-          }));
-          return;
-        }
         setFormData((prev) => ({
           ...prev,
           distance_km: formatKm(distance),
-          pricing_tier_id: null,
-          customer_price: '',
         }));
       } catch (err) {
         if (!active) return;
         setDistanceError(err?.message || 'Entfernung konnte nicht berechnet werden.');
       } finally {
-        if (active) setPricingLoading(false);
+        if (active) setDistanceLoading(false);
       }
     };
 
@@ -255,7 +199,7 @@ export default function OrderForm({ order, onSave, onCancel, currentUser }) {
     return () => {
       active = false;
     };
-  }, [distanceKey, priceTiers, formData.customer_id, priceManuallyEdited]);
+  }, [distanceKey]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -264,7 +208,6 @@ export default function OrderForm({ order, onSave, onCancel, currentUser }) {
       const dataToSave = {
         ...formData,
         distance_km: formData.distance_km ? parseFloat(formData.distance_km) : null,
-        customer_price: formData.customer_price ? parseFloat(formData.customer_price) : null,
       };
       await onSave(dataToSave);
     } finally {
@@ -364,7 +307,7 @@ export default function OrderForm({ order, onSave, onCancel, currentUser }) {
                   variant="outline"
                   className="shrink-0"
                   onClick={handleRecalculateDistance}
-                  disabled={!formData.pickup_address || !formData.dropoff_address || pricingLoading}
+                  disabled={!formData.pickup_address || !formData.dropoff_address || distanceLoading}
                 >
                   Strecke berechnen
                 </Button>
@@ -376,33 +319,9 @@ export default function OrderForm({ order, onSave, onCancel, currentUser }) {
                 <p className="mt-1 text-xs text-red-600">{distanceError}</p>
               )}
             </div>
-            {isAdmin && (
-              <div>
-                <Label>Kundenpreis (€)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={formData.customer_price}
-                  onChange={(e) => handleCustomerPriceChange(e.target.value)}
-                  placeholder="0.00"
-                />
-                {priceManuallyEdited && (
-                  <button
-                    type="button"
-                    onClick={handleRecalculatePrice}
-                    className="mt-1 text-xs text-blue-600 hover:text-blue-700"
-                  >
-                    Preis neu berechnen
-                  </button>
-                )}
-              </div>
-            )}
           </div>
-          {pricingLoading && (
-            <p className="text-xs text-slate-500">Preis wird berechnet…</p>
-          )}
-          {pricingError && (
-            <p className="text-xs text-red-600">{pricingError}</p>
+          {distanceLoading && (
+            <p className="text-xs text-slate-500">Strecke wird berechnet…</p>
           )}
 
           <Separator />

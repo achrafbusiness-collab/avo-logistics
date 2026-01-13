@@ -67,7 +67,6 @@
     "pickup": "الاستلام",
     "dropoff": "التسليم",
     "distance": "المسافة",
-    "driverPrice": "أجر السائق",
     "greeting": "مرحبًا، {{name}}!",
     "driverFallback": "سائق",
     "summary": {

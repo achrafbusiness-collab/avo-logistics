@@ -161,8 +161,7 @@ export default function AVOAI() {
           pickup_city: o.pickup_city,
           dropoff_city: o.dropoff_city,
           assigned_driver_name: o.assigned_driver_name,
-          customer_name: o.customer_name,
-          price: o.price
+          customer_name: o.customer_name
         })),
         drivers: drivers.map(d => ({
           id: d.id,

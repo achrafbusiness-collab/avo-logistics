@@ -2,9 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { appClient } from '@/api/appClient';
 import { createPageUrl } from '@/utils';
-import { supabase } from '@/lib/supabaseClient';
 import { getMapboxDistanceKm } from '@/utils/mapboxDistance';
-import { calculatePricing, formatKm } from '@/utils/pricing';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -38,19 +36,12 @@ export default function AIImport() {
   const [error, setError] = useState(null);
   const [calcLoading, setCalcLoading] = useState(false);
   const [calcError, setCalcError] = useState('');
-  const [currentUser, setCurrentUser] = useState(null);
-  const isAdmin = currentUser?.role === 'admin';
   const lastCalcKeyRef = useRef('');
 
-  useEffect(() => {
-    let active = true;
-    appClient.auth.getCurrentUser().then((user) => {
-      if (active) setCurrentUser(user);
-    });
-    return () => {
-      active = false;
-    };
-  }, []);
+  const formatKm = (value) => {
+    if (value === null || value === undefined || value === '') return '';
+    return String(value);
+  };
 
   const { data: drivers = [] } = useQuery({
     queryKey: ['drivers'],
@@ -60,11 +51,6 @@ export default function AIImport() {
   const { data: customers = [] } = useQuery({
     queryKey: ['customers'],
     queryFn: () => appClient.entities.Customer.list(),
-  });
-
-  const { data: customerPriceTiers = [] } = useQuery({
-    queryKey: ['customer-price-tiers'],
-    queryFn: () => appClient.entities.CustomerPriceTier.list('min_km', 1000),
   });
 
   const createOrderMutation = useMutation({
@@ -96,9 +82,6 @@ export default function AIImport() {
     customer_email: data?.customer_email || '',
     notes: data?.notes || '',
     distance_km: data?.distance_km ?? '',
-    customer_price: data?.customer_price ?? '',
-    pricing_tier_id: data?.pricing_tier_id ?? null,
-    price_manually_edited: false,
   });
 
   const analyzeEmail = async () => {
@@ -238,9 +221,6 @@ Gib ausschließlich die strukturierten Daten zurück.`,
       return;
     }
     let distanceKm = currentOrder.distance_km ? parseFloat(currentOrder.distance_km) : null;
-    let customerPrice = currentOrder.customer_price ? parseFloat(currentOrder.customer_price) : null;
-    let pricingTierId = currentOrder.pricing_tier_id || null;
-    const priceManuallyEdited = !!currentOrder.price_manually_edited;
 
     try {
       if (distanceKm === null) {
@@ -257,22 +237,8 @@ Gib ausschließlich die strukturierten Daten zurück.`,
         setError('Entfernung konnte nicht berechnet werden.');
         return;
       }
-      if (currentOrder.customer_id) {
-        const tiers = customerPriceTiers.filter(
-          (tier) => tier.customer_id === currentOrder.customer_id
-        );
-        const pricing = calculatePricing(tiers, distanceKm);
-        if (!pricing) {
-          setError('Keine passende Preisstaffel gefunden.');
-          return;
-        }
-        if (!priceManuallyEdited) {
-          customerPrice = pricing.customer_price;
-        }
-        pricingTierId = pricing.pricing_tier_id || null;
-      }
     } catch (err) {
-      setError(err?.message || 'Preisberechnung fehlgeschlagen.');
+      setError(err?.message || 'Entfernung konnte nicht berechnet werden.');
       return;
     }
 
@@ -280,25 +246,8 @@ Gib ausschließlich die strukturierten Daten zurück.`,
       ...currentOrder,
       distance_km: distanceKm,
     };
-    delete dataToSave.customer_price;
-    delete dataToSave.pricing_tier_id;
 
     const created = await createOrderMutation.mutateAsync(dataToSave);
-    if (isAdmin && currentOrder.customer_id && created?.id) {
-      const { error: pricingError } = await supabase.from('order_pricing').upsert(
-        {
-          order_id: created.id,
-          customer_id: currentOrder.customer_id,
-          distance_km: distanceKm,
-          customer_price: customerPrice,
-          pricing_tier_id: pricingTierId,
-        },
-        { onConflict: 'order_id' }
-      );
-      if (pricingError) {
-        setError(pricingError.message);
-      }
-    }
     const nextOrders = extractedOrders.filter((_, index) => index !== selectedOrderIndex);
     setExtractedOrders(nextOrders);
     if (!nextOrders.length) {
@@ -339,18 +288,12 @@ Gib ausschließlich die strukturierten Daten zurück.`,
       updateExtractedData('customer_name', '');
       updateExtractedData('customer_phone', '');
       updateExtractedData('customer_email', '');
-      updateExtractedData('customer_price', '');
-      updateExtractedData('pricing_tier_id', null);
-      updateExtractedData('price_manually_edited', false);
       return;
     }
     updateExtractedData('customer_id', customer.id);
     updateExtractedData('customer_name', customer.company_name || `${customer.first_name} ${customer.last_name}`);
     updateExtractedData('customer_phone', customer.phone);
     updateExtractedData('customer_email', customer.email);
-    updateExtractedData('customer_price', '');
-    updateExtractedData('pricing_tier_id', null);
-    updateExtractedData('price_manually_edited', false);
   };
 
   const removeOrder = (index) => {
@@ -385,7 +328,7 @@ Gib ausschließlich die strukturierten Daten zurück.`,
     currentOrder?.dropoff_city,
   ]);
 
-  const computeDistanceAndPrice = async (forcePrice = false) => {
+  const computeDistance = async () => {
     const order = extractedOrders[selectedOrderIndex];
     if (!order || !order.pickup_address || !order.dropoff_address) {
       setCalcError('');
@@ -407,27 +350,6 @@ Gib ausschließlich die strukturierten Daten zurück.`,
         return;
       }
       updateExtractedData('distance_km', formatKm(distanceKm));
-      if (order.customer_id) {
-        const tiers = customerPriceTiers.filter((tier) => tier.customer_id === order.customer_id);
-        const pricing = calculatePricing(tiers, distanceKm);
-        if (!pricing) {
-          updateExtractedData('pricing_tier_id', null);
-          if (!order.price_manually_edited || forcePrice) {
-            updateExtractedData('customer_price', '');
-          }
-          setCalcError('Keine passende Preisstaffel gefunden.');
-          return;
-        }
-        updateExtractedData('pricing_tier_id', pricing.pricing_tier_id || null);
-        if (!order.price_manually_edited || forcePrice) {
-          updateExtractedData('customer_price', pricing.customer_price?.toString?.() || '');
-        }
-      } else {
-        updateExtractedData('pricing_tier_id', null);
-        if (!order.price_manually_edited || forcePrice) {
-          updateExtractedData('customer_price', '');
-        }
-      }
     } catch (err) {
       setCalcError(err?.message || 'Entfernung konnte nicht berechnet werden.');
     } finally {
@@ -443,7 +365,7 @@ Gib ausschließlich die strukturierten Daten zurück.`,
     }
     if (distanceKey === lastCalcKeyRef.current) return;
     lastCalcKeyRef.current = distanceKey;
-    computeDistanceAndPrice();
+    computeDistance();
   }, [distanceKey, currentOrder]);
 
   return (
@@ -839,8 +761,7 @@ Gib ausschließlich die strukturierten Daten zurück.`,
                             variant="outline"
                             className="shrink-0"
                             onClick={() => {
-                              updateExtractedData('price_manually_edited', false);
-                              computeDistanceAndPrice(true);
+                              computeDistance();
                             }}
                             disabled={!currentOrder.pickup_address || !currentOrder.dropoff_address || calcLoading}
                           >
@@ -854,21 +775,6 @@ Gib ausschließlich die strukturierten Daten zurück.`,
                           <p className="mt-1 text-xs text-slate-500">Strecke wird berechnet…</p>
                         )}
                       </div>
-                      {isAdmin && (
-                        <div>
-                          <Label>Kundenpreis (€)</Label>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            value={currentOrder.customer_price || ''}
-                            onChange={(e) => {
-                              updateExtractedData('customer_price', e.target.value);
-                              updateExtractedData('price_manually_edited', true);
-                            }}
-                            placeholder="0.00"
-                          />
-                        </div>
-                      )}
                     </div>
                   </CardContent>
                 </Card>

@@ -5,7 +5,6 @@ import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { addDays, format, differenceInCalendarDays, isSameDay } from 'date-fns';
 import { de } from 'date-fns/locale';
-import { supabase } from '@/lib/supabaseClient';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -72,7 +71,6 @@ export default function Orders() {
   const [noteEditOpen, setNoteEditOpen] = useState({});
   const [noteEditDrafts, setNoteEditDrafts] = useState({});
   const [noteEditSaving, setNoteEditSaving] = useState({});
-  const isAdmin = currentUser?.role === 'admin';
 
   useEffect(() => {
     let active = true;
@@ -221,32 +219,7 @@ export default function Orders() {
       if (normalized.customer_id === '') {
         normalized.customer_id = null;
       }
-      delete normalized.customer_price;
-      delete normalized.pricing_tier_id;
-      delete normalized.price;
       return normalized;
-    };
-
-    const upsertPricing = async (orderId) => {
-      if (!isAdmin) return;
-      if (!orderId) return;
-      if (!data.customer_id) {
-        await supabase.from('order_pricing').delete().eq('order_id', orderId);
-        return;
-      }
-      const payload = {
-        order_id: orderId,
-        customer_id: data.customer_id,
-        distance_km: data.distance_km ?? null,
-        customer_price: data.customer_price ?? null,
-        pricing_tier_id: data.pricing_tier_id ?? null,
-      };
-      const { error } = await supabase
-        .from('order_pricing')
-        .upsert(payload, { onConflict: 'order_id' });
-      if (error) {
-        throw new Error(error.message);
-      }
     };
 
     if (selectedOrder) {
@@ -254,10 +227,8 @@ export default function Orders() {
         id: selectedOrder.id,
         data: normalizeOrderPayload(data),
       });
-      await upsertPricing(updated?.id || selectedOrder.id);
     } else {
-      const created = await createMutation.mutateAsync(normalizeOrderPayload(data));
-      await upsertPricing(created?.id);
+      await createMutation.mutateAsync(normalizeOrderPayload(data));
     }
   };
 

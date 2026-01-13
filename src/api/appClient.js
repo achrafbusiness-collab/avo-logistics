@@ -194,7 +194,17 @@ const uploadFileToStorage = async ({
     if (!companyId) {
       throw new Error("Unternehmen nicht gefunden. Bitte erneut anmelden.");
     }
-    const safeName = file.name.replace(/[^a-z0-9._-]/gi, "_");
+    const extensionFromType = (type) => {
+      if (type === "image/jpeg") return "jpg";
+      if (type === "image/png") return "png";
+      if (type === "application/pdf") return "pdf";
+      return "bin";
+    };
+    const rawName =
+      typeof file.name === "string" && file.name.trim()
+        ? file.name
+        : `upload-${Date.now()}.${extensionFromType(file.type)}`;
+    const safeName = rawName.replace(/[^a-z0-9._-]/gi, "_");
     const filePath = `${pathPrefix}/${companyId}/${userId}/${Date.now()}_${safeName}`;
     const { error: uploadError } = await supabase.storage
       .from(bucket)

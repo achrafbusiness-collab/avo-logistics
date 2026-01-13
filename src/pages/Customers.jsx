@@ -1,8 +1,7 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { appClient } from '@/api/appClient';
 import { createPageUrl } from '@/utils';
-import { supabase } from '@/lib/supabaseClient';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,14 +15,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -49,11 +40,8 @@ import {
   Trash2,
   Mail,
   Phone,
-  MapPin,
-  UploadCloud,
-  Sparkles
+  MapPin
 } from 'lucide-react';
-import * as XLSX from 'xlsx';
 
 export default function Customers() {
   const queryClient = useQueryClient();
@@ -64,17 +52,6 @@ export default function Customers() {
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [priceTierRows, setPriceTierRows] = useState([]);
-  const [priceTiersDirty, setPriceTiersDirty] = useState(false);
-  const [pricingError, setPricingError] = useState('');
-  const priceTierSeedRef = useRef(null);
-  const priceImportFileInputRef = useRef(null);
-  const [priceImportOpen, setPriceImportOpen] = useState(false);
-  const [priceImportFile, setPriceImportFile] = useState(null);
-  const [priceImportText, setPriceImportText] = useState('');
-  const [priceImportLoading, setPriceImportLoading] = useState(false);
-  const [priceImportError, setPriceImportError] = useState('');
-  const [priceImportTiers, setPriceImportTiers] = useState([]);
   
   const [formData, setFormData] = useState({
     customer_number: '',
@@ -97,20 +74,6 @@ export default function Customers() {
     queryKey: ['customers'],
     queryFn: () => appClient.entities.Customer.list('-created_date', 500),
   });
-
-  const { data: customerPriceTiers = [] } = useQuery({
-    queryKey: ['customer-price-tiers'],
-    queryFn: () => appClient.entities.CustomerPriceTier.list('min_km', 1000),
-  });
-
-  const tiersByCustomer = useMemo(() => {
-    return (customerPriceTiers || []).reduce((acc, tier) => {
-      if (!tier?.customer_id) return acc;
-      if (!acc[tier.customer_id]) acc[tier.customer_id] = [];
-      acc[tier.customer_id].push(tier);
-      return acc;
-    }, {});
-  }, [customerPriceTiers]);
 
   const createMutation = useMutation({
     mutationFn: (data) => appClient.entities.Customer.create(data),
@@ -178,331 +141,14 @@ export default function Customers() {
     }
   }, [selectedCustomer, view]);
 
-  useEffect(() => {
-    if (view !== 'form') {
-      setPriceTiersDirty(false);
-      priceTierSeedRef.current = null;
-      return;
-    }
-
-    const seedKey = selectedCustomer ? selectedCustomer.id : 'new';
-    const seedChanged = priceTierSeedRef.current !== seedKey;
-
-    if (!seedChanged && priceTiersDirty) {
-      return;
-    }
-
-    priceTierSeedRef.current = seedKey;
-
-    if (selectedCustomer) {
-      const tiers = tiersByCustomer[selectedCustomer.id] || [];
-      setPriceTierRows(
-        tiers.length > 0
-          ? tiers.map((tier) => ({
-              id: tier.id,
-              min_km: tier.min_km?.toString() || '',
-              max_km: tier.max_km?.toString() || '',
-              customer_price: tier.customer_price?.toString() || '',
-            }))
-          : [
-              {
-                id: `tier-${Date.now()}`,
-                min_km: '',
-                max_km: '',
-                customer_price: '',
-              },
-            ]
-      );
-    } else {
-      setPriceTierRows([
-        {
-          id: `tier-${Date.now()}`,
-          min_km: '',
-          max_km: '',
-          customer_price: '',
-        },
-      ]);
-    }
-    setPricingError('');
-    setPriceTiersDirty(false);
-  }, [selectedCustomer, tiersByCustomer, view, priceTiersDirty]);
-
-  const addPriceTier = () => {
-    setPriceTierRows((prev) => [
-      ...prev,
-      {
-        id: `tier-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-        min_km: '',
-        max_km: '',
-        customer_price: '',
-      },
-    ]);
-    setPriceTiersDirty(true);
-  };
-
-  const updatePriceTier = (id, field, value) => {
-    setPriceTierRows((prev) =>
-      prev.map((row) => (row.id === id ? { ...row, [field]: value } : row))
-    );
-    setPriceTiersDirty(true);
-  };
-
-  const removePriceTier = (id) => {
-    setPriceTierRows((prev) => prev.filter((row) => row.id !== id));
-    setPriceTiersDirty(true);
-  };
-
-  const resetPriceImportState = () => {
-    setPriceImportFile(null);
-    setPriceImportText('');
-    setPriceImportError('');
-    setPriceImportTiers([]);
-    setPriceImportLoading(false);
-  };
-
-  const toNumberOrNull = (value) => {
-    if (value === null || value === undefined || value === '') return null;
-    const num = Number(String(value).replace(',', '.'));
-    return Number.isFinite(num) ? num : null;
-  };
-
-  const ensureValidImport = (tiers) => {
-    if (!tiers.length) {
-      throw new Error('Keine Preisstaffeln erkannt.');
-    }
-    return tiers;
-  };
-
-  const fileToText = async (file) => {
-    const name = file.name.toLowerCase();
-    const isCsv = name.endsWith('.csv') || file.type === 'text/csv';
-    const isXlsx = name.endsWith('.xlsx') || name.endsWith('.xls');
-    const isPdf = name.endsWith('.pdf') || file.type === 'application/pdf';
-    const isDocx = name.endsWith('.docx');
-    const isImage = file.type.startsWith('image/');
-
-    if (isCsv || file.type.startsWith('text/')) {
-      return await file.text();
-    }
-
-    if (isXlsx) {
-      const buffer = await file.arrayBuffer();
-      const workbook = XLSX.read(buffer, { type: 'array' });
-      const sheetName = workbook.SheetNames[0];
-      const sheet = workbook.Sheets[sheetName];
-      return XLSX.utils.sheet_to_csv(sheet);
-    }
-
-    if (isDocx) {
-      const { extractRawText } = await import('mammoth');
-      const buffer = await file.arrayBuffer();
-      const result = await extractRawText({ arrayBuffer: buffer });
-      return result.value || '';
-    }
-
-    if (isPdf) {
-      const pdfjs = await import('pdfjs-dist/legacy/build/pdf');
-      const workerSrc = new URL(
-        'pdfjs-dist/legacy/build/pdf.worker.min.js',
-        import.meta.url
-      );
-      pdfjs.GlobalWorkerOptions.workerSrc = workerSrc.toString();
-      const buffer = await file.arrayBuffer();
-      const pdf = await pdfjs.getDocument({ data: buffer }).promise;
-      const pages = [];
-      for (let i = 1; i <= pdf.numPages; i += 1) {
-        const page = await pdf.getPage(i);
-        const content = await page.getTextContent();
-        const text = content.items.map((item) => item.str).join(' ');
-        pages.push(text);
-      }
-      return pages.join('\n');
-    }
-
-    if (isImage) {
-      const Tesseract = await import('tesseract.js');
-      const result = await Tesseract.recognize(file, 'deu+eng');
-      return result?.data?.text || '';
-    }
-
-    return '';
-  };
-
-  const analyzePriceTiers = async () => {
-    if (!priceImportFile && !priceImportText.trim()) {
-      setPriceImportError('Bitte Datei hochladen oder Text einfuegen.');
-      return;
-    }
-
-    setPriceImportLoading(true);
-    setPriceImportError('');
-
-    try {
-      const rawText = priceImportFile
-        ? await fileToText(priceImportFile)
-        : priceImportText;
-
-      if (!rawText.trim()) {
-        throw new Error('Keine lesbaren Daten gefunden.');
-      }
-
-      const result = await appClient.integrations.Core.InvokeLLM({
-        prompt: `Extrahiere aus dem folgenden Inhalt die Preisstaffeln.
-Es gibt nur Kundenpreise (Nettopreise in Euro).
-Gib IMMER ein Objekt mit "tiers" zurueck.
-
-Regeln:
-- Jede Staffel hat min_km, max_km (oder null fuer offen), price.
-- min_km und price sind Pflicht.
-
-Inhalt:
-${rawText}`,
-        response_json_schema: {
-          type: "object",
-          additionalProperties: false,
-          properties: {
-            tiers: {
-              type: "array",
-              items: {
-                type: "object",
-                additionalProperties: false,
-                properties: {
-                  min_km: { type: ["number", "string", "null"] },
-                  max_km: { type: ["number", "string", "null"] },
-                  price: { type: ["number", "string", "null"] },
-                },
-                required: ["min_km", "price"],
-              },
-            },
-          },
-          required: ["tiers"],
-        },
-      });
-
-      const tiers = (result.tiers || [])
-        .map((tier) => ({
-          min_km: toNumberOrNull(tier.min_km),
-          max_km: toNumberOrNull(tier.max_km),
-          customer_price: toNumberOrNull(tier.price),
-        }))
-        .filter((tier) => tier.min_km !== null && tier.customer_price !== null);
-
-      setPriceImportTiers(ensureValidImport(tiers));
-    } catch (err) {
-      setPriceImportError(err?.message || 'Analyse fehlgeschlagen.');
-    } finally {
-      setPriceImportLoading(false);
-    }
-  };
-
-  const applyImportedPriceTiers = () => {
-    if (!priceImportTiers.length) {
-      setPriceImportError('Keine Preisstaffeln zum Uebernehmen.');
-      return;
-    }
-
-    setPriceTierRows(
-      priceImportTiers.map((tier) => ({
-        id: `tier-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-        min_km: tier.min_km?.toString() || '',
-        max_km: tier.max_km?.toString() || '',
-        customer_price: tier.customer_price?.toString() || '',
-      }))
-    );
-    setPriceTiersDirty(true);
-    setPriceImportOpen(false);
-    resetPriceImportState();
-  };
-
-  const createUuid = () => {
-    if (typeof crypto !== 'undefined') {
-      if (crypto.randomUUID) return crypto.randomUUID();
-      if (crypto.getRandomValues) {
-        const bytes = new Uint8Array(16);
-        crypto.getRandomValues(bytes);
-        bytes[6] = (bytes[6] & 0x0f) | 0x40;
-        bytes[8] = (bytes[8] & 0x3f) | 0x80;
-        const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0'));
-        return [
-          hex.slice(0, 4).join(''),
-          hex.slice(4, 6).join(''),
-          hex.slice(6, 8).join(''),
-          hex.slice(8, 10).join(''),
-          hex.slice(10, 16).join(''),
-        ].join('-');
-      }
-    }
-    return `00000000-0000-4000-8000-${Math.random().toString(16).slice(2, 14).padEnd(12, '0')}`;
-  };
-
-  const normalizePriceTiers = () => {
-    const rows = priceTierRows
-      .map((row) => ({
-        id: row.id,
-        min_km: toNumberOrNull(row.min_km),
-        max_km: toNumberOrNull(row.max_km),
-        customer_price: toNumberOrNull(row.customer_price),
-      }))
-      .filter((row) =>
-        row.min_km !== null ||
-        row.max_km !== null ||
-        row.customer_price !== null
-      );
-
-    if (rows.length === 0) {
-      setPricingError('Bitte mindestens eine Preisstaffel hinterlegen.');
-      return null;
-    }
-
-    for (const row of rows) {
-      if (!Number.isFinite(row.min_km)) {
-        setPricingError('Jede Staffel braucht eine gültige Mindest-km Angabe.');
-        return null;
-      }
-      if (row.max_km !== null && row.max_km < row.min_km) {
-        setPricingError('Max-km darf nicht kleiner als Min-km sein.');
-        return null;
-      }
-      if (!Number.isFinite(row.customer_price)) {
-        setPricingError('Bitte den Kundenpreis für jede Staffel angeben.');
-        return null;
-      }
-    }
-
-    const sorted = [...rows].sort((a, b) => a.min_km - b.min_km);
-    for (let i = 1; i < sorted.length; i += 1) {
-      const prev = sorted[i - 1];
-      const current = sorted[i];
-      if (prev.max_km === null) {
-        setPricingError('Die letzte Staffel muss ein Ende haben, wenn weitere Staffeln folgen.');
-        return null;
-      }
-      if (current.min_km <= prev.max_km) {
-        setPricingError('Die Preisstaffeln dürfen sich nicht überschneiden.');
-        return null;
-      }
-    }
-
-    return sorted;
-  };
-
-  const isUuid = (value) =>
-    typeof value === 'string' &&
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
-    setPricingError('');
     try {
       const dataToSave = {
         ...formData,
       };
-
-      const normalizedTiers = normalizePriceTiers();
-      if (!normalizedTiers) {
-        return;
-      }
 
       let savedCustomer = null;
       if (selectedCustomer) {
@@ -513,56 +159,13 @@ ${rawText}`,
       } else {
         savedCustomer = await createMutation.mutateAsync(dataToSave);
       }
-
-      const customerId = savedCustomer?.id || selectedCustomer?.id;
-      const companyId = savedCustomer?.company_id || selectedCustomer?.company_id;
-      if (!customerId) {
-        throw new Error('Kunde konnte nicht gespeichert werden.');
-      }
-      if (!companyId) {
-        throw new Error('Company ID fehlt. Bitte erneut anmelden.');
-      }
-
-      const tiersToSave = normalizedTiers.map((tier) => ({
-        id: isUuid(tier.id) ? tier.id : createUuid(),
-        customer_id: customerId,
-        min_km: tier.min_km,
-        max_km: tier.max_km,
-        customer_price: tier.customer_price,
-        company_id: companyId,
-      }));
-
-      const { data: savedTiers, error: tierError } = await supabase
-        .from('customer_price_tiers')
-        .upsert(tiersToSave, { onConflict: 'id' })
-        .select('*');
-
-      if (tierError) {
-        throw new Error(tierError.message);
-      }
-
-      const keepIds = (savedTiers || []).map((tier) => tier.id);
-
-      if (keepIds.length > 0) {
-        const { error: deleteError } = await supabase
-          .from('customer_price_tiers')
-          .delete()
-          .eq('customer_id', customerId)
-          .not('id', 'in', `(${keepIds.join(',')})`);
-        if (deleteError) {
-          throw new Error(deleteError.message);
-        }
-      }
-
-      queryClient.setQueryData(['customer-price-tiers'], (prev = []) => {
-        const filtered = prev.filter((tier) => tier.customer_id !== customerId);
-        return [...filtered, ...(savedTiers || tiersToSave)];
-      });
       queryClient.invalidateQueries({ queryKey: ['customers'] });
-      setSelectedCustomer(savedCustomer);
+      if (savedCustomer) {
+        setSelectedCustomer(savedCustomer);
+      }
       setView('details');
     } catch (err) {
-      setPricingError(err?.message || 'Speichern fehlgeschlagen.');
+      console.error(err);
     } finally {
       setSaving(false);
     }
@@ -581,8 +184,6 @@ ${rawText}`,
            customer.customer_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
            customer.email?.toLowerCase().includes(searchTerm.toLowerCase());
   });
-
-  const getTierCount = (customerId) => tiersByCustomer[customerId]?.length || 0;
 
   // Form View
   if (view === 'form') {
@@ -651,134 +252,6 @@ ${rawText}`,
                   </Select>
                 </div>
               </div>
-
-              <Dialog open={priceImportOpen} onOpenChange={(open) => {
-                if (!open) resetPriceImportState();
-                setPriceImportOpen(open);
-              }}>
-                <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-                  <DialogHeader>
-                  <DialogTitle>Preisstaffeln importieren</DialogTitle>
-                  <DialogDescription>
-                      CSV, Excel, PDF, Bilder oder Text werden gescannt und in Preisstaffeln umgewandelt.
-                  </DialogDescription>
-                </DialogHeader>
-
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label>Datei hochladen</Label>
-                      <div
-                        className="flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-gray-200 bg-gray-50 px-4 py-6 text-center"
-                        onDragOver={(e) => e.preventDefault()}
-                        onDrop={(e) => {
-                          e.preventDefault();
-                          setPriceImportFile(e.dataTransfer.files?.[0] || null);
-                        }}
-                      >
-                        <UploadCloud className="w-6 h-6 text-gray-400" />
-                        <div className="text-sm text-gray-600">
-                          Datei hierher ziehen oder
-                          <Button
-                            type="button"
-                            variant="link"
-                            className="px-1 text-[#1e3a5f]"
-                            onClick={() => priceImportFileInputRef.current?.click()}
-                          >
-                            auswaehlen
-                          </Button>
-                        </div>
-                        <input
-                          ref={priceImportFileInputRef}
-                          type="file"
-                          accept=".pdf,.png,.jpg,.jpeg,.csv,.xlsx,.xls,.txt,.docx"
-                          className="hidden"
-                          onChange={(e) => setPriceImportFile(e.target.files?.[0] || null)}
-                        />
-                        {priceImportFile && (
-                          <p className="text-xs text-gray-600">
-                            Ausgewaehlt: {priceImportFile.name}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Oder Text einfuegen</Label>
-                      <Textarea
-                        value={priceImportText}
-                        onChange={(e) => setPriceImportText(e.target.value)}
-                        rows={5}
-                        placeholder="Preisliste hier einfuegen (z. B. Tabelle aus Excel oder E-Mail)"
-                      />
-                    </div>
-
-                    {priceImportError && (
-                      <p className="text-sm text-red-600">{priceImportError}</p>
-                    )}
-
-                    <Button
-                      type="button"
-                      onClick={analyzePriceTiers}
-                      disabled={priceImportLoading}
-                      className="bg-[#1e3a5f] hover:bg-[#2d5a8a]"
-                    >
-                      {priceImportLoading ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Analyse laeuft...
-                        </>
-                      ) : (
-                        <>
-                          <Sparkles className="w-4 h-4 mr-2" />
-                          Tabelle scannen
-                        </>
-                      )}
-                    </Button>
-
-                    {priceImportTiers.length > 0 && (
-                      <div className="space-y-4">
-                        <div>
-                          <h4 className="font-semibold">Vorschau</h4>
-                          <div className="overflow-x-auto border rounded-lg">
-                            <table className="min-w-full text-sm">
-                              <thead className="bg-gray-50">
-                                <tr>
-                                  <th className="px-3 py-2 text-left">Von km</th>
-                                  <th className="px-3 py-2 text-left">Bis km</th>
-                                  <th className="px-3 py-2 text-left">Kundenpreis (€)</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {priceImportTiers.map((tier, index) => (
-                                  <tr key={`${tier.min_km}-${tier.max_km}-${index}`} className="border-t">
-                                    <td className="px-3 py-2">{tier.min_km}</td>
-                                    <td className="px-3 py-2">{tier.max_km ?? 'offen'}</td>
-                                    <td className="px-3 py-2">{tier.customer_price}</td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <DialogFooter className="gap-2">
-                    <Button type="button" variant="outline" onClick={() => setPriceImportOpen(false)}>
-                      Abbrechen
-                    </Button>
-                    <Button
-                      type="button"
-                      onClick={applyImportedPriceTiers}
-                      disabled={!priceImportTiers.length}
-                      className="bg-[#1e3a5f] hover:bg-[#2d5a8a]"
-                    >
-                      Uebernehmen
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
 
               <Separator />
 
@@ -883,87 +356,6 @@ ${rawText}`,
                   </div>
                 </>
               )}
-
-              <Separator />
-
-              <div className="space-y-4">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <h3 className="font-semibold">Preisstaffeln (fix pro Auftrag)</h3>
-                  <div className="flex flex-col gap-2 sm:flex-row">
-                    <Button type="button" variant="outline" onClick={addPriceTier}>
-                      <Plus className="w-4 h-4 mr-2" />
-                      Staffel hinzufügen
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      onClick={() => {
-                        resetPriceImportState();
-                        setPriceImportOpen(true);
-                      }}
-                    >
-                      <Sparkles className="w-4 h-4 mr-2" />
-                      Preisstaffeln per AI importieren
-                    </Button>
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  {priceTierRows.map((tier) => (
-                    <div
-                      key={tier.id}
-                      className="grid grid-cols-1 gap-3 md:grid-cols-12 md:items-end"
-                    >
-                      <div className="md:col-span-2">
-                        <Label>Min. km</Label>
-                        <Input
-                          type="number"
-                          value={tier.min_km}
-                          onChange={(e) => updatePriceTier(tier.id, 'min_km', e.target.value)}
-                          placeholder="0"
-                        />
-                      </div>
-                      <div className="md:col-span-2">
-                        <Label>Max. km</Label>
-                        <Input
-                          type="number"
-                          value={tier.max_km}
-                          onChange={(e) => updatePriceTier(tier.id, 'max_km', e.target.value)}
-                          placeholder="Offen"
-                        />
-                      </div>
-                      <div className="md:col-span-3">
-                        <Label>Kundenpreis (€)</Label>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          value={tier.customer_price}
-                          onChange={(e) =>
-                            updatePriceTier(tier.id, 'customer_price', e.target.value)
-                          }
-                          placeholder="0.00"
-                        />
-                      </div>
-                      <div className="md:col-span-2 flex justify-end">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          className="text-red-600 hover:text-red-700"
-                          onClick={() => removePriceTier(tier.id)}
-                          disabled={priceTierRows.length === 1}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                {pricingError && <p className="text-sm text-red-600">{pricingError}</p>}
-                <p className="text-xs text-gray-500">
-                  Preise werden als fixer Betrag pro Auftrag je Kilometer-Staffel gespeichert.
-                </p>
-              </div>
-
-              <Separator />
 
               <div>
                 <Label>Notizen</Label>
@@ -1082,39 +474,6 @@ ${rawText}`,
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg">Preisliste</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {getTierCount(selectedCustomer.id) === 0 && (
-                  <p className="text-gray-500 text-sm">Keine Preisstaffeln hinterlegt</p>
-                )}
-                {getTierCount(selectedCustomer.id) > 0 && (
-                  <div className="space-y-2">
-                    {tiersByCustomer[selectedCustomer.id].map((tier) => (
-                      <div
-                        key={tier.id}
-                        className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-sm"
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="font-medium text-gray-900">
-                            {tier.min_km} km
-                            {tier.max_km !== null && tier.max_km !== undefined
-                              ? ` – ${tier.max_km} km`
-                              : ' +'}
-                          </span>
-                          <span className="text-xs text-gray-500">Fix pro Auftrag</span>
-                        </div>
-                        <div className="mt-1 flex items-center justify-between text-gray-700">
-                          <span>Kunde: {Number(tier.customer_price).toFixed(2)} €</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
           </div>
 
           {selectedCustomer.notes && (
@@ -1217,12 +576,6 @@ ${rawText}`,
                   <div className="flex-1 min-w-0">
                     <h3 className="font-semibold truncate">{getCustomerName(customer)}</h3>
                     <p className="text-sm text-gray-500">{customer.customer_number}</p>
-                    {getTierCount(customer.id) > 0 && (
-                      <p className="text-sm text-[#1e3a5f] font-medium mt-1">
-                        {getTierCount(customer.id)} Preisstaffel
-                        {getTierCount(customer.id) !== 1 ? 'n' : ''}
-                      </p>
-                    )}
                   </div>
                 </div>
               </CardContent>
