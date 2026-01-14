@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { appClient } from "@/api/appClient";
@@ -18,6 +18,21 @@ const formatDateTime = (value) => {
     hour: "2-digit",
     minute: "2-digit",
   })}`;
+};
+
+const toDateTimeLocalValue = (value) => {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const pad = (num) => String(num).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(
+    date.getHours()
+  )}:${pad(date.getMinutes())}`;
+};
+
+const formatKmValue = (value) => {
+  if (value === null || value === undefined || value === "") return "-";
+  return `${value} km`;
 };
 
 const labelForFuel = (value) => {
@@ -85,6 +100,11 @@ export default function ProtocolPdf() {
   const [params] = useSearchParams();
   const checklistId = params.get("checklistId");
   const shouldPrint = params.get("print") === "1";
+  const [editMode, setEditMode] = useState(false);
+  const [editValues, setEditValues] = useState({
+    pickup: { datetime: null, kilometer: null },
+    dropoff: { datetime: null, kilometer: null },
+  });
 
   const { data: checklist } = useQuery({
     queryKey: ["checklist-pdf", checklistId],
@@ -166,6 +186,10 @@ export default function ProtocolPdf() {
     order.dropoff_postal_code,
     order.dropoff_city
   );
+  const pickupDateTime = editValues.pickup.datetime ?? pickupChecklist?.datetime ?? "";
+  const dropoffDateTime = editValues.dropoff.datetime ?? dropoffChecklist?.datetime ?? "";
+  const pickupKilometer = editValues.pickup.kilometer ?? pickupChecklist?.kilometer ?? "";
+  const dropoffKilometer = editValues.dropoff.kilometer ?? dropoffChecklist?.kilometer ?? "";
 
   return (
     <div className="protocol-pdf">
@@ -218,14 +242,21 @@ export default function ProtocolPdf() {
         .pdf-photo-card img { width: 100%; height: 260px; object-fit: contain; border-radius: 8px; background: #f8fafc; }
         .pdf-photo-caption { margin-top: 6px; font-size: 11px; color: #334155; }
         .pdf-divider { height: 1px; background: #e2e8f0; margin: 18px 0; }
-        .pdf-actions { max-width: 980px; margin: 0 auto 16px; display: flex; gap: 12px; }
+        .pdf-actions { max-width: 980px; margin: 0 auto 16px; display: flex; gap: 12px; flex-wrap: wrap; }
         .pdf-button { background: #1e3a5f; color: white; border: none; padding: 10px 16px; border-radius: 8px; cursor: pointer; }
         .pdf-button.secondary { background: #e2e8f0; color: #0f172a; }
+        .pdf-editor { max-width: 980px; margin: 0 auto 16px; background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px; display: grid; gap: 12px; }
+        .pdf-editor-title { font-weight: 600; color: #1e3a5f; }
+        .pdf-editor-grid { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .pdf-editor-field { display: grid; gap: 6px; font-size: 12px; color: #334155; }
+        .pdf-editor-field input { border: 1px solid #cbd5f5; border-radius: 8px; padding: 8px 10px; font-size: 12px; }
+        .pdf-editor-actions { display: flex; gap: 10px; }
         .pdf-photo-page { page-break-before: always; }
         .pdf-protocol-page { page-break-after: always; min-height: 297mm; }
         @page { size: A4; margin: 10mm; }
         @media print {
           .pdf-actions { display: none; }
+          .pdf-editor { display: none; }
           .protocol-pdf { background: white; padding: 0; }
           .pdf-page { box-shadow: none; border: none; margin: 0; width: 210mm; min-height: 297mm; padding: 6mm 8mm; }
           .pdf-header { padding-bottom: 6mm; }
@@ -249,7 +280,84 @@ export default function ProtocolPdf() {
         <button className="pdf-button secondary" onClick={() => window.history.back()}>
           Zurück
         </button>
+        <button className="pdf-button secondary" onClick={() => setEditMode((prev) => !prev)}>
+          {editMode ? "Bearbeitung schließen" : "Daten bearbeiten"}
+        </button>
       </div>
+      {editMode && (
+        <div className="pdf-editor">
+          <div className="pdf-editor-title">Daten vor dem Druck anpassen</div>
+          <div className="pdf-editor-grid">
+            <label className="pdf-editor-field">
+              Übernahme: Datum & Uhrzeit
+              <input
+                type="datetime-local"
+                value={editValues.pickup.datetime ?? toDateTimeLocalValue(pickupChecklist?.datetime)}
+                onChange={(event) =>
+                  setEditValues((prev) => ({
+                    ...prev,
+                    pickup: { ...prev.pickup, datetime: event.target.value || "" },
+                  }))
+                }
+              />
+            </label>
+            <label className="pdf-editor-field">
+              Übergabe: Datum & Uhrzeit
+              <input
+                type="datetime-local"
+                value={editValues.dropoff.datetime ?? toDateTimeLocalValue(dropoffChecklist?.datetime)}
+                onChange={(event) =>
+                  setEditValues((prev) => ({
+                    ...prev,
+                    dropoff: { ...prev.dropoff, datetime: event.target.value || "" },
+                  }))
+                }
+              />
+            </label>
+            <label className="pdf-editor-field">
+              Übernahme: Kilometerstand
+              <input
+                type="number"
+                step="0.1"
+                value={editValues.pickup.kilometer ?? pickupChecklist?.kilometer ?? ""}
+                onChange={(event) =>
+                  setEditValues((prev) => ({
+                    ...prev,
+                    pickup: { ...prev.pickup, kilometer: event.target.value },
+                  }))
+                }
+              />
+            </label>
+            <label className="pdf-editor-field">
+              Übergabe: Kilometerstand
+              <input
+                type="number"
+                step="0.1"
+                value={editValues.dropoff.kilometer ?? dropoffChecklist?.kilometer ?? ""}
+                onChange={(event) =>
+                  setEditValues((prev) => ({
+                    ...prev,
+                    dropoff: { ...prev.dropoff, kilometer: event.target.value },
+                  }))
+                }
+              />
+            </label>
+          </div>
+          <div className="pdf-editor-actions">
+            <button
+              className="pdf-button secondary"
+              onClick={() =>
+                setEditValues({
+                  pickup: { datetime: null, kilometer: null },
+                  dropoff: { datetime: null, kilometer: null },
+                })
+              }
+            >
+              Zurücksetzen
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="pdf-page pdf-protocol-page">
         <div className="pdf-header">
@@ -305,7 +413,7 @@ export default function ProtocolPdf() {
             <div className="pdf-mini-grid">
               <div className="pdf-field">
                 <div className="pdf-field-label">Datum & Uhrzeit</div>
-                <div className="pdf-field-value">{formatDateTime(pickupChecklist?.datetime)}</div>
+                <div className="pdf-field-value">{formatDateTime(pickupDateTime)}</div>
               </div>
               <div className="pdf-field">
                 <div className="pdf-field-label">Fahrer</div>
@@ -319,7 +427,7 @@ export default function ProtocolPdf() {
             <div className="pdf-mini-grid three">
               <div className="pdf-field">
                 <div className="pdf-field-label">Kilometerstand</div>
-                <div className="pdf-field-value">{pickupChecklist?.kilometer || "-"} km</div>
+                <div className="pdf-field-value">{formatKmValue(pickupKilometer)}</div>
               </div>
               <div className="pdf-field">
                 <div className="pdf-field-label">Tankstand</div>
@@ -424,7 +532,7 @@ export default function ProtocolPdf() {
             <div className="pdf-mini-grid">
               <div className="pdf-field">
                 <div className="pdf-field-label">Datum & Uhrzeit</div>
-                <div className="pdf-field-value">{formatDateTime(dropoffChecklist?.datetime)}</div>
+                <div className="pdf-field-value">{formatDateTime(dropoffDateTime)}</div>
               </div>
               <div className="pdf-field">
                 <div className="pdf-field-label">Fahrer</div>
@@ -438,7 +546,7 @@ export default function ProtocolPdf() {
             <div className="pdf-mini-grid three">
               <div className="pdf-field">
                 <div className="pdf-field-label">Kilometerstand</div>
-                <div className="pdf-field-value">{dropoffChecklist?.kilometer || "-"} km</div>
+                <div className="pdf-field-value">{formatKmValue(dropoffKilometer)}</div>
               </div>
               <div className="pdf-field">
                 <div className="pdf-field-label">Tankstand</div>
