@@ -68,6 +68,8 @@ const EXPENSE_TYPES = [
   { value: 'other', labelKey: 'protocol.expenses.types.other' },
 ];
 
+const DAMAGE_DELAY_SECONDS = 30;
+
 export default function DriverProtocol() {
   const { t } = useI18n();
   const queryClient = useQueryClient();
@@ -88,6 +90,11 @@ export default function DriverProtocol() {
   const [photoCameraActive, setPhotoCameraActive] = useState(false);
   const [activeChecklistId, setActiveChecklistId] = useState(checklistId);
   const draftCreateRef = useRef(null);
+  const [damageDelay, setDamageDelay] = useState({
+    open: false,
+    remaining: DAMAGE_DELAY_SECONDS,
+    nextStep: null,
+  });
 
   const [formData, setFormData] = useState({
     order_id: orderId,
@@ -206,6 +213,19 @@ export default function DriverProtocol() {
       setPendingDamagePhoto(null);
     }
   }, [pendingDamagePhoto]);
+
+  useEffect(() => {
+    if (!damageDelay.open) return;
+    if (damageDelay.remaining <= 0) return;
+    const interval = window.setInterval(() => {
+      setDamageDelay((prev) => {
+        if (!prev.open) return prev;
+        const nextRemaining = Math.max(0, prev.remaining - 1);
+        return { ...prev, remaining: nextRemaining };
+      });
+    }, 1000);
+    return () => window.clearInterval(interval);
+  }, [damageDelay.open, damageDelay.remaining]);
 
   useEffect(() => {
     if (!order || formData.location || existingChecklist) {
@@ -638,11 +658,19 @@ export default function DriverProtocol() {
     [type]
   );
 
-  const handleBeforeNext = (stepId) => {
+  const handleBeforeNext = (stepId, nextStep) => {
     if (isViewOnly) return true;
     const reason = getStepBlockingReason(stepId);
     if (reason) {
       setSubmitError(reason);
+      return false;
+    }
+    if (stepId === 'damage' && type === 'pickup' && !damageDelay.open) {
+      setDamageDelay({
+        open: true,
+        remaining: DAMAGE_DELAY_SECONDS,
+        nextStep: nextStep || null,
+      });
       return false;
     }
     setSubmitError('');
@@ -1371,6 +1399,49 @@ export default function DriverProtocol() {
               height={320}
             />
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={damageDelay.open}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDamageDelay({
+              open: false,
+              remaining: DAMAGE_DELAY_SECONDS,
+              nextStep: null,
+            });
+          }
+        }}
+      >
+        <DialogContent className="w-[92vw] max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('protocol.damage.waitTitle')}</DialogTitle>
+            <DialogDescription>{t('protocol.damage.waitMessage', { seconds: damageDelay.remaining })}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="text-sm text-slate-600">
+              {t('protocol.damage.waitCountdown', { seconds: damageDelay.remaining })}
+            </div>
+            <Button
+              className="w-full bg-[#1e3a5f] hover:bg-[#2d5a8a]"
+              disabled={damageDelay.remaining > 0}
+              onClick={() => {
+                if (damageDelay.remaining > 0) return;
+                const next = damageDelay.nextStep;
+                setDamageDelay({
+                  open: false,
+                  remaining: DAMAGE_DELAY_SECONDS,
+                  nextStep: null,
+                });
+                if (next) {
+                  setCurrentStep(next);
+                }
+              }}
+            >
+              {t('protocol.damage.waitButton')}
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
 

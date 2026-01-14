@@ -309,6 +309,10 @@
         "medium": "Medium",
         "severe": "Severe"
       },
+      "waitTitle": "Damage check",
+      "waitMessage": "Please inspect the vehicle for damages. You can continue in {{seconds}} seconds.",
+      "waitCountdown": "{{seconds}} seconds remaining",
+      "waitButton": "Continue",
       "add": "Add damage",
       "none": "No damages",
       "empty": "No damages recorded"

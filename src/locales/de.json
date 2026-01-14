@@ -309,6 +309,10 @@
         "medium": "Mittel",
         "severe": "Schwer"
       },
+      "waitTitle": "Schadenprüfung",
+      "waitMessage": "Bitte überprüfe das Fahrzeug auf Schäden. Du kannst in {{seconds}} Sekunden fortfahren.",
+      "waitCountdown": "Noch {{seconds}} Sekunden",
+      "waitButton": "Weiter",
       "add": "Schaden hinzufügen",
       "none": "Keine Schäden",
       "empty": "Keine Schäden erfasst"

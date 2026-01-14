@@ -309,6 +309,10 @@
         "medium": "Media",
         "severe": "Grave"
       },
+      "waitTitle": "Revisión de daños",
+      "waitMessage": "Por favor revisa el vehículo por daños. Puedes continuar en {{seconds}} segundos.",
+      "waitCountdown": "Quedan {{seconds}} segundos",
+      "waitButton": "Continuar",
       "add": "Añadir daño",
       "none": "Sin daños",
       "empty": "No se registraron daños"
