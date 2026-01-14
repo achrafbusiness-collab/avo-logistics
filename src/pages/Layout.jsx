@@ -1,6 +1,6 @@
 
-import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { appClient } from '@/api/appClient';
 import { 
@@ -53,6 +53,8 @@ export default function Layout({ children, currentPageName }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [user, setUser] = useState(null);
   const [isDriver, setIsDriver] = useState(false);
+  const location = useLocation();
+  const mainRef = useRef(null);
   const { t, dir } = useI18n();
   const [darkMode, setDarkMode] = useState(() => {
     const saved = localStorage.getItem('avo-dark-mode');
@@ -71,6 +73,32 @@ export default function Layout({ children, currentPageName }) {
       document.documentElement.classList.remove('dark');
     }
   }, [darkMode]);
+
+  useEffect(() => {
+    if (isDriver) return;
+    const node = mainRef.current;
+    if (!node) return;
+    const key = `scroll:admin:${location.pathname}${location.search}`;
+    const handleScroll = () => {
+      sessionStorage.setItem(key, String(node.scrollTop));
+    };
+    node.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      node.removeEventListener('scroll', handleScroll);
+    };
+  }, [isDriver, location.pathname, location.search]);
+
+  useEffect(() => {
+    if (isDriver) return;
+    const node = mainRef.current;
+    if (!node) return;
+    const key = `scroll:admin:${location.pathname}${location.search}`;
+    const saved = sessionStorage.getItem(key);
+    const nextTop = saved ? Number(saved) : 0;
+    requestAnimationFrame(() => {
+      node.scrollTop = Number.isFinite(nextTop) ? nextTop : 0;
+    });
+  }, [isDriver, location.pathname, location.search]);
 
   const loadUser = async () => {
     try {
@@ -311,7 +339,10 @@ export default function Layout({ children, currentPageName }) {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 p-4 lg:p-6 overflow-y-auto bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950">
+        <main
+          ref={mainRef}
+          className="flex-1 p-4 lg:p-6 overflow-y-auto bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950"
+        >
           <div className="min-h-full rounded-[28px] bg-gradient-to-br from-white via-slate-50 to-blue-50/70 p-5 lg:p-8 shadow-[0_30px_60px_-40px_rgba(15,23,42,0.8)]">
             {children}
           </div>

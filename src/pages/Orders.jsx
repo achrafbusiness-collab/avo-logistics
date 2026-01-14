@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { appClient } from '@/api/appClient';
 import { Link } from 'react-router-dom';
@@ -71,6 +71,30 @@ export default function Orders() {
   const [noteEditOpen, setNoteEditOpen] = useState({});
   const [noteEditDrafts, setNoteEditDrafts] = useState({});
   const [noteEditSaving, setNoteEditSaving] = useState({});
+  const listScrollTopRef = useRef(0);
+
+  const getScrollContainer = () => document.querySelector('main');
+
+  const storeListScroll = () => {
+    const node = getScrollContainer();
+    if (!node) return;
+    listScrollTopRef.current = node.scrollTop;
+  };
+
+  const restoreListScroll = () => {
+    const node = getScrollContainer();
+    if (!node) return;
+    const target = Number.isFinite(listScrollTopRef.current) ? listScrollTopRef.current : 0;
+    requestAnimationFrame(() => {
+      node.scrollTop = target;
+    });
+  };
+
+  useEffect(() => {
+    if (view === 'list') {
+      restoreListScroll();
+    }
+  }, [view]);
 
   useEffect(() => {
     let active = true;
@@ -595,6 +619,7 @@ export default function Orders() {
           <Button 
             className="bg-[#1e3a5f] hover:bg-[#2d5a8a]"
             onClick={() => {
+              storeListScroll();
               setSelectedOrder(null);
               setView('form');
             }}
@@ -819,6 +844,7 @@ export default function Orders() {
                       key={order.id}
                       className={`cursor-pointer ${rowTone}`}
                       onClick={() => {
+                        storeListScroll();
                         setSelectedOrder(order);
                         setView('details');
                         window.history.pushState({}, '', createPageUrl('Orders') + `?id=${order.id}`);
