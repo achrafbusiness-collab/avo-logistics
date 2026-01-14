@@ -4,6 +4,8 @@ const tableMap = {
   Order: "orders",
   OrderNote: "order_notes",
   OrderDocument: "order_documents",
+  OrderHandoff: "order_handoffs",
+  OrderSegment: "order_segments",
   DriverDocument: "driver_documents",
   Driver: "drivers",
   Customer: "customers",

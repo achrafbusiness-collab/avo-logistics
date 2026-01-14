@@ -5,8 +5,13 @@ import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import StatusBadge from '@/components/ui/StatusBadge';
 import { useI18n } from '@/i18n';
+import { getMapboxDistanceKmFromAddresses, reverseGeocode } from '@/utils/mapboxDistance';
 import { 
   ArrowLeft,
   MapPin,
@@ -18,7 +23,8 @@ import {
   ExternalLink,
   Calendar,
   Clock,
-  Loader2
+  Loader2,
+  LocateFixed
 } from 'lucide-react';
 
 export default function DriverChecklist() {
@@ -29,6 +35,12 @@ export default function DriverChecklist() {
 
   const [user, setUser] = useState(null);
   const [currentDriver, setCurrentDriver] = useState(null);
+  const [handoffDialogOpen, setHandoffDialogOpen] = useState(false);
+  const [handoffForm, setHandoffForm] = useState({ location: '', notes: '' });
+  const [handoffCoords, setHandoffCoords] = useState(null);
+  const [handoffError, setHandoffError] = useState('');
+  const [handoffSaving, setHandoffSaving] = useState(false);
+  const [gpsLoading, setGpsLoading] = useState(false);
 
   useEffect(() => {
     loadUser();
@@ -81,6 +93,12 @@ export default function DriverChecklist() {
     enabled: !!orderId,
   });
 
+  const { data: handoffs = [], isLoading: handoffsLoading } = useQuery({
+    queryKey: ['order-handoffs', orderId],
+    queryFn: () => appClient.entities.OrderHandoff.filter({ order_id: orderId }, '-created_date'),
+    enabled: !!orderId,
+  });
+
   const pickupChecklist = checklists.find(c => c.type === 'pickup');
   const dropoffChecklist = checklists.find(c => c.type === 'dropoff');
 
@@ -91,9 +109,130 @@ export default function DriverChecklist() {
     },
   });
 
-  const isLoading = orderLoading || checklistsLoading || docsLoading;
+  const acceptHandoffMutation = useMutation({
+    mutationFn: ({ id, data }) => appClient.entities.OrderHandoff.update(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['order-handoffs', orderId] });
+    },
+  });
+
+  const isLoading = orderLoading || checklistsLoading || docsLoading || handoffsLoading;
   const formatCurrency = (value) =>
     formatNumber(value ?? 0, { style: 'currency', currency: 'EUR' });
+
+  const orderedHandoffs = [...(handoffs || [])].sort((a, b) => {
+    const aDate = new Date(a.created_date || a.created_at || 0).getTime();
+    const bDate = new Date(b.created_date || b.created_at || 0).getTime();
+    return bDate - aDate;
+  });
+  const latestHandoff = orderedHandoffs[0];
+  const pendingHandoff = orderedHandoffs.find((handoff) => handoff.status === 'pending');
+  const canCreateHandoff = Boolean(
+    currentDriver && pickupChecklist && !dropoffChecklist && !pendingHandoff
+  );
+  const canAcceptHandoff = Boolean(
+    currentDriver &&
+      pendingHandoff &&
+      pendingHandoff.created_by_driver_id !== currentDriver.id
+  );
+  const mustAcceptHandoff = Boolean(
+    pendingHandoff && pendingHandoff.created_by_driver_id !== currentDriver?.id
+  );
+
+  const pickupLocation = [order?.pickup_address, order?.pickup_postal_code, order?.pickup_city]
+    .filter(Boolean)
+    .join(', ');
+
+  const getSegmentStart = () => {
+    if (latestHandoff?.location) return latestHandoff.location;
+    return pickupLocation || '';
+  };
+
+  const handleUseGps = async () => {
+    if (!navigator.geolocation) {
+      setHandoffError(t('handoff.errors.noGps'));
+      return;
+    }
+    setGpsLoading(true);
+    setHandoffError('');
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        try {
+          const latitude = position.coords.latitude;
+          const longitude = position.coords.longitude;
+          const address = await reverseGeocode({ latitude, longitude });
+          setHandoffForm((prev) => ({ ...prev, location: address || `${latitude}, ${longitude}` }));
+          setHandoffCoords({ latitude, longitude });
+        } catch (error) {
+          setHandoffError(t('handoff.errors.reverseGeocode'));
+        } finally {
+          setGpsLoading(false);
+        }
+      },
+      () => {
+        setHandoffError(t('handoff.errors.gpsFailed'));
+        setGpsLoading(false);
+      }
+    );
+  };
+
+  const submitHandoff = async () => {
+    if (!handoffForm.location.trim()) {
+      setHandoffError(t('handoff.errors.locationRequired'));
+      return;
+    }
+    setHandoffSaving(true);
+    setHandoffError('');
+    try {
+      const startLocation = getSegmentStart();
+      let distanceKm = null;
+      if (startLocation) {
+        try {
+          distanceKm = await getMapboxDistanceKmFromAddresses({
+            from: startLocation,
+            to: handoffForm.location.trim(),
+          });
+        } catch (error) {
+          distanceKm = null;
+        }
+      }
+
+      const createdHandoff = await appClient.entities.OrderHandoff.create({
+        order_id: orderId,
+        company_id: order.company_id,
+        created_by_driver_id: currentDriver?.id,
+        created_by_driver_name: currentDriver?.name,
+        location: handoffForm.location.trim(),
+        location_lat: handoffCoords?.latitude ?? null,
+        location_lng: handoffCoords?.longitude ?? null,
+        notes: handoffForm.notes?.trim() || null,
+        status: 'pending',
+      });
+
+      await appClient.entities.OrderSegment.create({
+        order_id: orderId,
+        company_id: order.company_id,
+        handoff_id: createdHandoff.id,
+        driver_id: currentDriver?.id,
+        driver_name: currentDriver?.name,
+        segment_type: 'handoff',
+        start_location: startLocation || null,
+        end_location: handoffForm.location.trim(),
+        distance_km: distanceKm,
+        price: null,
+      });
+
+      setHandoffDialogOpen(false);
+      setHandoffForm({ location: '', notes: '' });
+      setHandoffCoords(null);
+      queryClient.invalidateQueries({ queryKey: ['order-handoffs', orderId] });
+      queryClient.invalidateQueries({ queryKey: ['order-segments', orderId] });
+    } catch (error) {
+      setHandoffError(error?.message || t('handoff.errors.saveFailed'));
+    } finally {
+      setHandoffSaving(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -269,6 +408,73 @@ export default function DriverChecklist() {
           </CardContent>
         </Card>
 
+        {(pendingHandoff || canCreateHandoff) && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <MapPin className="w-4 h-4" />
+                {t('handoff.title')}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {pendingHandoff ? (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                  <p className="font-semibold">{t('handoff.pendingTitle')}</p>
+                  <p className="text-amber-800">{pendingHandoff.location}</p>
+                  {pendingHandoff.notes && (
+                    <p className="text-xs text-amber-700 mt-2">{pendingHandoff.notes}</p>
+                  )}
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    {canAcceptHandoff ? (
+                      <Button
+                        size="sm"
+                        className="bg-amber-600 hover:bg-amber-700"
+                        onClick={() =>
+                          acceptHandoffMutation.mutate({
+                            id: pendingHandoff.id,
+                            data: {
+                              status: 'accepted',
+                              accepted_by_driver_id: currentDriver?.id,
+                              accepted_by_driver_name: currentDriver?.name,
+                              accepted_at: new Date().toISOString(),
+                            },
+                          })
+                        }
+                      >
+                        {t('handoff.accept')}
+                      </Button>
+                    ) : (
+                      <span className="text-xs text-amber-700">{t('handoff.pendingByYou')}</span>
+                    )}
+                  </div>
+                </div>
+              ) : latestHandoff ? (
+                <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
+                  <p className="font-semibold">{t('handoff.acceptedTitle')}</p>
+                  <p className="text-emerald-800">{latestHandoff.location}</p>
+                  {latestHandoff.accepted_by_driver_name && (
+                    <p className="text-xs text-emerald-700 mt-2">
+                      {t('handoff.acceptedBy', { name: latestHandoff.accepted_by_driver_name })}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500">{t('handoff.none')}</p>
+              )}
+
+              {canCreateHandoff && (
+                <Button
+                  type="button"
+                  className="w-full bg-[#1e3a5f] hover:bg-[#2d5a8a]"
+                  onClick={() => setHandoffDialogOpen(true)}
+                >
+                  {t('handoff.create')}
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         {/* Documents */}
         <Card>
           <CardHeader className="pb-2">
@@ -410,28 +616,85 @@ export default function DriverChecklist() {
                   </div>
                 </div>
                 {(pickupChecklist || dropoffChecklist) && (
-                  <Link to={createPageUrl('DriverProtocol') + `?orderId=${order.id}&type=dropoff${dropoffChecklist ? `&checklistId=${dropoffChecklist.id}` : ''}`}>
-                    <Button 
-                      size="sm"
-                      variant={dropoffChecklist ? 'outline' : 'default'}
-                    className={!dropoffChecklist ? 'bg-green-600 hover:bg-green-700' : ''}
-                  >
-                    {dropoffChecklist ? (
-                      <>{t('checklist.protocols.view')}</>
-                    ) : (
-                      <>
-                        <Play className="w-4 h-4 mr-1" />
-                        {t('checklist.protocols.start')}
-                      </>
-                    )}
-                  </Button>
-                </Link>
-              )}
+                  mustAcceptHandoff && !dropoffChecklist ? (
+                    <Button size="sm" variant="outline" disabled>
+                      {t('handoff.acceptRequired')}
+                    </Button>
+                  ) : (
+                    <Link to={createPageUrl('DriverProtocol') + `?orderId=${order.id}&type=dropoff${dropoffChecklist ? `&checklistId=${dropoffChecklist.id}` : ''}`}>
+                      <Button
+                        size="sm"
+                        variant={dropoffChecklist ? 'outline' : 'default'}
+                        className={!dropoffChecklist ? 'bg-green-600 hover:bg-green-700' : ''}
+                      >
+                        {dropoffChecklist ? (
+                          <>{t('checklist.protocols.view')}</>
+                        ) : (
+                          <>
+                            <Play className="w-4 h-4 mr-1" />
+                            {t('checklist.protocols.start')}
+                          </>
+                        )}
+                      </Button>
+                    </Link>
+                  )
+                )}
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={handoffDialogOpen} onOpenChange={setHandoffDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('handoff.dialogTitle')}</DialogTitle>
+            <DialogDescription>{t('handoff.dialogDescription')}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <Label>{t('handoff.locationLabel')}</Label>
+              <Input
+                value={handoffForm.location}
+                onChange={(event) =>
+                  setHandoffForm((prev) => ({ ...prev, location: event.target.value }))
+                }
+                placeholder={t('handoff.locationPlaceholder')}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="w-full"
+                onClick={handleUseGps}
+                disabled={gpsLoading}
+              >
+                <LocateFixed className="w-4 h-4 mr-2" />
+                {gpsLoading ? t('handoff.gpsLoading') : t('handoff.useGps')}
+              </Button>
+            </div>
+            <div className="space-y-2">
+              <Label>{t('handoff.notesLabel')}</Label>
+              <Textarea
+                value={handoffForm.notes}
+                onChange={(event) =>
+                  setHandoffForm((prev) => ({ ...prev, notes: event.target.value }))
+                }
+                placeholder={t('handoff.notesPlaceholder')}
+              />
+            </div>
+            {handoffError && <p className="text-sm text-red-600">{handoffError}</p>}
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setHandoffDialogOpen(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button onClick={submitHandoff} disabled={handoffSaving}>
+              {handoffSaving ? t('common.saving') : t('handoff.save')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -27,6 +27,7 @@ import SignaturePad from '@/components/driver/SignaturePad';
 import PhotoCapture, { REQUIRED_PHOTO_IDS } from '@/components/driver/PhotoCapture';
 import ProtocolWizard from '@/components/driver/ProtocolWizard';
 import { useI18n } from '@/i18n';
+import { getMapboxDistanceKmFromAddresses } from '@/utils/mapboxDistance';
 import { 
   ArrowLeft,
   Loader2,
@@ -174,6 +175,18 @@ export default function DriverProtocol() {
     enabled: !!orderId,
   });
 
+  const { data: handoffs = [] } = useQuery({
+    queryKey: ['order-handoffs', orderId],
+    queryFn: () => appClient.entities.OrderHandoff.filter({ order_id: orderId }, '-created_date'),
+    enabled: !!orderId,
+  });
+
+  const { data: orderSegments = [] } = useQuery({
+    queryKey: ['order-segments', orderId],
+    queryFn: () => appClient.entities.OrderSegment.filter({ order_id: orderId }, '-created_date', 200),
+    enabled: !!orderId,
+  });
+
   const { data: appSettingsList = [] } = useQuery({
     queryKey: ['appSettings'],
     queryFn: () => appClient.entities.AppSettings.list('-created_date', 1),
@@ -191,6 +204,28 @@ export default function DriverProtocol() {
     enabled: !!activeChecklistId,
   });
   const isViewOnly = Boolean(activeChecklistId && existingChecklist?.completed);
+
+  const pickupLocation = [order?.pickup_address, order?.pickup_postal_code, order?.pickup_city]
+    .filter(Boolean)
+    .join(', ');
+  const dropoffLocation = [order?.dropoff_address, order?.dropoff_postal_code, order?.dropoff_city]
+    .filter(Boolean)
+    .join(', ');
+
+  const sortedAcceptedHandoffs = useMemo(() => {
+    return handoffs
+      .filter((handoff) => handoff.status === 'accepted')
+      .sort((a, b) => {
+        const aDate = new Date(a.created_date || a.created_at || 0).getTime();
+        const bDate = new Date(b.created_date || b.created_at || 0).getTime();
+        return bDate - aDate;
+      });
+  }, [handoffs]);
+  const latestAcceptedHandoff = sortedAcceptedHandoffs[0];
+  const pendingHandoff = useMemo(
+    () => handoffs.find((handoff) => handoff.status === 'pending'),
+    [handoffs]
+  );
 
   useEffect(() => {
     if (existingChecklist) {
@@ -479,6 +514,10 @@ export default function DriverProtocol() {
   // Draft auto-save removed: only save when the protocol is submitted.
 
   const submitProtocol = async () => {
+    if (type === 'dropoff' && pendingHandoff && pendingHandoff.created_by_driver_id !== currentDriver?.id) {
+      setSubmitError(t('handoff.acceptRequired'));
+      return;
+    }
     const missingPhotoIds = REQUIRED_PHOTO_IDS.filter((id) => !formData.photos?.some((photo) => photo.type === id));
     if (!formData.kilometer) {
       setSubmitError(t('protocol.errors.missingKilometer'));
@@ -564,6 +603,39 @@ export default function DriverProtocol() {
           id: orderId, 
           data: { status: newStatus }
         });
+      }
+
+      if (type === 'dropoff') {
+        const hasDropoffSegment = orderSegments.some(
+          (segment) => segment.segment_type === 'dropoff' && segment.driver_id === currentDriver?.id
+        );
+        if (!hasDropoffSegment) {
+          let distanceKm = null;
+          const startLocation = latestAcceptedHandoff?.location || pickupLocation;
+          if (startLocation && dropoffLocation) {
+            try {
+              distanceKm = await getMapboxDistanceKmFromAddresses({
+                from: startLocation,
+                to: dropoffLocation,
+              });
+            } catch (error) {
+              distanceKm = null;
+            }
+          }
+
+          await appClient.entities.OrderSegment.create({
+            order_id: orderId,
+            company_id: order.company_id,
+            handoff_id: latestAcceptedHandoff?.id || null,
+            driver_id: currentDriver?.id,
+            driver_name: currentDriver?.name,
+            segment_type: 'dropoff',
+            start_location: startLocation || null,
+            end_location: dropoffLocation || null,
+            distance_km: distanceKm,
+            price: null,
+          });
+        }
       }
 
       // Navigate back

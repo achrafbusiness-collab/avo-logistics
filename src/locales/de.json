@@ -9,7 +9,8 @@
     "open": "Öffnen",
     "download": "Download",
     "optional": "optional",
-    "delete": "Löschen"
+    "delete": "Löschen",
+    "saving": "Speichern..."
   },
   "nav": {
     "driverPortal": "Fahrer-Portal",
@@ -91,6 +92,33 @@
     "noDriverProfile": {
       "title": "Kein Fahrerprofil gefunden",
       "body": "Dein Konto ist nicht mit einem Fahrerprofil verknüpft. Bitte kontaktiere den Administrator."
+    }
+  },
+  "handoff": {
+    "title": "Zwischenabgabe",
+    "pendingTitle": "Zwischenabgabe wartet auf Bestätigung",
+    "pendingByYou": "Von dir gemeldet – wartet auf Bestätigung.",
+    "accept": "Übernahme bestätigen",
+    "none": "Keine Zwischenabgabe gemeldet.",
+    "create": "Zwischenabgabe melden",
+    "dialogTitle": "Zwischenabgabe erfassen",
+    "dialogDescription": "Bitte Standort und Notizen hinzufügen.",
+    "locationLabel": "Abstellort",
+    "locationPlaceholder": "Adresse oder Ort",
+    "notesLabel": "Notizen (optional)",
+    "notesPlaceholder": "z. B. Fahrzeug steht auf dem Parkplatz",
+    "gpsLoading": "GPS wird geladen...",
+    "useGps": "Standort per GPS",
+    "save": "Zwischenabgabe speichern",
+    "acceptedTitle": "Zwischenabgabe bestätigt",
+    "acceptedBy": "Bestätigt von {{name}}",
+    "acceptRequired": "Zwischenabgabe bestätigen",
+    "errors": {
+      "noGps": "GPS ist auf diesem Gerät nicht verfügbar.",
+      "reverseGeocode": "Adresse konnte nicht ermittelt werden.",
+      "gpsFailed": "Standort konnte nicht abgerufen werden.",
+      "locationRequired": "Bitte einen Standort eingeben.",
+      "saveFailed": "Zwischenabgabe konnte nicht gespeichert werden."
     }
   },
   "documents": {

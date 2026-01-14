@@ -9,7 +9,8 @@
     "open": "Abrir",
     "download": "Descargar",
     "optional": "opcional",
-    "delete": "Eliminar"
+    "delete": "Eliminar",
+    "saving": "Guardando..."
   },
   "nav": {
     "driverPortal": "Portal del conductor",
@@ -91,6 +92,33 @@
     "noDriverProfile": {
       "title": "No se encontró perfil de conductor",
       "body": "Tu cuenta no está vinculada a un perfil de conductor. Contacta al administrador."
+    }
+  },
+  "handoff": {
+    "title": "Entrega intermedia",
+    "pendingTitle": "Entrega intermedia pendiente de confirmación",
+    "pendingByYou": "Reportado por ti – esperando confirmación.",
+    "accept": "Confirmar recepción",
+    "none": "No hay entregas intermedias.",
+    "create": "Reportar entrega intermedia",
+    "dialogTitle": "Registrar entrega intermedia",
+    "dialogDescription": "Agrega la ubicación y notas.",
+    "locationLabel": "Ubicación",
+    "locationPlaceholder": "Dirección o lugar",
+    "notesLabel": "Notas (opcional)",
+    "notesPlaceholder": "p. ej. vehículo aparcado",
+    "gpsLoading": "Obteniendo GPS...",
+    "useGps": "Usar ubicación GPS",
+    "save": "Guardar entrega",
+    "acceptedTitle": "Entrega intermedia confirmada",
+    "acceptedBy": "Confirmado por {{name}}",
+    "acceptRequired": "Confirmar entrega",
+    "errors": {
+      "noGps": "El GPS no está disponible en este dispositivo.",
+      "reverseGeocode": "No se pudo obtener la dirección.",
+      "gpsFailed": "No se pudo obtener la ubicación.",
+      "locationRequired": "Por favor ingresa una ubicación.",
+      "saveFailed": "No se pudo guardar la entrega."
     }
   },
   "documents": {

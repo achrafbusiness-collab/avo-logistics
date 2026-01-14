@@ -8,6 +8,19 @@ const normalizeText = (value) => (value || "").trim().toLowerCase();
 const buildAddress = (address, postalCode, city) =>
   [address, postalCode, city].filter(Boolean).join(", ").trim();
 
+export const reverseGeocode = async ({ latitude, longitude }) => {
+  if (!MAPBOX_TOKEN) {
+    throw new Error("Mapbox-Token fehlt.");
+  }
+  const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${longitude},${latitude}.json?limit=1&language=de&access_token=${MAPBOX_TOKEN}`;
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error("Mapbox-Umkehrsuche fehlgeschlagen.");
+  }
+  const data = await response.json();
+  return data?.features?.[0]?.place_name || "";
+};
+
 const geocodeAddress = async (query) => {
   const normalized = normalizeText(query);
   if (!normalized) return null;
@@ -47,6 +60,44 @@ export const getMapboxDistanceKm = async ({
   const from = buildAddress(pickupAddress, pickupPostalCode, pickupCity);
   const to = buildAddress(dropoffAddress, dropoffPostalCode, dropoffCity);
   if (!from || !to) {
+    return null;
+  }
+
+  const start = await geocodeAddress(from);
+  const end = await geocodeAddress(to);
+  if (!start || !end) {
+    return null;
+  }
+
+  const routeKey = buildRouteKey(start, end);
+  if (routeCache.has(routeKey)) {
+    return routeCache.get(routeKey);
+  }
+
+  const directionsUrl = `https://api.mapbox.com/directions/v5/mapbox/driving/${start.join(
+    ","
+  )};${end.join(",")}?overview=false&geometries=geojson&access_token=${MAPBOX_TOKEN}`;
+  const response = await fetch(directionsUrl);
+  if (!response.ok) {
+    throw new Error("Mapbox-Routen konnten nicht geladen werden.");
+  }
+  const data = await response.json();
+  const distanceMeters = data?.routes?.[0]?.distance;
+  if (typeof distanceMeters !== "number") {
+    return null;
+  }
+  const distanceKm = Math.round((distanceMeters / 1000) * 10) / 10;
+  routeCache.set(routeKey, distanceKm);
+  return distanceKm;
+};
+
+export const getMapboxDistanceKmFromAddresses = async ({ from, to }) => {
+  if (!MAPBOX_TOKEN) {
+    throw new Error("Mapbox-Token fehlt.");
+  }
+  const fromValue = normalizeText(from);
+  const toValue = normalizeText(to);
+  if (!fromValue || !toValue) {
     return null;
   }
 

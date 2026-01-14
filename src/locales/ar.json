@@ -9,7 +9,8 @@
     "open": "فتح",
     "download": "تنزيل",
     "optional": "اختياري",
-    "delete": "حذف"
+    "delete": "حذف",
+    "saving": "جارٍ الحفظ..."
   },
   "nav": {
     "driverPortal": "بوابة السائق",
@@ -91,6 +92,33 @@
     "noDriverProfile": {
       "title": "لا يوجد ملف سائق",
       "body": "حسابك غير مرتبط بملف سائق. يرجى التواصل مع المسؤول."
+    }
+  },
+  "handoff": {
+    "title": "تسليم وسيط",
+    "pendingTitle": "تسليم وسيط بانتظار التأكيد",
+    "pendingByYou": "تم الإبلاغ من طرفك – بانتظار التأكيد.",
+    "accept": "تأكيد الاستلام",
+    "none": "لا توجد تسليمات وسيطة.",
+    "create": "الإبلاغ عن تسليم وسيط",
+    "dialogTitle": "تسجيل التسليم الوسيط",
+    "dialogDescription": "يرجى إضافة الموقع والملاحظات.",
+    "locationLabel": "موقع التسليم",
+    "locationPlaceholder": "عنوان أو مكان",
+    "notesLabel": "ملاحظات (اختياري)",
+    "notesPlaceholder": "مثال: المركبة متوقفة في الموقف",
+    "gpsLoading": "جارٍ تحديد الموقع...",
+    "useGps": "استخدام موقع GPS",
+    "save": "حفظ التسليم",
+    "acceptedTitle": "تم تأكيد التسليم الوسيط",
+    "acceptedBy": "تم التأكيد بواسطة {{name}}",
+    "acceptRequired": "يرجى تأكيد التسليم",
+    "errors": {
+      "noGps": "GPS غير متاح على هذا الجهاز.",
+      "reverseGeocode": "تعذر تحديد العنوان.",
+      "gpsFailed": "تعذر الحصول على الموقع.",
+      "locationRequired": "يرجى إدخال موقع.",
+      "saveFailed": "تعذر حفظ التسليم."
     }
   },
   "documents": {

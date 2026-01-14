@@ -9,7 +9,8 @@
     "open": "Open",
     "download": "Download",
     "optional": "optional",
-    "delete": "Delete"
+    "delete": "Delete",
+    "saving": "Saving..."
   },
   "nav": {
     "driverPortal": "Driver Portal",
@@ -91,6 +92,33 @@
     "noDriverProfile": {
       "title": "No driver profile found",
       "body": "Your account is not linked to a driver profile. Please contact the administrator."
+    }
+  },
+  "handoff": {
+    "title": "Handoff",
+    "pendingTitle": "Handoff awaiting confirmation",
+    "pendingByYou": "Reported by you – waiting for confirmation.",
+    "accept": "Confirm takeover",
+    "none": "No handoff reported.",
+    "create": "Report handoff",
+    "dialogTitle": "Log handoff",
+    "dialogDescription": "Please add the location and notes.",
+    "locationLabel": "Drop-off location",
+    "locationPlaceholder": "Address or place",
+    "notesLabel": "Notes (optional)",
+    "notesPlaceholder": "e.g. vehicle parked in garage",
+    "gpsLoading": "Getting GPS...",
+    "useGps": "Use GPS location",
+    "save": "Save handoff",
+    "acceptedTitle": "Handoff confirmed",
+    "acceptedBy": "Confirmed by {{name}}",
+    "acceptRequired": "Confirm handoff",
+    "errors": {
+      "noGps": "GPS is not available on this device.",
+      "reverseGeocode": "Address could not be resolved.",
+      "gpsFailed": "Unable to retrieve location.",
+      "locationRequired": "Please enter a location.",
+      "saveFailed": "Handoff could not be saved."
     }
   },
   "documents": {

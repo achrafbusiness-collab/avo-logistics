@@ -99,11 +99,24 @@ export default function OrderDetails({
   const [docSaving, setDocSaving] = useState({});
   const [docDeleting, setDocDeleting] = useState({});
   const [docDragActive, setDocDragActive] = useState(false);
+  const [orderSegments, setOrderSegments] = useState([]);
+  const [segmentsLoading, setSegmentsLoading] = useState(false);
+  const [segmentsError, setSegmentsError] = useState('');
+  const [segmentEdits, setSegmentEdits] = useState({});
+  const [segmentSaving, setSegmentSaving] = useState({});
+  const [orderHandoffs, setOrderHandoffs] = useState([]);
+  const [handoffsLoading, setHandoffsLoading] = useState(false);
+  const [handoffsError, setHandoffsError] = useState('');
   const docInputRef = useRef(null);
   const pickupChecklist = checklists.find(c => c.type === 'pickup');
   const dropoffChecklist = checklists.find(c => c.type === 'dropoff');
   const isAdmin = currentUser?.role === 'admin';
   const distanceKm = order?.distance_km ?? null;
+  const driverPrice = order?.driver_price ?? null;
+  const showDriverPrice = currentUser?.role !== 'driver';
+  const showSegmentPricing = currentUser?.role !== 'driver';
+  const formatCurrency = (value) =>
+    new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(value);
   const formatDateSafe = (value, pattern) => {
     if (!value) return null;
     const date = new Date(value);
@@ -169,6 +182,67 @@ export default function OrderDetails({
       }
     };
     loadDocuments();
+  }, [order?.id]);
+
+  useEffect(() => {
+    const loadSegments = async () => {
+      if (!order?.id) return;
+      setSegmentsLoading(true);
+      setSegmentsError('');
+      try {
+        const list = await appClient.entities.OrderSegment.filter(
+          { order_id: order.id },
+          'created_date',
+          200
+        );
+        const sorted = [...(list || [])].sort((a, b) => {
+          const aDate = new Date(a.created_date || a.created_at || 0).getTime();
+          const bDate = new Date(b.created_date || b.created_at || 0).getTime();
+          return aDate - bDate;
+        });
+        setOrderSegments(sorted);
+        setSegmentEdits((prev) => {
+          const next = { ...prev };
+          sorted.forEach((segment) => {
+            if (next[segment.id] === undefined) {
+              next[segment.id] = segment.price !== null && segment.price !== undefined ? String(segment.price) : '';
+            }
+          });
+          return next;
+        });
+      } catch (err) {
+        setSegmentsError(err?.message || 'Zwischenstrecken konnten nicht geladen werden.');
+      } finally {
+        setSegmentsLoading(false);
+      }
+    };
+    loadSegments();
+  }, [order?.id]);
+
+  useEffect(() => {
+    const loadHandoffs = async () => {
+      if (!order?.id) return;
+      setHandoffsLoading(true);
+      setHandoffsError('');
+      try {
+        const list = await appClient.entities.OrderHandoff.filter(
+          { order_id: order.id },
+          'created_date',
+          200
+        );
+        const sorted = [...(list || [])].sort((a, b) => {
+          const aDate = new Date(a.created_date || a.created_at || 0).getTime();
+          const bDate = new Date(b.created_date || b.created_at || 0).getTime();
+          return aDate - bDate;
+        });
+        setOrderHandoffs(sorted);
+      } catch (err) {
+        setHandoffsError(err?.message || 'Zwischenabgaben konnten nicht geladen werden.');
+      } finally {
+        setHandoffsLoading(false);
+      }
+    };
+    loadHandoffs();
   }, [order?.id]);
 
 
@@ -301,6 +375,35 @@ export default function OrderDetails({
 
   const openDocPicker = () => {
     docInputRef.current?.click();
+  };
+
+  const segmentsMissingPrice = orderSegments.filter(
+    (segment) => segment.price === null || segment.price === undefined || segment.price === ''
+  );
+
+  const handleSegmentPriceChange = (segmentId, value) => {
+    setSegmentEdits((prev) => ({ ...prev, [segmentId]: value }));
+  };
+
+  const saveSegmentPrice = async (segment) => {
+    const rawValue = segmentEdits[segment.id];
+    const parsed = rawValue === '' || rawValue === null || rawValue === undefined ? null : parseFloat(rawValue);
+    if (rawValue !== '' && Number.isNaN(parsed)) {
+      setSegmentsError('Bitte einen gültigen Preis eingeben.');
+      return;
+    }
+    setSegmentSaving((prev) => ({ ...prev, [segment.id]: true }));
+    setSegmentsError('');
+    try {
+      const updated = await appClient.entities.OrderSegment.update(segment.id, {
+        price: parsed,
+      });
+      setOrderSegments((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
+    } catch (error) {
+      setSegmentsError(error?.message || 'Preis konnte nicht gespeichert werden.');
+    } finally {
+      setSegmentSaving((prev) => ({ ...prev, [segment.id]: false }));
+    }
   };
 
   const canManageDocs = currentUser?.role !== 'driver';
@@ -882,6 +985,19 @@ export default function OrderDetails({
             </Card>
           )}
 
+          {showDriverPrice && driverPrice !== null && driverPrice !== undefined && (
+            <Card>
+              <CardContent className="pt-6 space-y-3">
+                <div>
+                  <p className="text-sm text-gray-500">Fahrerpreis</p>
+                  <p className="text-xl font-semibold text-slate-900">
+                    {formatCurrency(driverPrice)}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Checklists */}
           <Card>
             <CardHeader className="pb-2">
@@ -938,6 +1054,113 @@ export default function OrderDetails({
               </div>
             </CardContent>
           </Card>
+
+          {/* Handoffs & Segments */}
+          {(orderSegments.length > 0 || orderHandoffs.length > 0 || segmentsLoading || handoffsLoading) && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <MapPin className="w-5 h-5 text-[#1e3a5f]" />
+                  Zwischenabgaben & Teilstrecken
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {showSegmentPricing && segmentsMissingPrice.length > 0 && (
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                    Es gibt Teilstrecken ohne Preis. Bitte Preise eintragen.
+                  </div>
+                )}
+
+                {segmentsError && (
+                  <p className="text-sm text-red-600">{segmentsError}</p>
+                )}
+
+                {segmentsLoading ? (
+                  <div className="flex items-center justify-center py-4">
+                    <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+                  </div>
+                ) : orderSegments.length === 0 ? (
+                  <p className="text-sm text-gray-500">Keine Teilstrecken vorhanden.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {orderSegments.map((segment) => (
+                      <div key={segment.id} className="rounded-lg border border-slate-200 bg-white p-3">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                          <div className="space-y-1">
+                            <p className="font-semibold text-slate-900">
+                              {segment.segment_type === 'handoff' ? 'Zwischenabgabe' : 'Übergabe'}
+                            </p>
+                            <p className="text-xs text-slate-500">{segment.driver_name || 'Fahrer'}</p>
+                            <p className="text-sm text-slate-700">
+                              {segment.start_location || '-'} → {segment.end_location || '-'}
+                            </p>
+                            {segment.distance_km !== null && segment.distance_km !== undefined && (
+                              <p className="text-xs text-slate-500">Strecke: {segment.distance_km} km</p>
+                            )}
+                          </div>
+                          {showSegmentPricing ? (
+                            <div className="flex flex-col gap-2 min-w-[140px]">
+                              <Input
+                                type="number"
+                                step="0.01"
+                                placeholder="Preis (€)"
+                                value={segmentEdits[segment.id] ?? ''}
+                                onChange={(event) =>
+                                  handleSegmentPriceChange(segment.id, event.target.value)
+                                }
+                              />
+                              <Button
+                                size="sm"
+                                className="bg-[#1e3a5f] hover:bg-[#2d5a8a]"
+                                disabled={segmentSaving[segment.id]}
+                                onClick={() => saveSegmentPrice(segment)}
+                              >
+                                {segmentSaving[segment.id] ? (
+                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                ) : null}
+                                Preis speichern
+                              </Button>
+                            </div>
+                          ) : (
+                            <div className="text-right text-sm text-slate-600">
+                              {segment.price !== null && segment.price !== undefined
+                                ? formatCurrency(segment.price)
+                                : 'Preis offen'}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {(orderHandoffs.length > 0 || handoffsLoading) && (
+                  <div className="space-y-2">
+                    <p className="text-sm font-semibold text-slate-900">Zwischenabgaben</p>
+                    {handoffsError && (
+                      <p className="text-sm text-red-600">{handoffsError}</p>
+                    )}
+                    {handoffsLoading ? (
+                      <div className="flex items-center justify-center py-2">
+                        <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {orderHandoffs.map((handoff) => (
+                          <div key={handoff.id} className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-sm">
+                            <p className="font-medium text-slate-900">{handoff.location || '-'}</p>
+                            <p className="text-xs text-slate-500">
+                              {handoff.created_by_driver_name || 'Fahrer'} • {handoff.status === 'accepted' ? 'Bestätigt' : 'Offen'}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Documents */}
           <Card>

@@ -52,6 +52,12 @@ export default function DriverProfile() {
     enabled: !!driver?.id,
   });
 
+  const { data: driverSegments = [], isLoading: segmentsLoading } = useQuery({
+    queryKey: ["driver-segments", driver?.id],
+    queryFn: () => appClient.entities.OrderSegment.filter({ driver_id: driver?.id }, "-created_date", 200),
+    enabled: !!driver?.id,
+  });
+
   const { data: driverChecklists = [], isLoading: checklistsLoading } = useQuery({
     queryKey: ["driver-checklists", driver?.id],
     queryFn: () => appClient.entities.Checklist.filter({ driver_id: driver?.id }),
@@ -80,17 +86,17 @@ export default function DriverProfile() {
     const endDate = billingRange.end ? new Date(billingRange.end) : null;
     if (startDate) startDate.setHours(0, 0, 0, 0);
     if (endDate) endDate.setHours(23, 59, 59, 999);
-    return (driverOrders || [])
-      .map((order) => {
-        const dateValue = order.dropoff_date || order.pickup_date || order.created_date;
+    return (driverSegments || [])
+      .map((segment) => {
+        const dateValue = segment.created_date || segment.created_at;
         const date = dateValue ? new Date(dateValue) : null;
         return {
-          id: order.id,
+          id: segment.id,
           date,
           dateLabel: date ? formatDate(date) : "-",
-          tour: `${order.pickup_address || ""} → ${order.dropoff_address || ""}`.trim(),
-          price: Number.isFinite(Number(order.driver_price)) ? Number(order.driver_price) : 0,
-          expenses: expensesByOrder[order.id] || 0,
+          tour: `${segment.start_location || ""} → ${segment.end_location || ""}`.trim(),
+          price: Number.isFinite(Number(segment.price)) ? Number(segment.price) : 0,
+          expenses: segment.segment_type === "dropoff" ? expensesByOrder[segment.order_id] || 0 : 0,
         };
       })
       .filter((row) => {
@@ -100,7 +106,7 @@ export default function DriverProfile() {
         return true;
       })
       .sort((a, b) => (b.date?.getTime() || 0) - (a.date?.getTime() || 0));
-  }, [billingRange, driverOrders, expensesByOrder, formatDate]);
+  }, [billingRange, driverSegments, expensesByOrder, formatDate]);
 
   const billingTotals = React.useMemo(() => {
     return billingRows.reduce(
@@ -266,7 +272,7 @@ export default function DriverProfile() {
             </div>
           </div>
 
-          {ordersLoading || checklistsLoading || driverLoading ? (
+          {ordersLoading || checklistsLoading || segmentsLoading || driverLoading ? (
             <div className="flex items-center gap-2 text-sm text-slate-500">
               <Loader2 className="h-4 w-4 animate-spin" />
               {t("billing.loading")}

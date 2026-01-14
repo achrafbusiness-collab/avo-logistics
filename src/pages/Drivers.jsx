@@ -77,6 +77,11 @@ export default function Drivers() {
     queryFn: () => appClient.entities.Checklist.list('-created_date', 1000),
   });
 
+  const { data: orderSegments = [] } = useQuery({
+    queryKey: ['order-segments'],
+    queryFn: () => appClient.entities.OrderSegment.list('-created_date', 2000),
+  });
+
   const createMutation = useMutation({
     mutationFn: (data) => appClient.entities.Driver.create(data),
     onSuccess: (created) => {
@@ -180,25 +185,25 @@ export default function Drivers() {
     }, {});
   }, [checklists]);
 
-  const getOrderDateValue = (order) => order.dropoff_date || order.pickup_date || order.created_date;
+  const getSegmentDateValue = (segment) => segment.created_date || segment.created_at;
 
   const getBillingRows = (driverId) => {
     const startDate = billingRange.start ? new Date(billingRange.start) : null;
     const endDate = billingRange.end ? new Date(billingRange.end) : null;
     if (startDate) startDate.setHours(0, 0, 0, 0);
     if (endDate) endDate.setHours(23, 59, 59, 999);
-    return orders
-      .filter((order) => order.assigned_driver_id === driverId)
-      .map((order) => {
-        const rawDate = getOrderDateValue(order);
+    return orderSegments
+      .filter((segment) => segment.driver_id === driverId)
+      .map((segment) => {
+        const rawDate = getSegmentDateValue(segment);
         const date = rawDate ? new Date(rawDate) : null;
         return {
-          id: order.id,
+          id: segment.id,
           date,
           dateLabel: date ? format(date, 'dd.MM.yyyy', { locale: de }) : '-',
-          tour: `${order.pickup_address || ''} → ${order.dropoff_address || ''}`.trim(),
-          price: Number.isFinite(Number(order.driver_price)) ? Number(order.driver_price) : 0,
-          expenses: expensesByOrder[order.id] || 0,
+          tour: `${segment.start_location || ''} → ${segment.end_location || ''}`.trim(),
+          price: Number.isFinite(Number(segment.price)) ? Number(segment.price) : 0,
+          expenses: segment.segment_type === 'dropoff' ? expensesByOrder[segment.order_id] || 0 : 0,
         };
       })
       .filter((row) => {
