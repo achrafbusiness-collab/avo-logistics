@@ -22,9 +22,11 @@ import {
 } from 'lucide-react';
 
 export default function DriverOrders() {
-  const { t, formatDate } = useI18n();
+  const { t, formatDate, formatNumber } = useI18n();
   const [user, setUser] = useState(null);
   const [activeTab, setActiveTab] = useState('active');
+  const formatCurrency = (value) =>
+    formatNumber(value ?? 0, { style: 'currency', currency: 'EUR' });
 
   useEffect(() => {
     loadUser();
@@ -78,6 +80,8 @@ export default function DriverOrders() {
     const orderChecklists = getOrderChecklists(order.id);
     const hasPickup = orderChecklists.some(c => c.type === 'pickup');
     const hasDropoff = orderChecklists.some(c => c.type === 'dropoff');
+    const showDistance = order.distance_km !== null && order.distance_km !== undefined;
+    const showDriverPrice = order.driver_price !== null && order.driver_price !== undefined;
 
     return (
       <Link 
@@ -134,11 +138,18 @@ export default function DriverOrders() {
               </div>
             </div>
 
-            {order.distance_km !== null && order.distance_km !== undefined && (
+            {(showDistance || showDriverPrice) && (
               <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 mb-3">
-                <span>
-                  {t('orders.distance')}: <strong>{order.distance_km} km</strong>
-                </span>
+                {showDistance && (
+                  <span>
+                    {t('orders.distance')}: <strong>{order.distance_km} km</strong>
+                  </span>
+                )}
+                {showDriverPrice && (
+                  <span>
+                    {t('orders.driverPrice')}: <strong>{formatCurrency(order.driver_price)}</strong>
+                  </span>
+                )}
               </div>
             )}
 

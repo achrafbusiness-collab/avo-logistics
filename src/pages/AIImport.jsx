@@ -82,6 +82,7 @@ export default function AIImport() {
     customer_email: data?.customer_email || '',
     notes: data?.notes || '',
     distance_km: data?.distance_km ?? '',
+    driver_price: data?.driver_price ?? '',
   });
 
   const analyzeEmail = async () => {
@@ -245,6 +246,13 @@ Gib ausschließlich die strukturierten Daten zurück.`,
     const dataToSave = {
       ...currentOrder,
       distance_km: distanceKm,
+      driver_price: (() => {
+        if (currentOrder.driver_price === '' || currentOrder.driver_price === null || currentOrder.driver_price === undefined) {
+          return null;
+        }
+        const parsed = parseFloat(currentOrder.driver_price);
+        return Number.isFinite(parsed) ? parsed : null;
+      })(),
     };
 
     const created = await createOrderMutation.mutateAsync(dataToSave);
@@ -774,6 +782,17 @@ Gib ausschließlich die strukturierten Daten zurück.`,
                         {calcLoading && (
                           <p className="mt-1 text-xs text-slate-500">Strecke wird berechnet…</p>
                         )}
+                      </div>
+                      <div>
+                        <Label>Fahrerpreis (EUR)</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={currentOrder.driver_price || ''}
+                          onChange={(e) => updateExtractedData('driver_price', e.target.value)}
+                          placeholder="0.00"
+                        />
                       </div>
                     </div>
                   </CardContent>

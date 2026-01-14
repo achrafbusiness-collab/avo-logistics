@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { appClient } from '@/api/appClient';
 import { format } from 'date-fns';
@@ -50,6 +50,17 @@ export default function Drivers() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [selectedDriverIds, setSelectedDriverIds] = useState([]);
+  const [billingRange, setBillingRange] = useState(() => {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    return {
+      start: start.toISOString().slice(0, 10),
+      end: end.toISOString().slice(0, 10),
+    };
+  });
+  const [billingResults, setBillingResults] = useState([]);
 
   const { data: drivers = [], isLoading } = useQuery({
     queryKey: ['drivers'],
@@ -59,6 +70,11 @@ export default function Drivers() {
   const { data: orders = [] } = useQuery({
     queryKey: ['orders'],
     queryFn: () => appClient.entities.Order.list('-created_date', 500),
+  });
+
+  const { data: checklists = [] } = useQuery({
+    queryKey: ['checklists'],
+    queryFn: () => appClient.entities.Checklist.list('-created_date', 1000),
   });
 
   const createMutation = useMutation({
@@ -144,6 +160,83 @@ export default function Drivers() {
       active: driverOrders.filter(o => ['assigned', 'accepted', 'pickup_started', 'in_transit', 'delivery_started'].includes(o.status)).length,
       completed: driverOrders.filter(o => o.status === 'completed').length,
     };
+  };
+
+  const formatCurrency = (value) =>
+    new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(value || 0);
+
+  const expensesByOrder = useMemo(() => {
+    return (checklists || []).reduce((acc, checklist) => {
+      if (!checklist?.order_id || !Array.isArray(checklist.expenses)) return acc;
+      const total = checklist.expenses.reduce((sum, expense) => {
+        const amount = parseFloat(expense?.amount);
+        if (Number.isFinite(amount)) {
+          return sum + amount;
+        }
+        return sum;
+      }, 0);
+      acc[checklist.order_id] = (acc[checklist.order_id] || 0) + total;
+      return acc;
+    }, {});
+  }, [checklists]);
+
+  const getOrderDateValue = (order) => order.dropoff_date || order.pickup_date || order.created_date;
+
+  const getBillingRows = (driverId) => {
+    const startDate = billingRange.start ? new Date(billingRange.start) : null;
+    const endDate = billingRange.end ? new Date(billingRange.end) : null;
+    if (startDate) startDate.setHours(0, 0, 0, 0);
+    if (endDate) endDate.setHours(23, 59, 59, 999);
+    return orders
+      .filter((order) => order.assigned_driver_id === driverId)
+      .map((order) => {
+        const rawDate = getOrderDateValue(order);
+        const date = rawDate ? new Date(rawDate) : null;
+        return {
+          id: order.id,
+          date,
+          dateLabel: date ? format(date, 'dd.MM.yyyy', { locale: de }) : '-',
+          tour: `${order.pickup_address || ''} → ${order.dropoff_address || ''}`.trim(),
+          price: Number.isFinite(Number(order.driver_price)) ? Number(order.driver_price) : 0,
+          expenses: expensesByOrder[order.id] || 0,
+        };
+      })
+      .filter((row) => {
+        if (!row.date) return false;
+        if (startDate && row.date < startDate) return false;
+        if (endDate && row.date > endDate) return false;
+        return true;
+      })
+      .sort((a, b) => (b.date?.getTime() || 0) - (a.date?.getTime() || 0));
+  };
+
+  const buildTotals = (rows) =>
+    rows.reduce(
+      (acc, row) => {
+        acc.price += row.price;
+        acc.expenses += row.expenses;
+        return acc;
+      },
+      { price: 0, expenses: 0 }
+    );
+
+  const runBilling = () => {
+    const results = selectedDriverIds
+      .map((driverId) => {
+        const driver = drivers.find((item) => item.id === driverId);
+        if (!driver) return null;
+        const rows = getBillingRows(driverId);
+        const totals = buildTotals(rows);
+        return { driver, rows, totals };
+      })
+      .filter(Boolean);
+    setBillingResults(results);
+  };
+
+  const toggleDriverSelection = (driverId) => {
+    setSelectedDriverIds((prev) =>
+      prev.includes(driverId) ? prev.filter((id) => id !== driverId) : [...prev, driverId]
+    );
   };
 
   // Form View
@@ -287,6 +380,83 @@ export default function Drivers() {
               </CardContent>
             </Card>
 
+            <Card className="lg:col-span-3">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg">Abrechnung</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex flex-wrap gap-3">
+                  <div>
+                    <p className="text-xs text-gray-500">Von</p>
+                    <Input
+                      type="date"
+                      value={billingRange.start}
+                      onChange={(event) =>
+                        setBillingRange((prev) => ({ ...prev, start: event.target.value }))
+                      }
+                    />
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">Bis</p>
+                    <Input
+                      type="date"
+                      value={billingRange.end}
+                      onChange={(event) =>
+                        setBillingRange((prev) => ({ ...prev, end: event.target.value }))
+                      }
+                    />
+                  </div>
+                </div>
+                {(() => {
+                  const rows = getBillingRows(selectedDriver.id);
+                  const totals = buildTotals(rows);
+                  if (rows.length === 0) {
+                    return <p className="text-sm text-gray-500">Keine Touren im Zeitraum.</p>;
+                  }
+                  return (
+                    <div className="space-y-3">
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                          <p className="text-xs text-slate-500">Gesamtverdienst</p>
+                          <p className="text-lg font-semibold text-slate-900">
+                            {formatCurrency(totals.price)}
+                          </p>
+                        </div>
+                        <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                          <p className="text-xs text-slate-500">Nebenkosten</p>
+                          <p className="text-lg font-semibold text-slate-900">
+                            {formatCurrency(totals.expenses)}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full text-sm">
+                          <thead>
+                            <tr className="text-left text-slate-500">
+                              <th className="py-2 pr-4">Datum</th>
+                              <th className="py-2 pr-4">Tour</th>
+                              <th className="py-2 pr-4 text-right">Preis</th>
+                              <th className="py-2 text-right">Nebenkosten</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {rows.map((row) => (
+                              <tr key={row.id} className="border-t">
+                                <td className="py-2 pr-4">{row.dateLabel}</td>
+                                <td className="py-2 pr-4 text-gray-700">{row.tour || "-"}</td>
+                                <td className="py-2 pr-4 text-right">{formatCurrency(row.price)}</td>
+                                <td className="py-2 text-right">{formatCurrency(row.expenses)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </CardContent>
+            </Card>
+
             {/* Documents */}
             <Card className="lg:col-span-2">
               <CardHeader className="pb-2">
@@ -420,6 +590,99 @@ export default function Drivers() {
         </CardContent>
       </Card>
 
+      <Card>
+        <CardContent className="p-4 space-y-4">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div className="space-y-1">
+              <h3 className="text-lg font-semibold">Abrechnung erstellen</h3>
+              <p className="text-sm text-gray-500">
+                Fahrer auswählen und Zeitraum festlegen.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <div>
+                <p className="text-xs text-gray-500">Von</p>
+                <Input
+                  type="date"
+                  value={billingRange.start}
+                  onChange={(event) =>
+                    setBillingRange((prev) => ({ ...prev, start: event.target.value }))
+                  }
+                />
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Bis</p>
+                <Input
+                  type="date"
+                  value={billingRange.end}
+                  onChange={(event) =>
+                    setBillingRange((prev) => ({ ...prev, end: event.target.value }))
+                  }
+                />
+              </div>
+              <Button
+                className="self-end bg-[#1e3a5f] hover:bg-[#2d5a8a]"
+                disabled={selectedDriverIds.length === 0}
+                onClick={runBilling}
+              >
+                Abrechnung erstellen
+              </Button>
+            </div>
+          </div>
+
+          {selectedDriverIds.length === 0 && (
+            <p className="text-sm text-gray-500">
+              Bitte mindestens einen Fahrer auswählen.
+            </p>
+          )}
+
+          {billingResults.length > 0 && (
+            <div className="space-y-6">
+              {billingResults.map(({ driver, rows, totals }) => (
+                <div key={driver.id} className="rounded-lg border border-slate-200 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+                    <div>
+                      <p className="font-semibold">{getDriverFullName(driver)}</p>
+                      <p className="text-xs text-gray-500">{driver.email}</p>
+                    </div>
+                    <div className="flex gap-3 text-sm">
+                      <span>Verdienst: <strong>{formatCurrency(totals.price)}</strong></span>
+                      <span>Nebenkosten: <strong>{formatCurrency(totals.expenses)}</strong></span>
+                    </div>
+                  </div>
+                  {rows.length === 0 ? (
+                    <p className="text-sm text-gray-500">Keine Touren im Zeitraum.</p>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full text-sm">
+                        <thead>
+                          <tr className="text-left text-slate-500">
+                            <th className="py-2 pr-4">Datum</th>
+                            <th className="py-2 pr-4">Tour</th>
+                            <th className="py-2 pr-4 text-right">Preis</th>
+                            <th className="py-2 text-right">Nebenkosten</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {rows.map((row) => (
+                            <tr key={row.id} className="border-t">
+                              <td className="py-2 pr-4">{row.dateLabel}</td>
+                              <td className="py-2 pr-4 text-gray-700">{row.tour || "-"}</td>
+                              <td className="py-2 pr-4 text-right">{formatCurrency(row.price)}</td>
+                              <td className="py-2 text-right">{formatCurrency(row.expenses)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Driver Cards */}
       {isLoading ? (
         <div className="flex items-center justify-center py-12">
@@ -455,10 +718,11 @@ export default function Drivers() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredDrivers.map((driver) => {
             const stats = getDriverStats(driver.id);
+            const isSelected = selectedDriverIds.includes(driver.id);
             return (
               <Card 
                 key={driver.id}
-                className="cursor-pointer hover:shadow-lg transition-shadow"
+                className="cursor-pointer hover:shadow-lg transition-shadow relative"
                 onClick={() => {
                   setSelectedDriver(driver);
                   setView('details');
@@ -466,6 +730,16 @@ export default function Drivers() {
                 }}
               >
                 <CardContent className="p-6">
+                  <div className="absolute top-3 right-3">
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => toggleDriverSelection(driver.id)}
+                      onClick={(event) => event.stopPropagation()}
+                      className="h-4 w-4 accent-[#1e3a5f]"
+                      aria-label="Fahrer auswählen"
+                    />
+                  </div>
                   <div className="flex items-start gap-4">
                     <div className="w-12 h-12 bg-[#1e3a5f] text-white rounded-full flex items-center justify-center font-bold text-lg flex-shrink-0">
                       {driver.first_name?.charAt(0) || 'F'}

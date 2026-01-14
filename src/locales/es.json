@@ -67,6 +67,7 @@
     "pickup": "Recogida",
     "dropoff": "Entrega",
     "distance": "Distancia",
+    "driverPrice": "Precio del conductor",
     "greeting": "Hola, {{name}}!",
     "driverFallback": "Conductor",
     "summary": {
@@ -119,6 +120,22 @@
       "validOn": "Válido el",
       "tokenId": "ID del token",
       "securityNote": "Regla de seguridad: token firmado en servidor (HMAC) y válido por un día."
+    }
+  },
+  "billing": {
+    "title": "Liquidación",
+    "subtitle": "Tus viajes en el periodo seleccionado.",
+    "rangeStart": "Desde",
+    "rangeEnd": "Hasta",
+    "totalEarnings": "Total ganado",
+    "totalExpenses": "Gastos",
+    "loading": "Cargando liquidación…",
+    "empty": "No hay viajes en el periodo seleccionado.",
+    "table": {
+      "date": "Fecha",
+      "tour": "Ruta",
+      "price": "Precio",
+      "expenses": "Gastos"
     }
   },
   "support": {

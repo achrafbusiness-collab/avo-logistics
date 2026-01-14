@@ -67,6 +67,7 @@
     "pickup": "الاستلام",
     "dropoff": "التسليم",
     "distance": "المسافة",
+    "driverPrice": "سعر السائق",
     "greeting": "مرحبًا، {{name}}!",
     "driverFallback": "سائق",
     "summary": {
@@ -119,6 +120,22 @@
       "validOn": "صالحة في",
       "tokenId": "معرّف الرمز",
       "securityNote": "قاعدة الأمان: الرمز موقّع على الخادم (HMAC) وصالح ليوم واحد."
+    }
+  },
+  "billing": {
+    "title": "التحصيل",
+    "subtitle": "جولاتك ضمن الفترة المحددة.",
+    "rangeStart": "من",
+    "rangeEnd": "إلى",
+    "totalEarnings": "إجمالي الأرباح",
+    "totalExpenses": "المصروفات",
+    "loading": "يتم تحميل التحصيل...",
+    "empty": "لا توجد جولات في الفترة المحددة.",
+    "table": {
+      "date": "التاريخ",
+      "tour": "الرحلة",
+      "price": "السعر",
+      "expenses": "المصروفات"
     }
   },
   "support": {

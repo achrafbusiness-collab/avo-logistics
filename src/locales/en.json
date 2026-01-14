@@ -67,6 +67,7 @@
     "pickup": "Pickup",
     "dropoff": "Drop-off",
     "distance": "Distance",
+    "driverPrice": "Driver price",
     "greeting": "Hello, {{name}}!",
     "driverFallback": "Driver",
     "summary": {
@@ -119,6 +120,22 @@
       "validOn": "Valid on",
       "tokenId": "Token ID",
       "securityNote": "Security rule: token is server-signed (HMAC) and valid for one day."
+    }
+  },
+  "billing": {
+    "title": "Billing",
+    "subtitle": "Your tours in the selected period.",
+    "rangeStart": "From",
+    "rangeEnd": "To",
+    "totalEarnings": "Total earnings",
+    "totalExpenses": "Expenses",
+    "loading": "Loading billing…",
+    "empty": "No tours in the selected period.",
+    "table": {
+      "date": "Date",
+      "tour": "Tour",
+      "price": "Price",
+      "expenses": "Expenses"
     }
   },
   "support": {

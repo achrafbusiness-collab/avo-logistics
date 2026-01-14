@@ -67,6 +67,7 @@
     "pickup": "Abholung",
     "dropoff": "Abgabe",
     "distance": "Strecke",
+    "driverPrice": "Fahrerpreis",
     "greeting": "Hallo, {{name}}!",
     "driverFallback": "Fahrer",
     "summary": {
@@ -119,6 +120,22 @@
       "validOn": "Gültig am",
       "tokenId": "Token ID",
       "securityNote": "Sicherheitsregel: Token ist serverseitig signiert (HMAC) und täglich gültig."
+    }
+  },
+  "billing": {
+    "title": "Abrechnung",
+    "subtitle": "Deine Touren im gewählten Zeitraum.",
+    "rangeStart": "Von",
+    "rangeEnd": "Bis",
+    "totalEarnings": "Gesamtverdienst",
+    "totalExpenses": "Nebenkosten",
+    "loading": "Abrechnung wird geladen…",
+    "empty": "Keine Touren im ausgewählten Zeitraum.",
+    "table": {
+      "date": "Datum",
+      "tour": "Tour",
+      "price": "Preis",
+      "expenses": "Nebenkosten"
     }
   },
   "support": {

@@ -3,15 +3,25 @@ import { useQuery } from "@tanstack/react-query";
 import { appClient } from "@/api/appClient";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Loader2, ShieldCheck, User, Building2, Copy } from "lucide-react";
 import { useI18n } from "@/i18n";
 
 export default function DriverProfile() {
-  const { t } = useI18n();
+  const { t, formatDate, formatNumber } = useI18n();
   const [user, setUser] = useState(null);
   const [licenseToken, setLicenseToken] = useState(null);
   const [tokenError, setTokenError] = useState("");
   const [loadingToken, setLoadingToken] = useState(false);
+  const [billingRange, setBillingRange] = useState(() => {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    return {
+      start: start.toISOString().slice(0, 10),
+      end: end.toISOString().slice(0, 10),
+    };
+  });
 
   useEffect(() => {
     const loadUser = async () => {
@@ -34,6 +44,74 @@ export default function DriverProfile() {
 
   const appSettings = appSettingsList[0] || null;
   const driver = drivers.find((item) => item.email === user?.email);
+
+  const { data: driverOrders = [], isLoading: ordersLoading } = useQuery({
+    queryKey: ["driver-orders", driver?.id],
+    queryFn: () =>
+      appClient.entities.Order.filter({ assigned_driver_id: driver?.id }, "-created_date"),
+    enabled: !!driver?.id,
+  });
+
+  const { data: driverChecklists = [], isLoading: checklistsLoading } = useQuery({
+    queryKey: ["driver-checklists", driver?.id],
+    queryFn: () => appClient.entities.Checklist.filter({ driver_id: driver?.id }),
+    enabled: !!driver?.id,
+  });
+  const formatCurrency = (value) =>
+    formatNumber(value ?? 0, { style: "currency", currency: "EUR" });
+
+  const expensesByOrder = React.useMemo(() => {
+    return (driverChecklists || []).reduce((acc, checklist) => {
+      if (!checklist?.order_id || !Array.isArray(checklist.expenses)) return acc;
+      const total = checklist.expenses.reduce((sum, expense) => {
+        const amount = parseFloat(expense?.amount);
+        if (Number.isFinite(amount)) {
+          return sum + amount;
+        }
+        return sum;
+      }, 0);
+      acc[checklist.order_id] = (acc[checklist.order_id] || 0) + total;
+      return acc;
+    }, {});
+  }, [driverChecklists]);
+
+  const billingRows = React.useMemo(() => {
+    const startDate = billingRange.start ? new Date(billingRange.start) : null;
+    const endDate = billingRange.end ? new Date(billingRange.end) : null;
+    if (startDate) startDate.setHours(0, 0, 0, 0);
+    if (endDate) endDate.setHours(23, 59, 59, 999);
+    return (driverOrders || [])
+      .map((order) => {
+        const dateValue = order.dropoff_date || order.pickup_date || order.created_date;
+        const date = dateValue ? new Date(dateValue) : null;
+        return {
+          id: order.id,
+          date,
+          dateLabel: date ? formatDate(date) : "-",
+          tour: `${order.pickup_address || ""} → ${order.dropoff_address || ""}`.trim(),
+          price: Number.isFinite(Number(order.driver_price)) ? Number(order.driver_price) : 0,
+          expenses: expensesByOrder[order.id] || 0,
+        };
+      })
+      .filter((row) => {
+        if (!row.date) return false;
+        if (startDate && row.date < startDate) return false;
+        if (endDate && row.date > endDate) return false;
+        return true;
+      })
+      .sort((a, b) => (b.date?.getTime() || 0) - (a.date?.getTime() || 0));
+  }, [billingRange, driverOrders, expensesByOrder, formatDate]);
+
+  const billingTotals = React.useMemo(() => {
+    return billingRows.reduce(
+      (acc, row) => {
+        acc.price += row.price;
+        acc.expenses += row.expenses;
+        return acc;
+      },
+      { price: 0, expenses: 0 }
+    );
+  }, [billingRows]);
 
   useEffect(() => {
     const loadToken = async () => {
@@ -137,6 +215,86 @@ export default function DriverProfile() {
               <p className="mt-3 text-xs text-slate-500">
                 {t("profile.license.securityNote")}
               </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="p-4 space-y-4">
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-900">{t("billing.title")}</h2>
+              <p className="text-sm text-slate-500">{t("billing.subtitle")}</p>
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              <div>
+                <label className="text-xs text-slate-500">{t("billing.rangeStart")}</label>
+                <Input
+                  type="date"
+                  value={billingRange.start}
+                  onChange={(event) =>
+                    setBillingRange((prev) => ({ ...prev, start: event.target.value }))
+                  }
+                />
+              </div>
+              <div>
+                <label className="text-xs text-slate-500">{t("billing.rangeEnd")}</label>
+                <Input
+                  type="date"
+                  value={billingRange.end}
+                  onChange={(event) =>
+                    setBillingRange((prev) => ({ ...prev, end: event.target.value }))
+                  }
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <p className="text-xs text-slate-500">{t("billing.totalEarnings")}</p>
+              <p className="text-lg font-semibold text-slate-900">
+                {formatCurrency(billingTotals.price)}
+              </p>
+            </div>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <p className="text-xs text-slate-500">{t("billing.totalExpenses")}</p>
+              <p className="text-lg font-semibold text-slate-900">
+                {formatCurrency(billingTotals.expenses)}
+              </p>
+            </div>
+          </div>
+
+          {ordersLoading || checklistsLoading || driverLoading ? (
+            <div className="flex items-center gap-2 text-sm text-slate-500">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              {t("billing.loading")}
+            </div>
+          ) : billingRows.length === 0 ? (
+            <p className="text-sm text-slate-500">{t("billing.empty")}</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="text-left text-slate-500">
+                    <th className="py-2 pr-4">{t("billing.table.date")}</th>
+                    <th className="py-2 pr-4">{t("billing.table.tour")}</th>
+                    <th className="py-2 pr-4 text-right">{t("billing.table.price")}</th>
+                    <th className="py-2 text-right">{t("billing.table.expenses")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {billingRows.map((row) => (
+                    <tr key={row.id} className="border-t">
+                      <td className="py-2 pr-4">{row.dateLabel}</td>
+                      <td className="py-2 pr-4 text-slate-700">{row.tour || "-"}</td>
+                      <td className="py-2 pr-4 text-right">{formatCurrency(row.price)}</td>
+                      <td className="py-2 text-right">{formatCurrency(row.expenses)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </CardContent>

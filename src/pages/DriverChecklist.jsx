@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 
 export default function DriverChecklist() {
-  const { t, formatDate, formatDateTime } = useI18n();
+  const { t, formatDate, formatDateTime, formatNumber } = useI18n();
   const queryClient = useQueryClient();
   const urlParams = new URLSearchParams(window.location.search);
   const orderId = urlParams.get('orderId');
@@ -92,6 +92,8 @@ export default function DriverChecklist() {
   });
 
   const isLoading = orderLoading || checklistsLoading || docsLoading;
+  const formatCurrency = (value) =>
+    formatNumber(value ?? 0, { style: 'currency', currency: 'EUR' });
 
   if (isLoading) {
     return (
@@ -136,6 +138,12 @@ export default function DriverChecklist() {
               <p className="text-white/70 text-sm">
                 {t('orders.customerOrderNumber')}:{" "}
                 <span className="font-semibold text-white">{order.customer_order_number}</span>
+              </p>
+            )}
+            {order.driver_price !== null && order.driver_price !== undefined && (
+              <p className="text-white/80 text-sm">
+                {t('orders.driverPrice')}:{" "}
+                <span className="font-semibold text-white">{formatCurrency(order.driver_price)}</span>
               </p>
             )}
           </div>
