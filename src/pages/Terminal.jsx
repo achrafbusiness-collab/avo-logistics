@@ -42,6 +42,13 @@ export default function Terminal() {
     });
   }, [logs, levelFilter, searchTerm]);
 
+  const supabaseLogs = useMemo(() => {
+    return filteredLogs.filter((entry) => {
+      const haystack = `${entry.message} ${entry.details}`.toLowerCase();
+      return haystack.includes('supabase');
+    });
+  }, [filteredLogs]);
+
   const handleCopy = async () => {
     const payload = filteredLogs
       .map((entry) => `[${entry.timestamp}] ${entry.level.toUpperCase()} ${entry.message} ${entry.details || ''}`.trim())
@@ -70,60 +77,97 @@ export default function Terminal() {
         </div>
       </div>
 
-      <Card>
-        <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <CardTitle className="text-lg">Systemmeldungen</CardTitle>
-          <div className="flex flex-col sm:flex-row gap-3">
-            <Input
-              placeholder="Suche nach Fehler..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="sm:w-64"
-            />
-            <Select value={levelFilter} onValueChange={setLevelFilter}>
-              <SelectTrigger className="sm:w-40">
-                <SelectValue placeholder="Level" />
-              </SelectTrigger>
-              <SelectContent>
-                {levelOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {filteredLogs.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-slate-500">
-              <AlertTriangle className="w-10 h-10 mb-3" />
-              <p>Keine Logs vorhanden.</p>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card>
+          <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <CardTitle className="text-lg">Systemmeldungen</CardTitle>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Input
+                placeholder="Suche nach Fehler..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="sm:w-64"
+              />
+              <Select value={levelFilter} onValueChange={setLevelFilter}>
+                <SelectTrigger className="sm:w-40">
+                  <SelectValue placeholder="Level" />
+                </SelectTrigger>
+                <SelectContent>
+                  {levelOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-          ) : (
-            <div className="space-y-3">
-              {filteredLogs
-                .slice()
-                .reverse()
-                .map((entry) => (
-                  <div
-                    key={entry.id}
-                    className="rounded-lg border border-slate-800 bg-slate-950 p-3 text-sm text-slate-100"
-                  >
-                    <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
-                      <span>{new Date(entry.timestamp).toLocaleString()}</span>
-                      <span className="uppercase">{entry.level}</span>
+          </CardHeader>
+          <CardContent>
+            {filteredLogs.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-slate-500">
+                <AlertTriangle className="w-10 h-10 mb-3" />
+                <p>Keine Logs vorhanden.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {filteredLogs
+                  .slice()
+                  .reverse()
+                  .map((entry) => (
+                    <div
+                      key={entry.id}
+                      className="rounded-lg border border-slate-800 bg-slate-950 p-3 text-sm text-slate-100"
+                    >
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
+                        <span>{new Date(entry.timestamp).toLocaleString()}</span>
+                        <span className="uppercase">{entry.level}</span>
+                      </div>
+                      <p className="mt-2 font-medium">{entry.message}</p>
+                      {entry.details && (
+                        <pre className="mt-2 whitespace-pre-wrap text-xs text-slate-400">{entry.details}</pre>
+                      )}
                     </div>
-                    <p className="mt-2 font-medium">{entry.message}</p>
-                    {entry.details && (
-                      <pre className="mt-2 whitespace-pre-wrap text-xs text-slate-400">{entry.details}</pre>
-                    )}
-                  </div>
-                ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                  ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Supabase</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {supabaseLogs.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-slate-500">
+                <AlertTriangle className="w-10 h-10 mb-3" />
+                <p>Keine Supabase-Logs vorhanden.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {supabaseLogs
+                  .slice()
+                  .reverse()
+                  .map((entry) => (
+                    <div
+                      key={entry.id}
+                      className="rounded-lg border border-slate-800 bg-slate-950 p-3 text-sm text-slate-100"
+                    >
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
+                        <span>{new Date(entry.timestamp).toLocaleString()}</span>
+                        <span className="uppercase">{entry.level}</span>
+                      </div>
+                      <p className="mt-2 font-medium">{entry.message}</p>
+                      {entry.details && (
+                        <pre className="mt-2 whitespace-pre-wrap text-xs text-slate-400">{entry.details}</pre>
+                      )}
+                    </div>
+                  ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
