@@ -312,6 +312,7 @@
       "waitTitle": "Damage check",
       "waitMessage": "Please inspect the vehicle for damages. You can continue in {{seconds}} seconds.",
       "waitCountdown": "{{seconds}} seconds remaining",
+      "waitWarning": "Undocumented damages may later be assigned to you and cause costs.",
       "waitButton": "Continue",
       "add": "Add damage",
       "none": "No damages",

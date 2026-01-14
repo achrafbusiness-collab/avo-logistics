@@ -312,6 +312,7 @@
       "waitTitle": "Revisión de daños",
       "waitMessage": "Por favor revisa el vehículo por daños. Puedes continuar en {{seconds}} segundos.",
       "waitCountdown": "Quedan {{seconds}} segundos",
+      "waitWarning": "Los daños no documentados pueden atribuirse posteriormente y generar costos.",
       "waitButton": "Continuar",
       "add": "Añadir daño",
       "none": "Sin daños",

@@ -312,6 +312,7 @@
       "waitTitle": "Schadenprüfung",
       "waitMessage": "Bitte überprüfe das Fahrzeug auf Schäden. Du kannst in {{seconds}} Sekunden fortfahren.",
       "waitCountdown": "Noch {{seconds}} Sekunden",
+      "waitWarning": "Nicht dokumentierte Schäden können dir später zugerechnet werden und zu Kosten führen.",
       "waitButton": "Weiter",
       "add": "Schaden hinzufügen",
       "none": "Keine Schäden",

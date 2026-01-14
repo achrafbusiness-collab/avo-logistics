@@ -68,7 +68,7 @@ const EXPENSE_TYPES = [
   { value: 'other', labelKey: 'protocol.expenses.types.other' },
 ];
 
-const DAMAGE_DELAY_SECONDS = 30;
+const DAMAGE_DELAY_SECONDS = 60;
 
 export default function DriverProtocol() {
   const { t } = useI18n();
@@ -92,8 +92,10 @@ export default function DriverProtocol() {
   const draftCreateRef = useRef(null);
   const [damageDelay, setDamageDelay] = useState({
     open: false,
+    startedAt: null,
     remaining: DAMAGE_DELAY_SECONDS,
     nextStep: null,
+    done: false,
   });
 
   const [formData, setFormData] = useState({
@@ -215,17 +217,23 @@ export default function DriverProtocol() {
   }, [pendingDamagePhoto]);
 
   useEffect(() => {
-    if (!damageDelay.open) return;
-    if (damageDelay.remaining <= 0) return;
-    const interval = window.setInterval(() => {
+    if (!damageDelay.startedAt || damageDelay.done) return;
+    const tick = () => {
+      const elapsed = Math.floor((Date.now() - damageDelay.startedAt) / 1000);
+      const nextRemaining = Math.max(0, DAMAGE_DELAY_SECONDS - elapsed);
       setDamageDelay((prev) => {
-        if (!prev.open) return prev;
-        const nextRemaining = Math.max(0, prev.remaining - 1);
-        return { ...prev, remaining: nextRemaining };
+        if (!prev.startedAt || prev.done) return prev;
+        const nextState = { ...prev, remaining: nextRemaining };
+        if (nextRemaining === 0) {
+          nextState.done = true;
+        }
+        return nextState;
       });
-    }, 1000);
+    };
+    tick();
+    const interval = window.setInterval(tick, 1000);
     return () => window.clearInterval(interval);
-  }, [damageDelay.open, damageDelay.remaining]);
+  }, [damageDelay.startedAt, damageDelay.done]);
 
   useEffect(() => {
     if (!order || formData.location || existingChecklist) {
@@ -665,12 +673,14 @@ export default function DriverProtocol() {
       setSubmitError(reason);
       return false;
     }
-    if (stepId === 'damage' && type === 'pickup' && !damageDelay.open) {
-      setDamageDelay({
+    if (stepId === 'damage' && type === 'pickup' && !damageDelay.done) {
+      setDamageDelay((prev) => ({
+        ...prev,
         open: true,
-        remaining: DAMAGE_DELAY_SECONDS,
+        startedAt: prev.startedAt || Date.now(),
+        remaining: prev.startedAt ? prev.remaining : DAMAGE_DELAY_SECONDS,
         nextStep: nextStep || null,
-      });
+      }));
       return false;
     }
     setSubmitError('');
@@ -1406,11 +1416,10 @@ export default function DriverProtocol() {
         open={damageDelay.open}
         onOpenChange={(open) => {
           if (!open) {
-            setDamageDelay({
+            setDamageDelay((prev) => ({
+              ...prev,
               open: false,
-              remaining: DAMAGE_DELAY_SECONDS,
-              nextStep: null,
-            });
+            }));
           }
         }}
       >
@@ -1420,8 +1429,9 @@ export default function DriverProtocol() {
             <DialogDescription>{t('protocol.damage.waitMessage', { seconds: damageDelay.remaining })}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="text-sm text-slate-600">
-              {t('protocol.damage.waitCountdown', { seconds: damageDelay.remaining })}
+            <div className="text-sm text-slate-600 space-y-2">
+              <p>{t('protocol.damage.waitCountdown', { seconds: damageDelay.remaining })}</p>
+              <p>{t('protocol.damage.waitWarning')}</p>
             </div>
             <Button
               className="w-full bg-[#1e3a5f] hover:bg-[#2d5a8a]"
@@ -1429,11 +1439,12 @@ export default function DriverProtocol() {
               onClick={() => {
                 if (damageDelay.remaining > 0) return;
                 const next = damageDelay.nextStep;
-                setDamageDelay({
+                setDamageDelay((prev) => ({
+                  ...prev,
                   open: false,
-                  remaining: DAMAGE_DELAY_SECONDS,
+                  done: true,
                   nextStep: null,
-                });
+                }));
                 if (next) {
                   setCurrentStep(next);
                 }
