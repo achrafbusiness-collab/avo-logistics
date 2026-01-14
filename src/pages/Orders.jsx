@@ -304,20 +304,20 @@ export default function Orders() {
       const days = Math.max(1, differenceInCalendarDays(now, dueAt));
       return {
         state: 'overdue',
-        label: format(dueAt, 'dd.MM.yyyy', { locale: de }),
+        label: format(dueAt, 'dd.MM.yyyy HH:mm', { locale: de }),
         detail: `Überfällig seit ${days} Tag${days > 1 ? 'en' : ''}`,
       };
     }
     if (isSameDay(dueAt, now) || isSameDay(dueAt, tomorrow)) {
       return {
         state: 'today',
-        label: format(dueAt, 'dd.MM.yyyy', { locale: de }),
+        label: format(dueAt, 'dd.MM.yyyy HH:mm', { locale: de }),
         detail: isSameDay(dueAt, now) ? 'Heute fällig' : 'Morgen fällig',
       };
     }
     return {
       state: 'normal',
-      label: format(dueAt, 'dd.MM.yyyy', { locale: de }),
+      label: format(dueAt, 'dd.MM.yyyy HH:mm', { locale: de }),
       detail: '',
     };
   };
@@ -783,8 +783,8 @@ export default function Orders() {
               )}
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
+            <div className="w-full overflow-x-auto touch-pan-x">
+              <Table className="min-w-[980px]">
                 <TableHeader>
                   <TableRow className="bg-gray-50">
                     <TableHead className="w-12">
