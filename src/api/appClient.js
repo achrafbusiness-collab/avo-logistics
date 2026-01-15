@@ -388,6 +388,8 @@ export const appClient = {
     Order: createEntityClient('Order'),
     OrderNote: createEntityClient('OrderNote'),
     OrderDocument: createEntityClient('OrderDocument'),
+    OrderHandoff: createEntityClient('OrderHandoff'),
+    OrderSegment: createEntityClient('OrderSegment'),
     DriverDocument: createEntityClient('DriverDocument'),
     Checklist: createEntityClient('Checklist'),
     Customer: createEntityClient('Customer'),
