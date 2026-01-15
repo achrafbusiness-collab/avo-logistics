@@ -43,6 +43,7 @@ import {
   Search, 
   Filter,
   Truck,
+  Check,
   ArrowLeft,
   Loader2
 } from 'lucide-react';
@@ -165,6 +166,21 @@ export default function Orders() {
 
     return { open, inDelivery, dueTomorrow, overdue };
   }, [orders]);
+
+  const expensesByOrder = useMemo(() => {
+    const map = {};
+    checklists.forEach((checklist) => {
+      if (!checklist?.order_id) return;
+      const expenses = Array.isArray(checklist.expenses) ? checklist.expenses : [];
+      const hasExpenses = expenses.some((expense) =>
+        Boolean(expense?.amount || expense?.file_url || expense?.note)
+      );
+      if (hasExpenses) {
+        map[checklist.order_id] = true;
+      }
+    });
+    return map;
+  }, [checklists]);
 
   const activeOrdersCount = useMemo(
     () => orders.filter((order) => order.status !== 'completed').length,
@@ -809,7 +825,7 @@ export default function Orders() {
             </div>
           ) : (
             <div className="w-full overflow-x-auto touch-pan-x">
-              <Table className="min-w-[980px]">
+              <Table className="min-w-[1040px]">
                 <TableHeader>
                   <TableRow className="bg-gray-50">
                     <TableHead className="w-12">
@@ -823,6 +839,7 @@ export default function Orders() {
                     <TableHead>Fahrzeug</TableHead>
                   <TableHead>Route</TableHead>
                   <TableHead>Fahrer</TableHead>
+                  <TableHead>Auslagen</TableHead>
                   <TableHead>Fällig bis</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
@@ -1016,6 +1033,11 @@ export default function Orders() {
                         {order.assigned_driver_name || (
                           <span className="text-gray-400">Nicht zugewiesen</span>
                         )}
+                      </TableCell>
+                      <TableCell>
+                        {expensesByOrder[order.id] ? (
+                          <Check className="h-5 w-5 text-emerald-600" aria-label="Auslagen vorhanden" />
+                        ) : null}
                       </TableCell>
                       <TableCell>
                         <div className="text-sm font-medium text-gray-900">
