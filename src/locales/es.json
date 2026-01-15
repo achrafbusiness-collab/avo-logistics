@@ -96,9 +96,10 @@
   },
   "handoff": {
     "title": "Entrega intermedia",
-    "pendingTitle": "Entrega intermedia pendiente de confirmación",
-    "pendingByYou": "Reportado por ti – esperando confirmación.",
+    "pendingTitle": "Entrega intermedia realizada. El precio lo gestionará el equipo AVO y se mostrará pronto en el perfil.",
+    "pendingByYou": "Entrega intermedia guardada.",
     "accept": "Confirmar recepción",
+    "continue": "Continuar desde entrega intermedia",
     "none": "No hay entregas intermedias.",
     "create": "Reportar entrega intermedia",
     "dialogTitle": "Registrar entrega intermedia",
@@ -111,14 +112,16 @@
     "useGps": "Usar ubicación GPS",
     "save": "Guardar entrega",
     "acceptedTitle": "Entrega intermedia confirmada",
+    "createdBy": "Reportado por {{name}}",
     "acceptedBy": "Confirmado por {{name}}",
-    "acceptRequired": "Confirmar entrega",
+    "acceptRequired": "Confirma la entrega intermedia para continuar.",
     "errors": {
       "noGps": "El GPS no está disponible en este dispositivo.",
       "reverseGeocode": "No se pudo obtener la dirección.",
       "gpsFailed": "No se pudo obtener la ubicación.",
       "locationRequired": "Por favor ingresa una ubicación.",
-      "saveFailed": "No se pudo guardar la entrega."
+      "saveFailed": "No se pudo guardar la entrega.",
+      "acceptFailed": "No se pudo confirmar la entrega."
     }
   },
   "documents": {

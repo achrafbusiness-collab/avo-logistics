@@ -96,9 +96,10 @@
   },
   "handoff": {
     "title": "Handoff",
-    "pendingTitle": "Handoff awaiting confirmation",
-    "pendingByYou": "Reported by you – waiting for confirmation.",
+    "pendingTitle": "Handoff completed. Pricing will be handled by Team AVO and will appear on the profile shortly.",
+    "pendingByYou": "Handoff saved.",
     "accept": "Confirm takeover",
+    "continue": "Continue from handoff",
     "none": "No handoff reported.",
     "create": "Report handoff",
     "dialogTitle": "Log handoff",
@@ -111,14 +112,16 @@
     "useGps": "Use GPS location",
     "save": "Save handoff",
     "acceptedTitle": "Handoff confirmed",
+    "createdBy": "Reported by {{name}}",
     "acceptedBy": "Confirmed by {{name}}",
-    "acceptRequired": "Confirm handoff",
+    "acceptRequired": "Please confirm the handoff to continue.",
     "errors": {
       "noGps": "GPS is not available on this device.",
       "reverseGeocode": "Address could not be resolved.",
       "gpsFailed": "Unable to retrieve location.",
       "locationRequired": "Please enter a location.",
-      "saveFailed": "Handoff could not be saved."
+      "saveFailed": "Handoff could not be saved.",
+      "acceptFailed": "Handoff could not be confirmed."
     }
   },
   "documents": {

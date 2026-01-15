@@ -96,9 +96,10 @@
   },
   "handoff": {
     "title": "Zwischenabgabe",
-    "pendingTitle": "Zwischenabgabe wartet auf Bestätigung",
-    "pendingByYou": "Von dir gemeldet – wartet auf Bestätigung.",
+    "pendingTitle": "Zwischenabgabe erfolgreich durchgeführt. Preis wird von Team AVO bearbeitet und dann wird in kurzem auf der Profilseite zu sehen.",
+    "pendingByYou": "Zwischenabgabe gespeichert.",
     "accept": "Übernahme bestätigen",
+    "continue": "Weiterfahren von Zwischenabgabe",
     "none": "Keine Zwischenabgabe gemeldet.",
     "create": "Zwischenabgabe melden",
     "dialogTitle": "Zwischenabgabe erfassen",
@@ -111,14 +112,16 @@
     "useGps": "Standort per GPS",
     "save": "Zwischenabgabe speichern",
     "acceptedTitle": "Zwischenabgabe bestätigt",
+    "createdBy": "Gemeldet von {{name}}",
     "acceptedBy": "Bestätigt von {{name}}",
-    "acceptRequired": "Zwischenabgabe bestätigen",
+    "acceptRequired": "Bitte Zwischenabgabe bestätigen, um weiterzufahren.",
     "errors": {
       "noGps": "GPS ist auf diesem Gerät nicht verfügbar.",
       "reverseGeocode": "Adresse konnte nicht ermittelt werden.",
       "gpsFailed": "Standort konnte nicht abgerufen werden.",
       "locationRequired": "Bitte einen Standort eingeben.",
-      "saveFailed": "Zwischenabgabe konnte nicht gespeichert werden."
+      "saveFailed": "Zwischenabgabe konnte nicht gespeichert werden.",
+      "acceptFailed": "Zwischenabgabe konnte nicht bestätigt werden."
     }
   },
   "documents": {

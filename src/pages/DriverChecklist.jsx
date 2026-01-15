@@ -127,6 +127,9 @@ export default function DriverChecklist() {
   });
   const latestHandoff = orderedHandoffs[0];
   const pendingHandoff = orderedHandoffs.find((handoff) => handoff.status === 'pending');
+  const pendingHandoffByCurrentDriver = Boolean(
+    pendingHandoff && currentDriver && pendingHandoff.created_by_driver_id === currentDriver.id
+  );
   const canCreateHandoff = Boolean(
     currentDriver && pickupChecklist && !dropoffChecklist && !pendingHandoff
   );
@@ -231,6 +234,24 @@ export default function DriverChecklist() {
       setHandoffError(error?.message || t('handoff.errors.saveFailed'));
     } finally {
       setHandoffSaving(false);
+    }
+  };
+
+  const handleContinueFromHandoff = async () => {
+    if (!pendingHandoff || !currentDriver) return;
+    setHandoffError('');
+    try {
+      await acceptHandoffMutation.mutateAsync({
+        id: pendingHandoff.id,
+        data: {
+          status: 'accepted',
+          accepted_by_driver_id: currentDriver.id,
+          accepted_by_driver_name: currentDriver.name,
+          accepted_at: new Date().toISOString(),
+        },
+      });
+    } catch (error) {
+      setHandoffError(error?.message || t('handoff.errors.acceptFailed'));
     }
   };
 
@@ -418,45 +439,41 @@ export default function DriverChecklist() {
             </CardHeader>
             <CardContent className="space-y-3">
               {pendingHandoff ? (
-                <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
                   <p className="font-semibold">{t('handoff.pendingTitle')}</p>
-                  <p className="text-amber-800">{pendingHandoff.location}</p>
+                  <p className="text-emerald-800">{pendingHandoff.location}</p>
                   {pendingHandoff.notes && (
-                    <p className="text-xs text-amber-700 mt-2">{pendingHandoff.notes}</p>
+                    <p className="text-xs text-emerald-700 mt-2">{pendingHandoff.notes}</p>
                   )}
-                  <div className="flex flex-wrap gap-2 mt-3">
-                    {canAcceptHandoff ? (
+                  <div className="flex flex-col gap-2 mt-3">
+                    {(canAcceptHandoff || pendingHandoffByCurrentDriver) && (
                       <Button
                         size="sm"
-                        className="bg-amber-600 hover:bg-amber-700"
-                        onClick={() =>
-                          acceptHandoffMutation.mutate({
-                            id: pendingHandoff.id,
-                            data: {
-                              status: 'accepted',
-                              accepted_by_driver_id: currentDriver?.id,
-                              accepted_by_driver_name: currentDriver?.name,
-                              accepted_at: new Date().toISOString(),
-                            },
-                          })
-                        }
+                        className="bg-emerald-600 hover:bg-emerald-700"
+                        onClick={handleContinueFromHandoff}
                       >
-                        {t('handoff.accept')}
+                        {t('handoff.continue')}
                       </Button>
-                    ) : (
-                      <span className="text-xs text-amber-700">{t('handoff.pendingByYou')}</span>
                     )}
+                    <span className="text-xs text-emerald-700">
+                      {pendingHandoffByCurrentDriver
+                        ? t('handoff.pendingByYou')
+                        : t('handoff.acceptRequired')}
+                    </span>
                   </div>
                 </div>
               ) : latestHandoff ? (
                 <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
                   <p className="font-semibold">{t('handoff.acceptedTitle')}</p>
                   <p className="text-emerald-800">{latestHandoff.location}</p>
-                  {latestHandoff.accepted_by_driver_name && (
-                    <p className="text-xs text-emerald-700 mt-2">
-                      {t('handoff.acceptedBy', { name: latestHandoff.accepted_by_driver_name })}
-                    </p>
-                  )}
+                  <div className="mt-2 space-y-1 text-xs text-emerald-700">
+                    {latestHandoff.created_by_driver_name && (
+                      <p>{t('handoff.createdBy', { name: latestHandoff.created_by_driver_name })}</p>
+                    )}
+                    {latestHandoff.accepted_by_driver_name && (
+                      <p>{t('handoff.acceptedBy', { name: latestHandoff.accepted_by_driver_name })}</p>
+                    )}
+                  </div>
                 </div>
               ) : (
                 <p className="text-sm text-gray-500">{t('handoff.none')}</p>
