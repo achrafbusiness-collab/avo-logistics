@@ -6,7 +6,7 @@ import { createPageUrl } from '@/utils';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
+import AddressAutocomplete from "@/components/ui/address-autocomplete";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import StatusBadge from '@/components/ui/StatusBadge';
@@ -671,11 +671,13 @@ export default function DriverChecklist() {
           <div className="space-y-3">
             <div className="space-y-2">
               <Label>{t('handoff.locationLabel')}</Label>
-              <Input
+              <AddressAutocomplete
                 value={handoffForm.location}
-                onChange={(event) =>
-                  setHandoffForm((prev) => ({ ...prev, location: event.target.value }))
-                }
+                onChange={(value) => setHandoffForm((prev) => ({ ...prev, location: value }))}
+                onSelect={({ address, city, postalCode }) => {
+                  const full = [address, postalCode, city].filter(Boolean).join(", ");
+                  setHandoffForm((prev) => ({ ...prev, location: full || address }));
+                }}
                 placeholder={t('handoff.locationPlaceholder')}
               />
               <Button
