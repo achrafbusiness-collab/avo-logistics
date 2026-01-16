@@ -156,6 +156,12 @@
   "billing": {
     "title": "Billing",
     "subtitle": "Your tours in the selected period.",
+    "quick": {
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "dayBefore": "Day before yesterday",
+      "weekAgo": "Last 7 days"
+    },
     "rangeStart": "From",
     "rangeEnd": "To",
     "totalEarnings": "Total earnings",
@@ -164,6 +170,7 @@
     "empty": "No tours in the selected period.",
     "table": {
       "date": "Date",
+      "plate": "License plate",
       "tour": "Tour",
       "price": "Price",
       "expenses": "Expenses"

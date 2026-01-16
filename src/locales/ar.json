@@ -156,6 +156,12 @@
   "billing": {
     "title": "التحصيل",
     "subtitle": "جولاتك ضمن الفترة المحددة.",
+    "quick": {
+      "today": "اليوم",
+      "yesterday": "أمس",
+      "dayBefore": "أول أمس",
+      "weekAgo": "آخر 7 أيام"
+    },
     "rangeStart": "من",
     "rangeEnd": "إلى",
     "totalEarnings": "إجمالي الأرباح",
@@ -164,6 +170,7 @@
     "empty": "لا توجد جولات في الفترة المحددة.",
     "table": {
       "date": "التاريخ",
+      "plate": "لوحة المركبة",
       "tour": "الرحلة",
       "price": "السعر",
       "expenses": "المصروفات"

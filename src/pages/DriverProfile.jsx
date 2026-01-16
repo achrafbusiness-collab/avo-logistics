@@ -81,6 +81,15 @@ export default function DriverProfile() {
     }, {});
   }, [driverChecklists]);
 
+  const ordersById = React.useMemo(() => {
+    return (driverOrders || []).reduce((acc, order) => {
+      if (order?.id) {
+        acc.set(order.id, order);
+      }
+      return acc;
+    }, new Map());
+  }, [driverOrders]);
+
   const billingRows = React.useMemo(() => {
     const startDate = billingRange.start ? new Date(billingRange.start) : null;
     const endDate = billingRange.end ? new Date(billingRange.end) : null;
@@ -94,6 +103,7 @@ export default function DriverProfile() {
           id: segment.id,
           date,
           dateLabel: date ? formatDate(date) : "-",
+          licensePlate: ordersById.get(segment.order_id)?.license_plate || "-",
           tour: `${segment.start_location || ""} → ${segment.end_location || ""}`.trim(),
           price: Number.isFinite(Number(segment.price)) ? Number(segment.price) : 0,
           expenses: segment.segment_type === "dropoff" ? expensesByOrder[segment.order_id] || 0 : 0,
@@ -106,7 +116,7 @@ export default function DriverProfile() {
         return true;
       })
       .sort((a, b) => (b.date?.getTime() || 0) - (a.date?.getTime() || 0));
-  }, [billingRange, driverSegments, expensesByOrder, formatDate]);
+  }, [billingRange, driverSegments, expensesByOrder, formatDate, ordersById]);
 
   const billingTotals = React.useMemo(() => {
     return billingRows.reduce(
@@ -256,6 +266,58 @@ export default function DriverProfile() {
               </div>
             </div>
           </div>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                const today = new Date();
+                const date = today.toISOString().slice(0, 10);
+                setBillingRange({ start: date, end: date });
+              }}
+            >
+              {t("billing.quick.today")}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                const day = new Date();
+                day.setDate(day.getDate() - 1);
+                const date = day.toISOString().slice(0, 10);
+                setBillingRange({ start: date, end: date });
+              }}
+            >
+              {t("billing.quick.yesterday")}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                const day = new Date();
+                day.setDate(day.getDate() - 2);
+                const date = day.toISOString().slice(0, 10);
+                setBillingRange({ start: date, end: date });
+              }}
+            >
+              {t("billing.quick.dayBefore")}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                const end = new Date();
+                const start = new Date();
+                start.setDate(start.getDate() - 7);
+                setBillingRange({
+                  start: start.toISOString().slice(0, 10),
+                  end: end.toISOString().slice(0, 10),
+                });
+              }}
+            >
+              {t("billing.quick.weekAgo")}
+            </Button>
+          </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
@@ -285,6 +347,7 @@ export default function DriverProfile() {
                 <thead>
                   <tr className="text-left text-slate-500">
                     <th className="py-2 pr-4">{t("billing.table.date")}</th>
+                    <th className="py-2 pr-4">{t("billing.table.plate")}</th>
                     <th className="py-2 pr-4">{t("billing.table.tour")}</th>
                     <th className="py-2 pr-4 text-right">{t("billing.table.price")}</th>
                     <th className="py-2 text-right">{t("billing.table.expenses")}</th>
@@ -294,6 +357,7 @@ export default function DriverProfile() {
                   {billingRows.map((row) => (
                     <tr key={row.id} className="border-t">
                       <td className="py-2 pr-4">{row.dateLabel}</td>
+                      <td className="py-2 pr-4 text-slate-700">{row.licensePlate}</td>
                       <td className="py-2 pr-4 text-slate-700">{row.tour || "-"}</td>
                       <td className="py-2 pr-4 text-right">{formatCurrency(row.price)}</td>
                       <td className="py-2 text-right">{formatCurrency(row.expenses)}</td>

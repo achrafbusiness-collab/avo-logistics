@@ -156,6 +156,12 @@
   "billing": {
     "title": "Liquidación",
     "subtitle": "Tus viajes en el periodo seleccionado.",
+    "quick": {
+      "today": "Hoy",
+      "yesterday": "Ayer",
+      "dayBefore": "Anteayer",
+      "weekAgo": "Últimos 7 días"
+    },
     "rangeStart": "Desde",
     "rangeEnd": "Hasta",
     "totalEarnings": "Total ganado",
@@ -164,6 +170,7 @@
     "empty": "No hay viajes en el periodo seleccionado.",
     "table": {
       "date": "Fecha",
+      "plate": "Matrícula",
       "tour": "Ruta",
       "price": "Precio",
       "expenses": "Gastos"

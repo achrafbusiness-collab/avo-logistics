@@ -156,6 +156,12 @@
   "billing": {
     "title": "Abrechnung",
     "subtitle": "Deine Touren im gewählten Zeitraum.",
+    "quick": {
+      "today": "Heute",
+      "yesterday": "Gestern",
+      "dayBefore": "Vorgestern",
+      "weekAgo": "Letzte 7 Tage"
+    },
     "rangeStart": "Von",
     "rangeEnd": "Bis",
     "totalEarnings": "Gesamtverdienst",
@@ -164,6 +170,7 @@
     "empty": "Keine Touren im ausgewählten Zeitraum.",
     "table": {
       "date": "Datum",
+      "plate": "Kennzeichen",
       "tour": "Tour",
       "price": "Preis",
       "expenses": "Nebenkosten"
