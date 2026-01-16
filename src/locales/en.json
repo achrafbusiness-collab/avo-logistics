@@ -115,6 +115,10 @@
     "createdBy": "Reported by {{name}}",
     "acceptedBy": "Confirmed by {{name}}",
     "acceptRequired": "Please confirm the handoff to continue.",
+    "expensesPromptTitle": "Add expenses now?",
+    "expensesPromptBody": "Do you want to upload fuel, toll, or taxi receipts now?",
+    "expensesPromptConfirm": "Upload expenses",
+    "expensesPromptLater": "Later",
     "errors": {
       "noGps": "GPS is not available on this device.",
       "reverseGeocode": "Address could not be resolved.",
@@ -264,6 +268,26 @@
       "empty": "No documents for this order.",
       "open": "Open"
     },
+    "expenses": {
+      "title": "Expenses (afterwards)",
+      "subtitle": "Upload any fuel, toll, or taxi receipts after pickup/handoff.",
+      "empty": "No expenses uploaded yet.",
+      "itemTitle": "Expense {{index}}",
+      "type": "Type",
+      "amount": "Amount",
+      "note": "Note",
+      "notePlaceholder": "Optional note",
+      "receipt": "Receipt",
+      "upload": "Upload receipt",
+      "uploading": "Uploading...",
+      "view": "Open file",
+      "add": "Add expense",
+      "save": "Save expenses",
+      "saving": "Saving...",
+      "saved": "Expenses saved.",
+      "saveError": "Expenses could not be saved.",
+      "uploadError": "Upload failed. Please try again."
+    },
     "protocols": {
       "title": "Protocols",
       "pickupTitle": "Pickup protocol",
@@ -388,6 +412,7 @@
     "expenses": {
       "title": "Expenses",
       "subtitle": "Add fuel, taxi, toll, or parking receipts.",
+      "open": "Upload expenses",
       "add": "Add expense",
       "empty": "No expenses recorded yet",
       "itemTitle": "Expense {{index}}",

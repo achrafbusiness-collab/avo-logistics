@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { appClient } from '@/api/appClient';
 import { Link } from 'react-router-dom';
@@ -9,6 +9,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import AddressAutocomplete from "@/components/ui/address-autocomplete";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import StatusBadge from '@/components/ui/StatusBadge';
 import { useI18n } from '@/i18n';
 import { getMapboxDistanceKmFromAddresses, reverseGeocode } from '@/utils/mapboxDistance';
@@ -24,12 +26,23 @@ import {
   Calendar,
   Clock,
   Loader2,
-  LocateFixed
+  LocateFixed,
+  Plus,
+  X
 } from 'lucide-react';
+
+const EXPENSE_TYPES = [
+  { value: 'fuel', labelKey: 'protocol.expenses.types.fuel' },
+  { value: 'taxi', labelKey: 'protocol.expenses.types.taxi' },
+  { value: 'toll', labelKey: 'protocol.expenses.types.toll' },
+  { value: 'parking', labelKey: 'protocol.expenses.types.parking' },
+  { value: 'other', labelKey: 'protocol.expenses.types.other' },
+];
 
 export default function DriverChecklist() {
   const { t, formatDate, formatDateTime, formatNumber } = useI18n();
   const queryClient = useQueryClient();
+  const postExpensesRef = useRef(null);
   const urlParams = new URLSearchParams(window.location.search);
   const orderId = urlParams.get('orderId');
 
@@ -41,6 +54,12 @@ export default function DriverChecklist() {
   const [handoffError, setHandoffError] = useState('');
   const [handoffSaving, setHandoffSaving] = useState(false);
   const [gpsLoading, setGpsLoading] = useState(false);
+  const [handoffExpensePromptOpen, setHandoffExpensePromptOpen] = useState(false);
+  const [postExpenses, setPostExpenses] = useState([]);
+  const [postExpenseUploads, setPostExpenseUploads] = useState({});
+  const [postExpenseSaving, setPostExpenseSaving] = useState(false);
+  const [postExpenseError, setPostExpenseError] = useState('');
+  const [postExpenseSaved, setPostExpenseSaved] = useState(false);
 
   useEffect(() => {
     loadUser();
@@ -101,6 +120,7 @@ export default function DriverChecklist() {
 
   const pickupChecklist = checklists.find(c => c.type === 'pickup');
   const dropoffChecklist = checklists.find(c => c.type === 'dropoff');
+  const editableChecklist = dropoffChecklist || pickupChecklist;
 
   const updateOrderMutation = useMutation({
     mutationFn: ({ id, data }) => appClient.entities.Order.update(id, data),
@@ -141,6 +161,9 @@ export default function DriverChecklist() {
   const mustAcceptHandoff = Boolean(
     pendingHandoff && pendingHandoff.created_by_driver_id !== currentDriver?.id
   );
+  const canShowPostExpenses = Boolean(
+    pickupChecklist && (dropoffChecklist || orderedHandoffs.length > 0)
+  );
 
   const pickupLocation = [order?.pickup_address, order?.pickup_postal_code, order?.pickup_city]
     .filter(Boolean)
@@ -177,6 +200,92 @@ export default function DriverChecklist() {
         setGpsLoading(false);
       }
     );
+  };
+
+  useEffect(() => {
+    if (editableChecklist?.id) {
+      setPostExpenses(editableChecklist.expenses || []);
+    }
+  }, [editableChecklist?.id]);
+
+  const isImageFile = (expense) => {
+    const name = expense?.file_name || '';
+    const type = expense?.file_type || '';
+    return type.startsWith('image/') || /\.(jpe?g|png|webp|gif)$/i.test(name);
+  };
+
+  const addPostExpense = () => {
+    setPostExpenses((prev) => [
+      ...prev,
+      { type: 'fuel', amount: '', note: '', file_url: '', file_name: '', file_type: '' },
+    ]);
+  };
+
+  const updatePostExpense = (index, field, value) => {
+    setPostExpenses((prev) => {
+      const next = [...prev];
+      next[index] = { ...next[index], [field]: value };
+      return next;
+    });
+    setPostExpenseSaved(false);
+  };
+
+  const removePostExpense = (index) => {
+    setPostExpenses((prev) => prev.filter((_, i) => i !== index));
+    setPostExpenseUploads((prev) => {
+      const next = { ...prev };
+      delete next[index];
+      return next;
+    });
+    setPostExpenseSaved(false);
+  };
+
+  const uploadPostExpenseFile = async (index, file) => {
+    if (!file) return;
+    setPostExpenseUploads((prev) => ({ ...prev, [index]: true }));
+    setPostExpenseError('');
+    try {
+      const { file_url } = await appClient.integrations.Core.UploadFile({ file });
+      setPostExpenses((prev) => {
+        const next = [...prev];
+        next[index] = {
+          ...next[index],
+          file_url,
+          file_name: file.name,
+          file_type: file.type,
+        };
+        return next;
+      });
+      setPostExpenseSaved(false);
+    } catch (error) {
+      setPostExpenseError(t('checklist.expenses.uploadError'));
+    } finally {
+      setPostExpenseUploads((prev) => ({ ...prev, [index]: false }));
+    }
+  };
+
+  const savePostExpenses = async () => {
+    if (!editableChecklist?.id) return;
+    setPostExpenseSaving(true);
+    setPostExpenseError('');
+    try {
+      await appClient.entities.Checklist.update(editableChecklist.id, {
+        expenses: postExpenses,
+      });
+      setPostExpenseSaved(true);
+      queryClient.invalidateQueries({ queryKey: ['order-checklists', orderId] });
+    } catch (error) {
+      setPostExpenseError(error?.message || t('checklist.expenses.saveError'));
+    } finally {
+      setPostExpenseSaving(false);
+    }
+  };
+
+  const handleOpenPostExpenses = () => {
+    setHandoffExpensePromptOpen(false);
+    setTimeout(() => {
+      postExpensesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
   };
 
   const submitHandoff = async () => {
@@ -228,6 +337,7 @@ export default function DriverChecklist() {
       setHandoffDialogOpen(false);
       setHandoffForm({ location: '', notes: '' });
       setHandoffCoords(null);
+      setHandoffExpensePromptOpen(true);
       queryClient.invalidateQueries({ queryKey: ['order-handoffs', orderId] });
       queryClient.invalidateQueries({ queryKey: ['order-segments', orderId] });
     } catch (error) {
@@ -492,6 +602,144 @@ export default function DriverChecklist() {
           </Card>
         )}
 
+        {canShowPostExpenses && (
+          <Card ref={postExpensesRef}>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <ClipboardList className="w-4 h-4" />
+                {t('checklist.expenses.title')}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-slate-600">{t('checklist.expenses.subtitle')}</p>
+
+              {postExpenses.length === 0 && (
+                <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 p-4 text-center text-sm text-slate-500">
+                  {t('checklist.expenses.empty')}
+                </div>
+              )}
+
+              <div className="space-y-4">
+                {postExpenses.map((expense, index) => (
+                  <div key={`post-expense-${index}`} className="rounded-lg border border-slate-200 bg-white p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-sm font-semibold text-slate-700">
+                        {t('checklist.expenses.itemTitle', { index: index + 1 })}
+                      </span>
+                      <Button size="icon" variant="ghost" onClick={() => removePostExpense(index)}>
+                        <X className="w-4 h-4 text-red-500" />
+                      </Button>
+                    </div>
+                    <div className="grid gap-3 md:grid-cols-3">
+                      <div>
+                        <Label>{t('checklist.expenses.type')}</Label>
+                        <Select
+                          value={expense.type || 'fuel'}
+                          onValueChange={(value) => updatePostExpense(index, 'type', value)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {EXPENSE_TYPES.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {t(option.labelKey)}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label>{t('checklist.expenses.amount')}</Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={expense.amount || ''}
+                          onChange={(event) => updatePostExpense(index, 'amount', event.target.value)}
+                          placeholder="0.00"
+                        />
+                      </div>
+                      <div>
+                        <Label>{t('checklist.expenses.note')}</Label>
+                        <Input
+                          value={expense.note || ''}
+                          onChange={(event) => updatePostExpense(index, 'note', event.target.value)}
+                          placeholder={t('checklist.expenses.notePlaceholder')}
+                        />
+                      </div>
+                    </div>
+                    <div className="mt-3">
+                      <Label>{t('checklist.expenses.receipt')}</Label>
+                      <div className="flex flex-wrap items-center gap-3 mt-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => document.getElementById(`post-expense-file-${index}`)?.click()}
+                          disabled={postExpenseUploads[index]}
+                        >
+                          {postExpenseUploads[index]
+                            ? t('checklist.expenses.uploading')
+                            : t('checklist.expenses.upload')}
+                        </Button>
+                        {expense.file_url && isImageFile(expense) && (
+                          <img
+                            src={expense.file_url}
+                            alt={expense.file_name || t('checklist.expenses.receipt')}
+                            className="h-16 w-20 rounded border object-cover"
+                          />
+                        )}
+                        {expense.file_url && !isImageFile(expense) && (
+                          <a
+                            href={expense.file_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-sm text-blue-600 underline"
+                          >
+                            {expense.file_name || t('checklist.expenses.view')}
+                          </a>
+                        )}
+                      </div>
+                      <input
+                        id={`post-expense-file-${index}`}
+                        type="file"
+                        accept="image/*,.pdf"
+                        className="hidden"
+                        onChange={(event) => {
+                          const file = event.target.files?.[0];
+                          if (file) {
+                            uploadPostExpenseFile(index, file);
+                          }
+                          event.target.value = '';
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <Button variant="outline" className="w-full" onClick={addPostExpense}>
+                <Plus className="w-4 h-4 mr-2" />
+                {t('checklist.expenses.add')}
+              </Button>
+
+              {postExpenseError && <p className="text-sm text-red-600">{postExpenseError}</p>}
+              {postExpenseSaved && (
+                <p className="text-sm text-emerald-600">{t('checklist.expenses.saved')}</p>
+              )}
+
+              <Button
+                className="w-full bg-[#1e3a5f] hover:bg-[#2d5a8a]"
+                onClick={savePostExpenses}
+                disabled={postExpenseSaving}
+              >
+                {postExpenseSaving ? t('checklist.expenses.saving') : t('checklist.expenses.save')}
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Documents */}
         <Card>
           <CardHeader className="pb-2">
@@ -571,6 +819,17 @@ export default function DriverChecklist() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
+            {canShowPostExpenses && (
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={handleOpenPostExpenses}
+              >
+                <ClipboardList className="w-4 h-4 mr-2" />
+                {t('checklist.expenses.open')}
+              </Button>
+            )}
             {/* Pickup Checklist */}
             <div className={`p-4 rounded-lg border-2 ${pickupChecklist ? 'border-green-200 bg-green-50' : 'border-blue-200 bg-blue-50'}`}>
               <div className="flex items-center justify-between">
@@ -710,6 +969,23 @@ export default function DriverChecklist() {
             </Button>
             <Button onClick={submitHandoff} disabled={handoffSaving}>
               {handoffSaving ? t('common.saving') : t('handoff.save')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={handoffExpensePromptOpen} onOpenChange={setHandoffExpensePromptOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('handoff.expensesPromptTitle')}</DialogTitle>
+            <DialogDescription>{t('handoff.expensesPromptBody')}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setHandoffExpensePromptOpen(false)}>
+              {t('handoff.expensesPromptLater')}
+            </Button>
+            <Button onClick={handleOpenPostExpenses}>
+              {t('handoff.expensesPromptConfirm')}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -115,6 +115,10 @@
     "createdBy": "Reportado por {{name}}",
     "acceptedBy": "Confirmado por {{name}}",
     "acceptRequired": "Confirma la entrega intermedia para continuar.",
+    "expensesPromptTitle": "¿Subir gastos ahora?",
+    "expensesPromptBody": "¿Quieres subir recibos de combustible, peajes o taxi ahora?",
+    "expensesPromptConfirm": "Subir gastos",
+    "expensesPromptLater": "Más tarde",
     "errors": {
       "noGps": "El GPS no está disponible en este dispositivo.",
       "reverseGeocode": "No se pudo obtener la dirección.",
@@ -264,6 +268,26 @@
       "empty": "No hay documentos para este pedido.",
       "open": "Abrir"
     },
+    "expenses": {
+      "title": "Gastos (después)",
+      "subtitle": "Sube recibos de combustible, peajes o taxi después de la recogida/entrega intermedia.",
+      "empty": "Aún no hay gastos cargados.",
+      "itemTitle": "Gasto {{index}}",
+      "type": "Tipo",
+      "amount": "Importe",
+      "note": "Nota",
+      "notePlaceholder": "Nota opcional",
+      "receipt": "Recibo",
+      "upload": "Subir recibo",
+      "uploading": "Subiendo...",
+      "view": "Abrir archivo",
+      "add": "Añadir gasto",
+      "save": "Guardar gastos",
+      "saving": "Guardando...",
+      "saved": "Gastos guardados.",
+      "saveError": "No se pudieron guardar los gastos.",
+      "uploadError": "La carga falló. Inténtalo de nuevo."
+    },
     "protocols": {
       "title": "Protocolos",
       "pickupTitle": "Protocolo de recogida",
@@ -388,6 +412,7 @@
     "expenses": {
       "title": "Gastos",
       "subtitle": "Añade recibos de combustible, taxi, peajes o parking.",
+      "open": "Subir gastos",
       "add": "Añadir gasto",
       "empty": "Aún no hay gastos registrados",
       "itemTitle": "Gasto {{index}}",

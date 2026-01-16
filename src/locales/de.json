@@ -115,6 +115,10 @@
     "createdBy": "Gemeldet von {{name}}",
     "acceptedBy": "Bestätigt von {{name}}",
     "acceptRequired": "Bitte Zwischenabgabe bestätigen, um weiterzufahren.",
+    "expensesPromptTitle": "Auslagen jetzt hochladen?",
+    "expensesPromptBody": "Möchtest du Tank-, Maut- oder Taxi-Belege jetzt hochladen?",
+    "expensesPromptConfirm": "Auslagen hochladen",
+    "expensesPromptLater": "Später",
     "errors": {
       "noGps": "GPS ist auf diesem Gerät nicht verfügbar.",
       "reverseGeocode": "Adresse konnte nicht ermittelt werden.",
@@ -264,6 +268,26 @@
       "empty": "Keine Dokumente für diesen Auftrag.",
       "open": "Öffnen"
     },
+    "expenses": {
+      "title": "Auslagen (nachträglich)",
+      "subtitle": "Lade Tank-, Maut- oder Taxi-Belege nach Abholung/Zwischenabgabe hoch.",
+      "empty": "Noch keine Auslagen hochgeladen.",
+      "itemTitle": "Auslage {{index}}",
+      "type": "Art",
+      "amount": "Betrag",
+      "note": "Notiz",
+      "notePlaceholder": "Optionale Notiz",
+      "receipt": "Beleg",
+      "upload": "Beleg hochladen",
+      "uploading": "Hochladen...",
+      "view": "Datei öffnen",
+      "add": "Auslage hinzufügen",
+      "save": "Auslagen speichern",
+      "saving": "Speichern...",
+      "saved": "Auslagen gespeichert.",
+      "saveError": "Auslagen konnten nicht gespeichert werden.",
+      "uploadError": "Upload fehlgeschlagen. Bitte erneut versuchen."
+    },
     "protocols": {
       "title": "Protokolle",
       "pickupTitle": "Abholprotokoll",
@@ -388,6 +412,7 @@
     "expenses": {
       "title": "Auslagen",
       "subtitle": "Tank-, Taxi-, Maut- oder Parkbelege hinzufügen.",
+      "open": "Auslagen hochladen",
       "add": "Auslage hinzufügen",
       "empty": "Noch keine Auslagen erfasst",
       "itemTitle": "Auslage {{index}}",
