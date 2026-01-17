@@ -23,6 +23,8 @@ import Drivers from "./Drivers";
 
 import Orders from "./Orders";
 
+import DriverPriceRequests from "./DriverPriceRequests";
+
 import Search from "./Search";
 
 
@@ -75,6 +77,8 @@ const PAGES = {
     Drivers: Drivers,
     
     Orders: Orders,
+
+    DriverPriceRequests: DriverPriceRequests,
     
     Search: Search,
 
@@ -209,6 +213,8 @@ function PagesContent() {
                 <Route path="/Drivers" element={<Drivers />} />
                 
                 <Route path="/Orders" element={<Orders />} />
+
+                <Route path="/DriverPriceRequests" element={<DriverPriceRequests />} />
                 
                 <Route path="/Search" element={<Search />} />
 

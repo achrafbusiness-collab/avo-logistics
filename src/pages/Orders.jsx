@@ -624,13 +624,19 @@ export default function Orders() {
           <h1 className="text-2xl font-bold text-gray-900">Aufträge</h1>
           <p className="text-gray-500">{orders.length} Aufträge insgesamt</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button 
             variant="outline"
             onClick={() => window.location.href = createPageUrl('AIImport')}
           >
             <Truck className="w-4 h-4 mr-2" />
             AI Import
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => window.location.href = createPageUrl('DriverPriceRequests')}
+          >
+            Fahrer Preis Anfragen
           </Button>
           <Button 
             className="bg-[#1e3a5f] hover:bg-[#2d5a8a]"

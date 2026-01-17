@@ -380,6 +380,15 @@ export default function OrderDetails({
   const segmentsMissingPrice = orderSegments.filter(
     (segment) => segment.price === null || segment.price === undefined || segment.price === ''
   );
+  const segmentCostTotal = useMemo(() => {
+    return orderSegments.reduce((sum, segment) => {
+      const value = parseFloat(segment.price);
+      if (Number.isFinite(value)) {
+        return sum + value;
+      }
+      return sum;
+    }, 0);
+  }, [orderSegments]);
 
   const handleSegmentPriceChange = (segmentId, value) => {
     setSegmentEdits((prev) => ({ ...prev, [segmentId]: value }));
@@ -1061,7 +1070,7 @@ export default function OrderDetails({
               <CardHeader className="pb-2">
                 <CardTitle className="text-lg flex items-center gap-2">
                   <MapPin className="w-5 h-5 text-[#1e3a5f]" />
-                  Zwischenabgaben & Teilstrecken
+                  Fahrer Kosten
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -1131,6 +1140,17 @@ export default function OrderDetails({
                         </div>
                       </div>
                     ))}
+                  </div>
+                )}
+
+                {orderSegments.length > 0 && (
+                  <div className="flex justify-end">
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-700">
+                      Gesamt Fahrerkosten:{" "}
+                      <span className="font-semibold text-slate-900">
+                        {formatCurrency(segmentCostTotal)}
+                      </span>
+                    </div>
                   </div>
                 )}
 
