@@ -203,6 +203,10 @@ export default function Drivers() {
           dateLabel: date ? format(date, 'dd.MM.yyyy', { locale: de }) : '-',
           tour: `${segment.start_location || ''} → ${segment.end_location || ''}`.trim(),
           price: Number.isFinite(Number(segment.price)) ? Number(segment.price) : 0,
+          priceStatus:
+            segment.price_status ||
+            (segment.price !== null && segment.price !== undefined ? 'approved' : 'pending'),
+          priceRejectionReason: segment.price_rejection_reason || '',
           expenses: segment.segment_type === 'dropoff' ? expensesByOrder[segment.order_id] || 0 : 0,
         };
       })
@@ -440,6 +444,7 @@ export default function Drivers() {
                             <tr className="text-left text-slate-500">
                               <th className="py-2 pr-4">Datum</th>
                               <th className="py-2 pr-4">Tour</th>
+                              <th className="py-2 pr-4">Verifikation</th>
                               <th className="py-2 pr-4 text-right">Preis</th>
                               <th className="py-2 text-right">Nebenkosten</th>
                             </tr>
@@ -449,7 +454,27 @@ export default function Drivers() {
                               <tr key={row.id} className="border-t">
                                 <td className="py-2 pr-4">{row.dateLabel}</td>
                                 <td className="py-2 pr-4 text-gray-700">{row.tour || "-"}</td>
-                                <td className="py-2 pr-4 text-right">{formatCurrency(row.price)}</td>
+                                <td className="py-2 pr-4 text-sm">
+                                  <div className="flex flex-col gap-1">
+                                    <span>
+                                      {row.priceStatus === 'approved'
+                                        ? '✅'
+                                        : row.priceStatus === 'rejected'
+                                          ? '❌'
+                                          : '⏳'}
+                                    </span>
+                                    {row.priceStatus === 'rejected' && row.priceRejectionReason ? (
+                                      <span className="text-xs text-red-600">
+                                        {row.priceRejectionReason}
+                                      </span>
+                                    ) : null}
+                                  </div>
+                                </td>
+                                <td className="py-2 pr-4 text-right">
+                                  {row.priceStatus === 'approved'
+                                    ? formatCurrency(row.price)
+                                    : '-'}
+                                </td>
                                 <td className="py-2 text-right">{formatCurrency(row.expenses)}</td>
                               </tr>
                             ))}
@@ -664,6 +689,7 @@ export default function Drivers() {
                           <tr className="text-left text-slate-500">
                             <th className="py-2 pr-4">Datum</th>
                             <th className="py-2 pr-4">Tour</th>
+                            <th className="py-2 pr-4">Verifikation</th>
                             <th className="py-2 pr-4 text-right">Preis</th>
                             <th className="py-2 text-right">Nebenkosten</th>
                           </tr>
@@ -673,7 +699,27 @@ export default function Drivers() {
                             <tr key={row.id} className="border-t">
                               <td className="py-2 pr-4">{row.dateLabel}</td>
                               <td className="py-2 pr-4 text-gray-700">{row.tour || "-"}</td>
-                              <td className="py-2 pr-4 text-right">{formatCurrency(row.price)}</td>
+                              <td className="py-2 pr-4 text-sm">
+                                <div className="flex flex-col gap-1">
+                                  <span>
+                                    {row.priceStatus === 'approved'
+                                      ? '✅'
+                                      : row.priceStatus === 'rejected'
+                                        ? '❌'
+                                        : '⏳'}
+                                  </span>
+                                  {row.priceStatus === 'rejected' && row.priceRejectionReason ? (
+                                    <span className="text-xs text-red-600">
+                                      {row.priceRejectionReason}
+                                    </span>
+                                  ) : null}
+                                </div>
+                              </td>
+                              <td className="py-2 pr-4 text-right">
+                                {row.priceStatus === 'approved'
+                                  ? formatCurrency(row.price)
+                                  : '-'}
+                              </td>
                               <td className="py-2 text-right">{formatCurrency(row.expenses)}</td>
                             </tr>
                           ))}

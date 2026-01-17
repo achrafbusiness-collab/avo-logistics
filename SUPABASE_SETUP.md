@@ -334,6 +334,52 @@ create table if not exists public.checklists (
   updated_date timestamptz default now()
 );
 
+create table if not exists public.order_handoffs (
+  id uuid primary key default gen_random_uuid(),
+  order_id uuid references public.orders on delete cascade,
+  company_id uuid references public.companies,
+  created_by_driver_id uuid references public.drivers,
+  created_by_driver_name text,
+  location text,
+  location_lat numeric,
+  location_lng numeric,
+  notes text,
+  status text default 'pending',
+  accepted_by_driver_id uuid references public.drivers,
+  accepted_by_driver_name text,
+  accepted_at timestamptz,
+  created_date timestamptz default now(),
+  updated_date timestamptz default now()
+);
+
+create table if not exists public.order_segments (
+  id uuid primary key default gen_random_uuid(),
+  order_id uuid references public.orders on delete cascade,
+  company_id uuid references public.companies,
+  handoff_id uuid references public.order_handoffs on delete set null,
+  driver_id uuid references public.drivers,
+  driver_name text,
+  segment_type text,
+  start_location text,
+  end_location text,
+  distance_km numeric,
+  price numeric,
+  price_status text default 'pending',
+  price_rejection_reason text,
+  created_date timestamptz default now(),
+  updated_date timestamptz default now()
+);
+
+create index if not exists order_handoffs_order_id_idx on public.order_handoffs(order_id);
+create index if not exists order_segments_order_id_idx on public.order_segments(order_id);
+create index if not exists order_segments_driver_id_idx on public.order_segments(driver_id);
+
+alter table public.order_segments
+  add column if not exists price_status text default 'pending';
+
+alter table public.order_segments
+  add column if not exists price_rejection_reason text;
+
 alter table public.checklists
   add column if not exists expenses jsonb default '[]'::jsonb;
 
@@ -504,6 +550,8 @@ alter table public.orders enable row level security;
 alter table public.drivers enable row level security;
 alter table public.customers enable row level security;
 alter table public.checklists enable row level security;
+alter table public.order_handoffs enable row level security;
+alter table public.order_segments enable row level security;
 alter table public.app_settings enable row level security;
 
 create policy "Orders full access" on public.orders
@@ -516,6 +564,12 @@ create policy "Customers full access" on public.customers
 for all using (auth.uid() is not null) with check (auth.uid() is not null);
 
 create policy "Checklists full access" on public.checklists
+for all using (auth.uid() is not null) with check (auth.uid() is not null);
+
+create policy "Order handoffs full access" on public.order_handoffs
+for all using (auth.uid() is not null) with check (auth.uid() is not null);
+
+create policy "Order segments full access" on public.order_segments
 for all using (auth.uid() is not null) with check (auth.uid() is not null);
 
 create policy "App settings full access" on public.app_settings
@@ -630,6 +684,8 @@ update public.orders set company_id = 'COMPANY_ID_HIER' where company_id is null
 update public.drivers set company_id = 'COMPANY_ID_HIER' where company_id is null;
 update public.customers set company_id = 'COMPANY_ID_HIER' where company_id is null;
 update public.checklists set company_id = 'COMPANY_ID_HIER' where company_id is null;
+update public.order_handoffs set company_id = 'COMPANY_ID_HIER' where company_id is null;
+update public.order_segments set company_id = 'COMPANY_ID_HIER' where company_id is null;
 update public.app_settings set company_id = 'COMPANY_ID_HIER' where company_id is null;
 update public.order_notes set company_id = 'COMPANY_ID_HIER' where company_id is null;
 update public.driver_documents set company_id = 'COMPANY_ID_HIER' where company_id is null;
@@ -639,6 +695,8 @@ alter table public.orders alter column company_id set not null;
 alter table public.drivers alter column company_id set not null;
 alter table public.customers alter column company_id set not null;
 alter table public.checklists alter column company_id set not null;
+alter table public.order_handoffs alter column company_id set not null;
+alter table public.order_segments alter column company_id set not null;
 alter table public.app_settings alter column company_id set not null;
 alter table public.order_notes alter column company_id set not null;
 alter table public.driver_documents alter column company_id set not null;
@@ -652,7 +710,12 @@ returns uuid
 language sql
 stable
 as $$
-  select company_id from public.profiles where id = auth.uid()
+  select coalesce(
+    (select company_id from public.profiles where id = auth.uid()),
+    (select company_id from public.drivers
+      where lower(email) = lower((current_setting('request.jwt.claims', true)::jsonb ->> 'email'))
+    )
+  )
 $$;
 
 create or replace function public.set_company_id()
@@ -684,6 +747,14 @@ for each row execute procedure public.set_company_id();
 
 drop trigger if exists set_company_id_checklists on public.checklists;
 create trigger set_company_id_checklists before insert on public.checklists
+for each row execute procedure public.set_company_id();
+
+drop trigger if exists set_company_id_order_handoffs on public.order_handoffs;
+create trigger set_company_id_order_handoffs before insert on public.order_handoffs
+for each row execute procedure public.set_company_id();
+
+drop trigger if exists set_company_id_order_segments on public.order_segments;
+create trigger set_company_id_order_segments before insert on public.order_segments
 for each row execute procedure public.set_company_id();
 
 drop trigger if exists set_company_id_app_settings on public.app_settings;
@@ -731,6 +802,8 @@ drop policy if exists "Orders full access" on public.orders;
 drop policy if exists "Drivers full access" on public.drivers;
 drop policy if exists "Customers full access" on public.customers;
 drop policy if exists "Checklists full access" on public.checklists;
+drop policy if exists "Order handoffs full access" on public.order_handoffs;
+drop policy if exists "Order segments full access" on public.order_segments;
 drop policy if exists "App settings full access" on public.app_settings;
 
 create policy "Orders company access" on public.orders
@@ -746,6 +819,14 @@ for all using (company_id = public.current_company_id())
 with check (company_id = public.current_company_id());
 
 create policy "Checklists company access" on public.checklists
+for all using (company_id = public.current_company_id())
+with check (company_id = public.current_company_id());
+
+create policy "Order handoffs company access" on public.order_handoffs
+for all using (company_id = public.current_company_id())
+with check (company_id = public.current_company_id());
+
+create policy "Order segments company access" on public.order_segments
 for all using (company_id = public.current_company_id())
 with check (company_id = public.current_company_id());
 

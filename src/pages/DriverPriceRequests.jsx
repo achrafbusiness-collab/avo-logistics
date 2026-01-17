@@ -8,6 +8,7 @@ import { format } from "date-fns";
 import { de } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Card,
   CardContent,
@@ -60,6 +61,10 @@ export default function DriverPriceRequests() {
   const [priceEdits, setPriceEdits] = useState({});
   const [priceErrors, setPriceErrors] = useState({});
   const [saving, setSaving] = useState({});
+  const [rejectEdits, setRejectEdits] = useState({});
+  const [rejectErrors, setRejectErrors] = useState({});
+  const [rejecting, setRejecting] = useState({});
+  const [rejectOpen, setRejectOpen] = useState({});
 
   const { data: segments = [], isLoading, error } = useQuery({
     queryKey: ["driver-price-requests"],
@@ -78,6 +83,8 @@ export default function DriverPriceRequests() {
           distance_km,
           created_date,
           price,
+          price_status,
+          price_rejection_reason,
           order:orders (
             id,
             order_number,
@@ -93,7 +100,6 @@ export default function DriverPriceRequests() {
           )
         `
         )
-        .is("price", null)
         .order("created_date", { ascending: false })
         .limit(500);
       if (queryError) {
@@ -108,6 +114,21 @@ export default function DriverPriceRequests() {
     const term = searchTerm.trim().toLowerCase();
     return segments.filter((segment) => buildSearchBlob(segment).includes(term));
   }, [segments, searchTerm]);
+
+  const statusCounts = useMemo(
+    () =>
+      segments.reduce(
+        (acc, segment) => {
+          const status =
+            segment.price_status ||
+            (segment.price !== null && segment.price !== undefined ? "approved" : "pending");
+          acc[status] = (acc[status] || 0) + 1;
+          return acc;
+        },
+        { pending: 0, approved: 0, rejected: 0 }
+      ),
+    [segments]
+  );
 
   const handlePriceChange = (segmentId, value) => {
     setPriceEdits((prev) => ({ ...prev, [segmentId]: value }));
@@ -129,7 +150,11 @@ export default function DriverPriceRequests() {
     setSaving((prev) => ({ ...prev, [segment.id]: true }));
     setPriceErrors((prev) => ({ ...prev, [segment.id]: "" }));
     try {
-      await appClient.entities.OrderSegment.update(segment.id, { price: parsed });
+      await appClient.entities.OrderSegment.update(segment.id, {
+        price: parsed,
+        price_status: "approved",
+        price_rejection_reason: null,
+      });
       setPriceEdits((prev) => ({ ...prev, [segment.id]: "" }));
       queryClient.invalidateQueries({ queryKey: ["driver-price-requests"] });
       queryClient.invalidateQueries({ queryKey: ["order-segments"], exact: false });
@@ -143,13 +168,54 @@ export default function DriverPriceRequests() {
     }
   };
 
+  const handleRejectChange = (segmentId, value) => {
+    setRejectEdits((prev) => ({ ...prev, [segmentId]: value }));
+  };
+
+  const toggleRejectOpen = (segmentId) => {
+    setRejectOpen((prev) => ({ ...prev, [segmentId]: !prev[segmentId] }));
+  };
+
+  const rejectSegment = async (segment) => {
+    const reason = (rejectEdits[segment.id] || "").trim();
+    if (!reason) {
+      setRejectErrors((prev) => ({
+        ...prev,
+        [segment.id]: "Bitte einen kurzen Ablehnungsgrund angeben.",
+      }));
+      setRejectOpen((prev) => ({ ...prev, [segment.id]: true }));
+      return;
+    }
+    setRejecting((prev) => ({ ...prev, [segment.id]: true }));
+    setRejectErrors((prev) => ({ ...prev, [segment.id]: "" }));
+    try {
+      await appClient.entities.OrderSegment.update(segment.id, {
+        price: null,
+        price_status: "rejected",
+        price_rejection_reason: reason,
+      });
+      setRejectEdits((prev) => ({ ...prev, [segment.id]: "" }));
+      setRejectOpen((prev) => ({ ...prev, [segment.id]: false }));
+      queryClient.invalidateQueries({ queryKey: ["driver-price-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["order-segments"], exact: false });
+    } catch (err) {
+      setRejectErrors((prev) => ({
+        ...prev,
+        [segment.id]: err?.message || "Ablehnung konnte nicht gespeichert werden.",
+      }));
+    } finally {
+      setRejecting((prev) => ({ ...prev, [segment.id]: false }));
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Fahrer Preis Anfragen</h1>
           <p className="text-gray-500">
-            {segments.length} offene Teilstrecken ohne Preis
+            {statusCounts.pending} offen · {statusCounts.approved} bestätigt ·{" "}
+            {statusCounts.rejected} abgelehnt
           </p>
         </div>
         <Button variant="outline" asChild>
@@ -169,7 +235,7 @@ export default function DriverPriceRequests() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Offene Fahrpreis-Anfragen</CardTitle>
+          <CardTitle>Fahrpreis-Anfragen</CardTitle>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -191,6 +257,7 @@ export default function DriverPriceRequests() {
                     <TableHead>Kennzeichen</TableHead>
                     <TableHead>Strecke</TableHead>
                     <TableHead>Datum</TableHead>
+                    <TableHead>Verifikation</TableHead>
                     <TableHead className="text-right">Preis</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -198,6 +265,11 @@ export default function DriverPriceRequests() {
                   {filteredSegments.map((segment) => {
                     const order = segment.order || {};
                     const driver = segment.driver || {};
+                    const status =
+                      segment.price_status ||
+                      (segment.price !== null && segment.price !== undefined ? "approved" : "pending");
+                    const verificationIcon =
+                      status === "approved" ? "✅" : status === "rejected" ? "❌" : "⏳";
                     const driverLabel =
                       segment.driver_name ||
                       [driver.first_name, driver.last_name].filter(Boolean).join(" ") ||
@@ -229,6 +301,16 @@ export default function DriverPriceRequests() {
                             : "-"}
                         </TableCell>
                         <TableCell>{formatDateTime(segment.created_date)}</TableCell>
+                        <TableCell>
+                          <div className="flex flex-col gap-1 text-sm">
+                            <span>{verificationIcon}</span>
+                            {status === "rejected" && segment.price_rejection_reason ? (
+                              <span className="text-xs text-red-600">
+                                {segment.price_rejection_reason}
+                              </span>
+                            ) : null}
+                          </div>
+                        </TableCell>
                         <TableCell className="text-right">
                           <div className="flex flex-col items-end gap-2">
                             <Input
@@ -252,9 +334,45 @@ export default function DriverPriceRequests() {
                               ) : null}
                               Bestätigen
                             </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="border-red-200 text-red-700 hover:bg-red-50"
+                              onClick={() => toggleRejectOpen(segment.id)}
+                            >
+                              Ablehnen
+                            </Button>
+                            {rejectOpen[segment.id] ? (
+                              <div className="w-64 space-y-2 text-left">
+                                <Textarea
+                                  rows={3}
+                                  placeholder="Kurz begründen..."
+                                  value={rejectEdits[segment.id] ?? ""}
+                                  onChange={(event) =>
+                                    handleRejectChange(segment.id, event.target.value)
+                                  }
+                                />
+                                <Button
+                                  size="sm"
+                                  className="bg-red-600 hover:bg-red-700"
+                                  disabled={rejecting[segment.id]}
+                                  onClick={() => rejectSegment(segment)}
+                                >
+                                  {rejecting[segment.id] ? (
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  ) : null}
+                                  Ablehnung speichern
+                                </Button>
+                              </div>
+                            ) : null}
                             {priceErrors[segment.id] ? (
                               <p className="text-xs text-red-600">
                                 {priceErrors[segment.id]}
+                              </p>
+                            ) : null}
+                            {rejectErrors[segment.id] ? (
+                              <p className="text-xs text-red-600">
+                                {rejectErrors[segment.id]}
                               </p>
                             ) : null}
                             {segment.price !== null && segment.price !== undefined ? (
