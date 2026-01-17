@@ -176,8 +176,14 @@
       "date": "Datum",
       "plate": "Kennzeichen",
       "tour": "Tour",
+      "status": "Status",
       "price": "Preis",
       "expenses": "Nebenkosten"
+    },
+    "status": {
+      "approved": "Bestätigt",
+      "rejected": "Abgelehnt",
+      "pending": "Offen"
     }
   },
   "support": {

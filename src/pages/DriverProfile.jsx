@@ -99,6 +99,9 @@ export default function DriverProfile() {
       .map((segment) => {
         const dateValue = segment.created_date || segment.created_at;
         const date = dateValue ? new Date(dateValue) : null;
+        const priceStatus =
+          segment.price_status ||
+          (segment.price !== null && segment.price !== undefined ? "approved" : "pending");
         return {
           id: segment.id,
           date,
@@ -106,6 +109,8 @@ export default function DriverProfile() {
           licensePlate: ordersById.get(segment.order_id)?.license_plate || "-",
           tour: `${segment.start_location || ""} → ${segment.end_location || ""}`.trim(),
           price: Number.isFinite(Number(segment.price)) ? Number(segment.price) : 0,
+          priceStatus,
+          priceRejectionReason: segment.price_rejection_reason || "",
           expenses: segment.segment_type === "dropoff" ? expensesByOrder[segment.order_id] || 0 : 0,
         };
       })
@@ -121,7 +126,9 @@ export default function DriverProfile() {
   const billingTotals = React.useMemo(() => {
     return billingRows.reduce(
       (acc, row) => {
-        acc.price += row.price;
+        if (row.priceStatus === "approved") {
+          acc.price += row.price;
+        }
         acc.expenses += row.expenses;
         return acc;
       },
@@ -349,6 +356,7 @@ export default function DriverProfile() {
                     <th className="py-2 pr-4">{t("billing.table.date")}</th>
                     <th className="py-2 pr-4">{t("billing.table.plate")}</th>
                     <th className="py-2 pr-4">{t("billing.table.tour")}</th>
+                    <th className="py-2 pr-4">{t("billing.table.status")}</th>
                     <th className="py-2 pr-4 text-right">{t("billing.table.price")}</th>
                     <th className="py-2 text-right">{t("billing.table.expenses")}</th>
                   </tr>
@@ -359,7 +367,26 @@ export default function DriverProfile() {
                       <td className="py-2 pr-4">{row.dateLabel}</td>
                       <td className="py-2 pr-4 text-slate-700">{row.licensePlate}</td>
                       <td className="py-2 pr-4 text-slate-700">{row.tour || "-"}</td>
-                      <td className="py-2 pr-4 text-right">{formatCurrency(row.price)}</td>
+                      <td className="py-2 pr-4 text-sm">
+                        <div className="flex flex-col gap-1">
+                          <span>
+                            {row.priceStatus === "approved"
+                              ? "✅"
+                              : row.priceStatus === "rejected"
+                                ? "❌"
+                                : "⏳"}{" "}
+                            {t(`billing.status.${row.priceStatus}`)}
+                          </span>
+                          {row.priceStatus === "rejected" && row.priceRejectionReason ? (
+                            <span className="text-xs text-red-600">
+                              {row.priceRejectionReason}
+                            </span>
+                          ) : null}
+                        </div>
+                      </td>
+                      <td className="py-2 pr-4 text-right">
+                        {row.priceStatus === "approved" ? formatCurrency(row.price) : "-"}
+                      </td>
                       <td className="py-2 text-right">{formatCurrency(row.expenses)}</td>
                     </tr>
                   ))}

@@ -176,8 +176,14 @@
       "date": "Fecha",
       "plate": "Matrícula",
       "tour": "Ruta",
+      "status": "Estado",
       "price": "Precio",
       "expenses": "Gastos"
+    },
+    "status": {
+      "approved": "Aprobado",
+      "rejected": "Rechazado",
+      "pending": "Pendiente"
     }
   },
   "support": {

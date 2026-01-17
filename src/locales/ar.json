@@ -172,8 +172,14 @@
       "date": "التاريخ",
       "plate": "لوحة المركبة",
       "tour": "الرحلة",
+      "status": "الحالة",
       "price": "السعر",
       "expenses": "المصروفات"
+    },
+    "status": {
+      "approved": "مُعتمد",
+      "rejected": "مرفوض",
+      "pending": "قيد الانتظار"
     }
   },
   "support": {

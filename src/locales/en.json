@@ -176,8 +176,14 @@
       "date": "Date",
       "plate": "License plate",
       "tour": "Tour",
+      "status": "Status",
       "price": "Price",
       "expenses": "Expenses"
+    },
+    "status": {
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "pending": "Pending"
     }
   },
   "support": {
