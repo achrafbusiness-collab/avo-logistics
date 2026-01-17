@@ -55,6 +55,12 @@ const buildSearchBlob = (segment) => {
     .toLowerCase();
 };
 
+const getSegmentStatus = (segment) => {
+  if (segment.price_status) return segment.price_status;
+  if (segment.price !== null && segment.price !== undefined) return "approved";
+  return "pending";
+};
+
 export default function DriverPriceRequests() {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
@@ -109,26 +115,16 @@ export default function DriverPriceRequests() {
     },
   });
 
-  const filteredSegments = useMemo(() => {
-    if (!searchTerm.trim()) return segments;
-    const term = searchTerm.trim().toLowerCase();
-    return segments.filter((segment) => buildSearchBlob(segment).includes(term));
-  }, [segments, searchTerm]);
-
-  const statusCounts = useMemo(
-    () =>
-      segments.reduce(
-        (acc, segment) => {
-          const status =
-            segment.price_status ||
-            (segment.price !== null && segment.price !== undefined ? "approved" : "pending");
-          acc[status] = (acc[status] || 0) + 1;
-          return acc;
-        },
-        { pending: 0, approved: 0, rejected: 0 }
-      ),
+  const pendingSegments = useMemo(
+    () => segments.filter((segment) => getSegmentStatus(segment) === "pending"),
     [segments]
   );
+
+  const filteredSegments = useMemo(() => {
+    if (!searchTerm.trim()) return pendingSegments;
+    const term = searchTerm.trim().toLowerCase();
+    return pendingSegments.filter((segment) => buildSearchBlob(segment).includes(term));
+  }, [pendingSegments, searchTerm]);
 
   const handlePriceChange = (segmentId, value) => {
     setPriceEdits((prev) => ({ ...prev, [segmentId]: value }));
@@ -214,8 +210,7 @@ export default function DriverPriceRequests() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Fahrer Preis Anfragen</h1>
           <p className="text-gray-500">
-            {statusCounts.pending} offen · {statusCounts.approved} bestätigt ·{" "}
-            {statusCounts.rejected} abgelehnt
+            {pendingSegments.length} offene Anfragen
           </p>
         </div>
         <Button variant="outline" asChild>
@@ -257,7 +252,6 @@ export default function DriverPriceRequests() {
                     <TableHead>Kennzeichen</TableHead>
                     <TableHead>Strecke</TableHead>
                     <TableHead>Datum</TableHead>
-                    <TableHead>Verifikation</TableHead>
                     <TableHead className="text-right">Preis</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -265,11 +259,6 @@ export default function DriverPriceRequests() {
                   {filteredSegments.map((segment) => {
                     const order = segment.order || {};
                     const driver = segment.driver || {};
-                    const status =
-                      segment.price_status ||
-                      (segment.price !== null && segment.price !== undefined ? "approved" : "pending");
-                    const verificationIcon =
-                      status === "approved" ? "✅" : status === "rejected" ? "❌" : "⏳";
                     const driverLabel =
                       segment.driver_name ||
                       [driver.first_name, driver.last_name].filter(Boolean).join(" ") ||
@@ -301,16 +290,6 @@ export default function DriverPriceRequests() {
                             : "-"}
                         </TableCell>
                         <TableCell>{formatDateTime(segment.created_date)}</TableCell>
-                        <TableCell>
-                          <div className="flex flex-col gap-1 text-sm">
-                            <span>{verificationIcon}</span>
-                            {status === "rejected" && segment.price_rejection_reason ? (
-                              <span className="text-xs text-red-600">
-                                {segment.price_rejection_reason}
-                              </span>
-                            ) : null}
-                          </div>
-                        </TableCell>
                         <TableCell className="text-right">
                           <div className="flex flex-col items-end gap-2">
                             <Input

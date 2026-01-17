@@ -377,13 +377,21 @@ export default function OrderDetails({
     docInputRef.current?.click();
   };
 
+  const getSegmentStatus = (segment) => {
+    if (segment.price_status) return segment.price_status;
+    if (segment.price !== null && segment.price !== undefined && segment.price !== '') {
+      return 'approved';
+    }
+    return 'pending';
+  };
+
   const segmentsMissingPrice = orderSegments.filter(
-    (segment) => segment.price === null || segment.price === undefined || segment.price === ''
+    (segment) => getSegmentStatus(segment) === 'pending'
   );
   const segmentCostTotal = useMemo(() => {
     return orderSegments.reduce((sum, segment) => {
       const value = parseFloat(segment.price);
-      if (Number.isFinite(value)) {
+      if (getSegmentStatus(segment) === 'approved' && Number.isFinite(value)) {
         return sum + value;
       }
       return sum;
@@ -404,9 +412,12 @@ export default function OrderDetails({
     setSegmentSaving((prev) => ({ ...prev, [segment.id]: true }));
     setSegmentsError('');
     try {
-      const updated = await appClient.entities.OrderSegment.update(segment.id, {
+      const updatePayload = {
         price: parsed,
-      });
+        price_status: parsed === null ? 'pending' : 'approved',
+        price_rejection_reason: null,
+      };
+      const updated = await appClient.entities.OrderSegment.update(segment.id, updatePayload);
       setOrderSegments((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
     } catch (error) {
       setSegmentsError(error?.message || 'Preis konnte nicht gespeichert werden.');
@@ -1092,54 +1103,77 @@ export default function OrderDetails({
                   <p className="text-sm text-gray-500">Keine Teilstrecken vorhanden.</p>
                 ) : (
                   <div className="space-y-3">
-                    {orderSegments.map((segment) => (
-                      <div key={segment.id} className="rounded-lg border border-slate-200 bg-white p-3">
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                          <div className="space-y-1">
-                            <p className="font-semibold text-slate-900">
-                              {segment.segment_type === 'handoff' ? 'Zwischenabgabe' : 'Übergabe'}
-                            </p>
-                            <p className="text-xs text-slate-500">{segment.driver_name || 'Fahrer'}</p>
-                            <p className="text-sm text-slate-700">
-                              {segment.start_location || '-'} → {segment.end_location || '-'}
-                            </p>
-                            {segment.distance_km !== null && segment.distance_km !== undefined && (
-                              <p className="text-xs text-slate-500">Strecke: {segment.distance_km} km</p>
+                    {orderSegments.map((segment) => {
+                      const status = getSegmentStatus(segment);
+                      const statusLabel =
+                        status === 'approved' ? 'Bestätigt' : status === 'rejected' ? 'Abgelehnt' : 'Offen';
+                      const statusTone =
+                        status === 'approved'
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                          : status === 'rejected'
+                            ? 'bg-red-50 text-red-700 border-red-200'
+                            : 'bg-amber-50 text-amber-700 border-amber-200';
+                      return (
+                        <div key={segment.id} className="rounded-lg border border-slate-200 bg-white p-3">
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                            <div className="space-y-1">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <p className="font-semibold text-slate-900">
+                                  {segment.segment_type === 'handoff' ? 'Zwischenabgabe' : 'Übergabe'}
+                                </p>
+                                <span className={`rounded-full border px-2 py-0.5 text-xs ${statusTone}`}>
+                                  {statusLabel}
+                                </span>
+                              </div>
+                              <p className="text-xs text-slate-500">{segment.driver_name || 'Fahrer'}</p>
+                              <p className="text-sm text-slate-700">
+                                {segment.start_location || '-'} → {segment.end_location || '-'}
+                              </p>
+                              {segment.distance_km !== null && segment.distance_km !== undefined && (
+                                <p className="text-xs text-slate-500">Strecke: {segment.distance_km} km</p>
+                              )}
+                              {status === 'rejected' && segment.price_rejection_reason ? (
+                                <p className="text-xs text-red-600">
+                                  Ablehnung: {segment.price_rejection_reason}
+                                </p>
+                              ) : null}
+                            </div>
+                            {showSegmentPricing ? (
+                              <div className="flex flex-col gap-2 min-w-[140px]">
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  placeholder="Preis (€)"
+                                  value={segmentEdits[segment.id] ?? ''}
+                                  onChange={(event) =>
+                                    handleSegmentPriceChange(segment.id, event.target.value)
+                                  }
+                                />
+                                <Button
+                                  size="sm"
+                                  className="bg-[#1e3a5f] hover:bg-[#2d5a8a]"
+                                  disabled={segmentSaving[segment.id]}
+                                  onClick={() => saveSegmentPrice(segment)}
+                                >
+                                  {segmentSaving[segment.id] ? (
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                  ) : null}
+                                  Preis speichern
+                                </Button>
+                              </div>
+                            ) : (
+                              <div className="text-right text-sm text-slate-600">
+                                {status === 'approved'
+                                  ? formatCurrency(segment.price)
+                                  : status === 'rejected'
+                                    ? 'Abgelehnt'
+                                    : 'Preis offen'}
+                              </div>
                             )}
                           </div>
-                          {showSegmentPricing ? (
-                            <div className="flex flex-col gap-2 min-w-[140px]">
-                              <Input
-                                type="number"
-                                step="0.01"
-                                placeholder="Preis (€)"
-                                value={segmentEdits[segment.id] ?? ''}
-                                onChange={(event) =>
-                                  handleSegmentPriceChange(segment.id, event.target.value)
-                                }
-                              />
-                              <Button
-                                size="sm"
-                                className="bg-[#1e3a5f] hover:bg-[#2d5a8a]"
-                                disabled={segmentSaving[segment.id]}
-                                onClick={() => saveSegmentPrice(segment)}
-                              >
-                                {segmentSaving[segment.id] ? (
-                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                ) : null}
-                                Preis speichern
-                              </Button>
-                            </div>
-                          ) : (
-                            <div className="text-right text-sm text-slate-600">
-                              {segment.price !== null && segment.price !== undefined
-                                ? formatCurrency(segment.price)
-                                : 'Preis offen'}
-                            </div>
-                          )}
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
 
