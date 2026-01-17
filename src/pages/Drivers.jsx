@@ -202,6 +202,7 @@ export default function Drivers() {
           date,
           dateLabel: date ? format(date, 'dd.MM.yyyy', { locale: de }) : '-',
           tour: `${segment.start_location || ''} → ${segment.end_location || ''}`.trim(),
+          typeLabel: segment.segment_type === 'shuttle' ? 'Shuttle' : 'Aktive Tour',
           price: Number.isFinite(Number(segment.price)) ? Number(segment.price) : 0,
           priceStatus:
             segment.price_status ||
@@ -444,6 +445,7 @@ export default function Drivers() {
                             <tr className="text-left text-slate-500">
                               <th className="py-2 pr-4">Datum</th>
                               <th className="py-2 pr-4">Tour</th>
+                              <th className="py-2 pr-4">Typ</th>
                               <th className="py-2 pr-4">Verifikation</th>
                               <th className="py-2 pr-4 text-right">Preis</th>
                               <th className="py-2 text-right">Nebenkosten</th>
@@ -454,6 +456,7 @@ export default function Drivers() {
                               <tr key={row.id} className="border-t">
                                 <td className="py-2 pr-4">{row.dateLabel}</td>
                                 <td className="py-2 pr-4 text-gray-700">{row.tour || "-"}</td>
+                                <td className="py-2 pr-4 text-gray-700">{row.typeLabel}</td>
                                 <td className="py-2 pr-4 text-sm">
                                   <div className="flex flex-col gap-1">
                                     <span>
@@ -689,6 +692,7 @@ export default function Drivers() {
                           <tr className="text-left text-slate-500">
                             <th className="py-2 pr-4">Datum</th>
                             <th className="py-2 pr-4">Tour</th>
+                            <th className="py-2 pr-4">Typ</th>
                             <th className="py-2 pr-4">Verifikation</th>
                             <th className="py-2 pr-4 text-right">Preis</th>
                             <th className="py-2 text-right">Nebenkosten</th>
@@ -699,6 +703,7 @@ export default function Drivers() {
                             <tr key={row.id} className="border-t">
                               <td className="py-2 pr-4">{row.dateLabel}</td>
                               <td className="py-2 pr-4 text-gray-700">{row.tour || "-"}</td>
+                              <td className="py-2 pr-4 text-gray-700">{row.typeLabel}</td>
                               <td className="py-2 pr-4 text-sm">
                                 <div className="flex flex-col gap-1">
                                   <span>

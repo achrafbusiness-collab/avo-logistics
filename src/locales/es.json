@@ -95,15 +95,19 @@
     }
   },
   "handoff": {
-    "title": "Entrega intermedia",
-    "pendingTitle": "Entrega intermedia realizada. El precio lo gestionará el equipo AVO y se mostrará pronto en el perfil.",
+    "title": "Entrega intermedia y shuttle",
+    "successTitle": "Entrega intermedia realizada. El precio lo gestionará el equipo AVO y se mostrará pronto en el perfil.",
+    "pendingTitle": "La entrega intermedia está pendiente de confirmación.",
     "pendingByYou": "Entrega intermedia guardada.",
     "accept": "Confirmar recepción",
     "continue": "Continuar desde entrega intermedia",
     "none": "No hay entregas intermedias.",
     "create": "Reportar entrega intermedia",
+    "shuttleCreate": "Reportar parada shuttle",
     "dialogTitle": "Registrar entrega intermedia",
     "dialogDescription": "Agrega la ubicación y notas.",
+    "shuttleDialogTitle": "Registrar parada shuttle",
+    "shuttleDialogDescription": "Agrega la ubicación y notas.",
     "locationLabel": "Ubicación",
     "locationPlaceholder": "Dirección o lugar",
     "notesLabel": "Notas (opcional)",
@@ -111,6 +115,7 @@
     "gpsLoading": "Obteniendo GPS...",
     "useGps": "Usar ubicación GPS",
     "save": "Guardar entrega",
+    "shuttleSave": "Guardar parada shuttle",
     "acceptedTitle": "Entrega intermedia confirmada",
     "createdBy": "Reportado por {{name}}",
     "acceptedBy": "Confirmado por {{name}}",
@@ -176,6 +181,7 @@
       "date": "Fecha",
       "plate": "Matrícula",
       "tour": "Ruta",
+      "type": "Tipo",
       "status": "Estado",
       "price": "Precio",
       "expenses": "Gastos"
@@ -184,6 +190,10 @@
       "approved": "Aprobado",
       "rejected": "Rechazado",
       "pending": "Pendiente"
+    },
+    "type": {
+      "active": "Ruta activa",
+      "shuttle": "Shuttle"
     }
   },
   "support": {

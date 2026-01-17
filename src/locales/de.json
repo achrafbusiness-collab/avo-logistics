@@ -95,15 +95,19 @@
     }
   },
   "handoff": {
-    "title": "Zwischenabgabe",
-    "pendingTitle": "Zwischenabgabe erfolgreich durchgeführt. Preis wird von Team AVO bearbeitet und dann wird in kurzem auf der Profilseite zu sehen.",
+    "title": "Zwischenabgabe & Shuttle",
+    "successTitle": "Zwischenabgabe erfolgreich durchgeführt. Preis wird von Team AVO bearbeitet und dann wird in kurzem auf der Profilseite zu sehen.",
+    "pendingTitle": "Zwischenabgabe wartet auf Bestätigung.",
     "pendingByYou": "Zwischenabgabe gespeichert.",
     "accept": "Übernahme bestätigen",
     "continue": "Weiterfahren von Zwischenabgabe",
     "none": "Keine Zwischenabgabe gemeldet.",
     "create": "Zwischenabgabe melden",
+    "shuttleCreate": "Shuttlestop melden",
     "dialogTitle": "Zwischenabgabe erfassen",
     "dialogDescription": "Bitte Standort und Notizen hinzufügen.",
+    "shuttleDialogTitle": "Shuttlestop erfassen",
+    "shuttleDialogDescription": "Bitte Standort und Notizen hinzufügen.",
     "locationLabel": "Abstellort",
     "locationPlaceholder": "Adresse oder Ort",
     "notesLabel": "Notizen (optional)",
@@ -111,6 +115,7 @@
     "gpsLoading": "GPS wird geladen...",
     "useGps": "Standort per GPS",
     "save": "Zwischenabgabe speichern",
+    "shuttleSave": "Shuttlestop speichern",
     "acceptedTitle": "Zwischenabgabe bestätigt",
     "createdBy": "Gemeldet von {{name}}",
     "acceptedBy": "Bestätigt von {{name}}",
@@ -176,6 +181,7 @@
       "date": "Datum",
       "plate": "Kennzeichen",
       "tour": "Tour",
+      "type": "Typ",
       "status": "Status",
       "price": "Preis",
       "expenses": "Nebenkosten"
@@ -184,6 +190,10 @@
       "approved": "Bestätigt",
       "rejected": "Abgelehnt",
       "pending": "Offen"
+    },
+    "type": {
+      "active": "Aktive Tour",
+      "shuttle": "Shuttle"
     }
   },
   "support": {

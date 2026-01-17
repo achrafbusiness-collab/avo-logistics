@@ -108,6 +108,10 @@ export default function DriverProfile() {
           dateLabel: date ? formatDate(date) : "-",
           licensePlate: ordersById.get(segment.order_id)?.license_plate || "-",
           tour: `${segment.start_location || ""} → ${segment.end_location || ""}`.trim(),
+          typeLabel:
+            segment.segment_type === "shuttle"
+              ? t("billing.type.shuttle")
+              : t("billing.type.active"),
           price: Number.isFinite(Number(segment.price)) ? Number(segment.price) : 0,
           priceStatus,
           priceRejectionReason: segment.price_rejection_reason || "",
@@ -121,7 +125,7 @@ export default function DriverProfile() {
         return true;
       })
       .sort((a, b) => (b.date?.getTime() || 0) - (a.date?.getTime() || 0));
-  }, [billingRange, driverSegments, expensesByOrder, formatDate, ordersById]);
+  }, [billingRange, driverSegments, expensesByOrder, formatDate, ordersById, t]);
 
   const billingTotals = React.useMemo(() => {
     return billingRows.reduce(
@@ -356,6 +360,7 @@ export default function DriverProfile() {
                     <th className="py-2 pr-4">{t("billing.table.date")}</th>
                     <th className="py-2 pr-4">{t("billing.table.plate")}</th>
                     <th className="py-2 pr-4">{t("billing.table.tour")}</th>
+                    <th className="py-2 pr-4">{t("billing.table.type")}</th>
                     <th className="py-2 pr-4">{t("billing.table.status")}</th>
                     <th className="py-2 pr-4 text-right">{t("billing.table.price")}</th>
                     <th className="py-2 text-right">{t("billing.table.expenses")}</th>
@@ -367,6 +372,7 @@ export default function DriverProfile() {
                       <td className="py-2 pr-4">{row.dateLabel}</td>
                       <td className="py-2 pr-4 text-slate-700">{row.licensePlate}</td>
                       <td className="py-2 pr-4 text-slate-700">{row.tour || "-"}</td>
+                      <td className="py-2 pr-4 text-slate-700">{row.typeLabel}</td>
                       <td className="py-2 pr-4 text-sm">
                         <div className="flex flex-col gap-1">
                           <span>
