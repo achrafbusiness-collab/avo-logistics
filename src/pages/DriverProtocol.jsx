@@ -252,6 +252,17 @@ export default function DriverProtocol() {
   }, [pendingDamagePhoto]);
 
   useEffect(() => {
+    if (type !== 'pickup') return;
+    if (currentStep !== 'damage') return;
+    if (damageDelay.done || damageDelay.startedAt) return;
+    setDamageDelay((prev) => ({
+      ...prev,
+      startedAt: Date.now(),
+      remaining: DAMAGE_DELAY_SECONDS,
+    }));
+  }, [currentStep, type, damageDelay.done, damageDelay.startedAt]);
+
+  useEffect(() => {
     if (!damageDelay.startedAt || damageDelay.done) return;
     const tick = () => {
       const elapsed = Math.floor((Date.now() - damageDelay.startedAt) / 1000);
