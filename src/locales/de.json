@@ -108,6 +108,8 @@
     "dialogDescription": "Bitte Standort und Notizen hinzufügen.",
     "shuttleDialogTitle": "Shuttlestop erfassen",
     "shuttleDialogDescription": "Bitte Standort und Notizen hinzufügen.",
+    "shuttleConfirmedTitle": "Shuttlestop bestätigt.",
+    "shuttleStopsTitle": "Shuttlestopps",
     "locationLabel": "Abstellort",
     "locationPlaceholder": "Adresse oder Ort",
     "notesLabel": "Notizen (optional)",
@@ -301,6 +303,7 @@
       "save": "Auslagen speichern",
       "saving": "Speichern...",
       "saved": "Auslagen gespeichert.",
+      "locked": "Auftrag abgeschlossen. Änderungen sind gesperrt.",
       "saveError": "Auslagen konnten nicht gespeichert werden.",
       "uploadError": "Upload fehlgeschlagen. Bitte erneut versuchen."
     },

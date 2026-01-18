@@ -108,6 +108,8 @@
     "dialogDescription": "Please add the location and notes.",
     "shuttleDialogTitle": "Log shuttle stop",
     "shuttleDialogDescription": "Please add the location and notes.",
+    "shuttleConfirmedTitle": "Shuttle stop confirmed.",
+    "shuttleStopsTitle": "Shuttle stops",
     "locationLabel": "Drop-off location",
     "locationPlaceholder": "Address or place",
     "notesLabel": "Notes (optional)",
@@ -301,6 +303,7 @@
       "save": "Save expenses",
       "saving": "Saving...",
       "saved": "Expenses saved.",
+      "locked": "Order completed. Changes are locked.",
       "saveError": "Expenses could not be saved.",
       "uploadError": "Upload failed. Please try again."
     },

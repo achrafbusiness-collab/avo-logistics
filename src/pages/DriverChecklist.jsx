@@ -156,6 +156,18 @@ export default function DriverChecklist() {
   const latestHandoff = orderedHandoffs[0];
   const latestAcceptedHandoff = orderedHandoffs.find((handoff) => handoff.status === 'accepted');
   const latestSegment = (orderSegments || [])[0];
+  const shuttleSegments = (orderSegments || [])
+    .filter(
+      (segment) =>
+        segment.segment_type === 'shuttle' &&
+        (!currentDriver || segment.driver_id === currentDriver.id)
+    )
+    .sort((a, b) => {
+      const aDate = new Date(a.created_date || a.created_at || 0).getTime();
+      const bDate = new Date(b.created_date || b.created_at || 0).getTime();
+      return bDate - aDate;
+    });
+  const latestShuttleSegment = shuttleSegments[0];
   const pendingHandoff = orderedHandoffs.find((handoff) => handoff.status === 'pending');
   const pendingHandoffByCurrentDriver = Boolean(
     pendingHandoff && currentDriver && pendingHandoff.created_by_driver_id === currentDriver.id
@@ -174,6 +186,7 @@ export default function DriverChecklist() {
   const canShowPostExpenses = Boolean(
     pickupChecklist && (dropoffChecklist || orderedHandoffs.length > 0)
   );
+  const postExpensesLocked = Boolean(dropoffChecklist);
 
   const pickupLocation = [order?.pickup_address, order?.pickup_postal_code, order?.pickup_city]
     .filter(Boolean)
@@ -277,6 +290,10 @@ export default function DriverChecklist() {
 
   const savePostExpenses = async () => {
     if (!editableChecklist?.id) return;
+    if (postExpensesLocked) {
+      setPostExpenseError(t('checklist.expenses.locked'));
+      return;
+    }
     setPostExpenseSaving(true);
     setPostExpenseError('');
     try {
@@ -631,6 +648,32 @@ export default function DriverChecklist() {
                 <p className="text-sm text-gray-500">{t('handoff.none')}</p>
               )}
 
+              {latestShuttleSegment && (
+                <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
+                  <p className="font-semibold">{t('handoff.shuttleConfirmedTitle')}</p>
+                  <p className="text-blue-800">{latestShuttleSegment.end_location}</p>
+                </div>
+              )}
+
+              {shuttleSegments.length > 0 && (
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+                  <p className="font-semibold">{t('handoff.shuttleStopsTitle')}</p>
+                  <div className="mt-2 space-y-1 text-xs text-slate-600">
+                    {shuttleSegments.map((segment, index) => (
+                      <div key={segment.id} className="flex flex-wrap items-center gap-2">
+                        <span className="font-medium">{index + 1}.</span>
+                        <span>{segment.end_location}</span>
+                        {(segment.created_date || segment.created_at) && (
+                          <span className="text-slate-400">
+                            • {formatDateTime(segment.created_date || segment.created_at)}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {canCreateHandoff && (
                 <div className="grid gap-2">
                   <Button
@@ -645,8 +688,7 @@ export default function DriverChecklist() {
                   </Button>
                   <Button
                     type="button"
-                    variant="outline"
-                    className="w-full border-[#1e3a5f] text-[#1e3a5f] hover:bg-[#eaf0f7]"
+                    className="w-full bg-[#1e3a5f] hover:bg-[#2d5a8a]"
                     onClick={() => {
                       setHandoffMode('shuttle');
                       setHandoffDialogOpen(true);
@@ -684,7 +726,12 @@ export default function DriverChecklist() {
                       <span className="text-sm font-semibold text-slate-700">
                         {t('checklist.expenses.itemTitle', { index: index + 1 })}
                       </span>
-                      <Button size="icon" variant="ghost" onClick={() => removePostExpense(index)}>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => removePostExpense(index)}
+                        disabled={postExpensesLocked || Boolean(expense.file_url)}
+                      >
                         <X className="w-4 h-4 text-red-500" />
                       </Button>
                     </div>
@@ -694,6 +741,7 @@ export default function DriverChecklist() {
                         <Select
                           value={expense.type || 'fuel'}
                           onValueChange={(value) => updatePostExpense(index, 'type', value)}
+                          disabled={postExpensesLocked}
                         >
                           <SelectTrigger>
                             <SelectValue />
@@ -716,6 +764,7 @@ export default function DriverChecklist() {
                           value={expense.amount || ''}
                           onChange={(event) => updatePostExpense(index, 'amount', event.target.value)}
                           placeholder="0.00"
+                          disabled={postExpensesLocked}
                         />
                       </div>
                       <div>
@@ -724,6 +773,7 @@ export default function DriverChecklist() {
                           value={expense.note || ''}
                           onChange={(event) => updatePostExpense(index, 'note', event.target.value)}
                           placeholder={t('checklist.expenses.notePlaceholder')}
+                          disabled={postExpensesLocked}
                         />
                       </div>
                     </div>
@@ -735,7 +785,7 @@ export default function DriverChecklist() {
                           variant="outline"
                           size="sm"
                           onClick={() => document.getElementById(`post-expense-file-${index}`)?.click()}
-                          disabled={postExpenseUploads[index]}
+                          disabled={postExpenseUploads[index] || postExpensesLocked}
                         >
                           {postExpenseUploads[index]
                             ? t('checklist.expenses.uploading')
@@ -777,12 +827,20 @@ export default function DriverChecklist() {
                 ))}
               </div>
 
-              <Button variant="outline" className="w-full" onClick={addPostExpense}>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={addPostExpense}
+                disabled={postExpensesLocked}
+              >
                 <Plus className="w-4 h-4 mr-2" />
                 {t('checklist.expenses.add')}
               </Button>
 
               {postExpenseError && <p className="text-sm text-red-600">{postExpenseError}</p>}
+              {postExpensesLocked && (
+                <p className="text-sm text-slate-500">{t('checklist.expenses.locked')}</p>
+              )}
               {postExpenseSaved && (
                 <p className="text-sm text-emerald-600">{t('checklist.expenses.saved')}</p>
               )}
@@ -790,7 +848,7 @@ export default function DriverChecklist() {
               <Button
                 className="w-full bg-[#1e3a5f] hover:bg-[#2d5a8a]"
                 onClick={savePostExpenses}
-                disabled={postExpenseSaving}
+                disabled={postExpenseSaving || postExpensesLocked}
               >
                 {postExpenseSaving ? t('checklist.expenses.saving') : t('checklist.expenses.save')}
               </Button>

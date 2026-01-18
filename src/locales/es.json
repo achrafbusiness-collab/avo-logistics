@@ -108,6 +108,8 @@
     "dialogDescription": "Agrega la ubicación y notas.",
     "shuttleDialogTitle": "Registrar parada shuttle",
     "shuttleDialogDescription": "Agrega la ubicación y notas.",
+    "shuttleConfirmedTitle": "Parada de shuttle confirmada.",
+    "shuttleStopsTitle": "Paradas de shuttle",
     "locationLabel": "Ubicación",
     "locationPlaceholder": "Dirección o lugar",
     "notesLabel": "Notas (opcional)",
@@ -301,6 +303,7 @@
       "save": "Guardar gastos",
       "saving": "Guardando...",
       "saved": "Gastos guardados.",
+      "locked": "El pedido está completado. Cambios bloqueados.",
       "saveError": "No se pudieron guardar los gastos.",
       "uploadError": "La carga falló. Inténtalo de nuevo."
     },
