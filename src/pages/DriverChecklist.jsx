@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { appClient } from '@/api/appClient';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -42,6 +42,7 @@ const EXPENSE_TYPES = [
 export default function DriverChecklist() {
   const { t, formatDate, formatDateTime, formatNumber } = useI18n();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const postExpensesRef = useRef(null);
   const urlParams = new URLSearchParams(window.location.search);
   const orderId = urlParams.get('orderId');
@@ -49,6 +50,7 @@ export default function DriverChecklist() {
   const [user, setUser] = useState(null);
   const [currentDriver, setCurrentDriver] = useState(null);
   const [handoffDialogOpen, setHandoffDialogOpen] = useState(false);
+  const [handoffMode, setHandoffMode] = useState('handoff');
   const [handoffForm, setHandoffForm] = useState({ location: '', notes: '' });
   const [handoffCoords, setHandoffCoords] = useState(null);
   const [handoffError, setHandoffError] = useState('');
@@ -118,6 +120,12 @@ export default function DriverChecklist() {
     enabled: !!orderId,
   });
 
+  const { data: orderSegments = [] } = useQuery({
+    queryKey: ['order-segments', orderId],
+    queryFn: () => appClient.entities.OrderSegment.filter({ order_id: orderId }, '-created_date'),
+    enabled: !!orderId,
+  });
+
   const pickupChecklist = checklists.find(c => c.type === 'pickup');
   const dropoffChecklist = checklists.find(c => c.type === 'dropoff');
   const editableChecklist = dropoffChecklist || pickupChecklist;
@@ -146,6 +154,8 @@ export default function DriverChecklist() {
     return bDate - aDate;
   });
   const latestHandoff = orderedHandoffs[0];
+  const latestAcceptedHandoff = orderedHandoffs.find((handoff) => handoff.status === 'accepted');
+  const latestSegment = (orderSegments || [])[0];
   const pendingHandoff = orderedHandoffs.find((handoff) => handoff.status === 'pending');
   const pendingHandoffByCurrentDriver = Boolean(
     pendingHandoff && currentDriver && pendingHandoff.created_by_driver_id === currentDriver.id
@@ -170,7 +180,8 @@ export default function DriverChecklist() {
     .join(', ');
 
   const getSegmentStart = () => {
-    if (latestHandoff?.location) return latestHandoff.location;
+    if (latestSegment?.end_location) return latestSegment.end_location;
+    if (latestAcceptedHandoff?.location) return latestAcceptedHandoff.location;
     return pickupLocation || '';
   };
 
@@ -295,6 +306,7 @@ export default function DriverChecklist() {
     }
     setHandoffSaving(true);
     setHandoffError('');
+    const isShuttle = handoffMode === 'shuttle';
     try {
       const startLocation = getSegmentStart();
       let distanceKm = null;
@@ -309,30 +321,44 @@ export default function DriverChecklist() {
         }
       }
 
-      const createdHandoff = await appClient.entities.OrderHandoff.create({
-        order_id: orderId,
-        company_id: order.company_id,
-        created_by_driver_id: currentDriver?.id,
-        created_by_driver_name: currentDriver?.name,
-        location: handoffForm.location.trim(),
-        location_lat: handoffCoords?.latitude ?? null,
-        location_lng: handoffCoords?.longitude ?? null,
-        notes: handoffForm.notes?.trim() || null,
-        status: 'pending',
-      });
+      const createdHandoff = isShuttle
+        ? null
+        : await appClient.entities.OrderHandoff.create({
+            order_id: orderId,
+            company_id: order.company_id,
+            created_by_driver_id: currentDriver?.id,
+            created_by_driver_name: currentDriver?.name,
+            location: handoffForm.location.trim(),
+            location_lat: handoffCoords?.latitude ?? null,
+            location_lng: handoffCoords?.longitude ?? null,
+            notes: handoffForm.notes?.trim() || null,
+            status: 'pending',
+          });
 
       await appClient.entities.OrderSegment.create({
         order_id: orderId,
         company_id: order.company_id,
-        handoff_id: createdHandoff.id,
+        handoff_id: createdHandoff?.id ?? null,
         driver_id: currentDriver?.id,
         driver_name: currentDriver?.name,
-        segment_type: 'handoff',
+        segment_type: isShuttle ? 'shuttle' : 'handoff',
         start_location: startLocation || null,
         end_location: handoffForm.location.trim(),
         distance_km: distanceKm,
         price: null,
       });
+
+      if (!isShuttle) {
+        await updateOrderMutation.mutateAsync({
+          id: orderId,
+          data: {
+            assigned_driver_id: null,
+            assigned_driver_name: '',
+          },
+        });
+        queryClient.invalidateQueries({ queryKey: ['driver-orders'] });
+        queryClient.invalidateQueries({ queryKey: ['orders'] });
+      }
 
       setHandoffDialogOpen(false);
       setHandoffForm({ location: '', notes: '' });
@@ -340,6 +366,9 @@ export default function DriverChecklist() {
       setHandoffExpensePromptOpen(true);
       queryClient.invalidateQueries({ queryKey: ['order-handoffs', orderId] });
       queryClient.invalidateQueries({ queryKey: ['order-segments', orderId] });
+      if (!isShuttle) {
+        navigate(createPageUrl('DriverOrders'));
+      }
     } catch (error) {
       setHandoffError(error?.message || t('handoff.errors.saveFailed'));
     } finally {
@@ -360,6 +389,15 @@ export default function DriverChecklist() {
           accepted_at: new Date().toISOString(),
         },
       });
+      await updateOrderMutation.mutateAsync({
+        id: orderId,
+        data: {
+          assigned_driver_id: currentDriver.id,
+          assigned_driver_name: currentDriver.name,
+        },
+      });
+      queryClient.invalidateQueries({ queryKey: ['driver-orders'] });
+      queryClient.invalidateQueries({ queryKey: ['order', orderId] });
     } catch (error) {
       setHandoffError(error?.message || t('handoff.errors.acceptFailed'));
     }
@@ -550,7 +588,11 @@ export default function DriverChecklist() {
             <CardContent className="space-y-3">
               {pendingHandoff ? (
                 <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
-                  <p className="font-semibold">{t('handoff.pendingTitle')}</p>
+                  <p className="font-semibold">
+                    {pendingHandoffByCurrentDriver
+                      ? t('handoff.successTitle')
+                      : t('handoff.pendingTitle')}
+                  </p>
                   <p className="text-emerald-800">{pendingHandoff.location}</p>
                   {pendingHandoff.notes && (
                     <p className="text-xs text-emerald-700 mt-2">{pendingHandoff.notes}</p>
@@ -590,13 +632,29 @@ export default function DriverChecklist() {
               )}
 
               {canCreateHandoff && (
-                <Button
-                  type="button"
-                  className="w-full bg-[#1e3a5f] hover:bg-[#2d5a8a]"
-                  onClick={() => setHandoffDialogOpen(true)}
-                >
-                  {t('handoff.create')}
-                </Button>
+                <div className="grid gap-2">
+                  <Button
+                    type="button"
+                    className="w-full bg-[#1e3a5f] hover:bg-[#2d5a8a]"
+                    onClick={() => {
+                      setHandoffMode('handoff');
+                      setHandoffDialogOpen(true);
+                    }}
+                  >
+                    {t('handoff.create')}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full border-[#1e3a5f] text-[#1e3a5f] hover:bg-[#eaf0f7]"
+                    onClick={() => {
+                      setHandoffMode('shuttle');
+                      setHandoffDialogOpen(true);
+                    }}
+                  >
+                    {t('handoff.shuttleCreate')}
+                  </Button>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -924,8 +982,16 @@ export default function DriverChecklist() {
       <Dialog open={handoffDialogOpen} onOpenChange={setHandoffDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{t('handoff.dialogTitle')}</DialogTitle>
-            <DialogDescription>{t('handoff.dialogDescription')}</DialogDescription>
+            <DialogTitle>
+              {handoffMode === 'shuttle'
+                ? t('handoff.shuttleDialogTitle')
+                : t('handoff.dialogTitle')}
+            </DialogTitle>
+            <DialogDescription>
+              {handoffMode === 'shuttle'
+                ? t('handoff.shuttleDialogDescription')
+                : t('handoff.dialogDescription')}
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-2">
@@ -968,7 +1034,11 @@ export default function DriverChecklist() {
               {t('common.cancel')}
             </Button>
             <Button onClick={submitHandoff} disabled={handoffSaving}>
-              {handoffSaving ? t('common.saving') : t('handoff.save')}
+              {handoffSaving
+                ? t('common.saving')
+                : handoffMode === 'shuttle'
+                  ? t('handoff.shuttleSave')
+                  : t('handoff.save')}
             </Button>
           </DialogFooter>
         </DialogContent>

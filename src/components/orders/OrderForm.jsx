@@ -42,7 +42,13 @@ const formatKm = (value) => {
   return String(value);
 };
 
+const formatPrice = (value) => {
+  if (value === null || value === undefined || value === '') return '';
+  return String(value);
+};
+
 export default function OrderForm({ order, onSave, onCancel, currentUser }) {
+  const canEditDriverPrice = currentUser?.role !== 'driver';
   const [formData, setFormData] = useState({
     order_number: '',
     customer_order_number: '',
@@ -70,6 +76,7 @@ export default function OrderForm({ order, onSave, onCancel, currentUser }) {
     customer_email: '',
     notes: '',
     distance_km: '',
+    driver_price: '',
   });
 
   const [saving, setSaving] = useState(false);
@@ -92,6 +99,7 @@ export default function OrderForm({ order, onSave, onCancel, currentUser }) {
       setFormData({
         ...order,
         distance_km: formatKm(order.distance_km),
+        driver_price: formatPrice(order.driver_price),
       });
     } else {
       setFormData(prev => ({
@@ -208,6 +216,7 @@ export default function OrderForm({ order, onSave, onCancel, currentUser }) {
       const dataToSave = {
         ...formData,
         distance_km: formData.distance_km ? parseFloat(formData.distance_km) : null,
+        driver_price: formData.driver_price !== '' ? parseFloat(formData.driver_price) : null,
       };
       await onSave(dataToSave);
     } finally {
@@ -319,6 +328,21 @@ export default function OrderForm({ order, onSave, onCancel, currentUser }) {
                 <p className="mt-1 text-xs text-red-600">{distanceError}</p>
               )}
             </div>
+            {canEditDriverPrice && (
+              <div>
+                <Label>Fahrerpreis (EUR)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={formData.driver_price}
+                  onChange={(e) => handleChange('driver_price', e.target.value)}
+                  placeholder="z. B. 45.00"
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  Dieser Preis wird im Fahrer-Portal angezeigt.
+                </p>
+              </div>
+            )}
           </div>
           {distanceLoading && (
             <p className="text-xs text-slate-500">Strecke wird berechnet…</p>

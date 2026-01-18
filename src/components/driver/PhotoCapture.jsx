@@ -59,6 +59,14 @@ export default function PhotoCapture({
   const manualInputRef = useRef(null);
   const cameraTimeoutRef = useRef(null);
 
+  const createCaptureFile = (blob, name, type) => {
+    if (!blob) return null;
+    if (typeof File !== 'undefined') {
+      return new File([blob], name, { type });
+    }
+    return Object.assign(blob, { name, type });
+  };
+
   const uploadPhoto = async (type, file) => {
     if (!file) return;
     
@@ -217,14 +225,20 @@ export default function PhotoCapture({
       canvas.height = height;
       const ctx = canvas.getContext('2d');
       ctx.drawImage(video, 0, 0, width, height);
-      const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.95));
+      let blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.95));
+      if (!blob) {
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
+        const response = await fetch(dataUrl);
+        blob = await response.blob();
+      }
       if (!blob) {
         throw new Error(t('photos.errors.captureFailed'));
       }
-      const file = new File([blob], `${currentType}-${Date.now()}.jpg`, { type: 'image/jpeg' });
+      const file = createCaptureFile(blob, `${currentType}-${Date.now()}.jpg`, 'image/jpeg');
       await uploadPhoto(currentType, file);
     } catch (err) {
       console.error('Capture failed:', err);
+      setCameraError(err?.message || t('photos.errors.captureFailed'));
     } finally {
       setCapturing(false);
     }
@@ -413,6 +427,7 @@ export default function PhotoCapture({
               ref={manualInputRef}
               type="file"
               accept="image/*"
+              capture="environment"
               className="hidden"
               onChange={(e) => {
                 if (!currentType) return;

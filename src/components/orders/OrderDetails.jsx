@@ -1119,7 +1119,11 @@ export default function OrderDetails({
                             <div className="space-y-1">
                               <div className="flex flex-wrap items-center gap-2">
                                 <p className="font-semibold text-slate-900">
-                                  {segment.segment_type === 'handoff' ? 'Zwischenabgabe' : 'Übergabe'}
+                                  {segment.segment_type === 'handoff'
+                                    ? 'Zwischenabgabe'
+                                    : segment.segment_type === 'shuttle'
+                                      ? 'Shuttle'
+                                      : 'Übergabe'}
                                 </p>
                                 <span className={`rounded-full border px-2 py-0.5 text-xs ${statusTone}`}>
                                   {statusLabel}
