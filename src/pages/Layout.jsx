@@ -51,6 +51,7 @@ const adminPages = [
 
 export default function Layout({ children, currentPageName }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarHover, setSidebarHover] = useState(false);
   const [user, setUser] = useState(null);
   const [isDriver, setIsDriver] = useState(false);
   const location = useLocation();
@@ -201,6 +202,7 @@ export default function Layout({ children, currentPageName }) {
   }
 
   const visibleAdminPages = adminPages.filter((item) => hasPageAccess(user, item.page));
+  const sidebarVisible = sidebarOpen || sidebarHover;
 
   // Admin Layout
   return (
@@ -214,13 +216,17 @@ export default function Layout({ children, currentPageName }) {
       `}</style>
 
       {/* Sidebar */}
-      <aside className={`
+      <aside
+        onMouseEnter={() => setSidebarHover(true)}
+        onMouseLeave={() => setSidebarHover(false)}
+        className={`
         fixed inset-y-0 left-0 z-50
         w-64 text-white
         transform transition-transform duration-300 ease-in-out
-        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+        ${sidebarVisible ? 'translate-x-0' : '-translate-x-full'}
         bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950
-      `}>
+      `}
+      >
         <div className="flex h-full flex-col">
           <div className={`flex items-center justify-between p-4 border-b ${darkMode ? 'border-slate-800' : 'border-white/10'}`}>
             <div>
@@ -229,7 +235,10 @@ export default function Layout({ children, currentPageName }) {
               <p className={`text-xs ${darkMode ? 'text-slate-400' : 'text-white/60'}`}>Achraf Bolakhrif</p>
             </div>
             <button 
-              onClick={() => setSidebarOpen(false)}
+              onClick={() => {
+                setSidebarOpen(false);
+                setSidebarHover(false);
+              }}
               className={`lg:hidden p-1 rounded ${darkMode ? 'hover:bg-slate-800' : 'hover:bg-white/10'}`}
             >
               <X className="w-5 h-5" />
@@ -243,7 +252,10 @@ export default function Layout({ children, currentPageName }) {
                 <Link
                   key={item.page}
                   to={createPageUrl(item.page)}
-                  onClick={() => setSidebarOpen(false)}
+                  onClick={() => {
+                    setSidebarOpen(false);
+                    setSidebarHover(false);
+                  }}
                   className={`
                     flex items-center gap-3 px-4 py-3 rounded-lg transition-all
                     ${isActive 
@@ -293,15 +305,28 @@ export default function Layout({ children, currentPageName }) {
         />
       )}
 
+      <div
+        className="hidden lg:block fixed inset-y-0 left-0 w-2 z-30"
+        onMouseEnter={() => setSidebarHover(true)}
+        onMouseLeave={() => setSidebarHover(false)}
+      />
+
       {/* Main Content */}
-      <div className="flex-1 flex flex-col min-h-0 lg:ml-64">
+      <div
+        className={`flex-1 flex flex-col min-h-0 transition-[margin] duration-300 ${
+          sidebarVisible ? 'lg:ml-64' : 'lg:ml-0'
+        }`}
+      >
         {/* Top Bar */}
         <header className={`border-b px-4 py-3 flex items-center justify-between lg:px-6 ${
           darkMode ? 'bg-slate-950/90 border-slate-800 backdrop-blur' : 'bg-white/90 border-slate-200 backdrop-blur'
         }`}>
           <button 
-            onClick={() => setSidebarOpen(true)}
-            className={`lg:hidden p-2 rounded-lg ${darkMode ? 'hover:bg-slate-800' : 'hover:bg-gray-100'}`}
+            onClick={() => {
+              setSidebarOpen((prev) => !prev);
+              setSidebarHover(false);
+            }}
+            className={`p-2 rounded-lg ${darkMode ? 'hover:bg-slate-800' : 'hover:bg-gray-100'}`}
           >
             <Menu className={`w-5 h-5 ${darkMode ? 'text-slate-200' : ''}`} />
           </button>
@@ -341,7 +366,7 @@ export default function Layout({ children, currentPageName }) {
         {/* Page Content */}
         <main
           ref={mainRef}
-          className="flex-1 p-4 lg:p-6 overflow-y-auto bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950"
+          className="flex-1 p-4 lg:p-6 overflow-auto bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950"
         >
           <div className="min-h-full rounded-[28px] bg-gradient-to-br from-white via-slate-50 to-blue-50/70 p-5 lg:p-8 shadow-[0_30px_60px_-40px_rgba(15,23,42,0.8)]">
             {children}
