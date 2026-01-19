@@ -830,8 +830,12 @@ export default function Orders() {
               )}
             </div>
           ) : (
-            <div className="w-full overflow-x-auto touch-pan-x">
-              <Table className="min-w-[1040px]">
+            <div
+              className="w-full overflow-x-auto overscroll-x-contain touch-pan-x"
+              style={{ WebkitOverflowScrolling: 'touch' }}
+            >
+              <div className="min-w-[1150px]">
+                <Table className="min-w-full">
                 <TableHeader>
                   <TableRow className="bg-gray-50">
                     <TableHead className="w-12">
@@ -1068,7 +1072,8 @@ export default function Orders() {
                     );
                   })}
                 </TableBody>
-              </Table>
+                </Table>
+              </div>
             </div>
           )}
         </CardContent>
