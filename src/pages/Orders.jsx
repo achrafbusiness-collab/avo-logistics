@@ -44,6 +44,7 @@ import {
   Filter,
   Truck,
   Check,
+  X,
   ArrowLeft,
   Loader2
 } from 'lucide-react';
@@ -706,8 +707,18 @@ export default function Orders() {
                 placeholder="Suche nach Auftragsnummer, Kunde, Kennzeichen, Ort, PLZ, Straße..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
+                className="pl-10 pr-10"
               />
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => setSearchTerm('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  aria-label="Suche leeren"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-full sm:w-48">

@@ -37,6 +37,7 @@ import {
   Car,
   CheckCircle2,
   XCircle,
+  X,
   ExternalLink,
   Download,
   FileText,
@@ -403,8 +404,18 @@ export default function Checklists() {
                 placeholder="Suche nach Auftragsnummer, Fahrer, Ort..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
+                className="pl-10 pr-10"
               />
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => setSearchTerm('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  aria-label="Suche leeren"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
             </div>
             <Select value={typeFilter} onValueChange={setTypeFilter}>
               <SelectTrigger className="w-full sm:w-48">
