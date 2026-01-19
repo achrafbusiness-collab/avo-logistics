@@ -2,8 +2,11 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
-const Table = React.forwardRef(({ className, wrapperClassName, wrapperStyle, ...props }, ref) => (
-  <div className={cn("relative w-full overflow-auto", wrapperClassName)} style={wrapperStyle}>
+const Table = React.forwardRef(({ className, ...props }, ref) => (
+  <div
+    className="relative w-full overflow-x-auto overscroll-x-contain touch-pan-x"
+    style={{ WebkitOverflowScrolling: "touch" }}
+  >
     <table
       ref={ref}
       className={cn("w-full caption-bottom text-sm", className)}

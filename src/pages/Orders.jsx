@@ -830,11 +830,7 @@ export default function Orders() {
               )}
             </div>
           ) : (
-            <Table
-              className="min-w-[1150px]"
-              wrapperClassName="w-full overflow-x-auto overscroll-x-contain touch-pan-x"
-              wrapperStyle={{ WebkitOverflowScrolling: 'touch' }}
-            >
+            <Table className="min-w-[1150px]">
                 <TableHeader>
                   <TableRow className="bg-gray-50">
                     <TableHead className="w-12">
