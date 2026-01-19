@@ -830,7 +830,7 @@ export default function Orders() {
               )}
             </div>
           ) : (
-            <Table className="min-w-[1150px]">
+            <Table>
                 <TableHeader>
                   <TableRow className="bg-gray-50">
                     <TableHead className="w-12">
