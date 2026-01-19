@@ -248,6 +248,7 @@ export default function DriverPriceRequests() {
                   <TableRow>
                     <TableHead>Fahrer</TableHead>
                     <TableHead>Route</TableHead>
+                    <TableHead>Typ</TableHead>
                     <TableHead>Auftrag</TableHead>
                     <TableHead>Kennzeichen</TableHead>
                     <TableHead>Strecke</TableHead>
@@ -267,10 +268,12 @@ export default function DriverPriceRequests() {
                     const routeLabel = `${segment.start_location || "-"} → ${
                       segment.end_location || "-"
                     }`;
+                    const typeLabel = segment.segment_type === "shuttle" ? "Shuttle" : "Aktive Tour";
                     return (
                       <TableRow key={segment.id}>
                         <TableCell className="font-medium">{driverLabel}</TableCell>
                         <TableCell className="text-sm text-gray-600">{routeLabel}</TableCell>
+                        <TableCell className="text-sm text-gray-600">{typeLabel}</TableCell>
                         <TableCell>
                           {order.order_number ? (
                             <Link
