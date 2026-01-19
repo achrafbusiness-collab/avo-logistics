@@ -830,12 +830,11 @@ export default function Orders() {
               )}
             </div>
           ) : (
-            <div
-              className="w-full overflow-x-auto overscroll-x-contain touch-pan-x"
-              style={{ WebkitOverflowScrolling: 'touch' }}
+            <Table
+              className="min-w-[1150px]"
+              wrapperClassName="w-full overflow-x-auto overscroll-x-contain touch-pan-x"
+              wrapperStyle={{ WebkitOverflowScrolling: 'touch' }}
             >
-              <div className="min-w-[1150px]">
-                <Table className="min-w-full">
                 <TableHeader>
                   <TableRow className="bg-gray-50">
                     <TableHead className="w-12">
@@ -1072,9 +1071,7 @@ export default function Orders() {
                     );
                   })}
                 </TableBody>
-                </Table>
-              </div>
-            </div>
+            </Table>
           )}
         </CardContent>
       </Card>
