@@ -164,3 +164,18 @@ button:focus-visible {
 .driver-layout[dir="rtl"] .rtl-flip {
   transform: scaleX(-1);
 }
+
+@media (max-width: 768px) {
+  .orders-list-zoom {
+    transform: scale(0.82);
+    transform-origin: top left;
+    width: calc(100% / 0.82);
+  }
+}
+
+@media (max-width: 480px) {
+  .orders-list-zoom {
+    transform: scale(0.75);
+    width: calc(100% / 0.75);
+  }
+}
