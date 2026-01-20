@@ -48,6 +48,7 @@ export default function Checklists() {
   
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
+  const [dateSort, setDateSort] = useState('desc');
   const [selectedChecklist, setSelectedChecklist] = useState(null);
   const [showDetails, setShowDetails] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState(null);
@@ -89,6 +90,22 @@ export default function Checklists() {
     
     return matchesSearch && matchesType;
   });
+
+  const sortedChecklists = useMemo(() => {
+    const direction = dateSort === 'asc' ? 1 : -1;
+    return [...filteredChecklists].sort((a, b) => {
+      const aRaw = a.datetime || a.created_date;
+      const bRaw = b.datetime || b.created_date;
+      const aDate = aRaw ? new Date(aRaw) : null;
+      const bDate = bRaw ? new Date(bRaw) : null;
+      const aValid = aDate && !Number.isNaN(aDate.getTime());
+      const bValid = bDate && !Number.isNaN(bDate.getTime());
+      if (!aValid && !bValid) return 0;
+      if (!aValid) return 1;
+      if (!bValid) return -1;
+      return (aDate.getTime() - bDate.getTime()) * direction;
+    });
+  }, [filteredChecklists, dateSort]);
 
   const AccessoryItem = ({ label, value }) => (
     <div className="flex items-center gap-2">
@@ -427,6 +444,15 @@ export default function Checklists() {
                 <SelectItem value="dropoff">Abgabe</SelectItem>
               </SelectContent>
             </Select>
+            <Select value={dateSort} onValueChange={setDateSort}>
+              <SelectTrigger className="w-full sm:w-48">
+                <SelectValue placeholder="Datum" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="desc">Neu → Alt</SelectItem>
+                <SelectItem value="asc">Alt → Neu</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </CardContent>
       </Card>
@@ -436,7 +462,7 @@ export default function Checklists() {
         <div className="flex items-center justify-center py-12">
           <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
         </div>
-      ) : filteredChecklists.length === 0 ? (
+      ) : sortedChecklists.length === 0 ? (
         <Card>
           <CardContent className="text-center py-12">
             <ClipboardList className="w-12 h-12 mx-auto mb-4 text-gray-300" />
@@ -457,7 +483,7 @@ export default function Checklists() {
         </Card>
       ) : (
         <div className="space-y-3">
-          {filteredChecklists.map((checklist) => (
+          {sortedChecklists.map((checklist) => (
             <Card 
               key={checklist.id}
               className="cursor-pointer hover:shadow-md transition-shadow"

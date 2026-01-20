@@ -16,6 +16,13 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Table,
   TableBody,
   TableCell,
@@ -64,6 +71,7 @@ const getSegmentStatus = (segment) => {
 export default function DriverPriceRequests() {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
+  const [dateSort, setDateSort] = useState("desc");
   const [priceEdits, setPriceEdits] = useState({});
   const [priceErrors, setPriceErrors] = useState({});
   const [saving, setSaving] = useState({});
@@ -125,6 +133,20 @@ export default function DriverPriceRequests() {
     const term = searchTerm.trim().toLowerCase();
     return pendingSegments.filter((segment) => buildSearchBlob(segment).includes(term));
   }, [pendingSegments, searchTerm]);
+
+  const sortedSegments = useMemo(() => {
+    const direction = dateSort === "asc" ? 1 : -1;
+    return [...filteredSegments].sort((a, b) => {
+      const aDate = a?.created_date ? new Date(a.created_date) : null;
+      const bDate = b?.created_date ? new Date(b.created_date) : null;
+      const aValid = aDate && !Number.isNaN(aDate.getTime());
+      const bValid = bDate && !Number.isNaN(bDate.getTime());
+      if (!aValid && !bValid) return 0;
+      if (!aValid) return 1;
+      if (!bValid) return -1;
+      return (aDate.getTime() - bDate.getTime()) * direction;
+    });
+  }, [filteredSegments, dateSort]);
 
   const handlePriceChange = (segmentId, value) => {
     setPriceEdits((prev) => ({ ...prev, [segmentId]: value }));
@@ -220,11 +242,22 @@ export default function DriverPriceRequests() {
 
       <Card>
         <CardContent className="p-4">
-          <Input
-            placeholder="Suche nach Auftrag, Kennzeichen, Fahrer, Ort..."
-            value={searchTerm}
-            onChange={(event) => setSearchTerm(event.target.value)}
-          />
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <Input
+              placeholder="Suche nach Auftrag, Kennzeichen, Fahrer, Ort..."
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+            />
+            <Select value={dateSort} onValueChange={setDateSort}>
+              <SelectTrigger className="w-full sm:w-56">
+                <SelectValue placeholder="Datum" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="desc">Anfrage: neu → alt</SelectItem>
+                <SelectItem value="asc">Anfrage: alt → neu</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </CardContent>
       </Card>
 
@@ -239,7 +272,7 @@ export default function DriverPriceRequests() {
             </div>
           ) : error ? (
             <p className="text-sm text-red-600">{error.message}</p>
-          ) : filteredSegments.length === 0 ? (
+          ) : sortedSegments.length === 0 ? (
             <p className="text-sm text-gray-500">Keine offenen Anfragen.</p>
           ) : (
             <div className="overflow-x-auto">
@@ -257,7 +290,7 @@ export default function DriverPriceRequests() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredSegments.map((segment) => {
+                  {sortedSegments.map((segment) => {
                     const order = segment.order || {};
                     const driver = segment.driver || {};
                     const driverLabel =

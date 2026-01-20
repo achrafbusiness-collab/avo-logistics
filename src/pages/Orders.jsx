@@ -60,6 +60,7 @@ export default function Orders() {
   const [listMode, setListMode] = useState('active');
   const [driverFilter, setDriverFilter] = useState('all');
   const [expensesFilter, setExpensesFilter] = useState('all');
+  const [dueSort, setDueSort] = useState('desc');
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]);
@@ -344,6 +345,18 @@ export default function Orders() {
       matchesExpenses
     );
   });
+
+  const sortedOrders = useMemo(() => {
+    const direction = dueSort === 'asc' ? 1 : -1;
+    return [...filteredOrders].sort((a, b) => {
+      const aDate = getDueDateTime(a);
+      const bDate = getDueDateTime(b);
+      if (!aDate && !bDate) return 0;
+      if (!aDate) return 1;
+      if (!bDate) return -1;
+      return (aDate.getTime() - bDate.getTime()) * direction;
+    });
+  }, [filteredOrders, dueSort]);
 
 
   const getDueStatus = (order) => {
@@ -758,6 +771,15 @@ export default function Orders() {
                 Keine Auslagen
               </Button>
             </div>
+            <Select value={dueSort} onValueChange={setDueSort}>
+              <SelectTrigger className="w-full sm:w-48">
+                <SelectValue placeholder="Fälligkeit" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="desc">Fälligkeit: neu → alt</SelectItem>
+                <SelectItem value="asc">Fälligkeit: alt → neu</SelectItem>
+              </SelectContent>
+            </Select>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-full sm:w-48">
                 <Filter className="w-4 h-4 mr-2" />
@@ -901,7 +923,7 @@ export default function Orders() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                  {filteredOrders.map((order) => {
+                  {sortedOrders.map((order) => {
                     const dueStatus = getDueStatus(order);
                     const isCompleted = order.status === 'completed';
                     const rowTone = isCompleted
