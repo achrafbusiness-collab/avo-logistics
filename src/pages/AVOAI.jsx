@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { appClient } from '@/api/appClient';
-import { createPageUrl } from '@/utils';
+import { format, startOfDay, endOfDay, subDays, startOfWeek, endOfWeek, isWithinInterval, parseISO } from 'date-fns';
+import { de } from 'date-fns/locale';
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -17,9 +18,8 @@ import {
 } from 'lucide-react';
 
 export default function AVOAI() {
-  const queryClient = useQueryClient();
   const [messages, setMessages] = useState([
-    { role: 'assistant', content: 'Hallo! Ich bin AVO AI, dein intelligenter Assistent für das Logistiksystem. Ich kann dir bei folgenden Aufgaben helfen:\n\n• Aufträge erstellen und verwalten\n• Fahrer zuweisen\n• Kunden anlegen\n• Statistiken anzeigen\n• Zu bestimmten Seiten navigieren\n\nWie kann ich dir helfen?' }
+    { role: 'assistant', content: 'Hallo! Ich bin AVO AI, dein Analyse‑Assistent für AVO Logistics. Ich kann alle Aufträge, Fahrer, Kunden und Protokolle auswerten und dir Antworten liefern.\n\n✅ Nur Lesen/Analysieren – ich führe keine Aktionen aus.\n\nFrag mich z. B.:\n• Welche Aufträge haben Auslagen?\n• Wer ist der häufigste Fahrer letzte Woche?\n• Welche Stadt hatte die meisten Lieferungen?\n• Liste alle Kennzeichen heute\n\nWie kann ich dir helfen?' }
   ]);
   const [input, setInput] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -35,109 +35,224 @@ export default function AVOAI() {
 
   const { data: orders = [] } = useQuery({
     queryKey: ['orders'],
-    queryFn: () => appClient.entities.Order.list('-created_date', 100),
+    queryFn: () => appClient.entities.Order.list('-created_date', 500),
   });
 
   const { data: drivers = [] } = useQuery({
     queryKey: ['drivers'],
-    queryFn: () => appClient.entities.Driver.list(),
+    queryFn: () => appClient.entities.Driver.list('-created_date', 500),
   });
 
   const { data: customers = [] } = useQuery({
     queryKey: ['customers'],
-    queryFn: () => appClient.entities.Customer.list(),
+    queryFn: () => appClient.entities.Customer.list('-created_date', 500),
   });
 
   const { data: checklists = [] } = useQuery({
     queryKey: ['checklists'],
-    queryFn: () => appClient.entities.Checklist.list('-created_date', 50),
-  });
-
-  const createOrderMutation = useMutation({
-    mutationFn: (data) => appClient.entities.Order.create(data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['orders'] }),
-  });
-
-  const updateOrderMutation = useMutation({
-    mutationFn: ({ id, data }) => appClient.entities.Order.update(id, data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['orders'] }),
-  });
-
-  const createDriverMutation = useMutation({
-    mutationFn: (data) => appClient.entities.Driver.create(data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['drivers'] }),
-  });
-
-  const createCustomerMutation = useMutation({
-    mutationFn: (data) => appClient.entities.Customer.create(data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['customers'] }),
+    queryFn: () => appClient.entities.Checklist.list('-created_date', 1000),
   });
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const executeAction = async (action) => {
-    try {
-      switch (action.type) {
-        case 'create_order':
-          const orderData = {
-            ...action.data,
-            order_number: action.data.order_number || '',
-            status: action.data.status || 'new'
-          };
-          if (!orderData.pickup_postal_code || !orderData.dropoff_postal_code) {
-            return '❌ Bitte Abhol- und Ziel-PLZ angeben, damit der Auftrag korrekt gespeichert wird.';
-          }
-          const createdOrder = await createOrderMutation.mutateAsync(orderData);
-          return `✅ Auftrag ${createdOrder.order_number} wurde erfolgreich erstellt.`;
+  const expensesByOrder = useMemo(() => {
+    const map = {};
+    checklists.forEach((checklist) => {
+      if (!checklist?.order_id) return;
+      const expenses = Array.isArray(checklist.expenses) ? checklist.expenses : [];
+      const hasExpenses = expenses.some((expense) =>
+        Boolean(expense?.amount || expense?.file_url || expense?.note)
+      );
+      if (!hasExpenses) return;
+      const total = expenses.reduce((sum, expense) => sum + (Number(expense?.amount) || 0), 0);
+      map[checklist.order_id] = { count: expenses.length, total };
+    });
+    return map;
+  }, [checklists]);
 
-        case 'assign_driver':
-          const order = orders.find(o => o.id === action.order_id || o.order_number === action.order_number);
-          const driver = drivers.find(d => d.id === action.driver_id || 
-            `${d.first_name} ${d.last_name}`.toLowerCase().includes(action.driver_name?.toLowerCase()));
-          
-          if (!order) return '❌ Auftrag nicht gefunden.';
-          if (!driver) return '❌ Fahrer nicht gefunden.';
+  const allCities = useMemo(() => {
+    const set = new Set();
+    orders.forEach((order) => {
+      if (order?.pickup_city) set.add(order.pickup_city);
+      if (order?.dropoff_city) set.add(order.dropoff_city);
+    });
+    return Array.from(set);
+  }, [orders]);
 
-          await updateOrderMutation.mutateAsync({
-            id: order.id,
-            data: {
-              ...order,
-              assigned_driver_id: driver.id,
-              assigned_driver_name: `${driver.first_name} ${driver.last_name}`,
-              status: 'assigned'
-            }
-          });
-          return `✅ Auftrag ${order.order_number} wurde ${driver.first_name} ${driver.last_name} zugewiesen.`;
+  const normalize = (value) => (value || '').toString().toLowerCase().trim();
 
-        case 'create_customer':
-          const customerData = {
-            ...action.data,
-            customer_number: action.data.customer_number || `KD-${Date.now().toString().slice(-6)}`,
-            status: 'active'
-          };
-          await createCustomerMutation.mutateAsync(customerData);
-          return `✅ Kunde ${customerData.customer_number} wurde erfolgreich angelegt.`;
+  const getOrderDate = (order) => {
+    const raw = order?.dropoff_date || order?.pickup_date || order?.created_date;
+    if (!raw) return null;
+    const value = typeof raw === 'string' && raw.length <= 10 ? `${raw}T00:00:00` : raw;
+    const parsed = typeof value === 'string' ? parseISO(value) : new Date(value);
+    if (Number.isNaN(parsed.getTime())) return null;
+    return parsed;
+  };
 
-        case 'create_driver':
-          const driverData = {
-            ...action.data,
-            status: action.data.status || 'pending'
-          };
-          await createDriverMutation.mutateAsync(driverData);
-          return `✅ Fahrer ${driverData.first_name} ${driverData.last_name} wurde erfolgreich angelegt.`;
+  const formatDateShort = (value) => {
+    if (!value) return '—';
+    const date = typeof value === 'string' ? parseISO(value) : new Date(value);
+    if (Number.isNaN(date.getTime())) return '—';
+    return format(date, 'dd.MM.yyyy', { locale: de });
+  };
 
-        case 'navigate':
-          window.location.href = createPageUrl(action.page);
-          return `🔄 Navigation zu ${action.page}...`;
-
-        default:
-          return '❌ Unbekannte Aktion.';
-      }
-    } catch (error) {
-      return `❌ Fehler bei der Ausführung: ${error.message}`;
+  const parseDateRange = (question) => {
+    const q = normalize(question);
+    const today = new Date();
+    if (q.includes('vorgestern')) {
+      const day = subDays(today, 2);
+      return { label: 'Vorgestern', start: startOfDay(day), end: endOfDay(day) };
     }
+    if (q.includes('gestern')) {
+      const day = subDays(today, 1);
+      return { label: 'Gestern', start: startOfDay(day), end: endOfDay(day) };
+    }
+    if (q.includes('heute')) {
+      return { label: 'Heute', start: startOfDay(today), end: endOfDay(today) };
+    }
+    if (q.includes('letzte 7') || q.includes('letzten 7')) {
+      return { label: 'Letzte 7 Tage', start: startOfDay(subDays(today, 6)), end: endOfDay(today) };
+    }
+    if (q.includes('diese woche') || q.includes('dieser woche')) {
+      return { label: 'Diese Woche', start: startOfWeek(today, { weekStartsOn: 1 }), end: endOfWeek(today, { weekStartsOn: 1 }) };
+    }
+    return null;
+  };
+
+  const buildLocalAnswer = (question) => {
+    const q = normalize(question);
+    if (!q) return null;
+
+    const range = parseDateRange(q);
+    const rangeLabel = range ? ` (${range.label})` : '';
+    const matchesRange = (order) => {
+      if (!range) return true;
+      const date = getOrderDate(order);
+      if (!date) return false;
+      return isWithinInterval(date, { start: range.start, end: range.end });
+    };
+
+    const filteredOrders = orders.filter(matchesRange);
+    const listLines = (items, formatLine, limit = 12) => {
+      const sliced = items.slice(0, limit);
+      const tail = items.length - sliced.length;
+      const lines = sliced.map(formatLine).join('\n');
+      return tail > 0 ? `${lines}\n… +${tail} weitere` : lines;
+    };
+
+    const formatOrderLine = (order) => {
+      const expenseInfo = expensesByOrder[order.id]
+        ? ` • Auslagen: ${expensesByOrder[order.id].count}`
+        : '';
+      const driverInfo = order.assigned_driver_name ? ` • Fahrer: ${order.assigned_driver_name}` : '';
+      return `- ${order.order_number || '—'} • ${order.license_plate || '—'} • ${order.pickup_city || '—'} → ${order.dropoff_city || '—'} • ${order.status || '—'}${driverInfo}${expenseInfo}`;
+    };
+
+    if (q.includes('auslagen')) {
+      const withExpenses = filteredOrders.filter((order) => expensesByOrder[order.id]);
+      const withoutExpenses = filteredOrders.filter((order) => !expensesByOrder[order.id]);
+      if (q.includes('ohne') || q.includes('keine')) {
+        return `Aufträge ohne Auslagen${rangeLabel} (${withoutExpenses.length}):\n${listLines(withoutExpenses, formatOrderLine) || '—'}`;
+      }
+      if (q.includes('mit')) {
+        return `Aufträge mit Auslagen${rangeLabel} (${withExpenses.length}):\n${listLines(withExpenses, formatOrderLine) || '—'}`;
+      }
+      return `Auslagen-Übersicht${rangeLabel}:\n• Mit Auslagen: ${withExpenses.length}\n• Ohne Auslagen: ${withoutExpenses.length}\n\nMit Auslagen:\n${listLines(withExpenses, formatOrderLine) || '—'}`;
+    }
+
+    if (q.includes('häufigster fahrer') || q.includes('top fahrer') || q.includes('meist gefahren')) {
+      const counts = {};
+      filteredOrders.forEach((order) => {
+        const name = order.assigned_driver_name || 'Nicht zugewiesen';
+        counts[name] = (counts[name] || 0) + 1;
+      });
+      const ranked = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+      if (!ranked.length) return `Keine Fahrerdaten${rangeLabel} gefunden.`;
+      const lines = ranked.slice(0, 5).map(([name, count]) => `- ${name}: ${count} Auftrag${count === 1 ? '' : 'e'}`).join('\n');
+      return `Häufigste Fahrer${rangeLabel}:\n${lines}`;
+    }
+
+    if (q.includes('bester kunde') || q.includes('top kunde') || q.includes('häufigster kunde')) {
+      const counts = {};
+      filteredOrders.forEach((order) => {
+        const name = order.customer_name || 'Unbekannt';
+        counts[name] = (counts[name] || 0) + 1;
+      });
+      const ranked = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+      if (!ranked.length) return `Keine Kundendaten${rangeLabel} gefunden.`;
+      const lines = ranked.slice(0, 5).map(([name, count]) => `- ${name}: ${count} Auftrag${count === 1 ? '' : 'e'}`).join('\n');
+      return `Top-Kunden${rangeLabel}:\n${lines}`;
+    }
+
+    if ((q.includes('stadt') && q.includes('meist')) || q.includes('meiste lieferungen') || q.includes('meist gelieferte')) {
+      const counts = {};
+      filteredOrders.forEach((order) => {
+        if (!order.dropoff_city) return;
+        counts[order.dropoff_city] = (counts[order.dropoff_city] || 0) + 1;
+      });
+      const ranked = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+      if (!ranked.length) return `Keine Zielstädte${rangeLabel} gefunden.`;
+      const lines = ranked.slice(0, 5).map(([city, count]) => `- ${city}: ${count} Auftrag${count === 1 ? '' : 'e'}`).join('\n');
+      return `Städte mit den meisten Lieferungen${rangeLabel}:\n${lines}`;
+    }
+
+    if (q.includes('kennzeichen') && (q.includes('alle') || q.includes('liste') || q.includes('zeige'))) {
+      const plates = filteredOrders.map((order) => order.license_plate).filter(Boolean);
+      if (!plates.length) return `Keine Kennzeichen${rangeLabel} gefunden.`;
+      return `Kennzeichen${rangeLabel}:\n${plates.slice(0, 30).map((plate) => `- ${plate}`).join('\n')}${plates.length > 30 ? '\n… +weitere' : ''}`;
+    }
+
+    if ((q.includes('fin') || q.includes('vin')) && (q.includes('alle') || q.includes('liste') || q.includes('zeige'))) {
+      const vins = filteredOrders.map((order) => order.vin || order.fin).filter(Boolean);
+      if (!vins.length) return `Keine FIN/VIN${rangeLabel} gefunden.`;
+      return `FIN/VIN${rangeLabel}:\n${vins.slice(0, 30).map((vin) => `- ${vin}`).join('\n')}${vins.length > 30 ? '\n… +weitere' : ''}`;
+    }
+
+    if (q.includes('abgeschlossen') || q.includes('beendet')) {
+      const completed = filteredOrders.filter((order) => order.status === 'completed');
+      return `Abgeschlossene Aufträge${rangeLabel} (${completed.length}):\n${listLines(completed, formatOrderLine) || '—'}`;
+    }
+
+    if (q.includes('offen') || q.includes('aktiv')) {
+      const active = filteredOrders.filter((order) => !['completed', 'cancelled'].includes(order.status));
+      return `Offene/Aktive Aufträge${rangeLabel} (${active.length}):\n${listLines(active, formatOrderLine) || '—'}`;
+    }
+
+    if (q.includes('protokoll') || q.includes('checklist')) {
+      const recent = checklists.slice(0, 8).map((checklist) => {
+        const order = orders.find((item) => item.id === checklist.order_id);
+        const title = order?.order_number || checklist.order_id || '—';
+        return `- ${title} • ${formatDateShort(checklist.created_date)}`;
+      });
+      return `Protokolle gesamt: ${checklists.length}\nLetzte Protokolle:\n${recent.join('\n') || '—'}`;
+    }
+
+    const cityMatches = allCities.filter((city) => q.includes(normalize(city)));
+    if (cityMatches.length) {
+      const cityOrders = filteredOrders.filter((order) =>
+        cityMatches.some((city) => normalize(order.pickup_city).includes(normalize(city)) || normalize(order.dropoff_city).includes(normalize(city)))
+      );
+      if (cityOrders.length) {
+        return `Aufträge mit Stadtbezug (${cityMatches.join(', ')})${rangeLabel}:\n${listLines(cityOrders, formatOrderLine)}`;
+      }
+    }
+
+    const postalMatch = q.match(/\b\d{4,5}\b/);
+    if (postalMatch) {
+      const postalOrders = filteredOrders.filter((order) => {
+        const pickup = normalize(order.pickup_postal_code);
+        const dropoff = normalize(order.dropoff_postal_code);
+        return pickup.includes(postalMatch[0]) || dropoff.includes(postalMatch[0]);
+      });
+      if (postalOrders.length) {
+        return `Aufträge mit PLZ ${postalMatch[0]}${rangeLabel}:\n${listLines(postalOrders, formatOrderLine)}`;
+      }
+    }
+
+    return null;
   };
 
   const handleSend = async () => {
@@ -149,102 +264,63 @@ export default function AVOAI() {
     setIsProcessing(true);
 
     try {
-      // System-Kontext vorbereiten
-      const systemContext = {
-        orders: orders.map(o => ({
-          id: o.id,
-          order_number: o.order_number,
-          status: o.status,
-          license_plate: o.license_plate,
-          vehicle_brand: o.vehicle_brand,
-          vehicle_model: o.vehicle_model,
-          pickup_city: o.pickup_city,
-          dropoff_city: o.dropoff_city,
-          assigned_driver_name: o.assigned_driver_name,
-          customer_name: o.customer_name
-        })),
-        drivers: drivers.map(d => ({
-          id: d.id,
-          name: `${d.first_name} ${d.last_name}`,
-          email: d.email,
-          phone: d.phone,
-          status: d.status
-        })),
-        customers: customers.map(c => ({
-          id: c.id,
-          customer_number: c.customer_number,
-          name: c.company_name || `${c.first_name} ${c.last_name}`,
-          email: c.email,
-          phone: c.phone,
-          status: c.status
-        })),
-        statistics: {
-          total_orders: orders.length,
-          active_orders: orders.filter(o => ['assigned', 'pickup_started', 'in_transit', 'delivery_started'].includes(o.status)).length,
-          completed_orders: orders.filter(o => ['completed', 'review', 'ready_for_billing', 'approved'].includes(o.status)).length,
-          active_drivers: drivers.filter(d => d.status === 'active').length,
-          total_customers: customers.length
-        }
-      };
+      const localAnswer = buildLocalAnswer(input);
+      if (localAnswer) {
+        setMessages(prev => [...prev, { role: 'assistant', content: localAnswer }]);
+        return;
+      }
 
-      const conversationHistory = messages.slice(-5).map(m => 
+      const conversationHistory = messages.slice(-6).map((m) =>
         `${m.role === 'user' ? 'Nutzer' : 'AVO AI'}: ${m.content}`
       ).join('\n\n');
 
+      const orderSnapshot = orders.slice(0, 200).map((order) => ({
+        order_number: order.order_number,
+        status: order.status,
+        license_plate: order.license_plate,
+        vin: order.vin || order.fin,
+        pickup_city: order.pickup_city,
+        pickup_postal_code: order.pickup_postal_code,
+        dropoff_city: order.dropoff_city,
+        dropoff_postal_code: order.dropoff_postal_code,
+        assigned_driver_name: order.assigned_driver_name,
+        customer_name: order.customer_name,
+        created_date: order.created_date
+      }));
+
+      const checklistSnapshot = checklists.slice(0, 200).map((checklist) => ({
+        order_id: checklist.order_id,
+        created_date: checklist.created_date,
+        expenses: Array.isArray(checklist.expenses) ? checklist.expenses : []
+      }));
+
       const result = await appClient.integrations.Core.InvokeLLM({
-        prompt: `Du bist AVO AI, der intelligente Assistent für das AVO Logistics Fahrzeugüberführungs-System.
+        prompt: `Du bist AVO AI, der Analyse‑Assistent für das AVO Logistics System. Du darfst KEINE Aktionen ausführen (nur lesen/analysieren).
 
-Du bist eine normale Konversations-AI wie ChatGPT UND kannst gleichzeitig direkt im System Aktionen ausführen.
+Verfügbare Daten (Auszug):
+Aufträge: ${orders.length}
+Fahrer: ${drivers.length}
+Kunden: ${customers.length}
+Protokolle: ${checklists.length}
 
-VERFÜGBARE SYSTEM-DATEN:
-- Aufträge: ${orders.length} (${orders.filter(o => o.status === 'new').length} offen, ${orders.filter(o => ['assigned', 'pickup_started', 'in_transit', 'delivery_started'].includes(o.status)).length} aktiv, ${orders.filter(o => ['completed', 'review', 'ready_for_billing', 'approved'].includes(o.status)).length} abgeschlossen)
-- Fahrer: ${drivers.length} (${drivers.filter(d => d.status === 'active').length} aktiv)
-- Kunden: ${customers.length}
+Aufträge (max 200):
+${JSON.stringify(orderSnapshot)}
 
-AKTUELLE AUFTRÄGE (letzte 5):
-${orders.slice(0, 5).map(o => `- ${o.order_number}: ${o.vehicle_brand} ${o.vehicle_model} (${o.license_plate}), ${o.pickup_city} → ${o.dropoff_city}, Status: ${o.status}, Fahrer: ${o.assigned_driver_name || 'nicht zugewiesen'}`).join('\n')}
+Protokolle/Auslagen (max 200):
+${JSON.stringify(checklistSnapshot)}
 
-VERFÜGBARE AKTIONEN:
-Du kannst folgende Aktionen durchführen. Wenn der Nutzer eine Aktion möchte, antworte MIT DER AKTION + ERKLÄRUNG:
-
-1. Auftrag erstellen: Antworte mit JSON: {"action":"create_order","data":{"license_plate":"...","vehicle_brand":"...","vehicle_model":"...","pickup_address":"...","pickup_postal_code":"...","pickup_city":"...","dropoff_address":"...","dropoff_postal_code":"...","dropoff_city":"..."}}
-
-2. Fahrer zuweisen: {"action":"assign_driver","order_number":"EU-OA-XXX","driver_name":"Max Mustermann"}
-
-3. Kunde anlegen: {"action":"create_customer","data":{"first_name":"...","last_name":"...","email":"...","phone":"..."}}
-
-4. Navigation: {"action":"navigate","page":"Dashboard"} (Dashboard, Orders, Drivers, Customers, Checklists, Search, AIImport, AVOAI, AppConnection)
-
-GESPRÄCHSVERLAUF:
+Gesprächsverlauf:
 ${conversationHistory}
 
-NUTZER FRAGT: ${input}
+Nutzerfrage: ${input}
 
-ANTWORT-REGELN:
-- Beantworte normale Fragen freundlich und informativ (wie ChatGPT)
-- Nutze die System-Daten für präzise Antworten
-- Wenn eine AKTION gewünscht wird: Gib das JSON zurück + eine kurze Erklärung
-- Sei hilfsbereit, präzise und professionell
-- Antworte immer auf Deutsch`,
+Antwort-Regeln:
+- Nur Analyse/Antworten, keine Aktionen.
+- Antworte präzise, strukturiert und auf Deutsch.
+- Wenn Daten fehlen, erkläre kurz welche Daten fehlen.`,
       });
 
-      let responseContent = result;
-
-      // Prüfen ob JSON-Aktion enthalten ist
-      const jsonMatch = result.match(/\{[\s\S]*"action"[\s\S]*\}/);
-      if (jsonMatch) {
-        try {
-          const actionData = JSON.parse(jsonMatch[0]);
-          if (actionData.action) {
-            const actionResult = await executeAction(actionData);
-            responseContent = result.replace(jsonMatch[0], '').trim() + '\n\n' + actionResult;
-          }
-        } catch (e) {
-          // JSON parsing fehlgeschlagen, normale Antwort
-        }
-      }
-
-      setMessages(prev => [...prev, { role: 'assistant', content: responseContent }]);
+      setMessages(prev => [...prev, { role: 'assistant', content: result }]);
     } catch (error) {
       setMessages(prev => [...prev, { 
         role: 'assistant', 
@@ -264,7 +340,7 @@ ANTWORT-REGELN:
 
   const clearChat = () => {
     setMessages([
-      { role: 'assistant', content: 'Hallo! Ich bin AVO AI. Wie kann ich dir helfen?' }
+      { role: 'assistant', content: 'Hallo! Ich bin AVO AI (Analyse‑Modus). Wie kann ich dir helfen?' }
     ]);
   };
 
@@ -276,7 +352,7 @@ ANTWORT-REGELN:
             <Sparkles className="w-6 h-6 text-purple-600" />
             AVO AI
           </h1>
-          <p className={darkMode ? 'text-gray-400' : 'text-gray-500'}>Dein intelligenter System-Assistent</p>
+          <p className={darkMode ? 'text-gray-400' : 'text-gray-500'}>Analyse‑Assistent (nur Lesen)</p>
         </div>
         <div className="flex gap-2">
           <Button 
@@ -357,7 +433,7 @@ ANTWORT-REGELN:
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder="Frage AVO AI etwas... (z.B. 'Erstelle einen Auftrag für BMW X5 von Berlin nach München')"
+              placeholder="Frage AVO AI etwas... (z.B. 'Welche Aufträge haben Auslagen?' oder 'Top Kunde letzte Woche')"
               className={`min-h-[60px] resize-none ${
                 darkMode ? 'bg-gray-800 border-gray-700 text-white placeholder:text-gray-500' : ''
               }`}
@@ -379,7 +455,7 @@ ANTWORT-REGELN:
             </Button>
           </div>
           <p className={`text-xs mt-2 ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
-            💡 Tipp: "Zeige mir alle aktiven Aufträge" • "Weise Auftrag EU-OA-123 Max Müller zu" • "Erstelle einen Kunden"
+            💡 Tipp: "Aufträge mit Auslagen" • "Häufigster Fahrer heute" • "Meiste Lieferungen letzte 7 Tage"
           </p>
         </div>
       </Card>
