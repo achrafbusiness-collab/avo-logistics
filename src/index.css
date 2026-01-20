@@ -167,15 +167,15 @@ button:focus-visible {
 
 @media (max-width: 768px) {
   .orders-list-zoom {
-    transform: scale(0.7);
+    transform: scale(0.3);
     transform-origin: top left;
-    width: calc(100% / 0.7);
+    width: calc(100% / 0.3);
   }
 }
 
 @media (max-width: 480px) {
   .orders-list-zoom {
-    transform: scale(0.6);
-    width: calc(100% / 0.6);
+    transform: scale(0.3);
+    width: calc(100% / 0.3);
   }
 }
