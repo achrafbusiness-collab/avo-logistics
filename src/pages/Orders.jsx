@@ -59,6 +59,7 @@ export default function Orders() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [listMode, setListMode] = useState('active');
   const [driverFilter, setDriverFilter] = useState('all');
+  const [expensesFilter, setExpensesFilter] = useState('all');
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]);
@@ -329,8 +330,19 @@ export default function Orders() {
     
     const matchesDriver =
       driverFilter === 'all' || order.assigned_driver_id === driverFilter;
+
+    const hasExpenses = Boolean(expensesByOrder[order.id]);
+    const matchesExpenses =
+      expensesFilter === 'all' ||
+      (expensesFilter === 'with' ? hasExpenses : !hasExpenses);
     
-    return matchesSearch && matchesStatus && matchesListMode && matchesDriver;
+    return (
+      matchesSearch &&
+      matchesStatus &&
+      matchesListMode &&
+      matchesDriver &&
+      matchesExpenses
+    );
   });
 
 
@@ -720,6 +732,32 @@ export default function Orders() {
                 </button>
               )}
             </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variant={expensesFilter === 'all' ? 'default' : 'outline'}
+                className={expensesFilter === 'all' ? 'bg-[#1e3a5f] hover:bg-[#2d5a8a]' : ''}
+                onClick={() => setExpensesFilter('all')}
+              >
+                Alle
+              </Button>
+              <Button
+                type="button"
+                variant={expensesFilter === 'with' ? 'default' : 'outline'}
+                className={expensesFilter === 'with' ? 'bg-[#1e3a5f] hover:bg-[#2d5a8a]' : ''}
+                onClick={() => setExpensesFilter('with')}
+              >
+                Mit Auslagen
+              </Button>
+              <Button
+                type="button"
+                variant={expensesFilter === 'without' ? 'default' : 'outline'}
+                className={expensesFilter === 'without' ? 'bg-[#1e3a5f] hover:bg-[#2d5a8a]' : ''}
+                onClick={() => setExpensesFilter('without')}
+              >
+                Keine Auslagen
+              </Button>
+            </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-full sm:w-48">
                 <Filter className="w-4 h-4 mr-2" />
@@ -827,6 +865,8 @@ export default function Orders() {
                   onClick={() => {
                     setSearchTerm('');
                     setStatusFilter('all');
+                    setDriverFilter('all');
+                    setExpensesFilter('all');
                   }}
                 >
                   Filter zurücksetzen
