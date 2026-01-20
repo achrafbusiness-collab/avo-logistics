@@ -37,7 +37,6 @@ import {
   Car,
   CheckCircle2,
   XCircle,
-  X,
   ExternalLink,
   Download,
   FileText,
