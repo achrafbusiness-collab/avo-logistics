@@ -110,11 +110,23 @@ export default function OrderDetails({
   const docInputRef = useRef(null);
   const pickupChecklist = checklists.find(c => c.type === 'pickup');
   const dropoffChecklist = checklists.find(c => c.type === 'dropoff');
+  const expensesChecklist = useMemo(() => {
+    if (dropoffChecklist?.expenses?.length) return dropoffChecklist;
+    return checklists.find((checklist) => Array.isArray(checklist.expenses) && checklist.expenses.length);
+  }, [checklists, dropoffChecklist]);
+  const expenses = Array.isArray(expensesChecklist?.expenses) ? expensesChecklist.expenses : [];
   const isAdmin = currentUser?.role === 'admin';
   const distanceKm = order?.distance_km ?? null;
   const driverPrice = order?.driver_price ?? null;
   const showDriverPrice = currentUser?.role !== 'driver';
   const showSegmentPricing = currentUser?.role !== 'driver';
+  const expenseTypeLabels = {
+    fuel: 'Tank',
+    taxi: 'Taxi/Bahn',
+    toll: 'Maut',
+    parking: 'Parken',
+    other: 'Sonstiges',
+  };
   const formatCurrency = (value) =>
     new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(value);
   const formatDateSafe = (value, pattern) => {
@@ -1427,6 +1439,52 @@ export default function OrderDetails({
               </CardContent>
             </Card>
           )}
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Auslagen</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {expenses.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
+                  Keine Auslagen erfasst.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {expenses.map((expense, index) => (
+                    <div key={`${expense.file_url || 'expense'}-${index}`} className="rounded-lg border border-slate-200 p-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2 text-sm font-semibold text-slate-700">
+                        <span>Auslage {index + 1}</span>
+                        <span className="text-slate-500">
+                          {expenseTypeLabels[expense.type] || 'Sonstiges'}
+                        </span>
+                      </div>
+                      <div className="mt-2 text-sm text-slate-600">
+                        <div>Betrag: {expense.amount ? formatCurrency(expense.amount) : '—'}</div>
+                        <div>Notiz: {expense.note || '—'}</div>
+                      </div>
+                      {expense.file_url && (
+                        <a
+                          href={expense.file_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="mt-2 inline-flex items-center gap-2 text-sm font-medium text-[#1e3a5f] hover:text-[#2d5a8a]"
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                          {expense.file_name || 'Beleg öffnen'}
+                        </a>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {expensesChecklist && (
+                <div className="text-xs text-slate-400">
+                  Quelle: {expensesChecklist.type === 'dropoff' ? 'Übergabeprotokoll' : 'Protokoll'}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>
