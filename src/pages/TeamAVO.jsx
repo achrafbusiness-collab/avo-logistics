@@ -50,7 +50,6 @@ const permissionOptions = [
   { key: "Orders", label: "Aufträge" },
   { key: "Drivers", label: "Fahrer" },
   { key: "Customers", label: "Kunden" },
-  { key: "Checklists", label: "Protokolle" },
   { key: "Search", label: "Suche" },
   { key: "AIImport", label: "AI Import" },
   { key: "AVOAI", label: "AVO AI" },

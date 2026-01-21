@@ -2,8 +2,6 @@ import Layout from "./Layout.jsx";
 
 import AppConnection from "./AppConnection";
 
-import Checklists from "./Checklists";
-
 import Customers from "./Customers";
 
 import Dashboard from "./Dashboard";
@@ -57,8 +55,6 @@ const PAGES = {
     
     AppConnection: AppConnection,
     
-    Checklists: Checklists,
-    
     Customers: Customers,
     
     Dashboard: Dashboard,
@@ -106,6 +102,9 @@ function _getCurrentPage(url) {
         urlLastPart = urlLastPart.split('?')[0];
     }
 
+    if (urlLastPart.toLowerCase() === 'checklists') {
+        return 'Orders';
+    }
     const pageName = Object.keys(PAGES).find(page => page.toLowerCase() === urlLastPart.toLowerCase());
     return pageName || Object.keys(PAGES)[0];
 }
@@ -193,7 +192,7 @@ function PagesContent() {
                 
                 <Route path="/AppConnection" element={<AppConnection />} />
                 
-                <Route path="/Checklists" element={<Checklists />} />
+                <Route path="/Checklists" element={<Navigate to={createPageUrl('Orders')} replace />} />
                 
                 <Route path="/Customers" element={<Customers />} />
                 

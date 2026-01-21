@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { appClient } from '@/api/appClient';
-import { format } from 'date-fns';
-import { de } from 'date-fns/locale';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { Button } from "@/components/ui/button";
@@ -14,7 +12,6 @@ import {
   Search as SearchIcon, 
   Truck,
   Users,
-  ClipboardList,
   ArrowRight,
   Loader2
 } from 'lucide-react';
@@ -33,12 +30,7 @@ export default function Search() {
     queryFn: () => appClient.entities.Driver.list('-created_date', 1000),
   });
 
-  const { data: checklists = [], isLoading: checklistsLoading } = useQuery({
-    queryKey: ['checklists'],
-    queryFn: () => appClient.entities.Checklist.list('-created_date', 1000),
-  });
-
-  const isLoading = ordersLoading || driversLoading || checklistsLoading;
+  const isLoading = ordersLoading || driversLoading;
 
   const searchLower = searchTerm.toLowerCase();
 
@@ -60,14 +52,8 @@ export default function Search() {
     driver.phone?.toLowerCase().includes(searchLower)
   );
 
-  const filteredChecklists = checklists.filter(checklist =>
-    checklist.order_number?.toLowerCase().includes(searchLower) ||
-    checklist.driver_name?.toLowerCase().includes(searchLower) ||
-    checklist.location?.toLowerCase().includes(searchLower)
-  );
-
-  const hasResults = filteredOrders.length > 0 || filteredDrivers.length > 0 || filteredChecklists.length > 0;
-  const totalResults = filteredOrders.length + filteredDrivers.length + filteredChecklists.length;
+  const hasResults = filteredOrders.length > 0 || filteredDrivers.length > 0;
+  const totalResults = filteredOrders.length + filteredDrivers.length;
 
   const ResultCard = ({ type, children, to }) => (
     <Link to={to} className="block">
@@ -84,7 +70,7 @@ export default function Search() {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Suche</h1>
-        <p className="text-gray-500">Durchsuche Aufträge, Fahrer und Protokolle</p>
+        <p className="text-gray-500">Durchsuche Aufträge und Fahrer</p>
       </div>
 
       {/* Search Input */}
@@ -138,9 +124,6 @@ export default function Search() {
               </TabsTrigger>
               <TabsTrigger value="drivers" disabled={filteredDrivers.length === 0}>
                 Fahrer ({filteredDrivers.length})
-              </TabsTrigger>
-              <TabsTrigger value="checklists" disabled={filteredChecklists.length === 0}>
-                Protokolle ({filteredChecklists.length})
               </TabsTrigger>
             </TabsList>
 
@@ -227,56 +210,6 @@ export default function Search() {
                 </div>
               )}
 
-              {/* Checklists */}
-              {filteredChecklists.length > 0 && (
-                <div>
-                  <h3 className="font-semibold mb-3 flex items-center gap-2">
-                    <ClipboardList className="w-4 h-4" />
-                    Protokolle ({filteredChecklists.length})
-                  </h3>
-                  <div className="space-y-2">
-                    {filteredChecklists.slice(0, 5).map(checklist => (
-                      <ResultCard key={checklist.id} to={createPageUrl('Checklists') + `?id=${checklist.id}`}>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-4">
-                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                              checklist.type === 'pickup' ? 'bg-blue-100' : 'bg-green-100'
-                            }`}>
-                              <ClipboardList className={`w-5 h-5 ${
-                                checklist.type === 'pickup' ? 'text-blue-600' : 'text-green-600'
-                              }`} />
-                            </div>
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <StatusBadge status={checklist.type} size="sm" />
-                                <span className="font-semibold">{checklist.order_number}</span>
-                              </div>
-                              <p className="text-sm text-gray-500">
-                                {checklist.driver_name} • {checklist.location || 'Kein Ort'}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <span className="text-sm text-gray-500">
-                              {checklist.datetime && format(new Date(checklist.datetime), 'dd.MM.yyyy', { locale: de })}
-                            </span>
-                            <ArrowRight className="w-4 h-4 text-gray-400" />
-                          </div>
-                        </div>
-                      </ResultCard>
-                    ))}
-                    {filteredChecklists.length > 5 && (
-                      <Button 
-                        variant="ghost" 
-                        className="w-full"
-                        onClick={() => setActiveTab('checklists')}
-                      >
-                        Alle {filteredChecklists.length} Protokolle anzeigen
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              )}
             </TabsContent>
 
             <TabsContent value="orders" className="space-y-2 mt-6">
@@ -325,38 +258,6 @@ export default function Search() {
               ))}
             </TabsContent>
 
-            <TabsContent value="checklists" className="space-y-2 mt-6">
-              {filteredChecklists.map(checklist => (
-                <ResultCard key={checklist.id} to={createPageUrl('Checklists') + `?id=${checklist.id}`}>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                        checklist.type === 'pickup' ? 'bg-blue-100' : 'bg-green-100'
-                      }`}>
-                        <ClipboardList className={`w-5 h-5 ${
-                          checklist.type === 'pickup' ? 'text-blue-600' : 'text-green-600'
-                        }`} />
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <StatusBadge status={checklist.type} size="sm" />
-                          <span className="font-semibold">{checklist.order_number}</span>
-                        </div>
-                        <p className="text-sm text-gray-500">
-                          {checklist.driver_name} • {checklist.location || 'Kein Ort'}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm text-gray-500">
-                        {checklist.datetime && format(new Date(checklist.datetime), 'dd.MM.yyyy', { locale: de })}
-                      </span>
-                      <ArrowRight className="w-4 h-4 text-gray-400" />
-                    </div>
-                  </div>
-                </ResultCard>
-              ))}
-            </TabsContent>
           </Tabs>
         </div>
       )}

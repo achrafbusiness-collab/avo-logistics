@@ -123,7 +123,7 @@
     "acceptedBy": "Confirmado por {{name}}",
     "acceptRequired": "Confirma la entrega intermedia para continuar.",
     "expensesPromptTitle": "¿Subir gastos ahora?",
-    "expensesPromptBody": "¿Quieres subir recibos de combustible, peajes o taxi ahora?",
+    "expensesPromptBody": "¿Quieres subir recibos de combustible, ticket, taxi, peajes o protocolo adicional ahora?",
     "expensesPromptConfirm": "Subir gastos",
     "expensesPromptLater": "Más tarde",
     "errors": {
@@ -288,7 +288,7 @@
     },
     "expenses": {
       "title": "Gastos (después)",
-      "subtitle": "Sube recibos de combustible, peajes o taxi después de la recogida/entrega intermedia.",
+      "subtitle": "Sube recibos de combustible, ticket, taxi, peajes o protocolo adicional después de la recogida/entrega intermedia.",
       "empty": "Aún no hay gastos cargados.",
       "itemTitle": "Gasto {{index}}",
       "type": "Tipo",
@@ -430,7 +430,7 @@
     },
     "expenses": {
       "title": "Gastos",
-      "subtitle": "Añade recibos de combustible, taxi, peajes o parking.",
+      "subtitle": "Añade recibos de combustible, ticket, taxi, peajes o protocolo adicional.",
       "open": "Subir gastos",
       "add": "Añadir gasto",
       "empty": "Aún no hay gastos registrados",
@@ -446,10 +446,10 @@
       "uploadError": "Error al subir el recibo.",
       "types": {
         "fuel": "Recibo de combustible",
+        "ticket": "Ticket",
         "taxi": "Taxi",
         "toll": "Peaje",
-        "parking": "Parking",
-        "other": "Otro"
+        "additional_protocol": "Protocolo adicional"
       }
     },
     "signatures": {

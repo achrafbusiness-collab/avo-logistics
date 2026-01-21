@@ -532,7 +532,7 @@ export default function Dashboard() {
               <Link to={createPageUrl('Search')} className="block">
                 <Button variant="outline" className="w-full justify-start border-slate-300 hover:bg-slate-900 hover:text-white">
                   <ClipboardCheck className="w-4 h-4 mr-2" />
-                  Protokolle suchen
+                  Suche öffnen
                 </Button>
               </Link>
             </CardContent>
