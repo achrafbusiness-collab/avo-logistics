@@ -52,6 +52,16 @@ export default function ExpensesPdf() {
     enabled: !!checklist?.order_id,
   });
 
+  const { data: fallbackChecklist } = useQuery({
+    queryKey: ["expenses-checklist-fallback", checklist?.order_id],
+    queryFn: async () => {
+      if (!checklist?.order_id) return null;
+      const list = await appClient.entities.Checklist.filter({ order_id: checklist.order_id });
+      return list.find((item) => Array.isArray(item.expenses) && item.expenses.length) || null;
+    },
+    enabled: !!checklist?.order_id,
+  });
+
   useEffect(() => {
     if (!shouldPrint || !checklist || !order) return;
     const timeout = setTimeout(() => {
@@ -68,7 +78,9 @@ export default function ExpensesPdf() {
     );
   }
 
-  const expenses = checklist.expenses || [];
+  const activeChecklist =
+    checklist?.expenses?.length ? checklist : fallbackChecklist || checklist;
+  const expenses = activeChecklist?.expenses || [];
 
   return (
     <div className="expenses-pdf">
@@ -116,8 +128,8 @@ export default function ExpensesPdf() {
         </div>
 
         <div className="pdf-meta">
-          <div>Fahrer: {checklist.driver_name || "-"}</div>
-          <div>Datum: {formatDateTime(checklist.datetime)}</div>
+          <div>Fahrer: {activeChecklist?.driver_name || "-"}</div>
+          <div>Datum: {formatDateTime(activeChecklist?.datetime)}</div>
           <div>Auftrag: {order.customer_name || "-"}</div>
         </div>
 

@@ -1423,9 +1423,9 @@ export default function OrderDetails({
                       Protokoll-PDF öffnen
                     </Button>
                   </a>
-                  {dropoffChecklist && (
+                  {expensesChecklist && (
                     <a
-                      href={`/expenses-pdf?checklistId=${dropoffChecklist.id}&print=1`}
+                      href={`/expenses-pdf?checklistId=${expensesChecklist.id}&print=1`}
                       target="_blank"
                       rel="noopener noreferrer"
                     >
