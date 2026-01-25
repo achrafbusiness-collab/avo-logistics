@@ -113,6 +113,9 @@ function _getCurrentPage(url) {
 function PagesContent() {
     const location = useLocation();
     const normalizedPath = location.pathname.toLowerCase();
+    const searchParams = new URLSearchParams(location.search);
+    const checklistIdParam = searchParams.get('id');
+    const isChecklistPdfRoute = normalizedPath === '/checklists' && Boolean(checklistIdParam);
     const isLoginRoute = normalizedPath === '/login' || normalizedPath.startsWith('/login/');
     const isResetRoute = normalizedPath === '/reset-password';
     const isSetPasswordRoute = normalizedPath === '/set-password';
@@ -140,6 +143,15 @@ function PagesContent() {
 
     if (!authChecked) {
         return null;
+    }
+
+    if (isChecklistPdfRoute) {
+        return (
+            <Navigate
+                to={`/protocol-pdf?checklistId=${encodeURIComponent(checklistIdParam)}`}
+                replace
+            />
+        );
     }
 
     if (isLoginRoute || isResetRoute || isSetPasswordRoute || isDriverAccessRoute || isProtocolPdfRoute || isExpensesPdfRoute) {
