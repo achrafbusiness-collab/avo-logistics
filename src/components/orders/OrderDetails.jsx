@@ -149,6 +149,27 @@ export default function OrderDetails({
     expenseTypeFilter === 'all'
       ? expenses
       : expenses.filter((expense) => expense?.type === expenseTypeFilter);
+  const openExpenseFile = (expense) => {
+    if (!expense?.file_url) return;
+    try {
+      const url = new URL(expense.file_url);
+      url.searchParams.set('download', '1');
+      const link = document.createElement('a');
+      link.href = url.toString();
+      link.download = expense.file_name || 'beleg';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err) {
+      const link = document.createElement('a');
+      link.href = expense.file_url;
+      link.download = expense.file_name || 'beleg';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+    window.open(expense.file_url, '_blank', 'noopener,noreferrer');
+  };
 
   useEffect(() => {
     setReviewChecks(buildReviewChecks(order?.review_checks));
@@ -1507,6 +1528,18 @@ export default function OrderDetails({
                                   <div>Betrag: {expense.amount ? formatCurrency(expense.amount) : '—'}</div>
                                   <div>Notiz: {expense.note || '—'}</div>
                                 </div>
+                                {expense.file_url && (
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="mt-3"
+                                    onClick={() => openExpenseFile(expense)}
+                                  >
+                                    <ExternalLink className="h-4 w-4 mr-2" />
+                                    Beleg öffnen
+                                  </Button>
+                                )}
                               </div>
                             ))
                           )}
@@ -1562,15 +1595,14 @@ export default function OrderDetails({
                         <div>Notiz: {expense.note || '—'}</div>
                       </div>
                       {expense.file_url && (
-                        <a
-                          href={expense.file_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                        <button
+                          type="button"
+                          onClick={() => openExpenseFile(expense)}
                           className="mt-2 inline-flex items-center gap-2 text-sm font-medium text-[#1e3a5f] hover:text-[#2d5a8a]"
                         >
                           <ExternalLink className="h-4 w-4" />
                           {expense.file_name || 'Beleg öffnen'}
-                        </a>
+                        </button>
                       )}
                     </div>
                   ))}
