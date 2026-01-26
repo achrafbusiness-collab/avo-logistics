@@ -75,6 +75,7 @@ export default function Orders() {
   const [noteEditOpen, setNoteEditOpen] = useState({});
   const [noteEditDrafts, setNoteEditDrafts] = useState({});
   const [noteEditSaving, setNoteEditSaving] = useState({});
+  const [reviewSaving, setReviewSaving] = useState({});
   const listScrollTopRef = useRef(0);
 
   const getScrollContainer = () => document.querySelector('main');
@@ -458,6 +459,7 @@ export default function Orders() {
           status,
           created_date,
           updated_date,
+          review_completed,
           review_checks,
           review_notes,
           status_override_reason,
@@ -554,6 +556,19 @@ export default function Orders() {
         ...prev,
         [note.order_id]: err?.message || 'Notiz konnte nicht gelöscht werden.',
       }));
+    }
+  };
+
+  const handleReviewComplete = async (orderId) => {
+    if (!orderId) return;
+    setReviewSaving((prev) => ({ ...prev, [orderId]: true }));
+    try {
+      await appClient.entities.Order.update(orderId, { review_completed: true });
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+    } catch (err) {
+      console.error('Auftrag prüfen fehlgeschlagen:', err?.message || err);
+    } finally {
+      setReviewSaving((prev) => ({ ...prev, [orderId]: false }));
     }
   };
 
@@ -920,14 +935,18 @@ export default function Orders() {
                   <TableHead>Auslagen</TableHead>
                   <TableHead>Fällig bis</TableHead>
                   <TableHead>Status</TableHead>
+                  {listMode === 'completed' && <TableHead>Prüfung</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
                   {sortedOrders.map((order) => {
                     const dueStatus = getDueStatus(order);
                     const isCompleted = order.status === 'completed';
+                    const reviewCompleted = Boolean(order.review_completed);
                     const rowTone = isCompleted
-                      ? 'bg-blue-50 hover:bg-blue-100'
+                      ? reviewCompleted
+                        ? 'bg-emerald-200 hover:bg-emerald-300'
+                        : 'bg-blue-50 hover:bg-blue-100'
                       : dueStatus.state === 'overdue'
                       ? 'bg-red-50 hover:bg-red-100'
                       : dueStatus.state === 'today'
@@ -1136,6 +1155,32 @@ export default function Orders() {
                       <TableCell>
                         <StatusBadge status={order.status} />
                       </TableCell>
+                      {listMode === 'completed' && (
+                        <TableCell onClick={(event) => event.stopPropagation()}>
+                          {reviewCompleted ? (
+                            <div className="flex items-center justify-center text-emerald-700">
+                              <Check className="h-4 w-4" />
+                            </div>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="px-2"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                handleReviewComplete(order.id);
+                              }}
+                              disabled={reviewSaving[order.id]}
+                            >
+                              {reviewSaving[order.id] ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Check className="h-4 w-4" />
+                              )}
+                            </Button>
+                          )}
+                        </TableCell>
+                      )}
                     </TableRow>
                     );
                   })}

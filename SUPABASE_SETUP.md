@@ -261,6 +261,9 @@ add column if not exists distance_km numeric;
 alter table public.orders
 add column if not exists driver_price numeric;
 
+alter table public.orders
+add column if not exists review_completed boolean default false;
+
 create unique index if not exists orders_order_number_unique
 on public.orders(order_number);
 
