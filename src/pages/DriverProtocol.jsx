@@ -1026,7 +1026,7 @@ export default function DriverProtocol() {
                       />
                     </div>
                   </div>
-                </div>
+                )}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label>{t('protocol.basics.kilometer')}</Label>
