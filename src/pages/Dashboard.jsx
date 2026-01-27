@@ -1,18 +1,17 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { appClient } from '@/api/appClient';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { 
   Truck, 
   Users, 
   ClipboardCheck, 
   ArrowRight,
-  TrendingUp,
   AlertCircle,
-  CheckCircle2,
   Calendar,
-  Route
+  Route,
+  Search
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -33,12 +32,14 @@ const toDateKey = (value) => {
 };
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const todayKey = format(new Date(), 'yyyy-MM-dd');
   const [dateFrom, setDateFrom] = useState(todayKey);
   const [dateTo, setDateTo] = useState(todayKey);
   const [selectedOrderId, setSelectedOrderId] = useState(null);
   const [mapMode, setMapMode] = useState('open');
   const [onlyDue, setOnlyDue] = useState(false);
+  const [quickSearch, setQuickSearch] = useState('');
 
   const { data: orders = [], isLoading: ordersLoading } = useQuery({
     queryKey: ['orders'],
@@ -53,11 +54,6 @@ export default function Dashboard() {
   const { data: checklists = [], isLoading: checklistsLoading } = useQuery({
     queryKey: ['checklists'],
     queryFn: () => appClient.entities.Checklist.list('-created_date', 10),
-  });
-
-  const { data: customers = [] } = useQuery({
-    queryKey: ['customers'],
-    queryFn: () => appClient.entities.Customer.list('-created_date', 100),
   });
 
   const rangeOrders = useMemo(() => {
@@ -78,32 +74,83 @@ export default function Dashboard() {
     });
   }, [orders, dateFrom, dateTo, onlyDue, todayKey]);
 
-  // Kundenstatistik im Zeitraum
-  const customerStats = {};
-  rangeOrders.forEach(order => {
-    if (order.customer_id) {
-      customerStats[order.customer_id] = (customerStats[order.customer_id] || 0) + 1;
-    }
-  });
-  const topCustomerId = Object.keys(customerStats).sort((a, b) => customerStats[b] - customerStats[a])[0];
-  const topCustomer = customers.find(c => c.id === topCustomerId);
-  const topCustomerCount = topCustomerId ? customerStats[topCustomerId] : 0;
-
-  // Aktive Fahrer im Zeitraum (mit Aufträgen)
-  const rangeDriverIds = new Set(rangeOrders.map(o => o.assigned_driver_id).filter(Boolean));
-  const activeDriversRange = rangeDriverIds.size;
-
   const stats = {
-    totalOrders: orders.length,
-    activeOrders: rangeOrders.filter(o => ['new', 'assigned', 'pickup_started', 'in_transit', 'delivery_started'].includes(o.status)).length,
-    completedOrders: rangeOrders.filter(o => ['completed', 'review', 'ready_for_billing', 'approved'].includes(o.status)).length,
-    activeDrivers: drivers.filter(d => d.status === 'active').length,
     pendingOrders: rangeOrders.filter(o => o.status === 'new').length,
-    rangeOrders: rangeOrders.length,
-    activeDriversRange: activeDriversRange,
-    topCustomer: topCustomer,
-    topCustomerCount: topCustomerCount,
+    activeDrivers: drivers.filter(d => d.status === 'active').length,
+    completedOrders: rangeOrders.filter(o => ['completed', 'review', 'ready_for_billing', 'approved'].includes(o.status)).length,
   };
+
+  const getDueDateTime = (order) => {
+    if (!order?.dropoff_date) return null;
+    const time = order.dropoff_time ? `${order.dropoff_time}:00` : '23:59:00';
+    const date = new Date(`${order.dropoff_date}T${time}`);
+    if (Number.isNaN(date.getTime())) return null;
+    return date;
+  };
+
+  const deliveryOrderIds = useMemo(() => {
+    const ids = new Set();
+    orders.forEach((order) => {
+      if (order.status === 'in_transit' && order.assigned_driver_id) {
+        ids.add(order.assigned_driver_id);
+      }
+    });
+    return ids;
+  }, [orders]);
+
+  const dueStats = useMemo(() => {
+    const now = new Date();
+    const tomorrow = subDays(now, -1);
+    let open = 0;
+    let dueTomorrow = 0;
+    let overdue = 0;
+
+    orders.forEach((order) => {
+      if (!order || order.status === 'cancelled') return;
+      if (order.status !== 'completed') {
+        open += 1;
+      }
+      if (order.status === 'completed') return;
+      const dueAt = getDueDateTime(order);
+      if (!dueAt) return;
+      if (dueAt.getTime() < now.getTime()) {
+        overdue += 1;
+        return;
+      }
+      if (format(dueAt, 'yyyy-MM-dd') === format(tomorrow, 'yyyy-MM-dd')) {
+        dueTomorrow += 1;
+      }
+    });
+
+    return { open, dueTomorrow, overdue };
+  }, [orders]);
+
+  const quickMatches = useMemo(() => {
+    const needle = quickSearch.trim().toLowerCase();
+    if (!needle) return [];
+    return orders.filter((order) => {
+      const haystack = [
+        order.order_number,
+        order.customer_order_number,
+        order.license_plate,
+        order.vehicle_brand,
+        order.vehicle_model,
+        order.vin,
+        order.pickup_address,
+        order.pickup_city,
+        order.pickup_postal_code,
+        order.dropoff_address,
+        order.dropoff_city,
+        order.dropoff_postal_code,
+        order.customer_name,
+        order.assigned_driver_name,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return haystack.includes(needle);
+    }).slice(0, 6);
+  }, [orders, quickSearch]);
 
   const rangeLabel = useMemo(() => {
     const parse = (value) => {
@@ -158,8 +205,19 @@ export default function Dashboard() {
 
   const selectedOrder = mapOrders.find(order => order.id === selectedOrderId);
 
-  const StatCard = ({ title, value, icon: Icon, color, subtext }) => (
-    <Card className="relative overflow-hidden border border-slate-200/80 bg-white shadow-[0_20px_40px_-30px_rgba(15,23,42,0.6)]">
+  const StatCard = ({ title, value, icon: Icon, color, subtext, onClick }) => (
+    <Card
+      className="relative overflow-hidden border border-slate-200/80 bg-white shadow-[0_20px_40px_-30px_rgba(15,23,42,0.6)] transition-transform hover:-translate-y-0.5"
+      onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={(event) => {
+        if (onClick && (event.key === 'Enter' || event.key === ' ')) {
+          event.preventDefault();
+          onClick();
+        }
+      }}
+    >
       <div className={`absolute top-0 right-0 h-24 w-24 translate-x-6 -translate-y-6 ${color} rounded-full opacity-10`} />
       <CardContent className="p-6">
         <div className="flex items-start justify-between gap-3">
@@ -231,6 +289,51 @@ export default function Dashboard() {
       </div>
 
       <Card className="border border-slate-200/80 bg-white/90 shadow-[0_20px_40px_-30px_rgba(15,23,42,0.6)]">
+        <CardContent className="p-4">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="flex items-center gap-2 text-sm font-medium text-slate-700">
+              <Search className="w-4 h-4 text-[#1e3a5f]" />
+              Schnellzugriff auf Aufträge
+            </div>
+            <div className="relative w-full md:max-w-sm">
+              <Input
+                value={quickSearch}
+                onChange={(e) => setQuickSearch(e.target.value)}
+                placeholder="Auftrag, Kennzeichen, Kunde, Stadt..."
+                className="w-full bg-white pr-3"
+              />
+            </div>
+          </div>
+          {quickSearch.trim() ? (
+            <div className="mt-4 space-y-2">
+              {quickMatches.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500">
+                  Keine Treffer für &quot;{quickSearch}&quot;.
+                </div>
+              ) : (
+                quickMatches.map((order) => (
+                  <button
+                    key={order.id}
+                    type="button"
+                    className="flex w-full items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 text-left text-sm transition hover:border-blue-200 hover:bg-blue-50"
+                    onClick={() => navigate(`${createPageUrl('Orders')}?id=${order.id}`)}
+                  >
+                    <div>
+                      <p className="font-semibold text-slate-900">{order.order_number || 'Unbekannter Auftrag'}</p>
+                      <p className="text-xs text-slate-500">
+                        {order.pickup_city || order.pickup_postal_code || 'Start'} → {order.dropoff_city || order.dropoff_postal_code || 'Ziel'}
+                      </p>
+                    </div>
+                    <StatusBadge status={order.status} />
+                  </button>
+                ))
+              )}
+            </div>
+          ) : null}
+        </CardContent>
+      </Card>
+
+      <Card className="border border-slate-200/80 bg-white/90 shadow-[0_20px_40px_-30px_rgba(15,23,42,0.6)]">
         <CardContent className="flex flex-col gap-4 p-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-center gap-3 text-slate-700">
             <Calendar className="w-5 h-5 text-[#1e3a5f]" />
@@ -300,32 +403,36 @@ export default function Dashboard() {
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard 
-          title="Aufträge im Zeitraum" 
-          value={stats.rangeOrders} 
-          icon={Truck}
-          color="bg-blue-600"
-          subtext={`${stats.activeOrders} aktiv`}
-        />
-        <StatCard 
-          title="Aktive Fahrer im Zeitraum" 
-          value={stats.activeDriversRange} 
+          title="Aktive Fahrer aktuell" 
+          value={deliveryOrderIds.size} 
           icon={Users}
+          color="bg-blue-600"
+          subtext="Fahrer in Lieferung"
+          onClick={() => navigate(`${createPageUrl('Orders')}?list=active&status=in_transit`)}
+        />
+        <StatCard 
+          title="Aufträge offen" 
+          value={dueStats.open} 
+          icon={Truck}
           color="bg-slate-900"
-          subtext={`${stats.activeDrivers} Fahrer verfügbar`}
+          subtext="In Bearbeitung"
+          onClick={() => navigate(`${createPageUrl('Orders')}?list=active`)}
         />
         <StatCard 
-          title="Top-Kunde heute" 
-          value={stats.topCustomerCount} 
-          icon={TrendingUp}
+          title="Noch 1 Tag Zeit" 
+          value={dueStats.dueTomorrow} 
+          icon={AlertCircle}
           color="bg-blue-500"
-          subtext={stats.topCustomer ? (stats.topCustomer.company_name || `${stats.topCustomer.first_name} ${stats.topCustomer.last_name}`) : 'Noch keine Aufträge'}
+          subtext="Morgen fällig"
+          onClick={() => navigate(`${createPageUrl('Orders')}?list=active&due=tomorrow`)}
         />
         <StatCard 
-          title="Abgeschlossen" 
-          value={stats.completedOrders} 
-          icon={CheckCircle2}
-          color="bg-slate-700"
-          subtext="Gesamt"
+          title="Überfällig" 
+          value={dueStats.overdue} 
+          icon={AlertCircle}
+          color="bg-red-600"
+          subtext="Sofort prüfen"
+          onClick={() => navigate(`${createPageUrl('Orders')}?list=active&due=overdue`)}
         />
       </div>
 

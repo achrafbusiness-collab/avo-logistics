@@ -60,6 +60,7 @@ export default function Orders() {
   const [listMode, setListMode] = useState('active');
   const [driverFilter, setDriverFilter] = useState('all');
   const [expensesFilter, setExpensesFilter] = useState('all');
+  const [dueFilter, setDueFilter] = useState('all');
   const [dueSort, setDueSort] = useState('desc');
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
@@ -217,6 +218,7 @@ export default function Orders() {
     setSelectedIds([]);
     setBulkMessage('');
     setBulkError('');
+    setDueFilter('all');
     if (nextMode === 'completed') {
       setStatusFilter('completed');
     } else if (statusFilter === 'completed') {
@@ -236,6 +238,10 @@ export default function Orders() {
 
   // Handle URL params
   useEffect(() => {
+    const listParam = urlParams.get('list');
+    if (listParam === 'active' || listParam === 'completed') {
+      setListMode(listParam);
+    }
     if (urlParams.get('new') === 'true') {
       setView('form');
       setSelectedOrder(null);
@@ -249,6 +255,8 @@ export default function Orders() {
     if (urlParams.get('status')) {
       setStatusFilter(urlParams.get('status'));
     }
+    const dueParam = urlParams.get('due');
+    setDueFilter(dueParam || 'all');
   }, [urlParams.toString(), orders]);
 
   const handleSave = async (data) => {
@@ -337,13 +345,34 @@ export default function Orders() {
     const matchesExpenses =
       expensesFilter === 'all' ||
       (expensesFilter === 'with' ? hasExpenses : !hasExpenses);
+
+    const dueAt = getDueDateTime(order);
+    const now = new Date();
+    const tomorrow = addDays(now, 1);
+    const matchesDueFilter = (() => {
+      if (dueFilter === 'all') return true;
+      if (dueFilter === 'overdue') {
+        return order.status !== 'completed' && dueAt && dueAt.getTime() < now.getTime();
+      }
+      if (dueFilter === 'tomorrow') {
+        return order.status !== 'completed' && dueAt && isSameDay(dueAt, tomorrow);
+      }
+      if (dueFilter === 'open') {
+        return order.status !== 'completed';
+      }
+      if (dueFilter === 'in_transit') {
+        return order.status === 'in_transit';
+      }
+      return true;
+    })();
     
     return (
       matchesSearch &&
       matchesStatus &&
       matchesListMode &&
       matchesDriver &&
-      matchesExpenses
+      matchesExpenses &&
+      matchesDueFilter
     );
   });
 
@@ -904,6 +933,7 @@ export default function Orders() {
                     setStatusFilter('all');
                     setDriverFilter('all');
                     setExpensesFilter('all');
+                    setDueFilter('all');
                   }}
                 >
                   Filter zurücksetzen
