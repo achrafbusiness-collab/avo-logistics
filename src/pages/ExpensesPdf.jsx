@@ -5,8 +5,10 @@ import { appClient } from "@/api/appClient";
 
 const EXPENSE_LABELS = {
   fuel: "Tankbeleg",
+  ticket: "Ticket",
   taxi: "Taxi",
   toll: "Maut",
+  additional_protocol: "Zusatzprotokoll",
   parking: "Parken",
   other: "Sonstiges",
 };
@@ -31,6 +33,11 @@ export default function ExpensesPdf() {
   const [params] = useSearchParams();
   const checklistId = params.get("checklistId");
   const shouldPrint = params.get("print") === "1";
+  const typeParam = params.get("types");
+  const selectedTypes =
+    typeParam && typeParam !== "all"
+      ? typeParam.split(",").map((value) => value.trim()).filter(Boolean)
+      : null;
 
   const { data: checklist } = useQuery({
     queryKey: ["expenses-checklist", checklistId],
@@ -80,7 +87,11 @@ export default function ExpensesPdf() {
 
   const activeChecklist =
     checklist?.expenses?.length ? checklist : fallbackChecklist || checklist;
-  const expenses = activeChecklist?.expenses || [];
+  const allExpenses = activeChecklist?.expenses || [];
+  const expenses =
+    selectedTypes && selectedTypes.length
+      ? allExpenses.filter((expense) => selectedTypes.includes(expense?.type))
+      : allExpenses;
 
   return (
     <div className="expenses-pdf">

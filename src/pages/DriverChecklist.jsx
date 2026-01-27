@@ -33,10 +33,10 @@ import {
 
 const EXPENSE_TYPES = [
   { value: 'fuel', labelKey: 'protocol.expenses.types.fuel' },
+  { value: 'ticket', labelKey: 'protocol.expenses.types.ticket' },
   { value: 'taxi', labelKey: 'protocol.expenses.types.taxi' },
   { value: 'toll', labelKey: 'protocol.expenses.types.toll' },
-  { value: 'parking', labelKey: 'protocol.expenses.types.parking' },
-  { value: 'other', labelKey: 'protocol.expenses.types.other' },
+  { value: 'additional_protocol', labelKey: 'protocol.expenses.types.additional_protocol' },
 ];
 
 export default function DriverChecklist() {
@@ -522,6 +522,17 @@ export default function DriverChecklist() {
               </div>
               <p className="font-medium">{order.pickup_address}</p>
               <p className="text-sm text-gray-600">{order.pickup_city}</p>
+              {pickupChecklist?.location_confirmed === false && (
+                <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 p-2 text-sm text-amber-900">
+                  <p className="font-semibold">{t('checklist.route.deviationPickup')}</p>
+                  <p>{pickupChecklist.location || '-'}</p>
+                  {pickupChecklist.location_reason && (
+                    <p className="mt-1 text-xs text-amber-800">
+                      {t('checklist.route.deviationReason')}: {pickupChecklist.location_reason}
+                    </p>
+                  )}
+                </div>
+              )}
               {order.pickup_date && (
                 <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
                   <span className="flex items-center gap-1">
@@ -557,6 +568,17 @@ export default function DriverChecklist() {
               </div>
               <p className="font-medium">{order.dropoff_address}</p>
               <p className="text-sm text-gray-600">{order.dropoff_city}</p>
+              {dropoffChecklist?.location_confirmed === false && (
+                <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 p-2 text-sm text-amber-900">
+                  <p className="font-semibold">{t('checklist.route.deviationDropoff')}</p>
+                  <p>{dropoffChecklist.location || '-'}</p>
+                  {dropoffChecklist.location_reason && (
+                    <p className="mt-1 text-xs text-amber-800">
+                      {t('checklist.route.deviationReason')}: {dropoffChecklist.location_reason}
+                    </p>
+                  )}
+                </div>
+              )}
               {order.dropoff_date && (
                 <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
                   <span className="flex items-center gap-1">

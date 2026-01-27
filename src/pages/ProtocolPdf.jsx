@@ -423,6 +423,12 @@ export default function ProtocolPdf() {
             <div className="pdf-field">
               <div className="pdf-field-label">Ort</div>
               <div className="pdf-field-value">{pickupChecklist?.location || pickupAddress || "-"}</div>
+              {pickupChecklist?.location_confirmed === false && (
+                <div className="pdf-note">
+                  Abweichend von: {pickupAddress || "-"}
+                  {pickupChecklist.location_reason ? `\nGrund: ${pickupChecklist.location_reason}` : ""}
+                </div>
+              )}
             </div>
             <div className="pdf-mini-grid three">
               <div className="pdf-field">
@@ -542,6 +548,12 @@ export default function ProtocolPdf() {
             <div className="pdf-field">
               <div className="pdf-field-label">Ort</div>
               <div className="pdf-field-value">{dropoffChecklist?.location || dropoffAddress || "-"}</div>
+              {dropoffChecklist?.location_confirmed === false && (
+                <div className="pdf-note">
+                  Abweichend von: {dropoffAddress || "-"}
+                  {dropoffChecklist.location_reason ? `\nGrund: ${dropoffChecklist.location_reason}` : ""}
+                </div>
+              )}
             </div>
             <div className="pdf-mini-grid three">
               <div className="pdf-field">

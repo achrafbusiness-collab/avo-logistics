@@ -123,7 +123,7 @@
     "acceptedBy": "Confirmed by {{name}}",
     "acceptRequired": "Please confirm the handoff to continue.",
     "expensesPromptTitle": "Add expenses now?",
-    "expensesPromptBody": "Do you want to upload fuel, toll, or taxi receipts now?",
+    "expensesPromptBody": "Do you want to upload fuel, ticket, taxi, toll, or additional protocol receipts now?",
     "expensesPromptConfirm": "Upload expenses",
     "expensesPromptLater": "Later",
     "errors": {
@@ -273,7 +273,10 @@
     },
     "route": {
       "title": "Route",
-      "openMaps": "Open in Google Maps"
+      "openMaps": "Open in Google Maps",
+      "deviationPickup": "Different pickup address",
+      "deviationDropoff": "Different dropoff address",
+      "deviationReason": "Reason"
     },
     "customer": {
       "title": "Customer"
@@ -288,7 +291,7 @@
     },
     "expenses": {
       "title": "Expenses (afterwards)",
-      "subtitle": "Upload any fuel, toll, or taxi receipts after pickup/handoff.",
+      "subtitle": "Upload any fuel, ticket, taxi, toll, or additional protocol receipts after pickup/handoff.",
       "empty": "No expenses uploaded yet.",
       "itemTitle": "Expense {{index}}",
       "type": "Type",
@@ -333,8 +336,18 @@
     "driverNotesTitle": "Driver notes",
     "basics": {
       "title": "Basics & accessories",
+      "plannedLocation": "Planned address",
       "location": "Location",
       "locationPlaceholder": "Current location",
+      "locationConfirm": "Address correct?",
+      "choicePlaceholder": "Select option",
+      "confirmOptions": {
+        "yes": "Yes",
+        "no": "No"
+      },
+      "useGps": "Use GPS location",
+      "locationReason": "Reason for different address",
+      "locationReasonPlaceholder": "Why was the address changed?",
       "kilometer": "Odometer *",
       "kilometerPlaceholder": "e.g. 125000",
       "fuel": "Fuel level",
@@ -430,7 +443,7 @@
     },
     "expenses": {
       "title": "Expenses",
-      "subtitle": "Add fuel, taxi, toll, or parking receipts.",
+      "subtitle": "Add fuel, ticket, taxi, toll, or additional protocol receipts.",
       "open": "Upload expenses",
       "add": "Add expense",
       "empty": "No expenses recorded yet",
@@ -446,10 +459,10 @@
       "uploadError": "Receipt upload failed.",
       "types": {
         "fuel": "Fuel receipt",
+        "ticket": "Ticket",
         "taxi": "Taxi",
         "toll": "Toll",
-        "parking": "Parking",
-        "other": "Other"
+        "additional_protocol": "Additional protocol"
       }
     },
     "signatures": {
@@ -478,6 +491,14 @@
     },
     "errors": {
       "missingKilometer": "Please enter the odometer reading.",
+      "missingFuel": "Please select the fuel level.",
+      "missingCleanInside": "Please select interior cleanliness.",
+      "missingCleanOutside": "Please select exterior cleanliness.",
+      "missingLighting": "Please select the lighting condition.",
+      "missingLocationConfirmation": "Please confirm whether the address is correct.",
+      "missingLocation": "Please enter the actual location.",
+      "missingLocationReason": "Please provide a reason for the different address.",
+      "missingAccessories": "Please complete accessories and key count.",
       "missingPhotos": "Please take all required photos.",
       "damageIncomplete": "Please complete all damage fields or remove entries.",
       "damagePhotoMissing": "Please capture a photo for each damage.",

@@ -123,7 +123,7 @@
     "acceptedBy": "Bestätigt von {{name}}",
     "acceptRequired": "Bitte Zwischenabgabe bestätigen, um weiterzufahren.",
     "expensesPromptTitle": "Auslagen jetzt hochladen?",
-    "expensesPromptBody": "Möchtest du Tank-, Maut- oder Taxi-Belege jetzt hochladen?",
+    "expensesPromptBody": "Möchtest du Tank-, Ticket-, Taxi-, Maut- oder Zusatzprotokoll-Belege jetzt hochladen?",
     "expensesPromptConfirm": "Auslagen hochladen",
     "expensesPromptLater": "Später",
     "errors": {
@@ -273,7 +273,10 @@
     },
     "route": {
       "title": "Route",
-      "openMaps": "In Google Maps öffnen"
+      "openMaps": "In Google Maps öffnen",
+      "deviationPickup": "Abweichende Abholadresse",
+      "deviationDropoff": "Abweichende Abgabeadresse",
+      "deviationReason": "Grund"
     },
     "customer": {
       "title": "Kunde"
@@ -288,7 +291,7 @@
     },
     "expenses": {
       "title": "Auslagen (nachträglich)",
-      "subtitle": "Lade Tank-, Maut- oder Taxi-Belege nach Abholung/Zwischenabgabe hoch.",
+      "subtitle": "Lade Tank-, Ticket-, Taxi-, Maut- oder Zusatzprotokoll-Belege nach Abholung/Zwischenabgabe hoch.",
       "empty": "Noch keine Auslagen hochgeladen.",
       "itemTitle": "Auslage {{index}}",
       "type": "Art",
@@ -333,8 +336,18 @@
     "driverNotesTitle": "Hinweise für Fahrer",
     "basics": {
       "title": "Grunddaten & Zubehör",
+      "plannedLocation": "Geplante Adresse",
       "location": "Ort",
       "locationPlaceholder": "Aktueller Standort",
+      "locationConfirm": "Adresse korrekt?",
+      "choicePlaceholder": "Bitte auswählen",
+      "confirmOptions": {
+        "yes": "Ja",
+        "no": "Nein"
+      },
+      "useGps": "Standort erfassen",
+      "locationReason": "Grund für abweichende Adresse",
+      "locationReasonPlaceholder": "Warum wurde die Adresse geändert?",
       "kilometer": "Kilometerstand *",
       "kilometerPlaceholder": "z.B. 125000",
       "fuel": "Tankstand",
@@ -430,7 +443,7 @@
     },
     "expenses": {
       "title": "Auslagen",
-      "subtitle": "Tank-, Taxi-, Maut- oder Parkbelege hinzufügen.",
+      "subtitle": "Tank-, Ticket-, Taxi-, Maut- oder Zusatzprotokoll-Belege hinzufügen.",
       "open": "Auslagen hochladen",
       "add": "Auslage hinzufügen",
       "empty": "Noch keine Auslagen erfasst",
@@ -446,10 +459,10 @@
       "uploadError": "Beleg konnte nicht hochgeladen werden.",
       "types": {
         "fuel": "Tankbeleg",
+        "ticket": "Ticket",
         "taxi": "Taxi",
         "toll": "Maut",
-        "parking": "Parken",
-        "other": "Sonstiges"
+        "additional_protocol": "Zusatzprotokoll"
       }
     },
     "signatures": {
@@ -478,6 +491,14 @@
     },
     "errors": {
       "missingKilometer": "Bitte Kilometerstand eintragen.",
+      "missingFuel": "Bitte Tankstand auswählen.",
+      "missingCleanInside": "Bitte Sauberkeit innen auswählen.",
+      "missingCleanOutside": "Bitte Sauberkeit außen auswählen.",
+      "missingLighting": "Bitte Lichtverhältnisse auswählen.",
+      "missingLocationConfirmation": "Bitte bestätigen, ob die Adresse korrekt ist.",
+      "missingLocation": "Bitte den tatsächlichen Standort eintragen.",
+      "missingLocationReason": "Bitte den Grund für die abweichende Adresse eintragen.",
+      "missingAccessories": "Bitte Zubehör und Schlüsselzahl vollständig erfassen.",
       "missingPhotos": "Bitte alle Pflichtfotos aufnehmen.",
       "damageIncomplete": "Bitte alle Schadensfelder vollständig ausfüllen oder Einträge entfernen.",
       "damagePhotoMissing": "Bitte für jeden Schaden ein Foto aufnehmen.",

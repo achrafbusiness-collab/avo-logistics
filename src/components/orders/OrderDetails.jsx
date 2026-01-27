@@ -649,6 +649,17 @@ export default function OrderDetails({
                   <p className="text-sm text-gray-600">
                     {[order.pickup_postal_code, order.pickup_city].filter(Boolean).join(' ')}
                   </p>
+                  {pickupChecklist?.location_confirmed === false && (
+                    <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 p-2 text-sm text-amber-900">
+                      <p className="font-semibold">Abweichende Abholadresse</p>
+                      <p>{pickupChecklist.location || '-'}</p>
+                      {pickupChecklist.location_reason && (
+                        <p className="mt-1 text-xs text-amber-800">
+                          Grund: {pickupChecklist.location_reason}
+                        </p>
+                      )}
+                    </div>
+                  )}
                   {pickupDate && (
                     <p className="text-sm text-gray-500 mt-2 flex items-center gap-1">
                       <Calendar className="w-4 h-4" />
@@ -670,6 +681,17 @@ export default function OrderDetails({
                   <p className="text-sm text-gray-600">
                     {[order.dropoff_postal_code, order.dropoff_city].filter(Boolean).join(' ')}
                   </p>
+                  {dropoffChecklist?.location_confirmed === false && (
+                    <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 p-2 text-sm text-amber-900">
+                      <p className="font-semibold">Abweichende Abgabeadresse</p>
+                      <p>{dropoffChecklist.location || '-'}</p>
+                      {dropoffChecklist.location_reason && (
+                        <p className="mt-1 text-xs text-amber-800">
+                          Grund: {dropoffChecklist.location_reason}
+                        </p>
+                      )}
+                    </div>
+                  )}
                   {dropoffDate && (
                     <p className="text-sm text-gray-500 mt-2 flex items-center gap-1">
                       <Calendar className="w-4 h-4" />

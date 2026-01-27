@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import AddressAutocomplete from "@/components/ui/address-autocomplete";
 import {
   Dialog,
   DialogContent,
@@ -27,7 +28,7 @@ import SignaturePad from '@/components/driver/SignaturePad';
 import PhotoCapture, { REQUIRED_PHOTO_IDS } from '@/components/driver/PhotoCapture';
 import ProtocolWizard from '@/components/driver/ProtocolWizard';
 import { useI18n } from '@/i18n';
-import { getMapboxDistanceKmFromAddresses } from '@/utils/mapboxDistance';
+import { getMapboxDistanceKmFromAddresses, reverseGeocode } from '@/utils/mapboxDistance';
 import { 
   ArrowLeft,
   Loader2,
@@ -70,6 +71,30 @@ const EXPENSE_TYPES = [
 ];
 
 const DAMAGE_DELAY_SECONDS = 60;
+const ACCESSORY_FIELDS = [
+  'spare_wheel',
+  'warning_triangle',
+  'first_aid_kit',
+  'safety_vest',
+  'car_jack',
+  'wheel_wrench',
+  'manual',
+  'service_book',
+  'registration_doc',
+];
+
+const DEFAULT_ACCESSORIES = {
+  spare_wheel: null,
+  warning_triangle: null,
+  first_aid_kit: null,
+  safety_vest: null,
+  car_jack: null,
+  wheel_wrench: null,
+  manual: null,
+  service_book: null,
+  registration_doc: null,
+  keys_count: '',
+};
 
 export default function DriverProtocol() {
   const { t } = useI18n();
@@ -91,6 +116,8 @@ export default function DriverProtocol() {
   const [photoCameraActive, setPhotoCameraActive] = useState(false);
   const [activeChecklistId, setActiveChecklistId] = useState(checklistId);
   const draftCreateRef = useRef(null);
+  const [gpsLoading, setGpsLoading] = useState(false);
+  const [locationError, setLocationError] = useState('');
   const [damageDelay, setDamageDelay] = useState({
     open: false,
     startedAt: null,
@@ -105,23 +132,14 @@ export default function DriverProtocol() {
     datetime: new Date().toISOString(),
     location: '',
     kilometer: '',
-    fuel_level: '1/2',
+    fuel_level: '',
     fuel_cost: '',
-    cleanliness_inside: 'normal',
-    cleanliness_outside: 'normal',
-    lighting: 'day',
-    accessories: {
-      spare_wheel: false,
-      warning_triangle: false,
-      first_aid_kit: false,
-      safety_vest: false,
-      car_jack: false,
-      wheel_wrench: false,
-      manual: false,
-      service_book: false,
-      registration_doc: false,
-      keys_count: 1
-    },
+    cleanliness_inside: '',
+    cleanliness_outside: '',
+    lighting: '',
+    location_confirmed: null,
+    location_reason: '',
+    accessories: DEFAULT_ACCESSORIES,
     damages: [],
     photos: [],
     expenses: [],
@@ -211,6 +229,7 @@ export default function DriverProtocol() {
   const dropoffLocation = [order?.dropoff_address, order?.dropoff_postal_code, order?.dropoff_city]
     .filter(Boolean)
     .join(', ');
+  const plannedLocation = type === 'dropoff' ? dropoffLocation : pickupLocation;
 
   const sortedAcceptedHandoffs = useMemo(() => {
     return handoffs
@@ -229,12 +248,26 @@ export default function DriverProtocol() {
 
   useEffect(() => {
     if (existingChecklist) {
+      const mergedAccessories = {
+        ...DEFAULT_ACCESSORIES,
+        ...(existingChecklist.accessories || {}),
+      };
+      mergedAccessories.keys_count =
+        existingChecklist.accessories?.keys_count ?? DEFAULT_ACCESSORIES.keys_count;
       setFormData({
         ...existingChecklist,
         kilometer: existingChecklist.kilometer?.toString() || '',
         fuel_cost: existingChecklist.fuel_cost?.toString() || '',
         expenses: existingChecklist.expenses || [],
-        lighting: existingChecklist.lighting || 'day',
+        lighting: existingChecklist.lighting || '',
+        location_confirmed:
+          existingChecklist.location_confirmed === true
+            ? true
+            : existingChecklist.location_confirmed === false
+              ? false
+              : null,
+        location_reason: existingChecklist.location_reason || '',
+        accessories: mergedAccessories,
         signature_refused: existingChecklist.signature_refused ?? false,
         signature_refused_by: existingChecklist.signature_refused_by || '',
         signature_refused_reason: existingChecklist.signature_refused_reason || ''
@@ -282,17 +315,11 @@ export default function DriverProtocol() {
   }, [damageDelay.startedAt, damageDelay.done]);
 
   useEffect(() => {
-    if (!order || formData.location || existingChecklist) {
-      return;
-    }
-    const defaultLocation =
-      type === 'dropoff'
-        ? [order.dropoff_address, order.dropoff_city].filter(Boolean).join(', ')
-        : [order.pickup_address, order.pickup_city].filter(Boolean).join(', ');
-    if (defaultLocation) {
-      setFormData(prev => ({ ...prev, location: defaultLocation }));
-    }
-  }, [order, type, existingChecklist, formData.location]);
+    if (!plannedLocation) return;
+    if (formData.location_confirmed !== true) return;
+    if (formData.location === plannedLocation) return;
+    setFormData((prev) => ({ ...prev, location: plannedLocation }));
+  }, [plannedLocation, formData.location_confirmed, formData.location]);
 
   const createMutation = useMutation({
     mutationFn: (data) => appClient.entities.Checklist.create(data),
@@ -335,6 +362,55 @@ export default function DriverProtocol() {
       ...prev,
       accessories: { ...prev.accessories, [field]: value }
     }));
+  };
+
+  const handleLocationConfirm = (value) => {
+    const confirmed = value === 'yes';
+    setLocationError('');
+    setFormData((prev) => ({
+      ...prev,
+      location_confirmed: confirmed,
+      location: confirmed ? plannedLocation || prev.location : prev.location,
+      location_reason: confirmed ? '' : prev.location_reason,
+    }));
+  };
+
+  const handleLocationSelect = (payload) => {
+    if (!payload) return;
+    const fullLocation = [payload.address, payload.postalCode, payload.city]
+      .filter(Boolean)
+      .join(', ');
+    setFormData((prev) => ({ ...prev, location: fullLocation }));
+  };
+
+  const handleUseGps = async () => {
+    if (isViewOnly || gpsLoading) return;
+    if (!navigator.geolocation) {
+      setLocationError(t('protocol.errors.gpsNotSupported'));
+      return;
+    }
+    setLocationError('');
+    setGpsLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        try {
+          const address = await reverseGeocode({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          });
+          setFormData((prev) => ({ ...prev, location: address }));
+        } catch (error) {
+          setLocationError(t('protocol.errors.gpsFailed'));
+        } finally {
+          setGpsLoading(false);
+        }
+      },
+      () => {
+        setLocationError(t('protocol.errors.gpsDenied'));
+        setGpsLoading(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
   };
 
   const clearDamages = () => {
@@ -529,12 +605,13 @@ export default function DriverProtocol() {
       setSubmitError(t('handoff.acceptRequired'));
       return;
     }
-    const missingPhotoIds = REQUIRED_PHOTO_IDS.filter((id) => !formData.photos?.some((photo) => photo.type === id));
-    if (!formData.kilometer) {
-      setSubmitError(t('protocol.errors.missingKilometer'));
+    const basicsError = getStepBlockingReason('vehicle_check');
+    if (basicsError) {
+      setSubmitError(basicsError);
       setCurrentStep('vehicle_check');
       return;
     }
+    const missingPhotoIds = REQUIRED_PHOTO_IDS.filter((id) => !formData.photos?.some((photo) => photo.type === id));
     if (missingPhotoIds.length > 0) {
       setSubmitError(t('protocol.errors.missingPhotos'));
       setCurrentStep('photos');
@@ -679,6 +756,32 @@ export default function DriverProtocol() {
         ? signatureRefusedComplete
         : formData.signature_customer && formData.customer_name)
   );
+  const locationConfirmedSelected =
+    formData.location_confirmed === true || formData.location_confirmed === false;
+  const locationComplete =
+    locationConfirmedSelected &&
+    (formData.location_confirmed
+      ? Boolean(formData.location || plannedLocation)
+      : Boolean(formData.location && formData.location_reason));
+  const accessoriesComplete =
+    type !== 'pickup'
+      ? true
+      : ACCESSORY_FIELDS.every((field) => formData.accessories?.[field] === true || formData.accessories?.[field] === false);
+  const keysCountComplete =
+    type !== 'pickup'
+      ? true
+      : formData.accessories?.keys_count !== '' &&
+        formData.accessories?.keys_count !== null &&
+        formData.accessories?.keys_count !== undefined;
+  const vehicleCheckComplete =
+    Boolean(formData.kilometer) &&
+    Boolean(formData.fuel_level) &&
+    Boolean(formData.cleanliness_inside) &&
+    Boolean(formData.cleanliness_outside) &&
+    Boolean(formData.lighting) &&
+    locationComplete &&
+    accessoriesComplete &&
+    keysCountComplete;
   const finalStep = type === 'dropoff' ? 'expenses' : 'signatures';
 
   const isImageFile = (expense) => {
@@ -688,8 +791,38 @@ export default function DriverProtocol() {
   };
 
   const getStepBlockingReason = (stepId) => {
-    if (stepId === 'vehicle_check' && !formData.kilometer) {
-      return t('protocol.errors.missingKilometer');
+    if (stepId === 'vehicle_check') {
+      if (!formData.kilometer) {
+        return t('protocol.errors.missingKilometer');
+      }
+      if (!formData.fuel_level) {
+        return t('protocol.errors.missingFuel');
+      }
+      if (!formData.cleanliness_inside) {
+        return t('protocol.errors.missingCleanInside');
+      }
+      if (!formData.cleanliness_outside) {
+        return t('protocol.errors.missingCleanOutside');
+      }
+      if (!formData.lighting) {
+        return t('protocol.errors.missingLighting');
+      }
+      if (!locationConfirmedSelected) {
+        return t('protocol.errors.missingLocationConfirmation');
+      }
+      if (formData.location_confirmed === false) {
+        if (!formData.location) {
+          return t('protocol.errors.missingLocation');
+        }
+        if (!formData.location_reason) {
+          return t('protocol.errors.missingLocationReason');
+        }
+      }
+      if (type === 'pickup') {
+        if (!accessoriesComplete || !keysCountComplete) {
+          return t('protocol.errors.missingAccessories');
+        }
+      }
     }
     if (stepId === 'photos') {
       if (!hasAllRequiredPhotos) {
@@ -724,7 +857,7 @@ export default function DriverProtocol() {
   const completedSteps = isViewOnly
     ? (type === 'pickup' ? ['vehicle_check', 'photos', 'damage', 'signatures'] : ['vehicle_check', 'photos', 'signatures', 'expenses'])
     : [
-        formData.kilometer ? 'vehicle_check' : null,
+        vehicleCheckComplete ? 'vehicle_check' : null,
         photosComplete ? 'photos' : null,
         type === 'pickup' && damageComplete ? 'damage' : null,
         signaturesComplete ? 'signatures' : null,
@@ -826,13 +959,73 @@ export default function DriverProtocol() {
               </CardHeader>
               <CardContent className="p-4 space-y-4">
                 <div>
-                  <Label>{t('protocol.basics.location')}</Label>
-                  <Input
-                    value={formData.location}
-                    onChange={(e) => handleChange('location', e.target.value)}
-                    placeholder={t('protocol.basics.locationPlaceholder')}
+                  <Label>{t('protocol.basics.plannedLocation')}</Label>
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                    {plannedLocation || '-'}
+                  </div>
+                </div>
+                <div>
+                  <Label>{t('protocol.basics.locationConfirm')}</Label>
+                  <Select
+                    value={
+                      formData.location_confirmed === true
+                        ? 'yes'
+                        : formData.location_confirmed === false
+                          ? 'no'
+                          : ''
+                    }
+                    onValueChange={handleLocationConfirm}
                     disabled={isViewOnly}
-                  />
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={t('protocol.basics.choicePlaceholder')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="yes">{t('protocol.basics.confirmOptions.yes')}</SelectItem>
+                      <SelectItem value="no">{t('protocol.basics.confirmOptions.no')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {formData.location_confirmed === false && (
+                  <div className="space-y-3">
+                    <div>
+                      <Label>{t('protocol.basics.location')}</Label>
+                      <AddressAutocomplete
+                        value={formData.location}
+                        onChange={(value) => handleChange('location', value)}
+                        onSelect={handleLocationSelect}
+                        placeholder={t('protocol.basics.locationPlaceholder')}
+                        disabled={isViewOnly}
+                      />
+                      <div className="mt-2 flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={handleUseGps}
+                          disabled={isViewOnly || gpsLoading}
+                        >
+                          {gpsLoading ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          ) : null}
+                          {t('protocol.basics.useGps')}
+                        </Button>
+                        {locationError && (
+                          <span className="text-xs text-red-600">{locationError}</span>
+                        )}
+                      </div>
+                    </div>
+                    <div>
+                      <Label>{t('protocol.basics.locationReason')}</Label>
+                      <Textarea
+                        value={formData.location_reason}
+                        onChange={(e) => handleChange('location_reason', e.target.value)}
+                        placeholder={t('protocol.basics.locationReasonPlaceholder')}
+                        rows={3}
+                        disabled={isViewOnly}
+                      />
+                    </div>
+                  </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -848,12 +1041,12 @@ export default function DriverProtocol() {
                   <div>
                     <Label>{t('protocol.basics.fuel')}</Label>
                     <Select
-                      value={formData.fuel_level}
+                      value={formData.fuel_level || ''}
                       onValueChange={(v) => handleChange('fuel_level', v)}
                       disabled={isViewOnly}
                     >
                       <SelectTrigger>
-                        <SelectValue />
+                        <SelectValue placeholder={t('protocol.basics.choicePlaceholder')} />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="empty">{t('protocol.basics.fuelOptions.empty')}</SelectItem>
@@ -869,12 +1062,12 @@ export default function DriverProtocol() {
                   <div>
                     <Label>{t('protocol.basics.cleanInside')}</Label>
                     <Select
-                      value={formData.cleanliness_inside}
+                      value={formData.cleanliness_inside || ''}
                       onValueChange={(v) => handleChange('cleanliness_inside', v)}
                       disabled={isViewOnly}
                     >
                       <SelectTrigger>
-                        <SelectValue />
+                        <SelectValue placeholder={t('protocol.basics.choicePlaceholder')} />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="clean">{t('protocol.basics.cleanOptions.clean')}</SelectItem>
@@ -886,12 +1079,12 @@ export default function DriverProtocol() {
                   <div>
                     <Label>{t('protocol.basics.cleanOutside')}</Label>
                     <Select
-                      value={formData.cleanliness_outside}
+                      value={formData.cleanliness_outside || ''}
                       onValueChange={(v) => handleChange('cleanliness_outside', v)}
                       disabled={isViewOnly}
                     >
                       <SelectTrigger>
-                        <SelectValue />
+                        <SelectValue placeholder={t('protocol.basics.choicePlaceholder')} />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="clean">{t('protocol.basics.cleanOptions.clean')}</SelectItem>
@@ -905,12 +1098,12 @@ export default function DriverProtocol() {
                   <div>
                     <Label>{t('protocol.basics.lighting')}</Label>
                     <Select
-                      value={formData.lighting}
+                      value={formData.lighting || ''}
                       onValueChange={(v) => handleChange('lighting', v)}
                       disabled={isViewOnly}
                     >
                       <SelectTrigger>
-                        <SelectValue />
+                        <SelectValue placeholder={t('protocol.basics.choicePlaceholder')} />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="day">{t('protocol.basics.lightingOptions.day')}</SelectItem>
@@ -948,12 +1141,25 @@ export default function DriverProtocol() {
                     ].map((item) => (
                       <div key={item.id} className="flex items-center justify-between py-2 border-b last:border-0">
                         <span>{t(item.labelKey)}</span>
-                        <Switch
-                          checked={formData.accessories[item.id]}
-                          onCheckedChange={(v) => handleAccessoryChange(item.id, v)}
+                        <Select
+                          value={
+                            formData.accessories[item.id] === true
+                              ? 'yes'
+                              : formData.accessories[item.id] === false
+                                ? 'no'
+                                : ''
+                          }
+                          onValueChange={(v) => handleAccessoryChange(item.id, v === 'yes')}
                           disabled={isViewOnly}
-                          className="data-[state=checked]:bg-[#1e3a5f] data-[state=unchecked]:bg-slate-200"
-                        />
+                        >
+                          <SelectTrigger className="w-32">
+                            <SelectValue placeholder={t('protocol.basics.choicePlaceholder')} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="yes">{t('protocol.basics.confirmOptions.yes')}</SelectItem>
+                            <SelectItem value="no">{t('protocol.basics.confirmOptions.no')}</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                     ))}
                     <div className="pt-2">
@@ -962,7 +1168,7 @@ export default function DriverProtocol() {
                         type="number"
                         min="0"
                         value={formData.accessories.keys_count}
-                        onChange={(e) => handleAccessoryChange('keys_count', parseInt(e.target.value) || 0)}
+                        onChange={(e) => handleAccessoryChange('keys_count', e.target.value)}
                         disabled={isViewOnly}
                       />
                     </div>

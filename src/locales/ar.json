@@ -269,7 +269,10 @@
     },
     "route": {
       "title": "المسار",
-      "openMaps": "افتح في خرائط Google"
+      "openMaps": "افتح في خرائط Google",
+      "deviationPickup": "عنوان استلام مختلف",
+      "deviationDropoff": "عنوان تسليم مختلف",
+      "deviationReason": "السبب"
     },
     "customer": {
       "title": "العميل"
@@ -329,8 +332,18 @@
     "driverNotesTitle": "ملاحظات للسائق",
     "basics": {
       "title": "البيانات الأساسية والملحقات",
+      "plannedLocation": "العنوان المخطط",
       "location": "الموقع",
       "locationPlaceholder": "الموقع الحالي",
+      "locationConfirm": "هل العنوان صحيح؟",
+      "choicePlaceholder": "اختر خيارًا",
+      "confirmOptions": {
+        "yes": "نعم",
+        "no": "لا"
+      },
+      "useGps": "استخدام موقع GPS",
+      "locationReason": "سبب اختلاف العنوان",
+      "locationReasonPlaceholder": "لماذا تم تغيير العنوان؟",
       "kilometer": "عداد الكيلومترات *",
       "kilometerPlaceholder": "مثال 125000",
       "fuel": "مستوى الوقود",
@@ -474,6 +487,14 @@
     },
     "errors": {
       "missingKilometer": "يرجى إدخال قراءة العداد.",
+      "missingFuel": "يرجى اختيار مستوى الوقود.",
+      "missingCleanInside": "يرجى اختيار نظافة الداخل.",
+      "missingCleanOutside": "يرجى اختيار نظافة الخارج.",
+      "missingLighting": "يرجى اختيار الإضاءة.",
+      "missingLocationConfirmation": "يرجى تأكيد ما إذا كان العنوان صحيحًا.",
+      "missingLocation": "يرجى إدخال الموقع الفعلي.",
+      "missingLocationReason": "يرجى توضيح سبب اختلاف العنوان.",
+      "missingAccessories": "يرجى إكمال الملحقات وعدد المفاتيح.",
       "missingPhotos": "يرجى التقاط جميع الصور المطلوبة.",
       "damageIncomplete": "يرجى إكمال جميع حقول الضرر أو حذف الإدخالات.",
       "damagePhotoMissing": "يرجى التقاط صورة لكل ضرر.",

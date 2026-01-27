@@ -273,7 +273,10 @@
     },
     "route": {
       "title": "Ruta",
-      "openMaps": "Abrir en Google Maps"
+      "openMaps": "Abrir en Google Maps",
+      "deviationPickup": "Dirección de recogida diferente",
+      "deviationDropoff": "Dirección de entrega diferente",
+      "deviationReason": "Motivo"
     },
     "customer": {
       "title": "Cliente"
@@ -333,8 +336,18 @@
     "driverNotesTitle": "Notas para conductores",
     "basics": {
       "title": "Datos básicos y accesorios",
+      "plannedLocation": "Dirección planificada",
       "location": "Ubicación",
       "locationPlaceholder": "Ubicación actual",
+      "locationConfirm": "¿Dirección correcta?",
+      "choicePlaceholder": "Seleccionar opción",
+      "confirmOptions": {
+        "yes": "Sí",
+        "no": "No"
+      },
+      "useGps": "Usar ubicación GPS",
+      "locationReason": "Motivo de dirección diferente",
+      "locationReasonPlaceholder": "¿Por qué se cambió la dirección?",
       "kilometer": "Kilometraje *",
       "kilometerPlaceholder": "p. ej. 125000",
       "fuel": "Nivel de combustible",
@@ -478,6 +491,14 @@
     },
     "errors": {
       "missingKilometer": "Introduce el kilometraje.",
+      "missingFuel": "Selecciona el nivel de combustible.",
+      "missingCleanInside": "Selecciona la limpieza interior.",
+      "missingCleanOutside": "Selecciona la limpieza exterior.",
+      "missingLighting": "Selecciona la iluminación.",
+      "missingLocationConfirmation": "Confirma si la dirección es correcta.",
+      "missingLocation": "Introduce la ubicación real.",
+      "missingLocationReason": "Indica el motivo de la dirección diferente.",
+      "missingAccessories": "Completa accesorios y número de llaves.",
       "missingPhotos": "Toma todas las fotos obligatorias.",
       "damageIncomplete": "Completa todos los daños o elimina las entradas.",
       "damagePhotoMissing": "Toma una foto por cada daño.",

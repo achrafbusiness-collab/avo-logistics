@@ -398,6 +398,12 @@ alter table public.checklists
 alter table public.checklists
   add column if not exists lighting text;
 
+alter table public.checklists
+  add column if not exists location_confirmed boolean;
+
+alter table public.checklists
+  add column if not exists location_reason text;
+
 create table if not exists public.app_settings (
   id uuid primary key default gen_random_uuid(),
   company_name text,
