@@ -186,7 +186,7 @@ export default function DriverChecklist() {
   const canShowPostExpenses = Boolean(
     pickupChecklist && (dropoffChecklist || orderedHandoffs.length > 0)
   );
-  const postExpensesLocked = Boolean(dropoffChecklist);
+  const postExpensesLocked = false;
 
   const pickupLocation = [order?.pickup_address, order?.pickup_postal_code, order?.pickup_city]
     .filter(Boolean)
