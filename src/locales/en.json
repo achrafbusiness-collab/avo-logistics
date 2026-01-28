@@ -502,6 +502,7 @@
       "missingPhotos": "Please take all required photos.",
       "damageIncomplete": "Please complete all damage fields or remove entries.",
       "damagePhotoMissing": "Please capture a photo for each damage.",
+      "uploadInProgress": "Please wait. Receipts are still uploading.",
       "missingDriverSignature": "Please capture the driver's signature.",
       "missingCustomerSignature": "Please capture the customer's signature.",
       "missingCustomerName": "Please enter the customer's name.",

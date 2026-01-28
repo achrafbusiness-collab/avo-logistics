@@ -113,6 +113,7 @@ export default function DriverProtocol() {
   const [damageUploads, setDamageUploads] = useState({});
   const [pendingDamagePhoto, setPendingDamagePhoto] = useState(null);
   const [expenseUploads, setExpenseUploads] = useState({});
+  const [photoUploadsPending, setPhotoUploadsPending] = useState(false);
   const [photoCameraActive, setPhotoCameraActive] = useState(false);
   const [activeChecklistId, setActiveChecklistId] = useState(checklistId);
   const draftCreateRef = useRef(null);
@@ -746,6 +747,13 @@ export default function DriverProtocol() {
   const photosComplete = hasAllRequiredPhotos;
   const damageComplete = type !== 'pickup' ? true : damagesComplete;
   const expensesComplete = !Object.values(expenseUploads).some(Boolean);
+  const uploadsInProgress = useMemo(
+    () =>
+      photoUploadsPending ||
+      Object.values(damageUploads).some(Boolean) ||
+      Object.values(expenseUploads).some(Boolean),
+    [photoUploadsPending, damageUploads, expenseUploads]
+  );
   const signatureRefused = type === 'dropoff' && formData.signature_refused;
   const signatureRefusedComplete = signatureRefused
     ? Boolean(formData.signature_refused_by && formData.signature_refused_reason)
@@ -884,6 +892,10 @@ export default function DriverProtocol() {
 
   const handleBeforeNext = (stepId, nextStep) => {
     if (isViewOnly) return true;
+    if (uploadsInProgress) {
+      setSubmitError(t('protocol.errors.uploadInProgress'));
+      return false;
+    }
     const reason = getStepBlockingReason(stepId);
     if (reason) {
       setSubmitError(reason);
@@ -905,6 +917,10 @@ export default function DriverProtocol() {
 
   const handleSubmit = async () => {
     if (isViewOnly) return;
+    if (uploadsInProgress) {
+      setSubmitError(t('protocol.errors.uploadInProgress'));
+      return;
+    }
     await submitProtocol();
   };
 
@@ -1185,6 +1201,7 @@ export default function DriverProtocol() {
                 onChange={(photos) => handleChange('photos', photos)}
                 readOnly={isViewOnly}
                 onCameraActiveChange={setPhotoCameraActive}
+                onUploadStateChange={setPhotoUploadsPending}
               />
             </div>
           )}

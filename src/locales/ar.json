@@ -498,6 +498,7 @@
       "missingPhotos": "يرجى التقاط جميع الصور المطلوبة.",
       "damageIncomplete": "يرجى إكمال جميع حقول الضرر أو حذف الإدخالات.",
       "damagePhotoMissing": "يرجى التقاط صورة لكل ضرر.",
+      "uploadInProgress": "يرجى الانتظار. يتم رفع الإيصالات.",
       "missingDriverSignature": "يرجى التقاط توقيع السائق.",
       "missingCustomerSignature": "يرجى التقاط توقيع العميل.",
       "missingCustomerName": "يرجى إدخال اسم العميل.",

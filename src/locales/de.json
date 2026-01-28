@@ -502,6 +502,7 @@
       "missingPhotos": "Bitte alle Pflichtfotos aufnehmen.",
       "damageIncomplete": "Bitte alle Schadensfelder vollständig ausfüllen oder Einträge entfernen.",
       "damagePhotoMissing": "Bitte für jeden Schaden ein Foto aufnehmen.",
+      "uploadInProgress": "Bitte warten. Belege werden noch hochgeladen.",
       "missingDriverSignature": "Bitte die Unterschrift des Fahrers erfassen.",
       "missingCustomerSignature": "Bitte die Unterschrift des Kunden erfassen.",
       "missingCustomerName": "Bitte den Namen des Kunden eintragen.",

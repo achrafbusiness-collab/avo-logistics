@@ -502,6 +502,7 @@
       "missingPhotos": "Toma todas las fotos obligatorias.",
       "damageIncomplete": "Completa todos los daños o elimina las entradas.",
       "damagePhotoMissing": "Toma una foto por cada daño.",
+      "uploadInProgress": "Espera por favor. Los comprobantes aún se están subiendo.",
       "missingDriverSignature": "Captura la firma del conductor.",
       "missingCustomerSignature": "Captura la firma del cliente.",
       "missingCustomerName": "Introduce el nombre del cliente.",

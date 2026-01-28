@@ -41,7 +41,8 @@ export default function PhotoCapture({
   photos = [],
   onChange,
   readOnly = false,
-  onCameraActiveChange
+  onCameraActiveChange,
+  onUploadStateChange
 }) {
   const { t } = useI18n();
   const [uploading, setUploading] = useState({});
@@ -265,6 +266,17 @@ export default function PhotoCapture({
       onCameraActiveChange(cameraActive);
     }
   }, [cameraActive, onCameraActiveChange]);
+
+  const uploadPending = useMemo(
+    () => capturing || Object.values(uploading).some(Boolean),
+    [capturing, uploading]
+  );
+
+  useEffect(() => {
+    if (typeof onUploadStateChange === 'function') {
+      onUploadStateChange(uploadPending);
+    }
+  }, [uploadPending, onUploadStateChange]);
 
   const toggleTorch = async () => {
     const nextValue = !torchEnabled;
