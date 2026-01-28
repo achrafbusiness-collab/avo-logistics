@@ -1048,6 +1048,8 @@ export default function DriverProtocol() {
                     <Label>{t('protocol.basics.kilometer')}</Label>
                     <Input
                       type="number"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
                       value={formData.kilometer}
                       onChange={(e) => handleChange('kilometer', e.target.value)}
                       placeholder={t('protocol.basics.kilometerPlaceholder')}
@@ -1133,6 +1135,8 @@ export default function DriverProtocol() {
                     <Label>{t('protocol.basics.fuelCost')}</Label>
                     <Input
                       type="number"
+                      inputMode="decimal"
+                      pattern="[0-9]*[.,]?[0-9]*"
                       min="0"
                       step="0.01"
                       value={formData.fuel_cost}
@@ -1157,31 +1161,44 @@ export default function DriverProtocol() {
                     ].map((item) => (
                       <div key={item.id} className="flex items-center justify-between py-2 border-b last:border-0">
                         <span>{t(item.labelKey)}</span>
-                        <Select
-                          value={
-                            formData.accessories[item.id] === true
-                              ? 'yes'
-                              : formData.accessories[item.id] === false
-                                ? 'no'
+                        <div className="grid grid-cols-2 gap-2 w-36">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant={formData.accessories[item.id] === true ? 'default' : 'outline'}
+                            className={
+                              formData.accessories[item.id] === true
+                                ? 'bg-emerald-500 hover:bg-emerald-600 text-white'
                                 : ''
-                          }
-                          onValueChange={(v) => handleAccessoryChange(item.id, v === 'yes')}
-                          disabled={isViewOnly}
-                        >
-                          <SelectTrigger className="w-32">
-                            <SelectValue placeholder={t('protocol.basics.choicePlaceholder')} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="yes">{t('protocol.basics.confirmOptions.yes')}</SelectItem>
-                            <SelectItem value="no">{t('protocol.basics.confirmOptions.no')}</SelectItem>
-                          </SelectContent>
-                        </Select>
+                            }
+                            onClick={() => handleAccessoryChange(item.id, true)}
+                            disabled={isViewOnly}
+                          >
+                            {t('protocol.basics.confirmOptions.yes')}
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant={formData.accessories[item.id] === false ? 'default' : 'outline'}
+                            className={
+                              formData.accessories[item.id] === false
+                                ? 'bg-rose-500 hover:bg-rose-600 text-white'
+                                : ''
+                            }
+                            onClick={() => handleAccessoryChange(item.id, false)}
+                            disabled={isViewOnly}
+                          >
+                            {t('protocol.basics.confirmOptions.no')}
+                          </Button>
+                        </div>
                       </div>
                     ))}
                     <div className="pt-2">
                       <Label>{t('protocol.basics.keysCount')}</Label>
                       <Input
                         type="number"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
                         min="0"
                         value={formData.accessories.keys_count}
                         onChange={(e) => handleAccessoryChange('keys_count', e.target.value)}
@@ -1598,6 +1615,8 @@ export default function DriverProtocol() {
                           <Label>{t('protocol.expenses.amount')}</Label>
                           <Input
                             type="number"
+                            inputMode="decimal"
+                            pattern="[0-9]*[.,]?[0-9]*"
                             min="0"
                             step="0.01"
                             value={expense.amount || ''}
