@@ -978,11 +978,11 @@ export default function Orders() {
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div>
-                            <p className="text-xs uppercase tracking-wide text-slate-400">Auftrag</p>
-                            <p className="text-base font-semibold text-[#1e3a5f]">
+                            <p className="text-sm uppercase tracking-wide text-slate-400">Auftrag</p>
+                            <p className="text-lg font-semibold text-[#1e3a5f]">
                               {order.order_number}
                             </p>
-                            <p className="text-xs text-slate-500">{order.license_plate}</p>
+                            <p className="text-sm text-slate-500">{order.license_plate}</p>
                           </div>
                           <div onClick={(event) => event.stopPropagation()}>
                             <Checkbox
@@ -992,28 +992,28 @@ export default function Orders() {
                           </div>
                         </div>
 
-                        <div className="mt-3 grid grid-cols-2 gap-3 text-xs text-slate-600">
+                        <div className="mt-3 grid grid-cols-2 gap-3 text-sm text-slate-600">
                           <div>
-                            <p className="uppercase text-[10px] text-slate-400">Fahrzeug</p>
-                            <p className="font-medium text-slate-700">
+                            <p className="uppercase text-xs text-slate-400">Fahrzeug</p>
+                            <p className="font-semibold text-slate-700">
                               {order.vehicle_brand} {order.vehicle_model}
                             </p>
-                            <p className="text-[11px] text-slate-500">{order.vehicle_color}</p>
+                            <p className="text-xs text-slate-500">{order.vehicle_color}</p>
                           </div>
                           <div>
-                            <p className="uppercase text-[10px] text-slate-400">Route</p>
-                            <p className="font-medium text-slate-700">
+                            <p className="uppercase text-xs text-slate-400">Route</p>
+                            <p className="font-semibold text-slate-700">
                               {order.pickup_city || 'N/A'} → {order.dropoff_city || 'N/A'}
                             </p>
                           </div>
                           <div>
-                            <p className="uppercase text-[10px] text-slate-400">Fahrer</p>
-                            <p className="font-medium text-slate-700">
+                            <p className="uppercase text-xs text-slate-400">Fahrer</p>
+                            <p className="font-semibold text-slate-700">
                               {order.assigned_driver_name || 'Nicht zugewiesen'}
                             </p>
                           </div>
                           <div>
-                            <p className="uppercase text-[10px] text-slate-400">Auslagen</p>
+                            <p className="uppercase text-xs text-slate-400">Auslagen</p>
                             {expensesByOrder[order.id] ? (
                               <Check className="h-4 w-4 text-emerald-600" aria-label="Auslagen vorhanden" />
                             ) : (
@@ -1021,10 +1021,10 @@ export default function Orders() {
                             )}
                           </div>
                           <div>
-                            <p className="uppercase text-[10px] text-slate-400">Fällig bis</p>
-                            <p className="font-medium text-slate-700">{dueStatus.label}</p>
+                            <p className="uppercase text-xs text-slate-400">Fällig bis</p>
+                            <p className="font-semibold text-slate-700">{dueStatus.label}</p>
                             {dueDetail && (
-                              <p className={`text-[11px] ${
+                              <p className={`text-xs ${
                                 dueStatus.state === 'overdue'
                                   ? 'text-red-700'
                                   : dueStatus.state === 'today'
@@ -1037,12 +1037,12 @@ export default function Orders() {
                           </div>
                           {listMode === 'completed' ? (
                             <div className="flex flex-col gap-1">
-                              <p className="uppercase text-[10px] text-slate-400">Prüfung</p>
+                              <p className="uppercase text-xs text-slate-400">Prüfung</p>
                               <div onClick={(event) => event.stopPropagation()}>
                                 {reviewCompleted ? (
                                   <div className="inline-flex items-center gap-1 text-emerald-700">
                                     <Check className="h-4 w-4" />
-                                    <span className="text-[11px]">Geprüft</span>
+                                    <span className="text-xs">Geprüft</span>
                                   </div>
                                 ) : (
                                   <Button
@@ -1066,7 +1066,7 @@ export default function Orders() {
                             </div>
                           ) : (
                             <div className="flex flex-col gap-1">
-                              <p className="uppercase text-[10px] text-slate-400">Status</p>
+                              <p className="uppercase text-xs text-slate-400">Status</p>
                               <StatusBadge status={order.status} />
                             </div>
                           )}
