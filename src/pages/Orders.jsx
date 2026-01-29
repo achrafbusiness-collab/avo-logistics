@@ -948,274 +948,412 @@ export default function Orders() {
               )}
             </div>
           ) : (
-            <Table>
-                <TableHeader>
-                  <TableRow className="bg-gray-50">
-                    <TableHead className="w-12">
-                      <Checkbox
-                        checked={allSelected || (someSelected ? "indeterminate" : false)}
-                        onCheckedChange={(checked) => toggleSelectAll(Boolean(checked))}
-                        onClick={(event) => event.stopPropagation()}
-                      />
-                    </TableHead>
-                    <TableHead>Auftrag</TableHead>
-                    <TableHead>Fahrzeug</TableHead>
-                  <TableHead>Route</TableHead>
-                  <TableHead>Fahrer</TableHead>
-                  <TableHead>Auslagen</TableHead>
-                  <TableHead>Fällig bis</TableHead>
-                  <TableHead>Status</TableHead>
-                  {listMode === 'completed' && <TableHead>Prüfung</TableHead>}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <>
+              <div className="block md:hidden">
+                <div className="divide-y divide-slate-200">
                   {sortedOrders.map((order) => {
                     const dueStatus = getDueStatus(order);
                     const isCompleted = order.status === 'completed';
                     const reviewCompleted = Boolean(order.review_completed);
                     const rowTone = isCompleted
                       ? reviewCompleted
-                        ? 'bg-emerald-200 hover:bg-emerald-300'
-                        : 'bg-blue-50 hover:bg-blue-100'
+                        ? 'bg-emerald-50'
+                        : 'bg-blue-50'
                       : dueStatus.state === 'overdue'
-                      ? 'bg-red-50 hover:bg-red-100'
+                      ? 'bg-red-50'
                       : dueStatus.state === 'today'
-                      ? 'bg-yellow-50 hover:bg-yellow-100'
-                      : 'bg-green-50 hover:bg-green-100';
+                      ? 'bg-yellow-50'
+                      : 'bg-green-50';
                     const dueDetail = isCompleted ? null : dueStatus.detail;
                     return (
-                    <TableRow 
-                      key={order.id}
-                      className={`cursor-pointer ${rowTone}`}
-                      onClick={() => {
-                        storeListScroll();
-                        setSelectedOrder(order);
-                        setView('details');
-                        window.history.pushState({}, '', createPageUrl('Orders') + `?id=${order.id}`);
-                      }}
-                    >
-                      <TableCell onClick={(event) => event.stopPropagation()}>
-                        <Checkbox
-                          checked={selectedIds.includes(order.id)}
-                          onCheckedChange={(checked) => toggleSelect(order.id, Boolean(checked))}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <p className="font-semibold text-[#1e3a5f]">{order.order_number}</p>
-                          <p className="text-sm text-gray-500">{order.license_plate}</p>
-                          {latestNotesByOrder[order.id]?.note && (
-                            <div
-                              className="mt-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2"
-                              onClick={(event) => event.stopPropagation()}
-                              onMouseDown={(event) => event.stopPropagation()}
-                            >
-                              <div className="flex items-center justify-between text-xs uppercase tracking-wide text-slate-400">
-                                <span>Interne Notiz</span>
-                                <div className="flex items-center gap-2 normal-case text-[11px] text-slate-500">
-                                  <button
-                                    type="button"
-                                    className="hover:text-slate-700"
+                      <div
+                        key={order.id}
+                        className={`p-4 ${rowTone} cursor-pointer`}
+                        onClick={() => {
+                          storeListScroll();
+                          setSelectedOrder(order);
+                          setView('details');
+                          window.history.pushState({}, '', createPageUrl('Orders') + `?id=${order.id}`);
+                        }}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-xs uppercase tracking-wide text-slate-400">Auftrag</p>
+                            <p className="text-base font-semibold text-[#1e3a5f]">
+                              {order.order_number}
+                            </p>
+                            <p className="text-xs text-slate-500">{order.license_plate}</p>
+                          </div>
+                          <div onClick={(event) => event.stopPropagation()}>
+                            <Checkbox
+                              checked={selectedIds.includes(order.id)}
+                              onCheckedChange={(checked) => toggleSelect(order.id, Boolean(checked))}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="mt-3 grid grid-cols-2 gap-3 text-xs text-slate-600">
+                          <div>
+                            <p className="uppercase text-[10px] text-slate-400">Fahrzeug</p>
+                            <p className="font-medium text-slate-700">
+                              {order.vehicle_brand} {order.vehicle_model}
+                            </p>
+                            <p className="text-[11px] text-slate-500">{order.vehicle_color}</p>
+                          </div>
+                          <div>
+                            <p className="uppercase text-[10px] text-slate-400">Route</p>
+                            <p className="font-medium text-slate-700">
+                              {order.pickup_city || 'N/A'} → {order.dropoff_city || 'N/A'}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="uppercase text-[10px] text-slate-400">Fahrer</p>
+                            <p className="font-medium text-slate-700">
+                              {order.assigned_driver_name || 'Nicht zugewiesen'}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="uppercase text-[10px] text-slate-400">Auslagen</p>
+                            {expensesByOrder[order.id] ? (
+                              <Check className="h-4 w-4 text-emerald-600" aria-label="Auslagen vorhanden" />
+                            ) : (
+                              <span className="text-slate-400">—</span>
+                            )}
+                          </div>
+                          <div>
+                            <p className="uppercase text-[10px] text-slate-400">Fällig bis</p>
+                            <p className="font-medium text-slate-700">{dueStatus.label}</p>
+                            {dueDetail && (
+                              <p className={`text-[11px] ${
+                                dueStatus.state === 'overdue'
+                                  ? 'text-red-700'
+                                  : dueStatus.state === 'today'
+                                  ? 'text-yellow-700'
+                                  : 'text-green-700'
+                              }`}>
+                                {dueDetail}
+                              </p>
+                            )}
+                          </div>
+                          {listMode === 'completed' ? (
+                            <div className="flex flex-col gap-1">
+                              <p className="uppercase text-[10px] text-slate-400">Prüfung</p>
+                              <div onClick={(event) => event.stopPropagation()}>
+                                {reviewCompleted ? (
+                                  <div className="inline-flex items-center gap-1 text-emerald-700">
+                                    <Check className="h-4 w-4" />
+                                    <span className="text-[11px]">Geprüft</span>
+                                  </div>
+                                ) : (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="px-2"
                                     onClick={(event) => {
                                       event.stopPropagation();
-                                      handleNoteEditStart(latestNotesByOrder[order.id]);
+                                      handleReviewComplete(order.id);
                                     }}
+                                    disabled={reviewSaving[order.id]}
                                   >
-                                    Bearbeiten
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className="hover:text-red-600"
-                                    onClick={(event) => {
-                                      event.stopPropagation();
-                                      handleNoteDelete(latestNotesByOrder[order.id]);
-                                    }}
-                                  >
-                                    Löschen
-                                  </button>
-                                </div>
+                                    {reviewSaving[order.id] ? (
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                      <Check className="h-4 w-4" />
+                                    )}
+                                  </Button>
+                                )}
                               </div>
-                              {noteEditOpen[order.id] ? (
+                            </div>
+                          ) : (
+                            <div className="flex flex-col gap-1">
+                              <p className="uppercase text-[10px] text-slate-400">Status</p>
+                              <StatusBadge status={order.status} />
+                            </div>
+                          )}
+                        </div>
+
+                        {listMode === 'completed' && (
+                          <div className="mt-3">
+                            <StatusBadge status={order.status} />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="hidden md:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-gray-50">
+                      <TableHead className="w-12">
+                        <Checkbox
+                          checked={allSelected || (someSelected ? "indeterminate" : false)}
+                          onCheckedChange={(checked) => toggleSelectAll(Boolean(checked))}
+                          onClick={(event) => event.stopPropagation()}
+                        />
+                      </TableHead>
+                      <TableHead>Auftrag</TableHead>
+                      <TableHead>Fahrzeug</TableHead>
+                      <TableHead>Route</TableHead>
+                      <TableHead>Fahrer</TableHead>
+                      <TableHead>Auslagen</TableHead>
+                      <TableHead>Fällig bis</TableHead>
+                      <TableHead>Status</TableHead>
+                      {listMode === 'completed' && <TableHead>Prüfung</TableHead>}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {sortedOrders.map((order) => {
+                      const dueStatus = getDueStatus(order);
+                      const isCompleted = order.status === 'completed';
+                      const reviewCompleted = Boolean(order.review_completed);
+                      const rowTone = isCompleted
+                        ? reviewCompleted
+                          ? 'bg-emerald-200 hover:bg-emerald-300'
+                          : 'bg-blue-50 hover:bg-blue-100'
+                        : dueStatus.state === 'overdue'
+                        ? 'bg-red-50 hover:bg-red-100'
+                        : dueStatus.state === 'today'
+                        ? 'bg-yellow-50 hover:bg-yellow-100'
+                        : 'bg-green-50 hover:bg-green-100';
+                      const dueDetail = isCompleted ? null : dueStatus.detail;
+                      return (
+                        <TableRow 
+                          key={order.id}
+                          className={`cursor-pointer ${rowTone}`}
+                          onClick={() => {
+                            storeListScroll();
+                            setSelectedOrder(order);
+                            setView('details');
+                            window.history.pushState({}, '', createPageUrl('Orders') + `?id=${order.id}`);
+                          }}
+                        >
+                          <TableCell onClick={(event) => event.stopPropagation()}>
+                            <Checkbox
+                              checked={selectedIds.includes(order.id)}
+                              onCheckedChange={(checked) => toggleSelect(order.id, Boolean(checked))}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <div>
+                              <p className="font-semibold text-[#1e3a5f]">{order.order_number}</p>
+                              <p className="text-sm text-gray-500">{order.license_plate}</p>
+                              {latestNotesByOrder[order.id]?.note && (
                                 <div
-                                  className="mt-2 space-y-2"
+                                  className="mt-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2"
                                   onClick={(event) => event.stopPropagation()}
                                   onMouseDown={(event) => event.stopPropagation()}
                                 >
-                                  <Textarea
-                                    rows={2}
-                                    value={noteEditDrafts[order.id] || ''}
-                                    onChange={(e) =>
-                                      setNoteEditDrafts((prev) => ({
-                                        ...prev,
-                                        [order.id]: e.target.value,
-                                      }))
-                                    }
-                                    className="text-xs"
-                                  />
-                                  <div className="flex items-center gap-2">
-                                    <Button
-                                      size="sm"
-                                      className="bg-[#1e3a5f] hover:bg-[#2d5a8a]"
-                                      disabled={
-                                        noteEditSaving[order.id] ||
-                                        !noteEditDrafts[order.id]?.trim()
-                                      }
-                                      onClick={() =>
-                                        handleNoteEditSave(latestNotesByOrder[order.id])
-                                      }
-                                    >
-                                      {noteEditSaving[order.id] ? (
-                                        <Loader2 className="mr-2 h-3 w-3 animate-spin" />
-                                      ) : null}
-                                      Speichern
-                                    </Button>
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      onClick={() =>
-                                        setNoteEditOpen((prev) => ({
-                                          ...prev,
-                                          [order.id]: false,
-                                        }))
-                                      }
-                                    >
-                                      Abbrechen
-                                    </Button>
+                                  <div className="flex items-center justify-between text-xs uppercase tracking-wide text-slate-400">
+                                    <span>Interne Notiz</span>
+                                    <div className="flex items-center gap-2 normal-case text-[11px] text-slate-500">
+                                      <button
+                                        type="button"
+                                        className="hover:text-slate-700"
+                                        onClick={(event) => {
+                                          event.stopPropagation();
+                                          handleNoteEditStart(latestNotesByOrder[order.id]);
+                                        }}
+                                      >
+                                        Bearbeiten
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className="hover:text-red-600"
+                                        onClick={(event) => {
+                                          event.stopPropagation();
+                                          handleNoteDelete(latestNotesByOrder[order.id]);
+                                        }}
+                                      >
+                                        Löschen
+                                      </button>
+                                    </div>
                                   </div>
-                                </div>
-                              ) : (
-                                <p className="mt-1 text-xs text-slate-600 line-clamp-2">
-                                  {latestNotesByOrder[order.id].note}
-                                </p>
-                              )}
-                            </div>
-                          )}
-                          <div
-                            className="mt-3 flex flex-col gap-2"
-                            onClick={(event) => event.stopPropagation()}
-                          >
-                            {!noteOpen[order.id] ? (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() =>
-                                  setNoteOpen((prev) => ({ ...prev, [order.id]: true }))
-                                }
-                              >
-                                Notiz hinzufügen
-                              </Button>
-                            ) : (
-                              <div className="space-y-2 rounded-lg border border-slate-200 bg-white px-3 py-2">
-                                <Textarea
-                                  rows={2}
-                                  value={noteDrafts[order.id] || ''}
-                                  onChange={(e) => handleNoteChange(order.id, e.target.value)}
-                                  placeholder="Interne Notiz hinzufügen..."
-                                  className="text-xs"
-                                />
-                                <div className="flex flex-wrap items-center gap-2">
-                                  <Button
-                                    size="sm"
-                                    className="bg-[#1e3a5f] hover:bg-[#2d5a8a]"
-                                    disabled={noteSaving[order.id] || !noteDrafts[order.id]?.trim()}
-                                    onClick={() => handleNoteSave(order.id)}
-                                  >
-                                    {noteSaving[order.id] ? (
-                                      <Loader2 className="mr-2 h-3 w-3 animate-spin" />
-                                    ) : null}
-                                    Notiz speichern
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() =>
-                                      setNoteOpen((prev) => ({ ...prev, [order.id]: false }))
-                                    }
-                                  >
-                                    Schließen
-                                  </Button>
-                                  {noteErrors[order.id] && (
-                                    <span className="text-xs text-red-600">{noteErrors[order.id]}</span>
+                                  {noteEditOpen[order.id] ? (
+                                    <div
+                                      className="mt-2 space-y-2"
+                                      onClick={(event) => event.stopPropagation()}
+                                      onMouseDown={(event) => event.stopPropagation()}
+                                    >
+                                      <Textarea
+                                        rows={2}
+                                        value={noteEditDrafts[order.id] || ''}
+                                        onChange={(e) =>
+                                          setNoteEditDrafts((prev) => ({
+                                            ...prev,
+                                            [order.id]: e.target.value,
+                                          }))
+                                        }
+                                        className="text-xs"
+                                      />
+                                      <div className="flex items-center gap-2">
+                                        <Button
+                                          size="sm"
+                                          className="bg-[#1e3a5f] hover:bg-[#2d5a8a]"
+                                          disabled={
+                                            noteEditSaving[order.id] ||
+                                            !noteEditDrafts[order.id]?.trim()
+                                          }
+                                          onClick={() =>
+                                            handleNoteEditSave(latestNotesByOrder[order.id])
+                                          }
+                                        >
+                                          {noteEditSaving[order.id] ? (
+                                            <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                                          ) : null}
+                                          Speichern
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          variant="ghost"
+                                          onClick={() =>
+                                            setNoteEditOpen((prev) => ({
+                                              ...prev,
+                                              [order.id]: false,
+                                            }))
+                                          }
+                                        >
+                                          Abbrechen
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <p className="mt-1 text-xs text-slate-600 line-clamp-2">
+                                      {latestNotesByOrder[order.id].note}
+                                    </p>
                                   )}
                                 </div>
+                              )}
+                              <div
+                                className="mt-3 flex flex-col gap-2"
+                                onClick={(event) => event.stopPropagation()}
+                              >
+                                {!noteOpen[order.id] ? (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() =>
+                                      setNoteOpen((prev) => ({ ...prev, [order.id]: true }))
+                                    }
+                                  >
+                                    Notiz hinzufügen
+                                  </Button>
+                                ) : (
+                                  <div className="space-y-2 rounded-lg border border-slate-200 bg-white px-3 py-2">
+                                    <Textarea
+                                      rows={2}
+                                      value={noteDrafts[order.id] || ''}
+                                      onChange={(e) => handleNoteChange(order.id, e.target.value)}
+                                      placeholder="Interne Notiz hinzufügen..."
+                                      className="text-xs"
+                                    />
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      <Button
+                                        size="sm"
+                                        className="bg-[#1e3a5f] hover:bg-[#2d5a8a]"
+                                        disabled={noteSaving[order.id] || !noteDrafts[order.id]?.trim()}
+                                        onClick={() => handleNoteSave(order.id)}
+                                      >
+                                        {noteSaving[order.id] ? (
+                                          <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                                        ) : null}
+                                        Notiz speichern
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={() =>
+                                          setNoteOpen((prev) => ({ ...prev, [order.id]: false }))
+                                        }
+                                      >
+                                        Schließen
+                                      </Button>
+                                      {noteErrors[order.id] && (
+                                        <span className="text-xs text-red-600">{noteErrors[order.id]}</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div>
+                              <p className="font-medium">{order.vehicle_brand} {order.vehicle_model}</p>
+                              <p className="text-sm text-gray-500">{order.vehicle_color}</p>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="text-sm">
+                              <p>{order.pickup_city || 'N/A'}</p>
+                              <p className="text-gray-400">→</p>
+                              <p>{order.dropoff_city || 'N/A'}</p>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {order.assigned_driver_name || (
+                              <span className="text-gray-400">Nicht zugewiesen</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {expensesByOrder[order.id] ? (
+                              <Check className="h-5 w-5 text-emerald-600" aria-label="Auslagen vorhanden" />
+                            ) : null}
+                          </TableCell>
+                          <TableCell>
+                            <div className="text-sm font-medium text-gray-900">
+                              {dueStatus.label}
+                            </div>
+                            {dueDetail && (
+                              <div className={`text-xs ${
+                                dueStatus.state === 'overdue'
+                                  ? 'text-red-700'
+                                  : dueStatus.state === 'today'
+                                  ? 'text-yellow-700'
+                                  : 'text-green-700'
+                              }`}>
+                                {dueDetail}
                               </div>
                             )}
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <p className="font-medium">{order.vehicle_brand} {order.vehicle_model}</p>
-                          <p className="text-sm text-gray-500">{order.vehicle_color}</p>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="text-sm">
-                          <p>{order.pickup_city || 'N/A'}</p>
-                          <p className="text-gray-400">→</p>
-                          <p>{order.dropoff_city || 'N/A'}</p>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {order.assigned_driver_name || (
-                          <span className="text-gray-400">Nicht zugewiesen</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {expensesByOrder[order.id] ? (
-                          <Check className="h-5 w-5 text-emerald-600" aria-label="Auslagen vorhanden" />
-                        ) : null}
-                      </TableCell>
-                      <TableCell>
-                        <div className="text-sm font-medium text-gray-900">
-                          {dueStatus.label}
-                        </div>
-                        {dueDetail && (
-                          <div className={`text-xs ${
-                            dueStatus.state === 'overdue'
-                              ? 'text-red-700'
-                              : dueStatus.state === 'today'
-                              ? 'text-yellow-700'
-                              : 'text-green-700'
-                          }`}>
-                            {dueDetail}
-                          </div>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <StatusBadge status={order.status} />
-                      </TableCell>
-                      {listMode === 'completed' && (
-                        <TableCell onClick={(event) => event.stopPropagation()}>
-                          {reviewCompleted ? (
-                            <div className="flex items-center justify-center text-emerald-700">
-                              <Check className="h-4 w-4" />
-                            </div>
-                          ) : (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="px-2"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                handleReviewComplete(order.id);
-                              }}
-                              disabled={reviewSaving[order.id]}
-                            >
-                              {reviewSaving[order.id] ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
+                          </TableCell>
+                          <TableCell>
+                            <StatusBadge status={order.status} />
+                          </TableCell>
+                          {listMode === 'completed' && (
+                            <TableCell onClick={(event) => event.stopPropagation()}>
+                              {reviewCompleted ? (
+                                <div className="flex items-center justify-center text-emerald-700">
+                                  <Check className="h-4 w-4" />
+                                </div>
                               ) : (
-                                <Check className="h-4 w-4" />
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="px-2"
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    handleReviewComplete(order.id);
+                                  }}
+                                  disabled={reviewSaving[order.id]}
+                                >
+                                  {reviewSaving[order.id] ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <Check className="h-4 w-4" />
+                                  )}
+                                </Button>
                               )}
-                            </Button>
+                            </TableCell>
                           )}
-                        </TableCell>
-                      )}
-                    </TableRow>
-                    );
-                  })}
-                </TableBody>
-            </Table>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
