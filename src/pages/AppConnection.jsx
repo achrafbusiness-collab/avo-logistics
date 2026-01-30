@@ -24,7 +24,7 @@ export default function AppConnection() {
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
   const driverUrl = baseUrl ? `${baseUrl}/DriverOrders` : '';
   const driverLoginUrl = baseUrl ? `${baseUrl}/driver` : '';
-  const [settings, setSettings] = useState({
+  const defaultSettings = {
     company_name: 'AVO Logistics',
     support_phone: '',
     support_email: '',
@@ -35,7 +35,10 @@ export default function AppConnection() {
     instructions: 'Bitte bei Fragen die Support-Hotline kontaktieren.',
     legal_text: 'Der Kunde und der Fahrer bestätigen, dass das Fahrzeug in dem oben dokumentierten Zustand übernommen wurde und der Fahrer berechtigt ist, das Fahrzeug zu überführen.',
     delivery_legal_text: 'Das Fahrzeug wurde in diesem Zustand ordnungsgemäß übergeben und entgegengenommen.',
-  });
+    email_sender_name: '',
+    email_sender_address: '',
+  };
+  const [settings, setSettings] = useState(defaultSettings);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -46,7 +49,7 @@ export default function AppConnection() {
 
   useEffect(() => {
     if (appSettings.length > 0) {
-      setSettings(appSettings[0]);
+      setSettings({ ...defaultSettings, ...appSettings[0] });
     }
   }, [appSettings]);
 
@@ -163,6 +166,40 @@ export default function AppConnection() {
               onChange={(e) => setSettings({...settings, office_address: e.target.value})}
             />
           </div>
+        </CardContent>
+      </Card>
+
+      {/* E-Mail Absender */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileText className="w-5 h-5" />
+            E-Mail Absender fuer Fahrer-Benachrichtigungen
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label>Absender-Name</Label>
+              <Input
+                value={settings.email_sender_name}
+                onChange={(e) => setSettings({ ...settings, email_sender_name: e.target.value })}
+                placeholder="AVO Logistics"
+              />
+            </div>
+            <div>
+              <Label>Absender-E-Mail</Label>
+              <Input
+                type="email"
+                value={settings.email_sender_address}
+                onChange={(e) => setSettings({ ...settings, email_sender_address: e.target.value })}
+                placeholder="noreply@avo-logistics.app"
+              />
+            </div>
+          </div>
+          <p className="text-xs text-gray-500">
+            Wird genutzt, wenn eine Auftragsbestaetigung an Fahrer gesendet wird.
+          </p>
         </CardContent>
       </Card>
 

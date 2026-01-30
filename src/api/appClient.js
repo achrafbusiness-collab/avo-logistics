@@ -257,6 +257,36 @@ const Core = {
   UploadPrivateFile: async () => ({ ok: false, message: 'Private Uploads sind im lokalen Modus deaktiviert.' }),
 };
 
+const getSessionToken = async () => {
+  const { data } = await supabase.auth.getSession();
+  return data?.session?.access_token || null;
+};
+
+const notifications = {
+  sendDriverAssignment: async ({ orderId }) => {
+    if (!orderId) {
+      throw new Error('Auftrag fehlt fuer die Fahrer-Benachrichtigung.');
+    }
+    const token = await getSessionToken();
+    if (!token) {
+      throw new Error('Nicht angemeldet.');
+    }
+    const response = await fetch('/api/admin/send-driver-assignment', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ orderId }),
+    });
+    const payload = await response.json();
+    if (!response.ok || !payload?.ok) {
+      throw new Error(payload?.error || 'Fahrer-Benachrichtigung fehlgeschlagen.');
+    }
+    return payload?.data || payload;
+  },
+};
+
 const profileDefaults = {
   role: 'minijobber',
   permissions: {},
@@ -395,6 +425,7 @@ export const appClient = {
     Customer: createEntityClient('Customer'),
     AppSettings: createEntityClient('AppSettings'),
   },
+  notifications,
   integrations: {
     Core,
   },

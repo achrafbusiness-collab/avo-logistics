@@ -130,8 +130,6 @@ export default function OrderDetails({
     taxi: 'Taxi',
     toll: 'Maut',
     additional_protocol: 'Zusatzprotokoll',
-    parking: 'Parken',
-    other: 'Sonstiges',
   };
   const formatCurrency = (value) =>
     new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(value);
@@ -1483,7 +1481,7 @@ export default function OrderDetails({
                       <DialogFooter className="gap-2 sm:justify-start">
                         {protocolChecklistId ? (
                           <a
-                            href={`/protocol-pdf?checklistId=${protocolChecklistId}&print=1`}
+                            href={`/checklists?id=${protocolChecklistId}`}
                             target="_blank"
                             rel="noopener noreferrer"
                           >

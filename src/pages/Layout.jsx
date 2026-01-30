@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { appClient } from '@/api/appClient';
 import { 
@@ -19,7 +19,8 @@ import {
   Terminal,
   Building2,
   History,
-  LifeBuoy
+  LifeBuoy,
+  Settings
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import {
@@ -47,12 +48,20 @@ const adminPages = [
   { name: 'System-Vermietung', icon: Building2, page: 'SystemVermietung' },
 ];
 
+const adminQuickLinks = [
+  { name: 'Einstellungen', icon: Settings, page: 'AppConnection' },
+  { name: 'Verlauf', icon: History, page: 'Verlauf' },
+  { name: 'Terminal', icon: Terminal, page: 'Terminal' },
+  { name: 'System-Vermietung', icon: Building2, page: 'SystemVermietung' },
+];
+
 export default function Layout({ children, currentPageName }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarHover, setSidebarHover] = useState(false);
   const [user, setUser] = useState(null);
   const [isDriver, setIsDriver] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
   const mainRef = useRef(null);
   const { t, dir } = useI18n();
   const [darkMode, setDarkMode] = useState(() => {
@@ -284,6 +293,18 @@ export default function Layout({ children, currentPageName }) {
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
+                  {adminQuickLinks
+                    .filter((item) => hasPageAccess(user, item.page))
+                    .map((item) => (
+                      <DropdownMenuItem
+                        key={item.page}
+                        onClick={() => navigate(createPageUrl(item.page))}
+                      >
+                        <item.icon className="w-4 h-4 mr-2" />
+                        {item.name}
+                      </DropdownMenuItem>
+                    ))}
+                  <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleLogout}>
                     <LogOut className="w-4 h-4 mr-2" />
                     Abmelden

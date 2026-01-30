@@ -64,10 +64,10 @@ const DAMAGE_LOCATIONS = [
 
 const EXPENSE_TYPES = [
   { value: 'fuel', labelKey: 'protocol.expenses.types.fuel' },
+  { value: 'ticket', labelKey: 'protocol.expenses.types.ticket' },
   { value: 'taxi', labelKey: 'protocol.expenses.types.taxi' },
   { value: 'toll', labelKey: 'protocol.expenses.types.toll' },
-  { value: 'parking', labelKey: 'protocol.expenses.types.parking' },
-  { value: 'other', labelKey: 'protocol.expenses.types.other' },
+  { value: 'additional_protocol', labelKey: 'protocol.expenses.types.additional_protocol' },
 ];
 
 const DAMAGE_DELAY_SECONDS = 60;

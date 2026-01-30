@@ -9,8 +9,6 @@ const EXPENSE_LABELS = {
   taxi: "Taxi",
   toll: "Maut",
   additional_protocol: "Zusatzprotokoll",
-  parking: "Parken",
-  other: "Sonstiges",
 };
 
 const formatDateTime = (value) => {

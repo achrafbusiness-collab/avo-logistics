@@ -275,17 +275,33 @@ export default function Orders() {
     };
 
     if (selectedOrder) {
+      const previousDriverId = selectedOrder.assigned_driver_id || null;
       const updated = await updateMutation.mutateAsync({
         id: selectedOrder.id,
         data: normalizeOrderPayload(data),
       });
+      if (updated?.assigned_driver_id && updated.assigned_driver_id !== previousDriverId) {
+        notifyDriverAssignment(updated.id);
+      }
     } else {
-      await createMutation.mutateAsync(normalizeOrderPayload(data));
+      const created = await createMutation.mutateAsync(normalizeOrderPayload(data));
+      if (created?.assigned_driver_id) {
+        notifyDriverAssignment(created.id);
+      }
+    }
+  };
+
+  const notifyDriverAssignment = async (orderId) => {
+    try {
+      await appClient.notifications.sendDriverAssignment({ orderId });
+    } catch (error) {
+      console.warn('Fahrer-Benachrichtigung fehlgeschlagen', error);
     }
   };
 
   const handleAssignDriver = async (driverId) => {
     if (!selectedOrder) return;
+    const previousDriverId = selectedOrder.assigned_driver_id || null;
     const driver = drivers.find(d => d.id === driverId);
     const driverName = driver ? `${driver.first_name || ''} ${driver.last_name || ''}`.trim() : '';
     const updates = {
@@ -306,6 +322,9 @@ export default function Orders() {
     const updated = await appClient.entities.Order.update(selectedOrder.id, updates);
     setSelectedOrder(updated);
     queryClient.invalidateQueries({ queryKey: ['orders'] });
+    if (driverId && driverId !== previousDriverId) {
+      notifyDriverAssignment(updated.id);
+    }
   };
 
   const handleStatusUpdate = async (orderId, data) => {

@@ -81,6 +81,9 @@ const buildProfileForm = (profile) => ({
   },
 });
 
+const filterTeamProfiles = (items) =>
+  (items || []).filter((profile) => profile.role !== "driver");
+
 export default function TeamAVO() {
   const [currentUser, setCurrentUser] = useState(null);
   const [profiles, setProfiles] = useState([]);
@@ -110,9 +113,9 @@ export default function TeamAVO() {
         return;
       }
       try {
-        const data = await fetchProfiles();
-        setProfiles(data || []);
-        if (data?.length) {
+        const data = filterTeamProfiles(await fetchProfiles());
+        setProfiles(data);
+        if (data.length) {
           setSelectedId(data[0].id);
           setForm(buildProfileForm(data[0]));
         }
@@ -146,9 +149,9 @@ export default function TeamAVO() {
 
   const refreshProfiles = async () => {
     try {
-      const data = await fetchProfiles();
-      setProfiles(data || []);
-      if (data?.length) {
+      const data = filterTeamProfiles(await fetchProfiles());
+      setProfiles(data);
+      if (data.length) {
         const next = data.find((item) => item.id === selectedId) || data[0];
         setSelectedId(next.id);
         setForm(buildProfileForm(next));

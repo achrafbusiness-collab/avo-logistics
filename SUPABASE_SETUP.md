@@ -409,6 +409,8 @@ create table if not exists public.app_settings (
   company_name text,
   support_phone text,
   support_email text,
+  email_sender_name text,
+  email_sender_address text,
   emergency_phone text,
   office_address text,
   office_hours text,
@@ -683,6 +685,8 @@ alter table public.drivers add column if not exists company_id uuid references p
 alter table public.customers add column if not exists company_id uuid references public.companies;
 alter table public.checklists add column if not exists company_id uuid references public.companies;
 alter table public.app_settings add column if not exists company_id uuid references public.companies;
+alter table public.app_settings add column if not exists email_sender_name text;
+alter table public.app_settings add column if not exists email_sender_address text;
 alter table public.order_notes add column if not exists company_id uuid references public.companies;
 alter table public.driver_documents add column if not exists company_id uuid references public.companies;
 
