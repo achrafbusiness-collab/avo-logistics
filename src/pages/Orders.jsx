@@ -188,11 +188,11 @@ export default function Orders() {
   }, [checklists]);
 
   const activeOrdersCount = useMemo(
-    () => orders.filter((order) => order.status !== 'completed').length,
+    () => orders.filter((order) => order.status !== 'completed' && order.status !== 'cancelled').length,
     [orders]
   );
   const completedOrdersCount = useMemo(
-    () => orders.filter((order) => order.status === 'completed').length,
+    () => orders.filter((order) => order.status === 'completed' || order.status === 'cancelled').length,
     [orders]
   );
 
@@ -220,8 +220,8 @@ export default function Orders() {
     setBulkError('');
     setDueFilter('all');
     if (nextMode === 'completed') {
-      setStatusFilter('completed');
-    } else if (statusFilter === 'completed') {
+      setStatusFilter('all');
+    } else if (statusFilter === 'completed' || statusFilter === 'cancelled') {
       setStatusFilter('all');
     }
   };
@@ -335,7 +335,9 @@ export default function Orders() {
       order.assigned_driver_name?.toLowerCase().includes(searchLower);
     
     const matchesListMode =
-      listMode === 'completed' ? order.status === 'completed' : order.status !== 'completed';
+      listMode === 'completed'
+        ? order.status === 'completed' || order.status === 'cancelled'
+        : order.status !== 'completed' && order.status !== 'cancelled';
     const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
     
     const matchesDriver =
@@ -510,6 +512,34 @@ export default function Orders() {
       queryClient.invalidateQueries({ queryKey: ['orders'] });
     } catch (err) {
       setBulkError(err?.message || 'Bulk-Duplizieren fehlgeschlagen.');
+    } finally {
+      setBulkWorking(false);
+    }
+  };
+
+  const handleBulkCancel = async () => {
+    if (!selectedOrders.length) return;
+    const targets = selectedOrders.filter(
+      (order) => order.status !== 'completed' && order.status !== 'cancelled'
+    );
+    if (!targets.length) {
+      setBulkError('Keine offenen Aufträge zum Stornieren gefunden.');
+      return;
+    }
+    const confirmed = window.confirm('Ausgewählte Aufträge wirklich stornieren?');
+    if (!confirmed) return;
+    setBulkWorking(true);
+    setBulkError('');
+    setBulkMessage('');
+    try {
+      for (const order of targets) {
+        await appClient.entities.Order.update(order.id, { status: 'cancelled' });
+      }
+      setBulkMessage('Aufträge wurden storniert.');
+      setSelectedIds([]);
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+    } catch (err) {
+      setBulkError(err?.message || 'Bulk-Stornieren fehlgeschlagen.');
     } finally {
       setBulkWorking(false);
     }
@@ -844,7 +874,11 @@ export default function Orders() {
                     <SelectItem value="cancelled">Storniert</SelectItem>
                   </>
                 ) : (
-                  <SelectItem value="completed">Erfolgreich beendet</SelectItem>
+                  <>
+                    <SelectItem value="all">Alle abgeschlossenen</SelectItem>
+                    <SelectItem value="completed">Erfolgreich beendet</SelectItem>
+                    <SelectItem value="cancelled">Storniert</SelectItem>
+                  </>
                 )}
               </SelectContent>
             </Select>
@@ -886,6 +920,14 @@ export default function Orders() {
                 disabled={bulkWorking}
               >
                 Duplizieren
+              </Button>
+              <Button
+                variant="outline"
+                className="border-red-200 text-red-700 hover:bg-red-50"
+                onClick={handleBulkCancel}
+                disabled={bulkWorking}
+              >
+                Storno
               </Button>
               <Button
                 variant="destructive"
@@ -954,8 +996,11 @@ export default function Orders() {
                   {sortedOrders.map((order) => {
                     const dueStatus = getDueStatus(order);
                     const isCompleted = order.status === 'completed';
+                    const isCancelled = order.status === 'cancelled';
                     const reviewCompleted = Boolean(order.review_completed);
-                    const rowTone = isCompleted
+                    const rowTone = isCancelled
+                      ? 'bg-red-50 border border-red-200 border-dashed text-red-700 line-through decoration-red-400'
+                      : isCompleted
                       ? reviewCompleted
                         ? 'bg-emerald-50'
                         : 'bg-blue-50'
@@ -964,7 +1009,7 @@ export default function Orders() {
                       : dueStatus.state === 'today'
                       ? 'bg-yellow-50'
                       : 'bg-green-50';
-                    const dueDetail = isCompleted ? null : dueStatus.detail;
+                    const dueDetail = isCompleted || isCancelled ? null : dueStatus.detail;
                     return (
                       <div
                         key={order.id}
@@ -1108,8 +1153,11 @@ export default function Orders() {
                     {sortedOrders.map((order) => {
                       const dueStatus = getDueStatus(order);
                       const isCompleted = order.status === 'completed';
+                      const isCancelled = order.status === 'cancelled';
                       const reviewCompleted = Boolean(order.review_completed);
-                      const rowTone = isCompleted
+                      const rowTone = isCancelled
+                        ? 'bg-red-50 hover:bg-red-100 border border-red-200 border-dashed text-red-700 line-through decoration-red-400'
+                        : isCompleted
                         ? reviewCompleted
                           ? 'bg-emerald-200 hover:bg-emerald-300'
                           : 'bg-blue-50 hover:bg-blue-100'
@@ -1118,7 +1166,7 @@ export default function Orders() {
                         : dueStatus.state === 'today'
                         ? 'bg-yellow-50 hover:bg-yellow-100'
                         : 'bg-green-50 hover:bg-green-100';
-                      const dueDetail = isCompleted ? null : dueStatus.detail;
+                      const dueDetail = isCompleted || isCancelled ? null : dueStatus.detail;
                       return (
                         <TableRow 
                           key={order.id}
