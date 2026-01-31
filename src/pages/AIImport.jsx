@@ -374,6 +374,7 @@ Gib ausschließlich die strukturierten Daten zurück.`,
     if (!nextOrders.length) {
       setImportSuccess(true);
       setSelectedOrderIndex(0);
+      window.location.href = createPageUrl('Orders');
       return;
     }
     setSelectedOrderIndex(Math.min(selectedOrderIndex, nextOrders.length - 1));
