@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { History, Terminal, Building2, ShieldCheck } from "lucide-react";
+import { History, Terminal, Building2, ShieldCheck, Mail } from "lucide-react";
 
 const adminSections = [
   {
@@ -24,6 +24,12 @@ const adminSections = [
     page: "SystemVermietung",
     icon: Building2,
   },
+  {
+    title: "E-Mail Postfach",
+    description: "SMTP/IMAP Zugang für Fahrer-Bestätigungen konfigurieren.",
+    page: "AdminEmailSettings",
+    icon: Mail,
+  },
 ];
 
 export default function AdminControlling() {
@@ -43,7 +49,7 @@ export default function AdminControlling() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
         {adminSections.map((section) => (
           <Card key={section.page} className="border border-slate-200/80 bg-white/90">
             <CardHeader className="pb-2">

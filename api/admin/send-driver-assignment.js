@@ -45,31 +45,37 @@ const getProfileForUser = async (userId) => {
   return data;
 };
 
-const canSendEmail = () =>
-  Boolean(smtpHost && smtpPort && smtpUser && smtpPass && smtpFrom);
+const canSendEmail = (config) =>
+  Boolean(
+    config?.host &&
+      config?.port &&
+      config?.user &&
+      config?.pass &&
+      (config?.from || config?.user)
+  );
 
-const buildFromAddress = ({ name, address }) => {
-  if (!address) return smtpFrom;
+const buildFromAddress = ({ name, address, fallback }) => {
+  if (!address) return fallback;
   if (!name) return address;
   const safeName = String(name).replace(/"/g, "");
   return `"${safeName}" <${address}>`;
 };
 
-const sendEmail = async ({ from, to, subject, html, text, replyTo }) => {
-  if (!canSendEmail()) {
+const sendEmail = async ({ from, to, subject, html, text, replyTo, smtp }) => {
+  if (!canSendEmail(smtp)) {
     return false;
   }
   const transporter = nodemailer.createTransport({
-    host: smtpHost,
-    port: smtpPort,
-    secure: smtpSecure,
+    host: smtp.host,
+    port: smtp.port,
+    secure: smtp.secure,
     auth: {
-      user: smtpUser,
-      pass: smtpPass,
+      user: smtp.user,
+      pass: smtp.pass,
     },
   });
   await transporter.sendMail({
-    from: from || smtpFrom,
+    from: from || smtp.from || smtp.user,
     to,
     subject,
     text,
@@ -157,7 +163,24 @@ export default async function handler(req, res) {
 
     const senderName = settings?.email_sender_name || settings?.company_name || "";
     const senderAddress = settings?.email_sender_address || "";
-    const fromAddress = buildFromAddress({ name: senderName, address: senderAddress });
+    const resolvedSmtp = {
+      host: settings?.smtp_host || smtpHost,
+      port: settings?.smtp_port ? Number(settings.smtp_port) : smtpPort,
+      user: settings?.smtp_user || smtpUser,
+      pass: settings?.smtp_pass || smtpPass,
+      secure:
+        typeof settings?.smtp_secure === "boolean"
+          ? settings.smtp_secure
+          : settings?.smtp_secure
+          ? String(settings.smtp_secure).toLowerCase() === "true"
+          : smtpSecure,
+      from: smtpFrom,
+    };
+    const fromAddress = buildFromAddress({
+      name: senderName,
+      address: senderAddress,
+      fallback: resolvedSmtp.from || resolvedSmtp.user,
+    });
     const replyTo = settings?.support_email || undefined;
 
     const pickupLine = formatAddress([
@@ -194,10 +217,11 @@ export default async function handler(req, res) {
       return;
     }
 
-    const subject = `Neuer Auftrag ${order.order_number || ""} zugewiesen`;
+    const signatureName = senderName || settings?.company_name || "AVO Logistics";
+    const subject = `Auftragsbestätigung – Auftrag ${order.order_number || ""} zugewiesen`;
     const text = `Hallo ${order.assigned_driver_name || "Fahrer"},
 
-dir wurde ein Auftrag zugewiesen.
+du hast einen neuen Auftrag erhalten. Bitte bestätige die Annahme in der Fahrer‑App.
 
 Auftrag: ${order.order_number || "-"}
 Kundenauftrag: ${order.customer_order_number || "-"}
@@ -211,10 +235,13 @@ Abholzeit: ${pickupWhen || "-"}
 Abgabe: ${dropoffLine || "-"}
 Abgabezeit: ${dropoffWhen || "-"}
 
-Weitere Details findest du in der Fahrer-App.`;
+Weitere Details findest du in der Fahrer‑App.
+
+Viele Grüße
+${signatureName}`;
 
     const html = `<p>Hallo ${order.assigned_driver_name || "Fahrer"},</p>
-<p>dir wurde ein Auftrag zugewiesen.</p>
+<p>du hast einen neuen Auftrag erhalten. Bitte bestätige die Annahme in der Fahrer‑App.</p>
 <ul>
   <li><strong>Auftrag:</strong> ${order.order_number || "-"}</li>
   <li><strong>Kundenauftrag:</strong> ${order.customer_order_number || "-"}</li>
@@ -226,7 +253,8 @@ Weitere Details findest du in der Fahrer-App.`;
 <strong>Abholzeit:</strong> ${pickupWhen || "-"}</p>
 <p><strong>Abgabe:</strong> ${dropoffLine || "-"}<br/>
 <strong>Abgabezeit:</strong> ${dropoffWhen || "-"}</p>
-<p>Weitere Details findest du in der Fahrer-App.</p>`;
+<p>Weitere Details findest du in der Fahrer‑App.</p>
+<p>Viele Grüße<br/>${signatureName}</p>`;
 
     let emailSent = false;
     try {
@@ -237,6 +265,7 @@ Weitere Details findest du in der Fahrer-App.`;
         html,
         from: fromAddress,
         replyTo,
+        smtp: resolvedSmtp,
       });
     } catch (err) {
       emailSent = false;

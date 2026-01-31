@@ -41,6 +41,7 @@ import AccessDenied from "./AccessDenied";
 import Terminal from "./Terminal";
 import SystemVermietung from "./SystemVermietung";
 import Verlauf from "./Verlauf";
+import AdminEmailSettings from "./AdminEmailSettings";
 import ProtocolPdf from "./ProtocolPdf";
 import ExpensesPdf from "./ExpensesPdf";
 
@@ -76,6 +77,8 @@ const PAGES = {
     DriverPriceRequests: DriverPriceRequests,
     
     AdminControlling: AdminControlling,
+
+    AdminEmailSettings: AdminEmailSettings,
     
     AIImport: AIImport,
     
@@ -228,6 +231,8 @@ function PagesContent() {
                 <Route path="/Search" element={<Navigate to={createPageUrl('Dashboard')} replace />} />
                 
                 <Route path="/AdminControlling" element={<AdminControlling />} />
+
+                <Route path="/AdminEmailSettings" element={<AdminEmailSettings />} />
                 
                 <Route path="/AIImport" element={<AIImport />} />
                 

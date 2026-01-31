@@ -7,7 +7,13 @@ const DRIVER_PAGES = new Set([
   "DriverSupport",
 ]);
 
-const SYSTEM_ADMIN_PAGES = new Set(["AdminControlling", "Verlauf", "Terminal", "SystemVermietung"]);
+const SYSTEM_ADMIN_PAGES = new Set([
+  "AdminControlling",
+  "AdminEmailSettings",
+  "Verlauf",
+  "Terminal",
+  "SystemVermietung",
+]);
 
 const normalizeEmail = (value) => String(value || "").trim().toLowerCase();
 

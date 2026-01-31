@@ -411,6 +411,16 @@ create table if not exists public.app_settings (
   support_email text,
   email_sender_name text,
   email_sender_address text,
+  smtp_host text,
+  smtp_port integer,
+  smtp_user text,
+  smtp_pass text,
+  smtp_secure boolean default true,
+  imap_host text,
+  imap_port integer,
+  imap_user text,
+  imap_pass text,
+  imap_secure boolean default true,
   emergency_phone text,
   office_address text,
   office_hours text,
@@ -687,6 +697,16 @@ alter table public.checklists add column if not exists company_id uuid reference
 alter table public.app_settings add column if not exists company_id uuid references public.companies;
 alter table public.app_settings add column if not exists email_sender_name text;
 alter table public.app_settings add column if not exists email_sender_address text;
+alter table public.app_settings add column if not exists smtp_host text;
+alter table public.app_settings add column if not exists smtp_port integer;
+alter table public.app_settings add column if not exists smtp_user text;
+alter table public.app_settings add column if not exists smtp_pass text;
+alter table public.app_settings add column if not exists smtp_secure boolean default true;
+alter table public.app_settings add column if not exists imap_host text;
+alter table public.app_settings add column if not exists imap_port integer;
+alter table public.app_settings add column if not exists imap_user text;
+alter table public.app_settings add column if not exists imap_pass text;
+alter table public.app_settings add column if not exists imap_secure boolean default true;
 alter table public.order_notes add column if not exists company_id uuid references public.companies;
 alter table public.driver_documents add column if not exists company_id uuid references public.companies;
 
