@@ -58,21 +58,10 @@ export default function LoginPortal({
   };
 
   const handleReset = async () => {
-    if (!email.trim()) {
-      setError(t('login.errors.resetMissingEmail'));
-      return;
-    }
     setError('');
-    setResetSent(false);
-    try {
-      await appClient.auth.resetPassword({
-        email,
-        redirectTo: resetRedirect,
-      });
-      setResetSent(true);
-    } catch (err) {
-      setError(err?.message || t('login.errors.resetFailed'));
-    }
+    const targetEmail = email.trim();
+    const query = targetEmail ? `?email=${encodeURIComponent(targetEmail)}` : '';
+    window.location.href = `/reset-password${query}`;
   };
 
   return (

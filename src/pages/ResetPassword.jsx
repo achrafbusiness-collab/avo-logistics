@@ -41,6 +41,11 @@ export default function ResetPassword() {
   const [error, setError] = useState("");
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search || "");
+    const queryEmail = params.get("email") || "";
+    if (queryEmail) {
+      setEmail((prev) => prev || queryEmail);
+    }
     const loadSession = async () => {
       const { data } = await supabase.auth.getSession();
       const session = data?.session || null;
