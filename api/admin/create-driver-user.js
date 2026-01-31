@@ -12,6 +12,45 @@ const smtpPass = process.env.SMTP_PASS;
 const smtpFrom = process.env.SMTP_FROM || smtpUser;
 const smtpSecure =
   process.env.SMTP_SECURE === "true" || (smtpPort ? smtpPort === 465 : true);
+const publicSiteUrl = process.env.PUBLIC_SITE_URL || process.env.VITE_PUBLIC_SITE_URL || "";
+
+const normalizePublicUrl = (value) => {
+  if (!value) return "";
+  const trimmed = String(value).trim();
+  if (!trimmed) return "";
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+    const cleaned = trimmed.replace(/\/$/, "");
+    if (cleaned.includes("localhost") || cleaned.includes("127.0.0.1")) {
+      return "";
+    }
+    return cleaned;
+  }
+  const cleaned = `https://${trimmed.replace(/\/$/, "")}`;
+  if (cleaned.includes("localhost") || cleaned.includes("127.0.0.1")) {
+    return "";
+  }
+  return cleaned;
+};
+
+const buildAppLink = ({ baseUrl, email, otp, type }) => {
+  if (!baseUrl || !otp || !type) return "";
+  const params = new URLSearchParams();
+  params.set("token", otp);
+  params.set("type", type);
+  if (email) params.set("email", email);
+  return `${baseUrl.replace(/\/$/, "")}/reset-password?${params.toString()}`;
+};
+
+const ensureRedirect = (link, redirect) => {
+  if (!link || !redirect) return link;
+  try {
+    const url = new URL(link);
+    url.searchParams.set("redirect_to", redirect);
+    return url.toString();
+  } catch (error) {
+    return link;
+  }
+};
 
 const readJsonBody = async (req) => {
   if (req.body && typeof req.body === "object") {
@@ -45,28 +84,42 @@ const getCompanyIdForUser = async (userId) => {
   return data?.company_id || null;
 };
 
-const canSendEmail = () =>
-  Boolean(smtpHost && smtpPort && smtpUser && smtpPass && smtpFrom);
+const canSendEmail = (config) =>
+  Boolean(
+    config?.host &&
+      config?.port &&
+      config?.user &&
+      config?.pass &&
+      (config?.from || config?.user)
+  );
 
-const sendEmail = async ({ to, subject, html, text }) => {
-  if (!canSendEmail()) {
+const buildFromAddress = ({ name, address, fallback }) => {
+  if (!address) return fallback;
+  if (!name) return address;
+  const safeName = String(name).replace(/"/g, "");
+  return `"${safeName}" <${address}>`;
+};
+
+const sendEmail = async ({ to, subject, html, text, replyTo, from, smtp }) => {
+  if (!canSendEmail(smtp)) {
     return false;
   }
   const transporter = nodemailer.createTransport({
-    host: smtpHost,
-    port: smtpPort,
-    secure: smtpSecure,
+    host: smtp.host,
+    port: smtp.port,
+    secure: smtp.secure,
     auth: {
-      user: smtpUser,
-      pass: smtpPass,
+      user: smtp.user,
+      pass: smtp.pass,
     },
   });
   await transporter.sendMail({
-    from: smtpFrom,
+    from: from || smtp.from || smtp.user,
     to,
     subject,
     text,
     html,
+    replyTo,
   });
   return true;
 };
@@ -121,7 +174,7 @@ export default async function handler(req, res) {
       return;
     }
 
-    const tempPassword = crypto.randomBytes(8).toString("base64url");
+    const tempPassword = crypto.randomBytes(12).toString("base64url");
     const { data: createUserData, error: createUserError } =
       await supabaseAdmin.auth.admin.createUser({
         email,
@@ -159,29 +212,133 @@ export default async function handler(req, res) {
       .eq("email", email)
       .eq("company_id", companyId);
 
-    const origin = req.headers.origin || "";
-    const loginUrl = login_url || `${origin}/login/driver`;
-    const subject = "Dein AVO Fahrer-Zugang";
+    const { data: settings } = await supabaseAdmin
+      .from("app_settings")
+      .select(
+        "email_sender_name, email_sender_address, support_email, company_name, smtp_host, smtp_port, smtp_user, smtp_pass, smtp_secure"
+      )
+      .eq("company_id", companyId)
+      .order("created_date", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const normalizedPublicUrl =
+      normalizePublicUrl(publicSiteUrl) || "https://avo-logistics.app";
+    const effectiveRedirect = `${normalizedPublicUrl}/reset-password`;
+    const loginUrl = login_url || `${normalizedPublicUrl}/login/driver`;
+
+    const { data: linkData } = await supabaseAdmin.auth.admin.generateLink({
+      type: "recovery",
+      email,
+      options: { redirectTo: effectiveRedirect },
+    });
+
+    const rawActionLink = linkData?.properties?.action_link || "";
+    const emailOtp = linkData?.properties?.email_otp || "";
+    const verificationType = linkData?.properties?.verification_type || "recovery";
+    const appLink = buildAppLink({
+      baseUrl: normalizedPublicUrl,
+      email,
+      otp: emailOtp,
+      type: verificationType,
+    });
+    const actionLink = appLink || ensureRedirect(rawActionLink, effectiveRedirect);
+
+    const companyName = settings?.company_name || "AVO Logistics";
+    const senderName = settings?.email_sender_name || companyName;
+    const senderAddress = settings?.email_sender_address || "";
+    const resolvedSmtp = {
+      host: settings?.smtp_host || smtpHost,
+      port: settings?.smtp_port ? Number(settings.smtp_port) : smtpPort,
+      user: settings?.smtp_user || smtpUser,
+      pass: settings?.smtp_pass || smtpPass,
+      secure:
+        typeof settings?.smtp_secure === "boolean"
+          ? settings.smtp_secure
+          : settings?.smtp_secure
+          ? String(settings.smtp_secure).toLowerCase() === "true"
+          : smtpSecure,
+      from: smtpFrom,
+    };
+    const fromAddress = buildFromAddress({
+      name: senderName,
+      address: senderAddress,
+      fallback: resolvedSmtp.from || resolvedSmtp.user,
+    });
+    const replyTo = settings?.support_email || undefined;
+    const brandPrimary = "#1e3a5f";
+    const brandSecondary = "#2d5a8a";
+    const logoUrl = "https://avo-logistics.app/IMG_5222.JPG";
+
+    const subject = `Willkommen bei ${companyName}`;
     const text = `Hallo ${profile?.full_name || "Fahrer"},
 
-dein Zugang zur AVO Fahrer-App wurde erstellt.
+herzlich willkommen bei ${companyName}. Dein Fahrer-Konto wurde erstellt.
+
+Bitte richte jetzt dein Passwort ein:
+${actionLink}
 
 Login: ${loginUrl}
 E-Mail: ${email}
-Temporäres Passwort: ${tempPassword}
 
-Nach dem ersten Login musst du dein Passwort ändern.
-`;
-    const html = `<p>Hallo ${profile?.full_name || "Fahrer"},</p>
-<p>dein Zugang zur AVO Fahrer-App wurde erstellt.</p>
-<p><strong>Login:</strong> <a href="${loginUrl}">${loginUrl}</a></p>
-<p><strong>E-Mail:</strong> ${email}<br/>
-<strong>Temporäres Passwort:</strong> ${tempPassword}</p>
-<p>Nach dem ersten Login musst du dein Passwort ändern.</p>`;
+Viele Grüße
+${companyName}`;
+
+    const html = `
+<div style="background:#f4f6fb; padding:24px 0; font-family:Arial, sans-serif; color:#0f172a;">
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width:640px; margin:0 auto;">
+    <tr>
+      <td style="padding:0 20px 16px;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+          <tr>
+            <td style="text-align:left;">
+              <img src="${logoUrl}" alt="${companyName}" style="height:46px; display:block; border-radius:8px;" />
+            </td>
+            <td style="text-align:right; font-size:12px; color:${brandSecondary}; font-weight:600;">
+              Fahrerzugang
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:0 20px;">
+        <div style="background:#ffffff; border-radius:16px; box-shadow:0 8px 24px rgba(15,23,42,0.08); overflow:hidden;">
+          <div style="background:${brandPrimary}; color:#ffffff; padding:18px 24px;">
+            <h1 style="margin:0; font-size:20px; font-weight:700;">Herzlich willkommen!</h1>
+            <p style="margin:6px 0 0; font-size:14px; opacity:0.9;">Dein Fahrer-Konto ist bereit.</p>
+          </div>
+          <div style="padding:20px 24px;">
+            <p style="margin:0 0 12px; font-size:14px;">Bitte richte jetzt dein Passwort ein:</p>
+            <p style="margin:0 0 16px;">
+              <a href="${actionLink}" style="display:inline-block; background:${brandPrimary}; color:#ffffff; text-decoration:none; padding:10px 16px; border-radius:8px; font-weight:600;">
+                Passwort einrichten
+              </a>
+            </p>
+            <p style="margin:0 0 12px; font-size:12px; color:#64748b;">
+              Falls der Button nicht funktioniert, kopiere diesen Link in deinen Browser:<br/>
+              <a href="${actionLink}" style="color:${brandSecondary};">${actionLink}</a>
+            </p>
+            <p style="margin:0; font-size:13px;">Login: <a href="${loginUrl}">${loginUrl}</a></p>
+            <p style="margin:0; font-size:13px;">E-Mail: ${email}</p>
+          </div>
+        </div>
+      </td>
+    </tr>
+  </table>
+</div>`;
 
     let emailSent = false;
     try {
-      emailSent = await sendEmail({ to: email, subject, text, html });
+      emailSent = await sendEmail({
+        to: email,
+        subject,
+        text,
+        html,
+        replyTo,
+        from: fromAddress,
+        smtp: resolvedSmtp,
+      });
     } catch (err) {
       emailSent = false;
     }
@@ -190,8 +347,8 @@ Nach dem ersten Login musst du dein Passwort ändern.
       ok: true,
       data: {
         email,
-        tempPassword,
         loginUrl,
+        resetLink: actionLink,
         emailSent,
       },
     });

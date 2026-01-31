@@ -71,6 +71,7 @@ export default function DriverForm({ driver, onSave, onCancel }) {
   const [resetSending, setResetSending] = useState(false);
   const [resetMessage, setResetMessage] = useState('');
   const [resetError, setResetError] = useState('');
+  const baseInviteUrl = (import.meta.env.VITE_PUBLIC_SITE_URL || '').trim() || window.location.origin;
 
   useEffect(() => {
     setFormData(buildFormData(driver));
@@ -170,7 +171,7 @@ export default function DriverForm({ driver, onSave, onCancel }) {
           },
           body: JSON.stringify({
             email: formData.email,
-            login_url: `${window.location.origin}/login/driver`,
+            login_url: `${baseInviteUrl.replace(/\\/$/, '')}/login/driver`,
             profile: {
               full_name: fullName,
               phone: formData.phone,
@@ -415,7 +416,7 @@ export default function DriverForm({ driver, onSave, onCancel }) {
                 )}
                 {loginResult && (
                   <div className="space-y-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-                    <p>Zugang wurde erstellt.</p>
+                    <p>Fahrer-Zugang wurde erstellt.</p>
                     {loginResult.loginUrl && (
                       <div className="flex items-center gap-2">
                         <Input value={loginResult.loginUrl} readOnly />
@@ -428,21 +429,21 @@ export default function DriverForm({ driver, onSave, onCancel }) {
                         </Button>
                       </div>
                     )}
-                    {loginResult.tempPassword && (
+                    {loginResult.resetLink && (
                       <div className="flex items-center gap-2">
-                        <Input value={loginResult.tempPassword} readOnly />
+                        <Input value={loginResult.resetLink} readOnly />
                         <Button
                           type="button"
                           variant="outline"
-                          onClick={() => navigator.clipboard?.writeText(loginResult.tempPassword || '')}
+                          onClick={() => navigator.clipboard?.writeText(loginResult.resetLink || '')}
                         >
-                          Passwort kopieren
+                          Reset-Link kopieren
                         </Button>
                       </div>
                     )}
                     {!loginResult.emailSent && (
                       <p className="text-xs text-emerald-700">
-                        E-Mail konnte nicht gesendet werden. Bitte Zugangsdaten manuell weitergeben.
+                        E-Mail konnte nicht gesendet werden. Bitte Link manuell weitergeben.
                       </p>
                     )}
                     <p className="text-xs text-emerald-700">
