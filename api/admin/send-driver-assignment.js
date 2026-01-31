@@ -188,21 +188,26 @@ Wenn du diese E-Mail erhalten hast, ist SMTP korrekt eingerichtet.`;
   <li><strong>Unternehmen:</strong> ${settings?.company_name || "-"}</li>
 </ul>
 <p>Wenn du diese E-Mail erhalten hast, ist SMTP korrekt eingerichtet.</p>`;
-      const emailSent = await sendEmail({
-        to: target,
-        subject,
-        text,
-        html,
-        from: fromAddress,
-        replyTo,
-        smtp: resolvedSmtp,
-      });
-      if (!emailSent) {
-        res.status(500).json({ ok: false, error: "Test-E-Mail konnte nicht gesendet werden." });
+      try {
+        const emailSent = await sendEmail({
+          to: target,
+          subject,
+          text,
+          html,
+          from: fromAddress,
+          replyTo,
+          smtp: resolvedSmtp,
+        });
+        if (!emailSent) {
+          res.status(400).json({ ok: false, error: "Test-E-Mail konnte nicht gesendet werden." });
+          return;
+        }
+        res.status(200).json({ ok: true, data: { emailSent: true } });
+        return;
+      } catch (err) {
+        res.status(400).json({ ok: false, error: err?.message || "Test-E-Mail fehlgeschlagen." });
         return;
       }
-      res.status(200).json({ ok: true, data: { emailSent: true } });
-      return;
     }
 
     if (!orderId) {
