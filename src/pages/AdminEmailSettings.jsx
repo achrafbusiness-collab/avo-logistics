@@ -42,6 +42,30 @@ export default function AdminEmailSettings() {
     return Number.isFinite(parsed) ? parsed : null;
   };
 
+  const handleSmtpPortChange = (value) => {
+    setSettings((prev) => {
+      const parsed = Number(value);
+      const next = { ...prev, smtp_port: value };
+      if (Number.isFinite(parsed)) {
+        if (parsed === 465) next.smtp_secure = true;
+        if (parsed === 587) next.smtp_secure = false;
+      }
+      return next;
+    });
+  };
+
+  const handleImapPortChange = (value) => {
+    setSettings((prev) => {
+      const parsed = Number(value);
+      const next = { ...prev, imap_port: value };
+      if (Number.isFinite(parsed)) {
+        if (parsed === 993) next.imap_secure = true;
+        if (parsed === 143) next.imap_secure = false;
+      }
+      return next;
+    });
+  };
+
   const { data: appSettings = [] } = useQuery({
     queryKey: ["appSettings"],
     queryFn: () => appClient.entities.AppSettings.list("-created_date", 1),
@@ -59,6 +83,38 @@ export default function AdminEmailSettings() {
       setTestEmail((prev) => prev || appSettings[0].smtp_user || "");
     }
   }, [appSettings]);
+
+  useEffect(() => {
+    setSettings((prev) => {
+      let next = prev;
+      let changed = false;
+      if (prev.smtp_host && !prev.imap_host) {
+        next = { ...next, imap_host: prev.smtp_host };
+        changed = true;
+      }
+      if (prev.smtp_user && !prev.imap_user) {
+        next = { ...next, imap_user: prev.smtp_user };
+        changed = true;
+      }
+      return changed ? next : prev;
+    });
+  }, [settings.smtp_host, settings.smtp_user]);
+
+  useEffect(() => {
+    if (!settings.smtp_host || settings.smtp_port) return;
+    setSettings((prev) => {
+      if (!prev.smtp_host || prev.smtp_port) return prev;
+      return { ...prev, smtp_port: prev.smtp_secure ? "465" : "587" };
+    });
+  }, [settings.smtp_host, settings.smtp_port, settings.smtp_secure]);
+
+  useEffect(() => {
+    if (!settings.imap_host || settings.imap_port) return;
+    setSettings((prev) => {
+      if (!prev.imap_host || prev.imap_port) return prev;
+      return { ...prev, imap_port: prev.imap_secure ? "993" : "143" };
+    });
+  }, [settings.imap_host, settings.imap_port, settings.imap_secure]);
 
   const createMutation = useMutation({
     mutationFn: (data) => appClient.entities.AppSettings.create(data),
@@ -229,7 +285,7 @@ export default function AdminEmailSettings() {
             <Input
               type="number"
               value={settings.smtp_port}
-              onChange={(e) => setSettings({ ...settings, smtp_port: e.target.value })}
+              onChange={(e) => handleSmtpPortChange(e.target.value)}
               placeholder="465"
             />
           </div>
@@ -254,7 +310,18 @@ export default function AdminEmailSettings() {
             <Switch
               checked={Boolean(settings.smtp_secure)}
               onCheckedChange={(checked) =>
-                setSettings({ ...settings, smtp_secure: Boolean(checked) })
+                setSettings((prev) => {
+                  const secure = Boolean(checked);
+                  const next = { ...prev, smtp_secure: secure };
+                  const currentPort = prev.smtp_port;
+                  if (!currentPort || currentPort === "587" || currentPort === "465") {
+                    const desired = secure ? "465" : "587";
+                    if (!currentPort || currentPort === (secure ? "587" : "465")) {
+                      next.smtp_port = desired;
+                    }
+                  }
+                  return next;
+                })
               }
             />
             <span className="text-sm text-slate-600">TLS/SSL aktiv</span>
@@ -283,7 +350,7 @@ export default function AdminEmailSettings() {
             <Input
               type="number"
               value={settings.imap_port}
-              onChange={(e) => setSettings({ ...settings, imap_port: e.target.value })}
+              onChange={(e) => handleImapPortChange(e.target.value)}
               placeholder="993"
             />
           </div>
@@ -308,7 +375,18 @@ export default function AdminEmailSettings() {
             <Switch
               checked={Boolean(settings.imap_secure)}
               onCheckedChange={(checked) =>
-                setSettings({ ...settings, imap_secure: Boolean(checked) })
+                setSettings((prev) => {
+                  const secure = Boolean(checked);
+                  const next = { ...prev, imap_secure: secure };
+                  const currentPort = prev.imap_port;
+                  if (!currentPort || currentPort === "993" || currentPort === "143") {
+                    const desired = secure ? "993" : "143";
+                    if (!currentPort || currentPort === (secure ? "143" : "993")) {
+                      next.imap_port = desired;
+                    }
+                  }
+                  return next;
+                })
               }
             />
             <span className="text-sm text-slate-600">TLS/SSL aktiv</span>

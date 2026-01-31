@@ -134,7 +134,9 @@ export default async function handler(req, res) {
 
     const { data: settings } = await supabaseAdmin
       .from("app_settings")
-      .select("email_sender_name, email_sender_address, support_email, company_name")
+      .select(
+        "email_sender_name, email_sender_address, support_email, company_name, smtp_host, smtp_port, smtp_user, smtp_pass, smtp_secure"
+      )
       .eq("company_id", profile.company_id)
       .order("created_date", { ascending: false })
       .limit(1)
