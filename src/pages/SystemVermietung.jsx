@@ -60,22 +60,8 @@ export default function SystemVermietung() {
         return;
       }
       try {
-        const token = await getAuthToken();
-        if (!token) {
-          setChecking(false);
-          return;
-        }
-        const response = await fetch("/api/admin/check-owner", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        const payload = await response.json();
-        const owner = Boolean(payload?.isOwner);
+        const owner = await fetchCompanies();
         setIsOwner(owner);
-        if (owner) {
-          await fetchCompanies();
-        }
       } catch (err) {
         setIsOwner(false);
       } finally {
@@ -92,7 +78,7 @@ export default function SystemVermietung() {
 
   const fetchCompanies = async (preferredId) => {
     const token = await getAuthToken();
-    if (!token) return;
+    if (!token) return false;
     const response = await fetch("/api/admin/list-companies", {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -101,7 +87,7 @@ export default function SystemVermietung() {
     const payload = await response.json();
     if (!response.ok || !payload?.ok) {
       setCompanyError(payload?.error || "Konnte Mandanten nicht laden.");
-      return;
+      return false;
     }
     const items = payload.data || [];
     setCompanies(items);
@@ -117,6 +103,7 @@ export default function SystemVermietung() {
       setSelectedCompany(null);
       setCompanyForm(buildCompanyForm(null, null));
     }
+    return true;
   };
 
   const handleSelectCompany = (companyId) => {
