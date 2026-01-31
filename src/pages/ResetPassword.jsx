@@ -30,6 +30,7 @@ export default function ResetPassword() {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [hasSession, setHasSession] = useState(false);
+  const [verifying, setVerifying] = useState(false);
   const [sending, setSending] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -38,9 +39,12 @@ export default function ResetPassword() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search || "");
     const queryEmail = params.get("email") || "";
+    const token = params.get("token") || "";
+    const type = params.get("type") || "";
     if (queryEmail) {
       setEmail((prev) => prev || queryEmail);
     }
+
     const loadSession = async () => {
       const { data } = await supabase.auth.getSession();
       const session = data?.session || null;
@@ -49,7 +53,34 @@ export default function ResetPassword() {
         setEmail((prev) => prev || session.user.email || "");
       }
     };
+
+    const verifyToken = async () => {
+      if (!token || !type || !queryEmail) return;
+      setVerifying(true);
+      setError("");
+      try {
+        const { data, error: verifyError } = await supabase.auth.verifyOtp({
+          email: queryEmail,
+          token,
+          type,
+        });
+        if (verifyError) {
+          throw new Error(verifyError.message || "Link ist ungültig oder abgelaufen.");
+        }
+        if (data?.session) {
+          setHasSession(true);
+          window.history.replaceState({}, document.title, "/reset-password");
+        }
+      } catch (err) {
+        setError(err?.message || "Link ist ungültig oder abgelaufen.");
+      } finally {
+        setVerifying(false);
+      }
+    };
+
     loadSession();
+    verifyToken();
+
     const { data: listener } = supabase.auth.onAuthStateChange(() => {
       loadSession();
     });
@@ -153,7 +184,7 @@ export default function ResetPassword() {
     }
     setSaving(true);
     try {
-      await appClient.auth.updatePassword({ password });
+      await supabase.auth.updateUser({ password });
       await activateProfile();
       setMessage("Passwort gespeichert. Bitte jetzt einloggen.");
       await supabase.auth.signOut();
@@ -185,7 +216,12 @@ export default function ResetPassword() {
             </div>
           )}
 
-          {hasSession ? (
+          {verifying ? (
+            <div className="flex items-center justify-center gap-2 text-sm text-slate-500">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Link wird geprüft...
+            </div>
+          ) : hasSession ? (
             <form onSubmit={handleSetPassword} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="new-password">Neues Passwort</Label>

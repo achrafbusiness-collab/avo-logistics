@@ -114,6 +114,15 @@ const ensureRedirect = (link, redirect) => {
   }
 };
 
+const buildAppLink = ({ baseUrl, email, otp, type }) => {
+  if (!baseUrl || !otp || !type) return "";
+  const params = new URLSearchParams();
+  params.set("token", otp);
+  params.set("type", type);
+  if (email) params.set("email", email);
+  return `${baseUrl.replace(/\/$/, "")}/reset-password?${params.toString()}`;
+};
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     res.status(405).json({ ok: false, error: "Method not allowed" });
@@ -179,7 +188,15 @@ export default async function handler(req, res) {
       }
 
       const rawActionLink = linkData.properties?.action_link || "";
-      const actionLink = ensureRedirect(rawActionLink, effectiveRedirect);
+      const emailOtp = linkData.properties?.email_otp || "";
+      const verificationType = linkData.properties?.verification_type || "recovery";
+      const appLink = buildAppLink({
+        baseUrl: normalizedPublicUrl,
+        email,
+        otp: emailOtp,
+        type: verificationType,
+      });
+      const actionLink = appLink || ensureRedirect(rawActionLink, effectiveRedirect);
       await supabaseAdmin
         .from("profiles")
         .update({ must_reset_password: true, updated_at: new Date().toISOString() })
@@ -326,7 +343,15 @@ ${actionLink}
 
     const invitedUser = linkData.user;
     const rawActionLink = linkData.properties?.action_link || "";
-    const actionLink = ensureRedirect(rawActionLink, effectiveRedirect);
+    const emailOtp = linkData.properties?.email_otp || "";
+    const verificationType = linkData.properties?.verification_type || "invite";
+    const appLink = buildAppLink({
+      baseUrl: normalizedPublicUrl,
+      email,
+      otp: emailOtp,
+      type: verificationType,
+    });
+    const actionLink = appLink || ensureRedirect(rawActionLink, effectiveRedirect);
     if (invitedUser) {
       const profileData = {
         id: invitedUser.id,
