@@ -114,7 +114,8 @@ export default async function handler(req, res) {
       return;
     }
 
-    const normalizedPublicUrl = normalizePublicUrl(publicSiteUrl);
+    const normalizedPublicUrl =
+      normalizePublicUrl(publicSiteUrl) || "https://avo-logistics.app";
     const effectiveRedirect =
       normalizedPublicUrl
         ? `${normalizedPublicUrl}/reset-password`
