@@ -47,6 +47,14 @@ const formatPrice = (value) => {
   return String(value);
 };
 
+const getCustomerDisplayName = (customer) => {
+  if (!customer) return '';
+  if (customer.type === 'business' && customer.company_name) {
+    return customer.company_name;
+  }
+  return `${customer.first_name || ''} ${customer.last_name || ''}`.trim();
+};
+
 export default function OrderForm({ order, onSave, onCancel, currentUser }) {
   const canEditDriverPrice = currentUser?.role !== 'driver';
   const [formData, setFormData] = useState({
@@ -94,6 +102,21 @@ export default function OrderForm({ order, onSave, onCancel, currentUser }) {
     queryFn: () => appClient.entities.Customer.list('-created_date', 500),
   });
 
+  const customerOptions = useMemo(() => {
+    return (customers || []).map((customer) => {
+      const name = getCustomerDisplayName(customer) || customer.email || customer.customer_number || 'Kunde';
+      const label = customer.customer_number ? `${name} (${customer.customer_number})` : name;
+      return {
+        id: customer.id,
+        name,
+        label,
+        number: customer.customer_number || '',
+        email: customer.email || '',
+        phone: customer.phone || '',
+      };
+    });
+  }, [customers]);
+
   useEffect(() => {
     if (order) {
       setFormData({
@@ -128,23 +151,70 @@ export default function OrderForm({ order, onSave, onCancel, currentUser }) {
     }));
   };
 
-  const handleCustomerChange = (customerId) => {
-    const customer = customers.find(c => c.id === customerId);
-    let customerName = '';
-    if (customer) {
-      customerName = customer.type === 'business' && customer.company_name 
-        ? customer.company_name 
-        : `${customer.first_name || ''} ${customer.last_name || ''}`.trim();
+  const resolveCustomerMatch = (value) => {
+    const trimmed = String(value || '').trim();
+    if (!trimmed) return null;
+    const normalized = trimmed.toLowerCase();
+    const direct = customerOptions.find((option) => option.label.toLowerCase() === normalized);
+    if (direct) return direct;
+    const byName = customerOptions.find((option) => option.name.toLowerCase() === normalized);
+    if (byName) return byName;
+    const numberMatch = trimmed.match(/\(([^)]+)\)\s*$/);
+    if (numberMatch) {
+      const number = numberMatch[1].trim().toLowerCase();
+      const byNumber = customerOptions.find(
+        (option) => option.number && option.number.toLowerCase() === number
+      );
+      if (byNumber) return byNumber;
     }
-    
-    setFormData(prev => ({
+    const byNumber = customerOptions.find(
+      (option) => option.number && option.number.toLowerCase() === normalized
+    );
+    return byNumber || null;
+  };
+
+  const handleCustomerInputChange = (value) => {
+    const trimmed = String(value || '').trim();
+    if (!trimmed) {
+      setFormData((prev) => ({
+        ...prev,
+        customer_id: '',
+        customer_name: '',
+        customer_email: '',
+        customer_phone: '',
+      }));
+      return;
+    }
+    const match = resolveCustomerMatch(trimmed);
+    if (match) {
+      setFormData((prev) => ({
+        ...prev,
+        customer_id: match.id,
+        customer_name: match.name,
+        customer_email: match.email || '',
+        customer_phone: match.phone || '',
+      }));
+      return;
+    }
+    setFormData((prev) => ({
       ...prev,
-      customer_id: customerId,
-      customer_name: customerName,
-      customer_email: customer?.email || '',
-      customer_phone: customer?.phone || '',
+      customer_id: '',
+      customer_name: value,
+      ...(prev.customer_id ? { customer_email: '', customer_phone: '' } : null),
     }));
   };
+
+  useEffect(() => {
+    if (!formData.customer_id || formData.customer_name) return;
+    const match = customerOptions.find((option) => option.id === formData.customer_id);
+    if (!match) return;
+    setFormData((prev) => ({
+      ...prev,
+      customer_name: match.name,
+      customer_email: prev.customer_email || match.email || '',
+      customer_phone: prev.customer_phone || match.phone || '',
+    }));
+  }, [customerOptions, formData.customer_id, formData.customer_name]);
 
   const distanceKey = useMemo(() => {
     const pickupKey = [formData.pickup_address, formData.pickup_postal_code, formData.pickup_city]
@@ -213,8 +283,15 @@ export default function OrderForm({ order, onSave, onCancel, currentUser }) {
     e.preventDefault();
     setSaving(true);
     try {
+      const resolvedCustomer = !formData.customer_id
+        ? resolveCustomerMatch(formData.customer_name)
+        : null;
       const dataToSave = {
         ...formData,
+        customer_id: formData.customer_id || resolvedCustomer?.id || null,
+        customer_name: resolvedCustomer?.name || formData.customer_name,
+        customer_email: formData.customer_email || resolvedCustomer?.email || '',
+        customer_phone: formData.customer_phone || resolvedCustomer?.phone || '',
         distance_km: formData.distance_km ? parseFloat(formData.distance_km) : null,
         driver_price: formData.driver_price !== '' ? parseFloat(formData.driver_price) : null,
       };
@@ -277,29 +354,19 @@ export default function OrderForm({ order, onSave, onCancel, currentUser }) {
               </div>
             </div>
             <div>
-                <Label>Kunde</Label>
-                <Select 
-                value={formData.customer_id || "none"} 
-                onValueChange={(v) => handleCustomerChange(v === "none" ? "" : v)}
-                >
-                <SelectTrigger>
-                  <SelectValue placeholder="Kunde auswählen..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Kein Kunde</SelectItem>
-                  {customers.map(customer => {
-                    const name = customer.type === 'business' && customer.company_name
-                      ? customer.company_name
-                      : `${customer.first_name || ''} ${customer.last_name || ''}`.trim();
-                    return (
-                      <SelectItem key={customer.id} value={customer.id}>
-                        {name} ({customer.customer_number})
-                      </SelectItem>
-                    );
-                  })}
-                </SelectContent>
-                </Select>
-                </div>
+              <Label>Kunde</Label>
+              <Input
+                list="order-customer-options"
+                value={formData.customer_name}
+                onChange={(e) => handleCustomerInputChange(e.target.value)}
+                placeholder="Kunde eingeben oder auswählen..."
+              />
+              <datalist id="order-customer-options">
+                {customerOptions.map((option) => (
+                  <option key={option.id} value={option.label} />
+                ))}
+              </datalist>
+            </div>
             <div>
               <Label>Strecke (km)</Label>
               <div className="flex items-center gap-2">
@@ -538,14 +605,6 @@ export default function OrderForm({ order, onSave, onCancel, currentUser }) {
                 </Select>
               </div>
               <div className="space-y-4">
-                <div>
-                  <Label>Kundenname</Label>
-                  <Input 
-                    value={formData.customer_name}
-                    onChange={(e) => handleChange('customer_name', e.target.value)}
-                    placeholder="Name"
-                  />
-                </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <Label>Telefon</Label>

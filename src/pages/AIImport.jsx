@@ -43,6 +43,14 @@ export default function AIImport() {
     return String(value);
   };
 
+  const getCustomerDisplayName = (customer) => {
+    if (!customer) return '';
+    if (customer.type === 'business' && customer.company_name) {
+      return customer.company_name;
+    }
+    return `${customer.first_name || ''} ${customer.last_name || ''}`.trim();
+  };
+
   const { data: drivers = [] } = useQuery({
     queryKey: ['drivers'],
     queryFn: () => appClient.entities.Driver.list(),
@@ -52,6 +60,21 @@ export default function AIImport() {
     queryKey: ['customers'],
     queryFn: () => appClient.entities.Customer.list(),
   });
+
+  const customerOptions = useMemo(() => {
+    return (customers || []).map((customer) => {
+      const name = getCustomerDisplayName(customer) || customer.email || customer.customer_number || 'Kunde';
+      const label = customer.customer_number ? `${name} (${customer.customer_number})` : name;
+      return {
+        id: customer.id,
+        name,
+        label,
+        number: customer.customer_number || '',
+        email: customer.email || '',
+        phone: customer.phone || '',
+      };
+    });
+  }, [customers]);
 
   const createOrderMutation = useMutation({
     mutationFn: (data) => appClient.entities.Order.create(data),
@@ -243,8 +266,15 @@ Gib ausschließlich die strukturierten Daten zurück.`,
       return;
     }
 
+    const resolvedCustomer = !currentOrder.customer_id
+      ? resolveCustomerMatch(currentOrder.customer_name)
+      : null;
     const dataToSave = {
       ...currentOrder,
+      customer_id: currentOrder.customer_id || resolvedCustomer?.id || null,
+      customer_name: resolvedCustomer?.name || currentOrder.customer_name || '',
+      customer_email: currentOrder.customer_email || resolvedCustomer?.email || '',
+      customer_phone: currentOrder.customer_phone || resolvedCustomer?.phone || '',
       distance_km: distanceKm,
       driver_price: (() => {
         if (currentOrder.driver_price === '' || currentOrder.driver_price === null || currentOrder.driver_price === undefined) {
@@ -281,6 +311,36 @@ Gib ausschließlich die strukturierten Daten zurück.`,
     });
   };
 
+  const updateCurrentOrder = (updates) => {
+    setExtractedOrders((prev) => {
+      const updated = [...prev];
+      updated[selectedOrderIndex] = { ...updated[selectedOrderIndex], ...updates };
+      return updated;
+    });
+  };
+
+  const resolveCustomerMatch = (value) => {
+    const trimmed = String(value || '').trim();
+    if (!trimmed) return null;
+    const normalized = trimmed.toLowerCase();
+    const direct = customerOptions.find((option) => option.label.toLowerCase() === normalized);
+    if (direct) return direct;
+    const byName = customerOptions.find((option) => option.name.toLowerCase() === normalized);
+    if (byName) return byName;
+    const numberMatch = trimmed.match(/\(([^)]+)\)\s*$/);
+    if (numberMatch) {
+      const number = numberMatch[1].trim().toLowerCase();
+      const byNumber = customerOptions.find(
+        (option) => option.number && option.number.toLowerCase() === number
+      );
+      if (byNumber) return byNumber;
+    }
+    const byNumber = customerOptions.find(
+      (option) => option.number && option.number.toLowerCase() === normalized
+    );
+    return byNumber || null;
+  };
+
   const handleDriverChange = (driverId) => {
     const driver = drivers.find(d => d.id === driverId);
     if (driver) {
@@ -289,19 +349,31 @@ Gib ausschließlich die strukturierten Daten zurück.`,
     }
   };
 
-  const handleCustomerChange = (customerId) => {
-    const customer = customers.find(c => c.id === customerId);
-    if (!customerId || !customer) {
-      updateExtractedData('customer_id', '');
-      updateExtractedData('customer_name', '');
-      updateExtractedData('customer_phone', '');
-      updateExtractedData('customer_email', '');
+  const handleCustomerNameChange = (value) => {
+    const trimmed = String(value || '').trim();
+    if (!trimmed) {
+      updateCurrentOrder({
+        customer_id: '',
+        customer_name: '',
+        customer_phone: '',
+        customer_email: '',
+      });
       return;
     }
-    updateExtractedData('customer_id', customer.id);
-    updateExtractedData('customer_name', customer.company_name || `${customer.first_name} ${customer.last_name}`);
-    updateExtractedData('customer_phone', customer.phone);
-    updateExtractedData('customer_email', customer.email);
+    const match = resolveCustomerMatch(trimmed);
+    if (match) {
+      updateCurrentOrder({
+        customer_id: match.id,
+        customer_name: match.name,
+        customer_phone: match.phone || '',
+        customer_email: match.email || '',
+      });
+      return;
+    }
+    updateCurrentOrder({
+      customer_id: '',
+      customer_name: value,
+    });
   };
 
   const removeOrder = (index) => {
@@ -694,23 +766,18 @@ Gib ausschließlich die strukturierten Daten zurück.`,
                   <CardContent className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <Label>Kunde auswählen</Label>
-                        <Select
-                          value={currentOrder.customer_id || "none"}
-                          onValueChange={(value) => handleCustomerChange(value === "none" ? "" : value)}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Kunde wählen..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="none">Kein Kunde</SelectItem>
-                            {customers.map(customer => (
-                              <SelectItem key={customer.id} value={customer.id}>
-                                {customer.company_name || `${customer.first_name} ${customer.last_name}`}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <Label>Kunde</Label>
+                        <Input
+                          list="import-customer-options"
+                          value={currentOrder.customer_name || ""}
+                          onChange={(e) => handleCustomerNameChange(e.target.value)}
+                          placeholder="Kunde eingeben oder auswählen..."
+                        />
+                        <datalist id="import-customer-options">
+                          {customerOptions.map((option) => (
+                            <option key={option.id} value={option.label} />
+                          ))}
+                        </datalist>
                       </div>
                       <div>
                         <Label>Fahrer zuweisen</Label>
@@ -730,13 +797,6 @@ Gib ausschließlich die strukturierten Daten zurück.`,
                             ))}
                           </SelectContent>
                         </Select>
-                      </div>
-                      <div>
-                        <Label>Kundenname</Label>
-                        <Input 
-                          value={currentOrder.customer_name || ''} 
-                          onChange={(e) => updateExtractedData('customer_name', e.target.value)}
-                        />
                       </div>
                       <div>
                         <Label>Kundentelefon</Label>
