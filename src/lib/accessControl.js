@@ -15,6 +15,8 @@ const SYSTEM_ADMIN_PAGES = new Set([
   "SystemVermietung",
 ]);
 
+const ADMIN_ONLY_PAGES = new Set(["TeamAVO"]);
+
 const normalizeEmail = (value) => String(value || "").trim().toLowerCase();
 
 const isSystemAdmin = (user) => {
@@ -30,6 +32,9 @@ export const hasPageAccess = (user, pageName) => {
   if (!user) return false;
   if (user.role === "driver") {
     return DRIVER_PAGES.has(pageName);
+  }
+  if (ADMIN_ONLY_PAGES.has(pageName)) {
+    return user.role === "admin" || isSystemAdmin(user);
   }
   if (SYSTEM_ADMIN_PAGES.has(pageName)) {
     return isSystemAdmin(user);
