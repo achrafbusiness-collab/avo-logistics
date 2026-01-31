@@ -129,29 +129,8 @@ export default async function handler(req, res) {
       return;
     }
 
-    const { orderId } = await readJsonBody(req);
-    if (!orderId) {
-      res.status(400).json({ ok: false, error: "Missing orderId" });
-      return;
-    }
-
-    const { data: order, error: orderError } = await supabaseAdmin
-      .from("orders")
-      .select(
-        "id, order_number, customer_order_number, customer_name, license_plate, vehicle_brand, vehicle_model, pickup_address, pickup_postal_code, pickup_city, pickup_date, pickup_time, dropoff_address, dropoff_postal_code, dropoff_city, dropoff_date, dropoff_time, assigned_driver_id, assigned_driver_name, company_id"
-      )
-      .eq("id", orderId)
-      .maybeSingle();
-
-    if (orderError) {
-      res.status(500).json({ ok: false, error: orderError.message });
-      return;
-    }
-
-    if (!order || order.company_id !== profile.company_id) {
-      res.status(404).json({ ok: false, error: "Auftrag nicht gefunden." });
-      return;
-    }
+    const body = await readJsonBody(req);
+    const { orderId, testEmail, to } = body || {};
 
     const { data: settings } = await supabaseAdmin
       .from("app_settings")
@@ -182,6 +161,72 @@ export default async function handler(req, res) {
       fallback: resolvedSmtp.from || resolvedSmtp.user,
     });
     const replyTo = settings?.support_email || undefined;
+
+    if (testEmail) {
+      const target = to || resolvedSmtp.user || senderAddress;
+      if (!target) {
+        res.status(400).json({ ok: false, error: "Bitte Test-E-Mail-Adresse angeben." });
+        return;
+      }
+      if (!canSendEmail(resolvedSmtp)) {
+        res.status(400).json({ ok: false, error: "SMTP ist nicht konfiguriert." });
+        return;
+      }
+      const subject = "AVO Test-E-Mail";
+      const text = `Hallo,
+
+dies ist eine Test-E-Mail aus deinem AVO System.
+
+Absender: ${fromAddress}
+Unternehmen: ${settings?.company_name || "-"}
+
+Wenn du diese E-Mail erhalten hast, ist SMTP korrekt eingerichtet.`;
+      const html = `<p>Hallo,</p>
+<p>dies ist eine Test-E-Mail aus deinem AVO System.</p>
+<ul>
+  <li><strong>Absender:</strong> ${fromAddress}</li>
+  <li><strong>Unternehmen:</strong> ${settings?.company_name || "-"}</li>
+</ul>
+<p>Wenn du diese E-Mail erhalten hast, ist SMTP korrekt eingerichtet.</p>`;
+      const emailSent = await sendEmail({
+        to: target,
+        subject,
+        text,
+        html,
+        from: fromAddress,
+        replyTo,
+        smtp: resolvedSmtp,
+      });
+      if (!emailSent) {
+        res.status(500).json({ ok: false, error: "Test-E-Mail konnte nicht gesendet werden." });
+        return;
+      }
+      res.status(200).json({ ok: true, data: { emailSent: true } });
+      return;
+    }
+
+    if (!orderId) {
+      res.status(400).json({ ok: false, error: "Missing orderId" });
+      return;
+    }
+
+    const { data: order, error: orderError } = await supabaseAdmin
+      .from("orders")
+      .select(
+        "id, order_number, customer_order_number, customer_name, license_plate, vehicle_brand, vehicle_model, pickup_address, pickup_postal_code, pickup_city, pickup_date, pickup_time, dropoff_address, dropoff_postal_code, dropoff_city, dropoff_date, dropoff_time, assigned_driver_id, assigned_driver_name, company_id"
+      )
+      .eq("id", orderId)
+      .maybeSingle();
+
+    if (orderError) {
+      res.status(500).json({ ok: false, error: orderError.message });
+      return;
+    }
+
+    if (!order || order.company_id !== profile.company_id) {
+      res.status(404).json({ ok: false, error: "Auftrag nicht gefunden." });
+      return;
+    }
 
     const pickupLine = formatAddress([
       order.pickup_address,
@@ -221,7 +266,7 @@ export default async function handler(req, res) {
     const subject = `Auftragsbestätigung – Auftrag ${order.order_number || ""} zugewiesen`;
     const text = `Hallo ${order.assigned_driver_name || "Fahrer"},
 
-du hast einen neuen Auftrag erhalten. Bitte bestätige die Annahme in der Fahrer‑App.
+du hast einen neuen Auftrag erhalten.
 
 Auftrag: ${order.order_number || "-"}
 Kundenauftrag: ${order.customer_order_number || "-"}
@@ -241,7 +286,7 @@ Viele Grüße
 ${signatureName}`;
 
     const html = `<p>Hallo ${order.assigned_driver_name || "Fahrer"},</p>
-<p>du hast einen neuen Auftrag erhalten. Bitte bestätige die Annahme in der Fahrer‑App.</p>
+<p>du hast einen neuen Auftrag erhalten.</p>
 <ul>
   <li><strong>Auftrag:</strong> ${order.order_number || "-"}</li>
   <li><strong>Kundenauftrag:</strong> ${order.customer_order_number || "-"}</li>

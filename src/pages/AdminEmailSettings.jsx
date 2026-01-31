@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { ArrowLeft, Mail, Save, Server, Loader2 } from "lucide-react";
+import { supabase } from "@/lib/supabaseClient";
+import { ArrowLeft, Mail, Save, Server, Loader2, Send } from "lucide-react";
 
 const defaultSettings = {
   email_sender_name: "",
@@ -30,6 +31,10 @@ export default function AdminEmailSettings() {
   const [settings, setSettings] = useState(defaultSettings);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [testEmail, setTestEmail] = useState("");
+  const [testSending, setTestSending] = useState(false);
+  const [testMessage, setTestMessage] = useState("");
+  const [testError, setTestError] = useState("");
 
   const { data: appSettings = [] } = useQuery({
     queryKey: ["appSettings"],
@@ -39,6 +44,7 @@ export default function AdminEmailSettings() {
   useEffect(() => {
     if (appSettings.length > 0) {
       setSettings({ ...defaultSettings, ...appSettings[0] });
+      setTestEmail((prev) => prev || appSettings[0].smtp_user || "");
     }
   }, [appSettings]);
 
@@ -68,6 +74,40 @@ export default function AdminEmailSettings() {
       await updateMutation.mutateAsync({ id: appSettings[0].id, data: settings });
     } else {
       await createMutation.mutateAsync(settings);
+    }
+  };
+
+  const handleSendTest = async () => {
+    setTestMessage("");
+    setTestError("");
+    if (!testEmail.trim()) {
+      setTestError("Bitte eine Test-E-Mail-Adresse eingeben.");
+      return;
+    }
+    setTestSending(true);
+    try {
+      const { data } = await supabase.auth.getSession();
+      const token = data?.session?.access_token;
+      if (!token) {
+        throw new Error("Nicht angemeldet.");
+      }
+      const response = await fetch("/api/admin/send-driver-assignment", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ testEmail: true, to: testEmail.trim() }),
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload?.ok) {
+        throw new Error(payload?.error || "Test-E-Mail fehlgeschlagen.");
+      }
+      setTestMessage("Test-E-Mail wurde versendet.");
+    } catch (err) {
+      setTestError(err?.message || "Test-E-Mail fehlgeschlagen.");
+    } finally {
+      setTestSending(false);
     }
   };
 
@@ -120,6 +160,32 @@ export default function AdminEmailSettings() {
               placeholder="noreply@deine-domain.de"
             />
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Send className="h-5 w-5" />
+            Test E-Mail
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4 md:flex-row md:items-end">
+          <div className="flex-1">
+            <Label>Test-E-Mail an</Label>
+            <Input
+              type="email"
+              value={testEmail}
+              onChange={(e) => setTestEmail(e.target.value)}
+              placeholder="deine@email.de"
+            />
+          </div>
+          <Button onClick={handleSendTest} disabled={testSending}>
+            {testSending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+            Test senden
+          </Button>
+          {testMessage && <span className="text-sm text-emerald-600">{testMessage}</span>}
+          {testError && <span className="text-sm text-red-600">{testError}</span>}
         </CardContent>
       </Card>
 
