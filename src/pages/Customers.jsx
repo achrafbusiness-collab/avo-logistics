@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { appClient } from '@/api/appClient';
 import { createPageUrl } from '@/utils';
+import { Link } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -405,6 +406,11 @@ export default function Customers() {
                 </div>
               </div>
               <div className="flex gap-2">
+                <Link to={`${createPageUrl('Orders')}?customerId=${selectedCustomer.id}`}>
+                  <Button variant="outline">
+                    Aufträge anzeigen
+                  </Button>
+                </Link>
                 <Button variant="outline" onClick={() => setView('form')}>
                   <Edit className="w-4 h-4 mr-2" />
                   Bearbeiten

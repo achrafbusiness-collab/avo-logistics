@@ -59,6 +59,7 @@ export default function Orders() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [listMode, setListMode] = useState('active');
   const [driverFilter, setDriverFilter] = useState('all');
+  const [customerFilter, setCustomerFilter] = useState('all');
   const [expensesFilter, setExpensesFilter] = useState('all');
   const [dueFilter, setDueFilter] = useState('all');
   const [dueSort, setDueSort] = useState('desc');
@@ -130,6 +131,11 @@ export default function Orders() {
   const { data: drivers = [] } = useQuery({
     queryKey: ['drivers'],
     queryFn: () => appClient.entities.Driver.filter({ status: 'active' }),
+  });
+
+  const { data: customers = [] } = useQuery({
+    queryKey: ['customers'],
+    queryFn: () => appClient.entities.Customer.list('-created_date', 500),
   });
 
   const getDueDateTime = (order) => {
@@ -257,6 +263,12 @@ export default function Orders() {
     }
     const dueParam = urlParams.get('due');
     setDueFilter(dueParam || 'all');
+    const customerParam = urlParams.get('customerId');
+    if (customerParam) {
+      setCustomerFilter(customerParam);
+    } else {
+      setCustomerFilter('all');
+    }
   }, [urlParams.toString(), orders]);
 
   const handleSave = async (data) => {
@@ -362,6 +374,12 @@ export default function Orders() {
     const matchesDriver =
       driverFilter === 'all' || order.assigned_driver_id === driverFilter;
 
+    const matchesCustomer = (() => {
+      if (customerFilter === 'all') return true;
+      if (customerFilter === 'none') return !order.customer_id;
+      return order.customer_id === customerFilter;
+    })();
+
     const hasExpenses = Boolean(expensesByOrder[order.id]);
     const matchesExpenses =
       expensesFilter === 'all' ||
@@ -392,6 +410,7 @@ export default function Orders() {
       matchesStatus &&
       matchesListMode &&
       matchesDriver &&
+      matchesCustomer &&
       matchesExpenses &&
       matchesDueFilter
     );
@@ -921,6 +940,27 @@ export default function Orders() {
                 })}
               </SelectContent>
             </Select>
+            <Select value={customerFilter} onValueChange={setCustomerFilter}>
+              <SelectTrigger className="w-full sm:w-56">
+                <SelectValue placeholder="Kunden" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Alle Kunden</SelectItem>
+                <SelectItem value="none">Ohne Kunde</SelectItem>
+                {customers.map((customer) => {
+                  const name =
+                    customer.type === 'business' && customer.company_name
+                      ? customer.company_name
+                      : `${customer.first_name || ''} ${customer.last_name || ''}`.trim();
+                  const label = name || customer.email || 'Kunde';
+                  return (
+                    <SelectItem key={customer.id} value={customer.id}>
+                      {label}
+                    </SelectItem>
+                  );
+                })}
+              </SelectContent>
+            </Select>
           </div>
         </CardContent>
       </Card>
@@ -993,6 +1033,7 @@ export default function Orders() {
                     setSearchTerm('');
                     setStatusFilter('all');
                     setDriverFilter('all');
+                    setCustomerFilter('all');
                     setExpensesFilter('all');
                     setDueFilter('all');
                   }}

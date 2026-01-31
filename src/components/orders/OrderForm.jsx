@@ -91,7 +91,7 @@ export default function OrderForm({ order, onSave, onCancel, currentUser }) {
 
   const { data: customers = [] } = useQuery({
     queryKey: ['customers'],
-    queryFn: () => appClient.entities.Customer.filter({ status: 'active' }),
+    queryFn: () => appClient.entities.Customer.list('-created_date', 500),
   });
 
   useEffect(() => {
