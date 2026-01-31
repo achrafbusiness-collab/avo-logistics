@@ -50,12 +50,10 @@ const permissionOptions = [
   { key: "Orders", label: "Aufträge" },
   { key: "Drivers", label: "Fahrer" },
   { key: "Customers", label: "Kunden" },
-  { key: "Search", label: "Suche" },
   { key: "AIImport", label: "AI Import" },
   { key: "AVOAI", label: "AVO AI" },
-  { key: "AppConnection", label: "App-Verbindung" },
+  { key: "AppConnection", label: "App & Einstellungen" },
   { key: "TeamAVO", label: "Team" },
-  { key: "Verlauf", label: "Verlauf" },
 ];
 
 const defaultPermissions = permissionOptions.reduce((acc, item) => {

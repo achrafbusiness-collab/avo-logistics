@@ -1,33 +1,28 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { appClient } from '@/api/appClient';
 import { 
   LayoutDashboard, 
   Truck, 
   Users, 
-  Search,
   Menu,
   X,
   LogOut,
   User,
   ChevronDown,
-  Sparkles,
   Moon,
   Sun,
-  Terminal,
-  Building2,
-  History,
   LifeBuoy,
-  Settings
+  Settings,
+  ShieldCheck
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { hasPageAccess } from "@/lib/accessControl";
@@ -36,23 +31,12 @@ import { useI18n } from "@/i18n";
 // Admin pages (full sidebar)
 const adminPages = [
   { name: 'Dashboard', icon: LayoutDashboard, page: 'Dashboard' },
-  { name: 'AVO AI', icon: Sparkles, page: 'AVOAI' },
   { name: 'Aufträge', icon: Truck, page: 'Orders' },
-  { name: 'Kunden', icon: User, page: 'Customers' },
   { name: 'Fahrer', icon: Users, page: 'Drivers' },
-  { name: 'App-Verbindung', icon: User, page: 'AppConnection' },
-  { name: 'Suche', icon: Search, page: 'Search' },
+  { name: 'Kunden', icon: User, page: 'Customers' },
+  { name: 'App & Einstellungen', icon: Settings, page: 'AppConnection' },
   { name: 'Team', icon: Users, page: 'TeamAVO' },
-  { name: 'Verlauf', icon: History, page: 'Verlauf' },
-  { name: 'Terminal', icon: Terminal, page: 'Terminal' },
-  { name: 'System-Vermietung', icon: Building2, page: 'SystemVermietung' },
-];
-
-const adminQuickLinks = [
-  { name: 'Einstellungen', icon: Settings, page: 'AppConnection' },
-  { name: 'Verlauf', icon: History, page: 'Verlauf' },
-  { name: 'Terminal', icon: Terminal, page: 'Terminal' },
-  { name: 'System-Vermietung', icon: Building2, page: 'SystemVermietung' },
+  { name: 'Admin Controlling', icon: ShieldCheck, page: 'AdminControlling' },
 ];
 
 export default function Layout({ children, currentPageName }) {
@@ -61,7 +45,6 @@ export default function Layout({ children, currentPageName }) {
   const [user, setUser] = useState(null);
   const [isDriver, setIsDriver] = useState(false);
   const location = useLocation();
-  const navigate = useNavigate();
   const mainRef = useRef(null);
   const { t, dir } = useI18n();
   const [darkMode, setDarkMode] = useState(() => {
@@ -293,18 +276,6 @@ export default function Layout({ children, currentPageName }) {
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
-                  {adminQuickLinks
-                    .filter((item) => hasPageAccess(user, item.page))
-                    .map((item) => (
-                      <DropdownMenuItem
-                        key={item.page}
-                        onClick={() => navigate(createPageUrl(item.page))}
-                      >
-                        <item.icon className="w-4 h-4 mr-2" />
-                        {item.name}
-                      </DropdownMenuItem>
-                    ))}
-                  <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleLogout}>
                     <LogOut className="w-4 h-4 mr-2" />
                     Abmelden

@@ -4,6 +4,8 @@ import crypto from "crypto";
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const systemAdminEmail = process.env.SYSTEM_ADMIN_EMAIL;
+const systemAdminUserId = process.env.SYSTEM_ADMIN_USER_ID;
 
 const smtpHost = process.env.SMTP_HOST;
 const smtpPort = process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : 0;
@@ -33,6 +35,34 @@ const getBearerToken = (req) => {
 };
 
 const supabaseAdmin = createClient(supabaseUrl || "", serviceRoleKey || "");
+
+const normalizeEmail = (value) => String(value || "").trim().toLowerCase();
+
+const getSystemCompanyRecord = async () => {
+  const { data, error } = await supabaseAdmin
+    .from("companies")
+    .select("id, owner_user_id")
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (error) {
+    throw new Error(error.message);
+  }
+  return data || null;
+};
+
+const isSystemAdmin = async (user) => {
+  if (!user) return false;
+  if (systemAdminUserId && user.id === systemAdminUserId) return true;
+  if (systemAdminEmail && normalizeEmail(user.email) === normalizeEmail(systemAdminEmail)) {
+    return true;
+  }
+  if (!systemAdminUserId && !systemAdminEmail) {
+    const systemCompany = await getSystemCompanyRecord();
+    return systemCompany?.owner_user_id ? user.id === systemCompany.owner_user_id : false;
+  }
+  return false;
+};
 
 const canSendEmail = () =>
   Boolean(smtpHost && smtpPort && smtpUser && smtpPass && smtpFrom);
@@ -84,32 +114,8 @@ export default async function handler(req, res) {
       return;
     }
 
-    const { data: profile, error: profileError } = await supabaseAdmin
-      .from("profiles")
-      .select("company_id")
-      .eq("id", authData.user.id)
-      .maybeSingle();
-    if (profileError) {
-      res.status(500).json({ ok: false, error: profileError.message });
-      return;
-    }
-
-    if (!profile?.company_id) {
-      res.status(403).json({ ok: false, error: "Kein Unternehmen gefunden." });
-      return;
-    }
-
-    const { data: ownerCompany, error: companyError } = await supabaseAdmin
-      .from("companies")
-      .select("owner_user_id")
-      .eq("id", profile.company_id)
-      .maybeSingle();
-    if (companyError) {
-      res.status(500).json({ ok: false, error: companyError.message });
-      return;
-    }
-
-    if (ownerCompany?.owner_user_id !== authData.user.id) {
+    const isOwner = await isSystemAdmin(authData.user);
+    if (!isOwner) {
       res.status(403).json({ ok: false, error: "Nicht erlaubt." });
       return;
     }

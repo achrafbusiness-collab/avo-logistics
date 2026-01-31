@@ -2,6 +2,9 @@ import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const systemAdminEmail = process.env.SYSTEM_ADMIN_EMAIL;
+const systemAdminUserId = process.env.SYSTEM_ADMIN_USER_ID;
+const systemCompanyId = process.env.SYSTEM_COMPANY_ID;
 
 const readJsonBody = async (req) => {
   if (req.body && typeof req.body === "object") {
@@ -24,28 +27,38 @@ const getBearerToken = (req) => {
 
 const supabaseAdmin = createClient(supabaseUrl || "", serviceRoleKey || "");
 
-const getCompanyIdForUser = async (userId) => {
-  const { data, error } = await supabaseAdmin
-    .from("profiles")
-    .select("company_id")
-    .eq("id", userId)
-    .maybeSingle();
-  if (error) {
-    throw new Error(error.message);
-  }
-  return data?.company_id || null;
-};
+const normalizeEmail = (value) => String(value || "").trim().toLowerCase();
 
-const isOwnerUser = async (userId, companyId) => {
+const getSystemCompanyRecord = async () => {
   const { data, error } = await supabaseAdmin
     .from("companies")
-    .select("owner_user_id")
-    .eq("id", companyId)
+    .select("id, owner_user_id")
+    .order("created_at", { ascending: true })
+    .limit(1)
     .maybeSingle();
   if (error) {
     throw new Error(error.message);
   }
-  return data?.owner_user_id === userId;
+  return data || null;
+};
+
+const isSystemAdmin = async (user) => {
+  if (!user) return false;
+  if (systemAdminUserId && user.id === systemAdminUserId) return true;
+  if (systemAdminEmail && normalizeEmail(user.email) === normalizeEmail(systemAdminEmail)) {
+    return true;
+  }
+  if (!systemAdminUserId && !systemAdminEmail) {
+    const systemCompany = await getSystemCompanyRecord();
+    return systemCompany?.owner_user_id ? user.id === systemCompany.owner_user_id : false;
+  }
+  return false;
+};
+
+const resolveSystemCompanyId = async () => {
+  if (systemCompanyId) return systemCompanyId;
+  const systemCompany = await getSystemCompanyRecord();
+  return systemCompany?.id || null;
 };
 
 export default async function handler(req, res) {
@@ -72,13 +85,7 @@ export default async function handler(req, res) {
       return;
     }
 
-    const ownerCompanyId = await getCompanyIdForUser(authData.user.id);
-    if (!ownerCompanyId) {
-      res.status(403).json({ ok: false, error: "Kein Unternehmen gefunden." });
-      return;
-    }
-
-    const isOwner = await isOwnerUser(authData.user.id, ownerCompanyId);
+    const isOwner = await isSystemAdmin(authData.user);
     if (!isOwner) {
       res.status(403).json({ ok: false, error: "Nicht erlaubt." });
       return;
@@ -91,7 +98,13 @@ export default async function handler(req, res) {
       return;
     }
 
-    if (company_id === ownerCompanyId) {
+    const resolvedSystemCompanyId = await resolveSystemCompanyId();
+    if (!resolvedSystemCompanyId) {
+      res.status(500).json({ ok: false, error: "System-Unternehmen nicht konfiguriert." });
+      return;
+    }
+
+    if (company_id === resolvedSystemCompanyId) {
       res.status(400).json({ ok: false, error: "Hauptunternehmen kann nicht gelöscht werden." });
       return;
     }

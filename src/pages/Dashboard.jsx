@@ -6,12 +6,12 @@ import { createPageUrl } from '@/utils';
 import { 
   Truck, 
   Users, 
-  ClipboardCheck, 
   ArrowRight,
   AlertCircle,
   Calendar,
   Route,
-  Search
+  Search,
+  Settings
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -636,10 +636,10 @@ export default function Dashboard() {
                   Fahrer hinzufügen
                 </Button>
               </Link>
-              <Link to={createPageUrl('Search')} className="block">
+              <Link to={createPageUrl('AppConnection')} className="block">
                 <Button variant="outline" className="w-full justify-start border-slate-300 hover:bg-slate-900 hover:text-white">
-                  <ClipboardCheck className="w-4 h-4 mr-2" />
-                  Suche öffnen
+                  <Settings className="w-4 h-4 mr-2" />
+                  App & Einstellungen
                 </Button>
               </Link>
             </CardContent>

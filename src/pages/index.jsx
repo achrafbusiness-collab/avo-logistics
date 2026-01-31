@@ -23,8 +23,7 @@ import Orders from "./Orders";
 
 import DriverPriceRequests from "./DriverPriceRequests";
 
-import Search from "./Search";
-
+import AdminControlling from "./AdminControlling";
 
 import AIImport from "./AIImport";
 
@@ -76,8 +75,7 @@ const PAGES = {
 
     DriverPriceRequests: DriverPriceRequests,
     
-    Search: Search,
-
+    AdminControlling: AdminControlling,
     
     AIImport: AIImport,
     
@@ -226,9 +224,10 @@ function PagesContent() {
                 <Route path="/Orders" element={<Orders />} />
 
                 <Route path="/DriverPriceRequests" element={<DriverPriceRequests />} />
-                
-                <Route path="/Search" element={<Search />} />
 
+                <Route path="/Search" element={<Navigate to={createPageUrl('Dashboard')} replace />} />
+                
+                <Route path="/AdminControlling" element={<AdminControlling />} />
                 
                 <Route path="/AIImport" element={<AIImport />} />
                 
