@@ -52,6 +52,28 @@ const ensureRedirect = (link, redirect) => {
   }
 };
 
+const getAuthUserById = async (userId) => {
+  if (!userId) return null;
+  try {
+    const { data, error } = await supabaseAdmin.auth.admin.getUserById(userId);
+    if (error) return null;
+    return data?.user || null;
+  } catch (error) {
+    return null;
+  }
+};
+
+const getAuthUserByEmail = async (email) => {
+  if (!email) return null;
+  try {
+    const { data, error } = await supabaseAdmin.auth.admin.getUserByEmail(email);
+    if (error) return null;
+    return data?.user || null;
+  } catch (error) {
+    return null;
+  }
+};
+
 const readJsonBody = async (req) => {
   if (req.body && typeof req.body === "object") {
     return req.body;
@@ -162,7 +184,7 @@ export default async function handler(req, res) {
 
     const { data: existingProfile, error: existingProfileError } = await supabaseAdmin
       .from("profiles")
-      .select("id")
+      .select("id, role, company_id, full_name, phone")
       .eq("email", email)
       .maybeSingle();
     if (existingProfileError) {
@@ -170,41 +192,61 @@ export default async function handler(req, res) {
       return;
     }
     if (existingProfile?.id) {
+      if (existingProfile.company_id && existingProfile.company_id !== companyId) {
+        res.status(400).json({ ok: false, error: "E-Mail ist bereits vergeben." });
+        return;
+      }
+      if (existingProfile.role && existingProfile.role !== "driver") {
+        res.status(400).json({ ok: false, error: "E-Mail ist bereits vergeben." });
+        return;
+      }
+    }
+
+    let user = existingProfile?.id ? await getAuthUserById(existingProfile.id) : null;
+    if (!user) {
+      user = await getAuthUserByEmail(email);
+    }
+
+    if (!user) {
+      const tempPassword = crypto.randomBytes(12).toString("base64url");
+      const { data: createUserData, error: createUserError } =
+        await supabaseAdmin.auth.admin.createUser({
+          email,
+          password: tempPassword,
+          email_confirm: true,
+          user_metadata: {
+            full_name: profile?.full_name || "",
+            company_id: companyId,
+            role: "driver",
+          },
+        });
+
+      if (createUserError || !createUserData?.user) {
+        res.status(400).json({ ok: false, error: createUserError?.message || "User creation failed" });
+        return;
+      }
+      user = createUserData.user;
+    }
+
+    if (existingProfile?.id && user?.id && existingProfile.id !== user.id) {
       res.status(400).json({ ok: false, error: "E-Mail ist bereits vergeben." });
       return;
     }
 
-    const tempPassword = crypto.randomBytes(12).toString("base64url");
-    const { data: createUserData, error: createUserError } =
-      await supabaseAdmin.auth.admin.createUser({
-        email,
-        password: tempPassword,
-        email_confirm: true,
-        user_metadata: {
-          full_name: profile?.full_name || "",
-          company_id: companyId,
-          role: "driver",
-        },
-      });
-
-    if (createUserError || !createUserData?.user) {
-      res.status(400).json({ ok: false, error: createUserError?.message || "User creation failed" });
-      return;
-    }
-
-    const user = createUserData.user;
-    await supabaseAdmin.from("profiles").upsert({
+    const profilePayload = {
       id: user.id,
       email: user.email,
-      full_name: profile?.full_name || "",
+      full_name: profile?.full_name || existingProfile?.full_name || "",
       role: "driver",
-      phone: profile?.phone || "",
+      phone: profile?.phone || existingProfile?.phone || "",
       permissions: profile?.permissions || {},
       is_active: true,
       must_reset_password: true,
       company_id: companyId,
       updated_at: new Date().toISOString(),
-    });
+    };
+
+    await supabaseAdmin.from("profiles").upsert(profilePayload);
 
     await supabaseAdmin
       .from("drivers")

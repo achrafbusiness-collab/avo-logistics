@@ -178,6 +178,9 @@ export default function DriverForm({ driver, onSave, onCancel }) {
     try {
       const payload = {
         ...formData,
+        birth_date: formData.birth_date || null,
+        license_expiry: formData.license_expiry || null,
+        license_number: formData.license_number || null,
         status: !driver ? 'pending' : formData.status,
       };
       const created = await onSave(payload);
