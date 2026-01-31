@@ -68,6 +68,9 @@ export default function DriverForm({ driver, onSave, onCancel }) {
   const [loginError, setLoginError] = useState('');
   const [loginCreating, setLoginCreating] = useState(false);
   const [createdDriverId, setCreatedDriverId] = useState('');
+  const [resetSending, setResetSending] = useState(false);
+  const [resetMessage, setResetMessage] = useState('');
+  const [resetError, setResetError] = useState('');
 
   useEffect(() => {
     setFormData(buildFormData(driver));
@@ -75,7 +78,50 @@ export default function DriverForm({ driver, onSave, onCancel }) {
     setLoginResult(null);
     setLoginError('');
     setCreatedDriverId('');
+    setResetMessage('');
+    setResetError('');
   }, [driver]);
+
+  const getAuthToken = async () => {
+    const { data } = await supabase.auth.getSession();
+    return data?.session?.access_token || null;
+  };
+
+  const handleDriverReset = async () => {
+    if (!formData.email) {
+      setResetError('E-Mail-Adresse fehlt.');
+      return;
+    }
+    setResetSending(true);
+    setResetMessage('');
+    setResetError('');
+    try {
+      const token = await getAuthToken();
+      if (!token) {
+        throw new Error('Nicht angemeldet.');
+      }
+      const response = await fetch('/api/admin/invite-user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          purpose: 'recovery',
+        }),
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload?.ok) {
+        throw new Error(payload?.error || 'Reset-Link konnte nicht gesendet werden.');
+      }
+      setResetMessage('Passwort-Reset freigegeben. Link wurde per E-Mail gesendet.');
+    } catch (err) {
+      setResetError(err?.message || 'Reset-Link konnte nicht gesendet werden.');
+    } finally {
+      setResetSending(false);
+    }
+  };
 
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -325,6 +371,34 @@ export default function DriverForm({ driver, onSave, onCancel }) {
               </div>
             </div>
           </div>
+
+          {driver && formData.email && (
+            <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-slate-800">Passwort-Reset</p>
+                  <p className="text-xs text-slate-500">
+                    Sendet dem Fahrer einen Link zur Passwort-Einrichtung.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleDriverReset}
+                  disabled={resetSending}
+                >
+                  {resetSending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  Reset-Link senden
+                </Button>
+              </div>
+              {resetMessage && (
+                <div className="mt-2 text-xs text-emerald-700">{resetMessage}</div>
+              )}
+              {resetError && (
+                <div className="mt-2 text-xs text-red-600">{resetError}</div>
+              )}
+            </div>
+          )}
 
           {!driver && (
             <>

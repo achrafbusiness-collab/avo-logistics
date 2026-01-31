@@ -5,20 +5,49 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Lock, Loader2 } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
+import { Lock, Loader2, Mail, KeyRound } from "lucide-react";
+
+const getPublicResetUrl = () => {
+  const envUrl = (import.meta.env.VITE_PUBLIC_SITE_URL || "").trim();
+  if (envUrl) {
+    return `${envUrl.replace(/\/$/, "")}/reset-password`;
+  }
+  return `${window.location.origin}/reset-password`;
+};
+
+const validatePassword = (value) => {
+  const hasUpper = /[A-Z]/.test(value);
+  const hasLower = /[a-z]/.test(value);
+  const hasNumber = /[0-9]/.test(value);
+  const hasSpecial = /[^A-Za-z0-9]/.test(value);
+  if (!value || value.length < 8 || !hasUpper || !hasLower || !hasNumber || !hasSpecial) {
+    return "Passwort muss mindestens 8 Zeichen haben und Großbuchstaben, Kleinbuchstaben, Zahl und Sonderzeichen enthalten.";
+  }
+  return "";
+};
 
 export default function ResetPassword() {
-  const [hasSession, setHasSession] = useState(false);
+  const [email, setEmail] = useState("");
+  const [oldPassword, setOldPassword] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
+  const [hasSession, setHasSession] = useState(false);
+  const [emailStepDone, setEmailStepDone] = useState(false);
+  const [sending, setSending] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [changing, setChanging] = useState(false);
+  const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const [done, setDone] = useState(false);
 
   useEffect(() => {
     const loadSession = async () => {
       const { data } = await supabase.auth.getSession();
-      setHasSession(!!data?.session);
+      const session = data?.session || null;
+      setHasSession(!!session);
+      if (session?.user?.email) {
+        setEmail((prev) => prev || session.user.email || "");
+      }
     };
     loadSession();
     const { data: listener } = supabase.auth.onAuthStateChange(() => {
@@ -27,17 +56,84 @@ export default function ResetPassword() {
     return () => listener.subscription.unsubscribe();
   }, []);
 
-  const handleSubmit = async (event) => {
+  const sendWelcomeEmail = async () => {
+    const { data } = await supabase.auth.getSession();
+    const token = data?.session?.access_token;
+    if (!token) return;
+    await fetch("/api/admin/send-driver-assignment", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ welcomeEmail: true }),
+    });
+  };
+
+  const activateProfile = async () => {
+    const { data: userData } = await supabase.auth.getUser();
+    if (!userData?.user?.id) return;
+    const { data: profileData } = await supabase
+      .from("profiles")
+      .select("role, email, company_id, is_active")
+      .eq("id", userData.user.id)
+      .maybeSingle();
+
+    await supabase
+      .from("profiles")
+      .update({
+        must_reset_password: false,
+        is_active: true,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", userData.user.id);
+
+    if (profileData?.role === "driver" && profileData?.email) {
+      await supabase
+        .from("drivers")
+        .update({ status: "active" })
+        .eq("email", profileData.email)
+        .eq("company_id", profileData.company_id || null);
+      return;
+    }
+
+    if (profileData?.is_active === false) {
+      try {
+        await sendWelcomeEmail();
+      } catch (err) {
+        console.warn("Welcome email failed", err);
+      }
+    }
+  };
+
+  const handleSendReset = async () => {
+    setError("");
+    setMessage("");
+    if (!email.trim()) {
+      setError("Bitte E-Mail-Adresse eingeben.");
+      return;
+    }
+    setSending(true);
+    try {
+      await appClient.auth.resetPassword({
+        email,
+        redirectTo: getPublicResetUrl(),
+      });
+      setMessage("E-Mail gesendet. Bitte Link in der E-Mail öffnen.");
+    } catch (err) {
+      setError(err?.message || "Reset fehlgeschlagen.");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleSetPassword = async (event) => {
     event.preventDefault();
     setError("");
-    const hasUpper = /[A-Z]/.test(password);
-    const hasLower = /[a-z]/.test(password);
-    const hasNumber = /[0-9]/.test(password);
-    const hasSpecial = /[^A-Za-z0-9]/.test(password);
-    if (!password || password.length < 8 || !hasUpper || !hasLower || !hasNumber || !hasSpecial) {
-      setError(
-        "Passwort muss mindestens 8 Zeichen haben und Großbuchstaben, Kleinbuchstaben, Zahl und Sonderzeichen enthalten."
-      );
+    setMessage("");
+    const validation = validatePassword(password);
+    if (validation) {
+      setError(validation);
       return;
     }
     if (password !== confirm) {
@@ -47,27 +143,55 @@ export default function ResetPassword() {
     setSaving(true);
     try {
       await appClient.auth.updatePassword({ password });
-      const { data: userData } = await supabase.auth.getUser();
-      const userEmail = userData?.user?.email;
-      if (userData?.user?.id) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', userData.user.id)
-          .maybeSingle();
-        if (profile?.role === 'driver' && userEmail) {
-          await supabase
-            .from('drivers')
-            .update({ status: 'active', updated_date: new Date().toISOString() })
-            .eq('email', userEmail);
-        }
-      }
-      setDone(true);
+      await activateProfile();
+      setMessage("Passwort gespeichert. Bitte jetzt einloggen.");
       await supabase.auth.signOut();
     } catch (err) {
       setError(err?.message || "Passwort konnte nicht gesetzt werden.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleChangePassword = async (event) => {
+    event.preventDefault();
+    setError("");
+    setMessage("");
+    if (!email.trim()) {
+      setError("Bitte E-Mail-Adresse eingeben.");
+      return;
+    }
+    if (!oldPassword) {
+      setError("Bitte altes Passwort eingeben.");
+      return;
+    }
+    const validation = validatePassword(password);
+    if (validation) {
+      setError(validation);
+      return;
+    }
+    if (password !== confirm) {
+      setError("Passwörter stimmen nicht überein.");
+      return;
+    }
+    setChanging(true);
+    try {
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password: oldPassword,
+      });
+      if (signInError || !data?.user) {
+        setError("Das alte Passwort ist falsch. Melden Sie sich bei Ihrem Unternehmen.");
+        return;
+      }
+      await appClient.auth.updatePassword({ password });
+      await activateProfile();
+      setMessage("Passwort aktualisiert. Bitte neu einloggen.");
+      await supabase.auth.signOut();
+    } catch (err) {
+      setError(err?.message || "Passwort konnte nicht geändert werden.");
+    } finally {
+      setChanging(false);
     }
   };
 
@@ -77,62 +201,143 @@ export default function ResetPassword() {
         <CardHeader className="space-y-3">
           <CardTitle className="flex items-center justify-center gap-2 text-[#1e3a5f]">
             <Lock className="w-5 h-5" />
-            Passwort festlegen
+            Passwort verwalten
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          {!hasSession ? (
-            <div className="text-sm text-slate-600 text-center">
-              Der Link ist ungültig oder abgelaufen. Bitte fordere einen neuen Reset-Link an.
+        <CardContent className="space-y-5">
+          {message && (
+            <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+              {message}
             </div>
-          ) : done ? (
-            <div className="text-sm text-emerald-700 text-center">
-              Passwort wurde gesetzt. Bitte melde dich erneut an.
-              <div className="mt-4">
-                <Button
-                  className="bg-[#1e3a5f] hover:bg-[#2d5a8a]"
-                  onClick={() => (window.location.href = "/login")}
-                >
-                  Zum Login
-                </Button>
-              </div>
+          )}
+          {error && (
+            <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {error}
             </div>
-          ) : (
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="password">Neues Passwort</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Mindestens 8 Zeichen"
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="confirm">Passwort bestätigen</Label>
-                <Input
-                  id="confirm"
-                  type="password"
-                  value={confirm}
-                  onChange={(e) => setConfirm(e.target.value)}
-                  required
-                />
-              </div>
-              {error && (
-                <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                  {error}
-                </div>
+          )}
+
+          {hasSession ? (
+            <form onSubmit={handleSetPassword} className="space-y-4">
+              {!emailStepDone ? (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="reset-email">E-Mail</Label>
+                    <Input
+                      id="reset-email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="name@firma.de"
+                      required
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    className="w-full bg-[#1e3a5f] hover:bg-[#2d5a8a]"
+                    onClick={() => setEmailStepDone(true)}
+                  >
+                    Weiter
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="new-password">Passwort einrichten</Label>
+                    <Input
+                      id="new-password"
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Mindestens 8 Zeichen"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="confirm-password">Passwort bestätigen</Label>
+                    <Input
+                      id="confirm-password"
+                      type="password"
+                      value={confirm}
+                      onChange={(e) => setConfirm(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <Button
+                    type="submit"
+                    className="w-full bg-[#1e3a5f] hover:bg-[#2d5a8a]"
+                    disabled={saving}
+                  >
+                    {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Speichern"}
+                  </Button>
+                </>
               )}
-              <Button
-                type="submit"
-                className="w-full bg-[#1e3a5f] hover:bg-[#2d5a8a]"
-                disabled={saving}
-              >
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Passwort setzen"}
-              </Button>
             </form>
+          ) : (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="forgot-email">E-Mail Adresse</Label>
+                <Input
+                  id="forgot-email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="name@firma.de"
+                />
+              </div>
+              <Button
+                type="button"
+                className="w-full bg-[#1e3a5f] hover:bg-[#2d5a8a]"
+                onClick={handleSendReset}
+                disabled={sending}
+              >
+                {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4 mr-2" />}
+                Link per E-Mail senden
+              </Button>
+
+              <Separator />
+
+              <form onSubmit={handleChangePassword} className="space-y-4">
+                <div className="flex items-center gap-2 text-[#1e3a5f]">
+                  <KeyRound className="w-4 h-4" />
+                  <p className="text-sm font-semibold">Passwort ändern mit altem Passwort</p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="old-password">Altes Passwort</Label>
+                  <Input
+                    id="old-password"
+                    type="password"
+                    value={oldPassword}
+                    onChange={(e) => setOldPassword(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="new-password-change">Neues Passwort</Label>
+                  <Input
+                    id="new-password-change"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="confirm-password-change">Neues Passwort bestätigen</Label>
+                  <Input
+                    id="confirm-password-change"
+                    type="password"
+                    value={confirm}
+                    onChange={(e) => setConfirm(e.target.value)}
+                  />
+                </div>
+                <Button
+                  type="submit"
+                  variant="outline"
+                  className="w-full"
+                  disabled={changing}
+                >
+                  {changing ? <Loader2 className="w-4 h-4 animate-spin" /> : "Passwort ändern"}
+                </Button>
+              </form>
+            </>
           )}
         </CardContent>
       </Card>

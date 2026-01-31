@@ -35,7 +35,6 @@ import LoginStaff from "./LoginStaff";
 import LoginExecutive from "./LoginExecutive";
 import DriverAccess from "./DriverAccess";
 import ResetPassword from "./ResetPassword";
-import SetPassword from "./SetPassword";
 import TeamAVO from "./TeamAVO";
 import AccessDenied from "./AccessDenied";
 import Terminal from "./Terminal";
@@ -164,7 +163,7 @@ function PagesContent() {
                 <Route path="/login/executive" element={<LoginExecutive />} />
                 <Route path="/driver" element={<DriverAccess />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
-                <Route path="/set-password" element={<SetPassword />} />
+                <Route path="/set-password" element={<ResetPassword />} />
                 <Route path="/protocol-pdf" element={<ProtocolPdf />} />
                 <Route path="/expenses-pdf" element={<ExpensesPdf />} />
                 <Route path="*" element={<Navigate to="/login" replace />} />

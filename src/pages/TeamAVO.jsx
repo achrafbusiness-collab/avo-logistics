@@ -102,6 +102,7 @@ export default function TeamAVO() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [resetting, setResetting] = useState(false);
   const [uploadingId, setUploadingId] = useState({ front: false, back: false });
   const [createOpen, setCreateOpen] = useState(false);
   const [createForm, setCreateForm] = useState({
@@ -272,7 +273,7 @@ export default function TeamAVO() {
         },
         body: JSON.stringify({
           email: createForm.email.trim(),
-          redirectTo: `${baseInviteUrl}/set-password`,
+          redirectTo: `${baseInviteUrl}/reset-password`,
           profile: {
             full_name: createForm.full_name,
             role: createForm.role,
@@ -350,6 +351,42 @@ export default function TeamAVO() {
       setError(err?.message || "Speichern fehlgeschlagen.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handlePasswordReset = async () => {
+    if (!selectedProfile?.email) {
+      setError("E-Mail-Adresse fehlt.");
+      return;
+    }
+    setResetting(true);
+    setError("");
+    setMessage("");
+    try {
+      const token = await getAuthToken();
+      if (!token) {
+        throw new Error("Nicht angemeldet.");
+      }
+      const response = await fetch("/api/admin/invite-user", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          email: selectedProfile.email,
+          purpose: "recovery",
+        }),
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload?.ok) {
+        throw new Error(payload?.error || "Reset-Link konnte nicht gesendet werden.");
+      }
+      setMessage("Passwort-Reset wurde freigegeben. Link wurde per E-Mail gesendet.");
+    } catch (err) {
+      setError(err?.message || "Reset-Link konnte nicht gesendet werden.");
+    } finally {
+      setResetting(false);
     }
   };
 
@@ -643,6 +680,15 @@ export default function TeamAVO() {
             >
               <Trash2 className="h-4 w-4 mr-2" />
               Konto loeschen
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handlePasswordReset}
+              disabled={!selectedProfile || resetting}
+            >
+              {resetting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Passwort-Reset freigeben
             </Button>
             <Button
               onClick={handleSave}

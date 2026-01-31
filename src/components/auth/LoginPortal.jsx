@@ -23,6 +23,10 @@ export default function LoginPortal({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [resetSent, setResetSent] = useState(false);
+  const publicSiteUrl = (import.meta.env.VITE_PUBLIC_SITE_URL || '').trim();
+  const resetRedirect = publicSiteUrl
+    ? `${publicSiteUrl.replace(/\/$/, '')}/reset-password`
+    : `${window.location.origin}/reset-password`;
 
   useEffect(() => {
     const loadUser = async () => {
@@ -42,7 +46,7 @@ export default function LoginPortal({
     try {
       const user = await appClient.auth.login({ email, password });
       if (user?.must_reset_password) {
-        window.location.href = "/set-password";
+        window.location.href = "/reset-password";
         return;
       }
       window.location.href = successRedirect;
@@ -63,7 +67,7 @@ export default function LoginPortal({
     try {
       await appClient.auth.resetPassword({
         email,
-        redirectTo: `${window.location.origin}/reset-password`,
+        redirectTo: resetRedirect,
       });
       setResetSent(true);
     } catch (err) {
