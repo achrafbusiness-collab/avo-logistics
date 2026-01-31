@@ -5,8 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import { Lock, Loader2, Mail, KeyRound } from "lucide-react";
+import { Lock, Loader2, Mail } from "lucide-react";
 
 const getPublicResetUrl = () => {
   const envUrl = (import.meta.env.VITE_PUBLIC_SITE_URL || "").trim();
@@ -29,14 +28,11 @@ const validatePassword = (value) => {
 
 export default function ResetPassword() {
   const [email, setEmail] = useState("");
-  const [oldPassword, setOldPassword] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [hasSession, setHasSession] = useState(false);
-  const [emailStepDone, setEmailStepDone] = useState(false);
   const [sending, setSending] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [changing, setChanging] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
@@ -158,55 +154,13 @@ export default function ResetPassword() {
     }
   };
 
-  const handleChangePassword = async (event) => {
-    event.preventDefault();
-    setError("");
-    setMessage("");
-    if (!email.trim()) {
-      setError("Bitte E-Mail-Adresse eingeben.");
-      return;
-    }
-    if (!oldPassword) {
-      setError("Bitte altes Passwort eingeben.");
-      return;
-    }
-    const validation = validatePassword(password);
-    if (validation) {
-      setError(validation);
-      return;
-    }
-    if (password !== confirm) {
-      setError("Passwörter stimmen nicht überein.");
-      return;
-    }
-    setChanging(true);
-    try {
-      const { data, error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password: oldPassword,
-      });
-      if (signInError || !data?.user) {
-        setError("Das alte Passwort ist falsch. Melden Sie sich bei Ihrem Unternehmen.");
-        return;
-      }
-      await appClient.auth.updatePassword({ password });
-      await activateProfile();
-      setMessage("Passwort aktualisiert. Bitte neu einloggen.");
-      await supabase.auth.signOut();
-    } catch (err) {
-      setError(err?.message || "Passwort konnte nicht geändert werden.");
-    } finally {
-      setChanging(false);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center px-4 py-12">
       <Card className="w-full max-w-md border border-white/10 bg-white text-slate-900 shadow-2xl">
         <CardHeader className="space-y-3">
           <CardTitle className="flex items-center justify-center gap-2 text-[#1e3a5f]">
             <Lock className="w-5 h-5" />
-            Passwort verwalten
+            Passwort vergessen
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-5">
@@ -223,62 +177,37 @@ export default function ResetPassword() {
 
           {hasSession ? (
             <form onSubmit={handleSetPassword} className="space-y-4">
-              {!emailStepDone ? (
-                <>
-                  <div className="space-y-2">
-                    <Label htmlFor="reset-email">E-Mail</Label>
-                    <Input
-                      id="reset-email"
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="name@firma.de"
-                      required
-                    />
-                  </div>
-                  <Button
-                    type="button"
-                    className="w-full bg-[#1e3a5f] hover:bg-[#2d5a8a]"
-                    onClick={() => setEmailStepDone(true)}
-                  >
-                    Weiter
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <div className="space-y-2">
-                    <Label htmlFor="new-password">Passwort einrichten</Label>
-                    <Input
-                      id="new-password"
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Mindestens 8 Zeichen"
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="confirm-password">Passwort bestätigen</Label>
-                    <Input
-                      id="confirm-password"
-                      type="password"
-                      value={confirm}
-                      onChange={(e) => setConfirm(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <Button
-                    type="submit"
-                    className="w-full bg-[#1e3a5f] hover:bg-[#2d5a8a]"
-                    disabled={saving}
-                  >
-                    {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Speichern"}
-                  </Button>
-                </>
-              )}
+              <div className="space-y-2">
+                <Label htmlFor="new-password">Neues Passwort</Label>
+                <Input
+                  id="new-password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Mindestens 8 Zeichen"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="confirm-password">Neues Passwort bestätigen</Label>
+                <Input
+                  id="confirm-password"
+                  type="password"
+                  value={confirm}
+                  onChange={(e) => setConfirm(e.target.value)}
+                  required
+                />
+              </div>
+              <Button
+                type="submit"
+                className="w-full bg-[#1e3a5f] hover:bg-[#2d5a8a]"
+                disabled={saving}
+              >
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Speichern"}
+              </Button>
             </form>
           ) : (
-            <>
+            <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="forgot-email">E-Mail Adresse</Label>
                 <Input
@@ -296,53 +225,12 @@ export default function ResetPassword() {
                 disabled={sending}
               >
                 {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4 mr-2" />}
-                Link per E-Mail senden
+                Reset-Link senden
               </Button>
-
-              <Separator />
-
-              <form onSubmit={handleChangePassword} className="space-y-4">
-                <div className="flex items-center gap-2 text-[#1e3a5f]">
-                  <KeyRound className="w-4 h-4" />
-                  <p className="text-sm font-semibold">Passwort ändern mit altem Passwort</p>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="old-password">Altes Passwort</Label>
-                  <Input
-                    id="old-password"
-                    type="password"
-                    value={oldPassword}
-                    onChange={(e) => setOldPassword(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="new-password-change">Neues Passwort</Label>
-                  <Input
-                    id="new-password-change"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="confirm-password-change">Neues Passwort bestätigen</Label>
-                  <Input
-                    id="confirm-password-change"
-                    type="password"
-                    value={confirm}
-                    onChange={(e) => setConfirm(e.target.value)}
-                  />
-                </div>
-                <Button
-                  type="submit"
-                  variant="outline"
-                  className="w-full"
-                  disabled={changing}
-                >
-                  {changing ? <Loader2 className="w-4 h-4 animate-spin" /> : "Passwort ändern"}
-                </Button>
-              </form>
-            </>
+              <p className="text-xs text-slate-500">
+                Du erhältst eine E-Mail zur Freigabe. Nach dem Klick erscheinen die Passwort-Felder.
+              </p>
+            </div>
           )}
         </CardContent>
       </Card>
