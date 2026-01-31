@@ -193,11 +193,6 @@ export default function DriverForm({ driver, onSave, onCancel }) {
     }
   };
 
-  const getAuthToken = async () => {
-    const { data } = await supabase.auth.getSession();
-    return data?.session?.access_token || null;
-  };
-
   const FileUploadField = ({ label, field, icon: Icon }) => (
     <div className="space-y-2">
       <Label>{label}</Label>
