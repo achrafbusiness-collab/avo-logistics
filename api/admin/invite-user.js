@@ -18,9 +18,17 @@ const normalizePublicUrl = (value) => {
   const trimmed = String(value).trim();
   if (!trimmed) return "";
   if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
-    return trimmed.replace(/\/$/, "");
+    const cleaned = trimmed.replace(/\/$/, "");
+    if (cleaned.includes("localhost") || cleaned.includes("127.0.0.1")) {
+      return "";
+    }
+    return cleaned;
   }
-  return `https://${trimmed.replace(/\/$/, "")}`;
+  const cleaned = `https://${trimmed.replace(/\/$/, "")}`;
+  if (cleaned.includes("localhost") || cleaned.includes("127.0.0.1")) {
+    return "";
+  }
+  return cleaned;
 };
 
 const readJsonBody = async (req) => {
