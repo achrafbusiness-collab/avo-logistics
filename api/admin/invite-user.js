@@ -11,6 +11,17 @@ const smtpPass = process.env.SMTP_PASS;
 const smtpFrom = process.env.SMTP_FROM || smtpUser;
 const smtpSecure =
   process.env.SMTP_SECURE === "true" || (smtpPort ? smtpPort === 465 : true);
+const publicSiteUrl = process.env.PUBLIC_SITE_URL || process.env.VITE_PUBLIC_SITE_URL || "";
+
+const normalizePublicUrl = (value) => {
+  if (!value) return "";
+  const trimmed = String(value).trim();
+  if (!trimmed) return "";
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+    return trimmed.replace(/\/$/, "");
+  }
+  return `https://${trimmed.replace(/\/$/, "")}`;
+};
 
 const readJsonBody = async (req) => {
   if (req.body && typeof req.body === "object") {
@@ -130,11 +141,17 @@ export default async function handler(req, res) {
       .limit(1)
       .maybeSingle();
 
+    const normalizedPublicUrl = normalizePublicUrl(publicSiteUrl);
+    const effectiveRedirect =
+      normalizedPublicUrl
+        ? `${normalizedPublicUrl}/set-password`
+        : redirectTo;
+
     const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
       type: "invite",
       email,
       options: {
-        redirectTo,
+        redirectTo: effectiveRedirect,
         data: {
           full_name: profile?.full_name || "",
           company_id: companyId,
