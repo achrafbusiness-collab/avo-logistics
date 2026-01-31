@@ -270,6 +270,9 @@ Wenn du diese E-Mail erhalten hast, ist SMTP korrekt eingerichtet.`;
     }
 
     const signatureName = senderName || settings?.company_name || "AVO Logistics";
+    const brandPrimary = "#1e3a5f";
+    const brandSecondary = "#2d5a8a";
+    const logoUrl = "https://avo-logistics.app/IMG_5222.JPG";
     const subject = `Auftragsbestätigung – Auftrag ${order.order_number || ""} zugewiesen`;
     const text = `Hallo ${order.assigned_driver_name || "Fahrer"},
 
@@ -290,23 +293,94 @@ Abgabezeit: ${dropoffWhen || "-"}
 Weitere Details findest du in der Fahrer‑App.
 
 Viele Grüße
-${signatureName}`;
+${signatureName}
 
-    const html = `<p>Hallo ${order.assigned_driver_name || "Fahrer"},</p>
-<p>du hast einen neuen Auftrag erhalten.</p>
-<ul>
-  <li><strong>Auftrag:</strong> ${order.order_number || "-"}</li>
-  <li><strong>Kundenauftrag:</strong> ${order.customer_order_number || "-"}</li>
-  <li><strong>Kunde:</strong> ${order.customer_name || "-"}</li>
-  <li><strong>Fahrzeug:</strong> ${[order.vehicle_brand, order.vehicle_model].filter(Boolean).join(" ") || "-"}</li>
-  <li><strong>Kennzeichen:</strong> ${order.license_plate || "-"}</li>
-</ul>
-<p><strong>Abholung:</strong> ${pickupLine || "-"}<br/>
-<strong>Abholzeit:</strong> ${pickupWhen || "-"}</p>
-<p><strong>Abgabe:</strong> ${dropoffLine || "-"}<br/>
-<strong>Abgabezeit:</strong> ${dropoffWhen || "-"}</p>
-<p>Weitere Details findest du in der Fahrer‑App.</p>
-<p>Viele Grüße<br/>${signatureName}</p>`;
+hinweis: diese e-mail kann nicht beantwortet werden. antworten werden nicht gelesen.
+bei fragen bitte deinen disponenten kontaktieren.`;
+
+    const html = `
+<div style="background:#f4f6fb; padding:24px 0; font-family:Arial, sans-serif; color:#0f172a;">
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width:640px; margin:0 auto;">
+    <tr>
+      <td style="padding:0 20px 16px;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+          <tr>
+            <td style="text-align:left;">
+              <img src="${logoUrl}" alt="AVO Logistics" style="height:48px; display:block; border-radius:8px;" />
+            </td>
+            <td style="text-align:right; font-size:12px; color:${brandSecondary}; font-weight:600;">
+              Auftragsbestätigung
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:0 20px;">
+        <div style="background:#ffffff; border-radius:16px; box-shadow:0 8px 24px rgba(15,23,42,0.08); overflow:hidden;">
+          <div style="background:${brandPrimary}; color:#ffffff; padding:18px 24px;">
+            <h1 style="margin:0; font-size:20px; font-weight:700;">Hallo ${order.assigned_driver_name || "Fahrer"}</h1>
+            <p style="margin:6px 0 0; font-size:14px; opacity:0.9;">Du hast einen neuen Auftrag erhalten.</p>
+          </div>
+          <div style="padding:20px 24px;">
+            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="font-size:14px;">
+              <tr>
+                <td style="padding:6px 0; color:#64748b; width:140px;">Auftrag</td>
+                <td style="padding:6px 0; font-weight:600; color:${brandPrimary};">${order.order_number || "-"}</td>
+              </tr>
+              <tr>
+                <td style="padding:6px 0; color:#64748b;">Kundenauftrag</td>
+                <td style="padding:6px 0;">${order.customer_order_number || "-"}</td>
+              </tr>
+              <tr>
+                <td style="padding:6px 0; color:#64748b;">Kunde</td>
+                <td style="padding:6px 0;">${order.customer_name || "-"}</td>
+              </tr>
+              <tr>
+                <td style="padding:6px 0; color:#64748b;">Fahrzeug</td>
+                <td style="padding:6px 0;">${[order.vehicle_brand, order.vehicle_model].filter(Boolean).join(" ") || "-"}</td>
+              </tr>
+              <tr>
+                <td style="padding:6px 0; color:#64748b;">Kennzeichen</td>
+                <td style="padding:6px 0;">${order.license_plate || "-"}</td>
+              </tr>
+            </table>
+            <div style="height:1px; background:#e2e8f0; margin:18px 0;"></div>
+            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="font-size:14px;">
+              <tr>
+                <td style="padding:6px 0; color:#64748b; width:140px;">Abholung</td>
+                <td style="padding:6px 0;">${pickupLine || "-"}</td>
+              </tr>
+              <tr>
+                <td style="padding:6px 0; color:#64748b;">Abholzeit</td>
+                <td style="padding:6px 0;">${pickupWhen || "-"}</td>
+              </tr>
+              <tr>
+                <td style="padding:6px 0; color:#64748b;">Abgabe</td>
+                <td style="padding:6px 0;">${dropoffLine || "-"}</td>
+              </tr>
+              <tr>
+                <td style="padding:6px 0; color:#64748b;">Abgabezeit</td>
+                <td style="padding:6px 0;">${dropoffWhen || "-"}</td>
+              </tr>
+            </table>
+            <p style="margin:18px 0 0; font-size:14px;">Weitere Details findest du in der Fahrer‑App.</p>
+            <p style="margin:18px 0 0; font-size:14px;">Viele Grüße<br/>${signatureName}</p>
+            <p style="margin:18px 0 0; font-size:11px; color:#94a3b8; text-transform:lowercase;">
+              hinweis: diese e-mail kann nicht beantwortet werden. antworten werden nicht gelesen.<br/>
+              bei fragen bitte deinen disponenten kontaktieren.
+            </p>
+          </div>
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:16px 20px; text-align:center; font-size:11px; color:#94a3b8;">
+        AVO Logistics • Automatische Systembenachrichtigung
+      </td>
+    </tr>
+  </table>
+</div>`;
 
     let emailSent = false;
     try {
