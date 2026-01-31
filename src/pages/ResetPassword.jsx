@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Lock, Loader2, Mail } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const getPublicResetUrl = () => {
   const envUrl = (import.meta.env.VITE_PUBLIC_SITE_URL || "").trim();
@@ -205,6 +206,11 @@ export default function ResetPassword() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-5">
+          <div className="flex justify-center">
+            <Button asChild variant="ghost" className="text-slate-600 hover:text-slate-900">
+              <Link to="/login">Zurück zum Login</Link>
+            </Button>
+          </div>
           {message && (
             <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
               {message}
