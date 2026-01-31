@@ -278,9 +278,11 @@ create table if not exists public.drivers (
   postal_code text,
   country text,
   nationality text,
+  birth_date date,
   status text default 'active',
   license_front text,
   license_back text,
+  license_number text,
   id_card_front text,
   id_card_back text,
   license_expiry date,
@@ -288,6 +290,12 @@ create table if not exists public.drivers (
   created_date timestamptz default now(),
   updated_date timestamptz default now()
 );
+
+alter table public.drivers
+add column if not exists birth_date date;
+
+alter table public.drivers
+add column if not exists license_number text;
 
 create table if not exists public.customers (
   id uuid primary key default gen_random_uuid(),

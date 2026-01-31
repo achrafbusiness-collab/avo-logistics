@@ -35,9 +35,11 @@ const defaultFormData = {
   postal_code: '',
   country: 'Deutschland',
   nationality: '',
+  birth_date: '',
   status: 'active',
   license_front: '',
   license_back: '',
+  license_number: '',
   id_card_front: '',
   id_card_back: '',
   license_expiry: '',
@@ -69,7 +71,16 @@ export default function DriverForm({ driver, onSave, onCancel }) {
   const [resetSending, setResetSending] = useState(false);
   const [resetMessage, setResetMessage] = useState('');
   const [resetError, setResetError] = useState('');
+  const [formError, setFormError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
   const baseInviteUrl = (import.meta.env.VITE_PUBLIC_SITE_URL || '').trim() || window.location.origin;
+
+  const requiredFields = [
+    { key: 'first_name', label: 'Vorname' },
+    { key: 'last_name', label: 'Nachname' },
+    { key: 'email', label: 'E-Mail' },
+    { key: 'address', label: 'Straße und Hausnummer' },
+  ];
 
   useEffect(() => {
     setFormData(buildFormData(driver));
@@ -78,6 +89,8 @@ export default function DriverForm({ driver, onSave, onCancel }) {
     setCreatedDriverId('');
     setResetMessage('');
     setResetError('');
+    setFormError('');
+    setFieldErrors({});
   }, [driver]);
 
   const getAuthToken = async () => {
@@ -123,6 +136,13 @@ export default function DriverForm({ driver, onSave, onCancel }) {
 
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+    if (fieldErrors[field]) {
+      setFieldErrors(prev => {
+        const next = { ...prev };
+        delete next[field];
+        return next;
+      });
+    }
   };
 
   const handleFileUpload = async (field, file) => {
@@ -140,8 +160,20 @@ export default function DriverForm({ driver, onSave, onCancel }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setSaving(true);
+    setFormError('');
     setLoginError('');
+    const missing = {};
+    requiredFields.forEach(({ key }) => {
+      if (!String(formData[key] || '').trim()) {
+        missing[key] = true;
+      }
+    });
+    if (Object.keys(missing).length) {
+      setFieldErrors(missing);
+      setFormError('Bitte alle Pflichtfelder ausfüllen.');
+      return;
+    }
+    setSaving(true);
     setLoginResult(null);
     try {
       const payload = {
@@ -241,9 +273,16 @@ export default function DriverForm({ driver, onSave, onCancel }) {
 
   return (
     <form onSubmit={handleSubmit}>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between border-b">
-          <CardTitle>{driver ? 'Fahrer bearbeiten' : 'Neuer Fahrer'}</CardTitle>
+      <Card className="border border-slate-200 shadow-sm">
+        <CardHeader className="flex flex-col gap-4 border-b bg-gradient-to-r from-slate-50 to-white md:flex-row md:items-center md:justify-between">
+          <div>
+            <CardTitle className="text-xl text-slate-900">
+              {driver ? 'Fahrer bearbeiten' : 'Neuer Fahrer'}
+            </CardTitle>
+            <p className="text-sm text-slate-500">
+              Pflichtfelder: Vorname, Nachname, Straße &amp; E-Mail.
+            </p>
+          </div>
           <div className="flex gap-2">
             <Button type="button" variant="outline" onClick={onCancel}>
               <X className="w-4 h-4 mr-2" />
@@ -260,8 +299,13 @@ export default function DriverForm({ driver, onSave, onCancel }) {
           </div>
         </CardHeader>
         <CardContent className="p-6 space-y-8">
+          {formError && (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {formError}
+            </div>
+          )}
           {/* Personal Info */}
-          <div className="space-y-4">
+          <div className="space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             <div className="flex items-center gap-2 text-[#1e3a5f]">
               <User className="w-5 h-5" />
               <h3 className="font-semibold">Persönliche Daten</h3>
@@ -274,6 +318,7 @@ export default function DriverForm({ driver, onSave, onCancel }) {
                   onChange={(e) => handleChange('first_name', e.target.value)}
                   placeholder="Vorname"
                   required
+                  className={fieldErrors.first_name ? 'border-red-300 focus-visible:ring-red-200' : ''}
                 />
               </div>
               <div>
@@ -283,6 +328,7 @@ export default function DriverForm({ driver, onSave, onCancel }) {
                   onChange={(e) => handleChange('last_name', e.target.value)}
                   placeholder="Nachname"
                   required
+                  className={fieldErrors.last_name ? 'border-red-300 focus-visible:ring-red-200' : ''}
                 />
               </div>
               <div>
@@ -293,19 +339,19 @@ export default function DriverForm({ driver, onSave, onCancel }) {
                   onChange={(e) => handleChange('email', e.target.value)}
                   placeholder="fahrer@email.com"
                   required
+                  className={fieldErrors.email ? 'border-red-300 focus-visible:ring-red-200' : ''}
                 />
               </div>
               <div>
-                <Label>Telefon *</Label>
+                <Label>Telefon (optional)</Label>
                 <Input 
                   value={formData.phone}
                   onChange={(e) => handleChange('phone', e.target.value)}
                   placeholder="+49 ..."
-                  required
                 />
               </div>
               <div className="md:col-span-2">
-                <Label>Adresse</Label>
+                <Label>Straße &amp; Hausnummer *</Label>
                 <AddressAutocomplete
                   value={formData.address}
                   onChange={(value) => handleChange('address', value)}
@@ -315,10 +361,12 @@ export default function DriverForm({ driver, onSave, onCancel }) {
                     if (postalCode) handleChange('postal_code', postalCode);
                   }}
                   placeholder="Straße und Hausnummer"
+                  required
+                  inputClassName={fieldErrors.address ? 'border-red-300 focus-visible:ring-red-200' : ''}
                 />
               </div>
               <div>
-                <Label>Postleitzahl</Label>
+                <Label>Postleitzahl (optional)</Label>
                 <Input 
                   value={formData.postal_code}
                   onChange={(e) => handleChange('postal_code', e.target.value)}
@@ -326,7 +374,7 @@ export default function DriverForm({ driver, onSave, onCancel }) {
                 />
               </div>
               <div>
-                <Label>Stadt</Label>
+                <Label>Stadt (optional)</Label>
                 <Input 
                   value={formData.city}
                   onChange={(e) => handleChange('city', e.target.value)}
@@ -334,7 +382,7 @@ export default function DriverForm({ driver, onSave, onCancel }) {
                 />
               </div>
               <div>
-                <Label>Land</Label>
+                <Label>Land (optional)</Label>
                 <Input 
                   value={formData.country}
                   onChange={(e) => handleChange('country', e.target.value)}
@@ -342,11 +390,19 @@ export default function DriverForm({ driver, onSave, onCancel }) {
                 />
               </div>
               <div>
-                <Label>Staatsangehörigkeit</Label>
+                <Label>Staatsangehörigkeit (optional)</Label>
                 <Input 
                   value={formData.nationality}
                   onChange={(e) => handleChange('nationality', e.target.value)}
                   placeholder="z.B. Deutsch"
+                />
+              </div>
+              <div>
+                <Label>Geburtsdatum (optional)</Label>
+                <Input
+                  type="date"
+                  value={formData.birth_date}
+                  onChange={(e) => handleChange('birth_date', e.target.value)}
                 />
               </div>
               <div>
@@ -366,7 +422,7 @@ export default function DriverForm({ driver, onSave, onCancel }) {
           </div>
 
           {driver && formData.email && (
-            <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+            <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="text-sm font-semibold text-slate-800">Passwort-Reset</p>
@@ -396,7 +452,7 @@ export default function DriverForm({ driver, onSave, onCancel }) {
           {!driver && (
             <>
               <Separator />
-              <div className="space-y-4">
+              <div className="space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
                 <div>
                   <h3 className="font-semibold text-[#1e3a5f]">Einladung & Passwort</h3>
                   <p className="text-sm text-gray-500">
@@ -493,12 +549,20 @@ export default function DriverForm({ driver, onSave, onCancel }) {
           <Separator />
 
           {/* License Documents */}
-          <div className="space-y-4">
+          <div className="space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             <div className="flex items-center gap-2 text-[#1e3a5f]">
               <FileText className="w-5 h-5" />
               <h3 className="font-semibold">Führerschein</h3>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label>Führerscheinnummer (optional)</Label>
+                <Input
+                  value={formData.license_number}
+                  onChange={(e) => handleChange('license_number', e.target.value)}
+                  placeholder="z.B. DE1234567"
+                />
+              </div>
               <FileUploadField 
                 label="Führerschein Vorderseite"
                 field="license_front"
@@ -511,7 +575,7 @@ export default function DriverForm({ driver, onSave, onCancel }) {
               />
             </div>
             <div className="md:w-1/2">
-              <Label>Führerschein gültig bis</Label>
+              <Label>Führerschein gültig bis (optional)</Label>
               <Input 
                 type="date"
                 value={formData.license_expiry}
@@ -523,7 +587,7 @@ export default function DriverForm({ driver, onSave, onCancel }) {
           <Separator />
 
           {/* ID Documents */}
-          <div className="space-y-4">
+          <div className="space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             <div className="flex items-center gap-2 text-[#1e3a5f]">
               <CreditCard className="w-5 h-5" />
               <h3 className="font-semibold">Personalausweis</h3>
@@ -545,8 +609,8 @@ export default function DriverForm({ driver, onSave, onCancel }) {
           <Separator />
 
           {/* Notes */}
-          <div>
-            <Label>Notizen</Label>
+          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <Label>Notizen (optional)</Label>
             <Textarea 
               value={formData.notes}
               onChange={(e) => handleChange('notes', e.target.value)}
