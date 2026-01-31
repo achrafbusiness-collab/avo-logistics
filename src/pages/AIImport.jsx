@@ -33,6 +33,7 @@ export default function AIImport() {
   const [extractedOrders, setExtractedOrders] = useState([]);
   const [selectedOrderIndex, setSelectedOrderIndex] = useState(0);
   const [importSuccess, setImportSuccess] = useState(false);
+  const [customerEditOpen, setCustomerEditOpen] = useState({});
   const [error, setError] = useState(null);
   const [calcLoading, setCalcLoading] = useState(false);
   const [calcError, setCalcError] = useState('');
@@ -42,6 +43,9 @@ export default function AIImport() {
     if (value === null || value === undefined || value === '') return '';
     return String(value);
   };
+
+  const normalizeText = (value) => String(value || '').trim().toLowerCase();
+  const normalizePhone = (value) => String(value || '').replace(/\D/g, '');
 
   const getCustomerDisplayName = (customer) => {
     if (!customer) return '';
@@ -75,6 +79,84 @@ export default function AIImport() {
       };
     });
   }, [customers]);
+
+  const resolveCustomerMatch = (value) => {
+    const trimmed = String(value || '').trim();
+    if (!trimmed) return null;
+    const normalized = trimmed.toLowerCase();
+    const direct = customerOptions.find((option) => option.label.toLowerCase() === normalized);
+    if (direct) return direct;
+    const byName = customerOptions.find((option) => option.name.toLowerCase() === normalized);
+    if (byName) return byName;
+    const numberMatch = trimmed.match(/\(([^)]+)\)\s*$/);
+    if (numberMatch) {
+      const number = numberMatch[1].trim().toLowerCase();
+      const byNumber = customerOptions.find(
+        (option) => option.number && option.number.toLowerCase() === number
+      );
+      if (byNumber) return byNumber;
+    }
+    const byNumber = customerOptions.find(
+      (option) => option.number && option.number.toLowerCase() === normalized
+    );
+    return byNumber || null;
+  };
+
+  const resolveCustomerMatchForOrder = (order) => {
+    if (!order) return null;
+    if (order.customer_id) {
+      return customerOptions.find((option) => option.id === order.customer_id) || null;
+    }
+    const email = normalizeText(order.customer_email);
+    if (email) {
+      const byEmail = customerOptions.find(
+        (option) => normalizeText(option.email) === email
+      );
+      if (byEmail) return byEmail;
+    }
+    const phone = normalizePhone(order.customer_phone);
+    if (phone) {
+      const byPhone = customerOptions.find(
+        (option) => normalizePhone(option.phone) === phone
+      );
+      if (byPhone) return byPhone;
+    }
+    const name = normalizeText(order.customer_name);
+    if (name) {
+      return resolveCustomerMatch(order.customer_name);
+    }
+    return null;
+  };
+
+  useEffect(() => {
+    if (!customerOptions.length || !extractedOrders.length) return;
+    setExtractedOrders((prev) => {
+      let changed = false;
+      const next = prev.map((order) => {
+        if (order?._customerResolved) return order;
+        const match = resolveCustomerMatchForOrder(order);
+        if (match) {
+          changed = true;
+          return {
+            ...order,
+            customer_id: match.id,
+            customer_name: match.name,
+            customer_email: order.customer_email || match.email || '',
+            customer_phone: order.customer_phone || match.phone || '',
+            _customerResolved: true,
+            _customerMatchType: 'auto',
+          };
+        }
+        changed = true;
+        return {
+          ...order,
+          _customerResolved: true,
+          _customerMatchType: 'unmatched',
+        };
+      });
+      return changed ? next : prev;
+    });
+  }, [customerOptions, extractedOrders.length]);
 
   const createOrderMutation = useMutation({
     mutationFn: (data) => appClient.entities.Order.create(data),
@@ -266,15 +348,16 @@ Gib ausschließlich die strukturierten Daten zurück.`,
       return;
     }
 
-    const resolvedCustomer = !currentOrder.customer_id
-      ? resolveCustomerMatch(currentOrder.customer_name)
+    const { _customerResolved, _customerMatchType, ...orderPayload } = currentOrder || {};
+    const resolvedCustomer = !orderPayload.customer_id
+      ? resolveCustomerMatch(orderPayload.customer_name)
       : null;
     const dataToSave = {
-      ...currentOrder,
-      customer_id: currentOrder.customer_id || resolvedCustomer?.id || null,
-      customer_name: resolvedCustomer?.name || currentOrder.customer_name || '',
-      customer_email: currentOrder.customer_email || resolvedCustomer?.email || '',
-      customer_phone: currentOrder.customer_phone || resolvedCustomer?.phone || '',
+      ...orderPayload,
+      customer_id: orderPayload.customer_id || resolvedCustomer?.id || null,
+      customer_name: resolvedCustomer?.name || orderPayload.customer_name || '',
+      customer_email: orderPayload.customer_email || resolvedCustomer?.email || '',
+      customer_phone: orderPayload.customer_phone || resolvedCustomer?.phone || '',
       distance_km: distanceKm,
       driver_price: (() => {
         if (currentOrder.driver_price === '' || currentOrder.driver_price === null || currentOrder.driver_price === undefined) {
@@ -319,28 +402,6 @@ Gib ausschließlich die strukturierten Daten zurück.`,
     });
   };
 
-  const resolveCustomerMatch = (value) => {
-    const trimmed = String(value || '').trim();
-    if (!trimmed) return null;
-    const normalized = trimmed.toLowerCase();
-    const direct = customerOptions.find((option) => option.label.toLowerCase() === normalized);
-    if (direct) return direct;
-    const byName = customerOptions.find((option) => option.name.toLowerCase() === normalized);
-    if (byName) return byName;
-    const numberMatch = trimmed.match(/\(([^)]+)\)\s*$/);
-    if (numberMatch) {
-      const number = numberMatch[1].trim().toLowerCase();
-      const byNumber = customerOptions.find(
-        (option) => option.number && option.number.toLowerCase() === number
-      );
-      if (byNumber) return byNumber;
-    }
-    const byNumber = customerOptions.find(
-      (option) => option.number && option.number.toLowerCase() === normalized
-    );
-    return byNumber || null;
-  };
-
   const handleDriverChange = (driverId) => {
     const driver = drivers.find(d => d.id === driverId);
     if (driver) {
@@ -357,6 +418,8 @@ Gib ausschließlich die strukturierten Daten zurück.`,
         customer_name: '',
         customer_phone: '',
         customer_email: '',
+        _customerResolved: true,
+        _customerMatchType: 'manual',
       });
       return;
     }
@@ -367,12 +430,17 @@ Gib ausschließlich die strukturierten Daten zurück.`,
         customer_name: match.name,
         customer_phone: match.phone || '',
         customer_email: match.email || '',
+        _customerResolved: true,
+        _customerMatchType: 'manual',
       });
+      setCustomerEditOpen((prev) => ({ ...prev, [selectedOrderIndex]: false }));
       return;
     }
     updateCurrentOrder({
       customer_id: '',
       customer_name: value,
+      _customerResolved: true,
+      _customerMatchType: 'manual',
     });
   };
 
@@ -388,6 +456,12 @@ Gib ausschließlich die strukturierten Daten zurück.`,
   };
 
   const currentOrder = extractedOrders[selectedOrderIndex];
+  const activeCustomerOption = useMemo(() => {
+    if (!currentOrder?.customer_id) return null;
+    return customerOptions.find((option) => option.id === currentOrder.customer_id) || null;
+  }, [currentOrder, customerOptions]);
+  const isCustomerLinked = Boolean(activeCustomerOption);
+  const showCustomerPicker = !isCustomerLinked || customerEditOpen[selectedOrderIndex];
   const distanceKey = useMemo(() => {
     if (!currentOrder) return '';
     const pickupKey = [currentOrder.pickup_address, currentOrder.pickup_postal_code, currentOrder.pickup_city]
@@ -765,20 +839,55 @@ Gib ausschließlich die strukturierten Daten zurück.`,
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <Label>Kunde</Label>
-                        <Input
-                          list="import-customer-options"
-                          value={currentOrder.customer_name || ""}
-                          onChange={(e) => handleCustomerNameChange(e.target.value)}
-                          placeholder="Kunde eingeben oder auswählen..."
-                        />
-                        <datalist id="import-customer-options">
-                          {customerOptions.map((option) => (
-                            <option key={option.id} value={option.label} />
-                          ))}
-                        </datalist>
-                      </div>
+                      {isCustomerLinked && !showCustomerPicker ? (
+                        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div>
+                              <p className="font-semibold">
+                                {currentOrder?._customerMatchType === 'auto'
+                                  ? 'Kunde automatisch zugeordnet'
+                                  : 'Kunde zugeordnet'}
+                              </p>
+                              <p className="text-xs text-emerald-700">
+                                {activeCustomerOption?.label || activeCustomerOption?.name}
+                              </p>
+                            </div>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              onClick={() =>
+                                setCustomerEditOpen((prev) => ({
+                                  ...prev,
+                                  [selectedOrderIndex]: true,
+                                }))
+                              }
+                            >
+                              Ändern
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div>
+                          <Label>{isCustomerLinked ? 'Kunde ändern' : 'Neuer Kunde'}</Label>
+                          <Input
+                            list="import-customer-options"
+                            value={currentOrder.customer_name || ""}
+                            onChange={(e) => handleCustomerNameChange(e.target.value)}
+                            placeholder="Kunde eingeben oder auswählen..."
+                          />
+                          <datalist id="import-customer-options">
+                            {customerOptions.map((option) => (
+                              <option key={option.id} value={option.label} />
+                            ))}
+                          </datalist>
+                          {!isCustomerLinked && (
+                            <p className="mt-1 text-xs text-amber-600">
+                              Kein bestehender Kunde erkannt. Bitte auswählen oder neuen Namen eingeben.
+                            </p>
+                          )}
+                        </div>
+                      )}
                       <div>
                         <Label>Fahrer zuweisen</Label>
                         <Select
