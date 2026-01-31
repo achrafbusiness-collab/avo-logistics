@@ -15,7 +15,6 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Switch } from "@/components/ui/switch";
 import { 
   User, 
   Save,
@@ -63,7 +62,6 @@ export default function DriverForm({ driver, onSave, onCancel }) {
 
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState({});
-  const [createLogin, setCreateLogin] = useState(!driver);
   const [loginResult, setLoginResult] = useState(null);
   const [loginError, setLoginError] = useState('');
   const [loginCreating, setLoginCreating] = useState(false);
@@ -75,7 +73,6 @@ export default function DriverForm({ driver, onSave, onCancel }) {
 
   useEffect(() => {
     setFormData(buildFormData(driver));
-    setCreateLogin(!driver);
     setLoginResult(null);
     setLoginError('');
     setCreatedDriverId('');
@@ -149,13 +146,13 @@ export default function DriverForm({ driver, onSave, onCancel }) {
     try {
       const payload = {
         ...formData,
-        status: !driver && createLogin ? 'pending' : formData.status,
+        status: !driver ? 'pending' : formData.status,
       };
       const created = await onSave(payload);
       if (!driver && created?.id) {
         setCreatedDriverId(created.id);
       }
-      if (!driver && createLogin) {
+      if (!driver) {
         setLoginCreating(true);
         const token = await getAuthToken();
         if (!token) {
@@ -400,14 +397,11 @@ export default function DriverForm({ driver, onSave, onCancel }) {
             <>
               <Separator />
               <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-semibold text-[#1e3a5f]">Login-Zugang erstellen</h3>
-                <p className="text-sm text-gray-500">
-                  Erstellt einen temporären Zugang für den Fahrer.
-                </p>
-                  </div>
-                  <Switch checked={createLogin} onCheckedChange={setCreateLogin} />
+                <div>
+                  <h3 className="font-semibold text-[#1e3a5f]">Einladung & Passwort</h3>
+                  <p className="text-sm text-gray-500">
+                    Beim Speichern wird automatisch eine E-Mail mit dem Passwort-Link gesendet.
+                  </p>
                 </div>
                 {loginError && (
                   <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -416,7 +410,7 @@ export default function DriverForm({ driver, onSave, onCancel }) {
                 )}
                 {loginResult && (
                   <div className="space-y-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-                    <p>Fahrer-Zugang wurde erstellt.</p>
+                    <p>Einladungs-E-Mail wurde verarbeitet.</p>
                     {loginResult.loginUrl && (
                       <div className="flex items-center gap-2">
                         <Input value={loginResult.loginUrl} readOnly />
@@ -429,7 +423,7 @@ export default function DriverForm({ driver, onSave, onCancel }) {
                         </Button>
                       </div>
                     )}
-                    {loginResult.resetLink && (
+                    {!loginResult.emailSent && loginResult.resetLink && (
                       <div className="flex items-center gap-2">
                         <Input value={loginResult.resetLink} readOnly />
                         <Button
@@ -470,6 +464,7 @@ export default function DriverForm({ driver, onSave, onCancel }) {
                 {!driver && createdDriverId && !loginResult && !loginCreating && (
                   <div className="space-y-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
                     <p>Profil wurde gespeichert.</p>
+                    <p>Die Einladungs-E-Mail wird gesendet...</p>
                     <div className="flex flex-wrap gap-2">
                       <Button type="button" variant="outline" onClick={onCancel}>
                         Zur Liste
