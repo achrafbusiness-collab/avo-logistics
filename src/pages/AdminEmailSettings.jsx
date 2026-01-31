@@ -36,6 +36,12 @@ export default function AdminEmailSettings() {
   const [testMessage, setTestMessage] = useState("");
   const [testError, setTestError] = useState("");
 
+  const toIntOrNull = (value) => {
+    if (value === null || value === undefined || value === "") return null;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  };
+
   const { data: appSettings = [] } = useQuery({
     queryKey: ["appSettings"],
     queryFn: () => appClient.entities.AppSettings.list("-created_date", 1),
@@ -43,7 +49,13 @@ export default function AdminEmailSettings() {
 
   useEffect(() => {
     if (appSettings.length > 0) {
-      setSettings({ ...defaultSettings, ...appSettings[0] });
+      const current = appSettings[0];
+      setSettings({
+        ...defaultSettings,
+        ...current,
+        smtp_port: current.smtp_port ? String(current.smtp_port) : "",
+        imap_port: current.imap_port ? String(current.imap_port) : "",
+      });
       setTestEmail((prev) => prev || appSettings[0].smtp_user || "");
     }
   }, [appSettings]);
@@ -70,10 +82,17 @@ export default function AdminEmailSettings() {
 
   const handleSave = async () => {
     setSaving(true);
+    const payload = {
+      ...settings,
+      smtp_port: toIntOrNull(settings.smtp_port),
+      imap_port: toIntOrNull(settings.imap_port),
+      smtp_secure: Boolean(settings.smtp_secure),
+      imap_secure: Boolean(settings.imap_secure),
+    };
     if (appSettings.length > 0) {
-      await updateMutation.mutateAsync({ id: appSettings[0].id, data: settings });
+      await updateMutation.mutateAsync({ id: appSettings[0].id, data: payload });
     } else {
-      await createMutation.mutateAsync(settings);
+      await createMutation.mutateAsync(payload);
     }
   };
 
