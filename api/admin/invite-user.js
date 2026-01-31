@@ -103,6 +103,17 @@ const sendEmail = async ({ to, subject, html, text, replyTo, from, smtp }) => {
   return true;
 };
 
+const ensureRedirect = (link, redirect) => {
+  if (!link || !redirect) return link;
+  try {
+    const url = new URL(link);
+    url.searchParams.set("redirect_to", redirect);
+    return url.toString();
+  } catch (error) {
+    return link;
+  }
+};
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     res.status(405).json({ ok: false, error: "Method not allowed" });
@@ -167,7 +178,8 @@ export default async function handler(req, res) {
         return;
       }
 
-      const actionLink = linkData.properties?.action_link || "";
+      const rawActionLink = linkData.properties?.action_link || "";
+      const actionLink = ensureRedirect(rawActionLink, effectiveRedirect);
       await supabaseAdmin
         .from("profiles")
         .update({ must_reset_password: true, updated_at: new Date().toISOString() })
@@ -313,7 +325,8 @@ ${actionLink}
     }
 
     const invitedUser = linkData.user;
-    const actionLink = linkData.properties?.action_link || "";
+    const rawActionLink = linkData.properties?.action_link || "";
+    const actionLink = ensureRedirect(rawActionLink, effectiveRedirect);
     if (invitedUser) {
       const profileData = {
         id: invitedUser.id,
