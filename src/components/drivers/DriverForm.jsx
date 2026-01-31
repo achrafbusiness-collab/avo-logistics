@@ -200,7 +200,7 @@ export default function DriverForm({ driver, onSave, onCancel }) {
           },
           body: JSON.stringify({
             email: formData.email,
-            login_url: `${baseInviteUrl.replace(/\\/$/, '')}/login/driver`,
+            login_url: `${baseInviteUrl.replace(/\/$/, '')}/login/driver`,
             profile: {
               full_name: fullName,
               phone: formData.phone,
