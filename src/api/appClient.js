@@ -285,6 +285,28 @@ const notifications = {
     }
     return payload?.data || payload;
   },
+  sendCustomerConfirmation: async ({ orderId }) => {
+    if (!orderId) {
+      throw new Error('Auftrag fehlt fuer die Kundenbestaetigung.');
+    }
+    const token = await getSessionToken();
+    if (!token) {
+      throw new Error('Nicht angemeldet.');
+    }
+    const response = await fetch('/api/admin/send-driver-assignment', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ orderId, target: 'customer' }),
+    });
+    const payload = await response.json();
+    if (!response.ok || !payload?.ok) {
+      throw new Error(payload?.error || 'Kundenbestaetigung fehlgeschlagen.');
+    }
+    return payload?.data || payload;
+  },
 };
 
 const profileDefaults = {

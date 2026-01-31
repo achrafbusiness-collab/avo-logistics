@@ -295,10 +295,16 @@ export default function Orders() {
       if (updated?.assigned_driver_id && updated.assigned_driver_id !== previousDriverId) {
         notifyDriverAssignment(updated.id);
       }
+      if (shouldNotifyCustomer(selectedOrder, updated, false)) {
+        notifyCustomerConfirmation(updated.id);
+      }
     } else {
       const created = await createMutation.mutateAsync(normalizeOrderPayload(data));
       if (created?.assigned_driver_id) {
         notifyDriverAssignment(created.id);
+      }
+      if (shouldNotifyCustomer(null, created, true)) {
+        notifyCustomerConfirmation(created.id);
       }
     }
   };
@@ -309,6 +315,27 @@ export default function Orders() {
     } catch (error) {
       console.warn('Fahrer-Benachrichtigung fehlgeschlagen', error);
     }
+  };
+
+  const notifyCustomerConfirmation = async (orderId) => {
+    try {
+      await appClient.notifications.sendCustomerConfirmation({ orderId });
+    } catch (error) {
+      console.warn('Kundenbestaetigung fehlgeschlagen', error);
+    }
+  };
+
+  const shouldNotifyCustomer = (previousOrder, nextOrder, isNew) => {
+    if (!nextOrder) return false;
+    if (!nextOrder.customer_id && !nextOrder.customer_email && !nextOrder.customer_name) {
+      return false;
+    }
+    if (isNew) return true;
+    if (!previousOrder) return true;
+    if (previousOrder.customer_id !== nextOrder.customer_id) return true;
+    if ((previousOrder.customer_email || '') !== (nextOrder.customer_email || '')) return true;
+    if ((previousOrder.customer_name || '') !== (nextOrder.customer_name || '')) return true;
+    return false;
   };
 
   const handleAssignDriver = async (driverId) => {

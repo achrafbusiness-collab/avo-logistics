@@ -369,6 +369,13 @@ Gib ausschließlich die strukturierten Daten zurück.`,
     };
 
     const created = await createOrderMutation.mutateAsync(dataToSave);
+    if (created?.id) {
+      try {
+        await appClient.notifications.sendCustomerConfirmation({ orderId: created.id });
+      } catch (err) {
+        console.warn('Kundenbestaetigung fehlgeschlagen', err);
+      }
+    }
     const nextOrders = extractedOrders.filter((_, index) => index !== selectedOrderIndex);
     setExtractedOrders(nextOrders);
     if (!nextOrders.length) {

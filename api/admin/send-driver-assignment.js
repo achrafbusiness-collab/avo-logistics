@@ -89,6 +89,12 @@ const formatAddress = (parts) =>
 const formatDateTime = (dateValue, timeValue) =>
   [dateValue, timeValue].filter(Boolean).join(" ").trim();
 
+const getCustomerDisplayName = (order, customer) => {
+  if (order?.customer_name) return order.customer_name;
+  if (customer?.company_name) return customer.company_name;
+  return [customer?.first_name, customer?.last_name].filter(Boolean).join(" ").trim();
+};
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     res.status(405).json({ ok: false, error: "Method not allowed" });
@@ -123,16 +129,17 @@ export default async function handler(req, res) {
       return;
     }
 
-    const { orderId } = await readJsonBody(req);
+    const { orderId, target } = await readJsonBody(req);
     if (!orderId) {
       res.status(400).json({ ok: false, error: "Missing orderId" });
       return;
     }
+    const resolvedTarget = target || "driver";
 
     const { data: order, error: orderError } = await supabaseAdmin
       .from("orders")
       .select(
-        "id, order_number, customer_order_number, customer_name, license_plate, vehicle_brand, vehicle_model, pickup_address, pickup_postal_code, pickup_city, pickup_date, pickup_time, dropoff_address, dropoff_postal_code, dropoff_city, dropoff_date, dropoff_time, assigned_driver_id, assigned_driver_name, company_id"
+        "id, order_number, customer_order_number, customer_id, customer_name, customer_email, license_plate, vehicle_brand, vehicle_model, pickup_address, pickup_postal_code, pickup_city, pickup_date, pickup_time, dropoff_address, dropoff_postal_code, dropoff_city, dropoff_date, dropoff_time, assigned_driver_id, assigned_driver_name, company_id"
       )
       .eq("id", orderId)
       .maybeSingle();
@@ -144,27 +151,6 @@ export default async function handler(req, res) {
 
     if (!order || order.company_id !== profile.company_id) {
       res.status(404).json({ ok: false, error: "Auftrag nicht gefunden." });
-      return;
-    }
-
-    if (!order.assigned_driver_id) {
-      res.status(400).json({ ok: false, error: "Kein Fahrer zugewiesen." });
-      return;
-    }
-
-    const { data: driver, error: driverError } = await supabaseAdmin
-      .from("drivers")
-      .select("id, email, first_name, last_name")
-      .eq("id", order.assigned_driver_id)
-      .maybeSingle();
-
-    if (driverError) {
-      res.status(500).json({ ok: false, error: driverError.message });
-      return;
-    }
-
-    if (!driver?.email) {
-      res.status(400).json({ ok: false, error: "Fahrer-E-Mail fehlt." });
       return;
     }
 
@@ -194,8 +180,35 @@ export default async function handler(req, res) {
     const pickupWhen = formatDateTime(order.pickup_date, order.pickup_time);
     const dropoffWhen = formatDateTime(order.dropoff_date, order.dropoff_time);
 
-    const subject = `Neuer Auftrag ${order.order_number || ""} zugewiesen`;
-    const text = `Hallo ${order.assigned_driver_name || "Fahrer"},
+    const emailResults = {
+      driver: false,
+      customer: false,
+    };
+
+    if (resolvedTarget === "driver" || resolvedTarget === "both") {
+      if (!order.assigned_driver_id) {
+        res.status(400).json({ ok: false, error: "Kein Fahrer zugewiesen." });
+        return;
+      }
+
+      const { data: driver, error: driverError } = await supabaseAdmin
+        .from("drivers")
+        .select("id, email, first_name, last_name")
+        .eq("id", order.assigned_driver_id)
+        .maybeSingle();
+
+      if (driverError) {
+        res.status(500).json({ ok: false, error: driverError.message });
+        return;
+      }
+
+      if (!driver?.email) {
+        res.status(400).json({ ok: false, error: "Fahrer-E-Mail fehlt." });
+        return;
+      }
+
+      const subject = `Neuer Auftrag ${order.order_number || ""} zugewiesen`;
+      const text = `Hallo ${order.assigned_driver_name || "Fahrer"},
 
 dir wurde ein Auftrag zugewiesen.
 
@@ -213,7 +226,7 @@ Abgabezeit: ${dropoffWhen || "-"}
 
 Weitere Details findest du in der Fahrer-App.`;
 
-    const html = `<p>Hallo ${order.assigned_driver_name || "Fahrer"},</p>
+      const html = `<p>Hallo ${order.assigned_driver_name || "Fahrer"},</p>
 <p>dir wurde ein Auftrag zugewiesen.</p>
 <ul>
   <li><strong>Auftrag:</strong> ${order.order_number || "-"}</li>
@@ -228,21 +241,100 @@ Weitere Details findest du in der Fahrer-App.`;
 <strong>Abgabezeit:</strong> ${dropoffWhen || "-"}</p>
 <p>Weitere Details findest du in der Fahrer-App.</p>`;
 
-    let emailSent = false;
-    try {
-      emailSent = await sendEmail({
-        to: driver.email,
-        subject,
-        text,
-        html,
-        from: fromAddress,
-        replyTo,
-      });
-    } catch (err) {
-      emailSent = false;
+      try {
+        emailResults.driver = await sendEmail({
+          to: driver.email,
+          subject,
+          text,
+          html,
+          from: fromAddress,
+          replyTo,
+        });
+      } catch (err) {
+        emailResults.driver = false;
+      }
     }
 
-    res.status(200).json({ ok: true, data: { emailSent } });
+    if (resolvedTarget === "customer" || resolvedTarget === "both") {
+      let customerEmail = order.customer_email || "";
+      let customerRecord = null;
+      if (!customerEmail && order.customer_id) {
+        const { data: customer, error: customerError } = await supabaseAdmin
+          .from("customers")
+          .select("id, email, first_name, last_name, company_name, company_id")
+          .eq("id", order.customer_id)
+          .maybeSingle();
+        if (customerError) {
+          res.status(500).json({ ok: false, error: customerError.message });
+          return;
+        }
+        if (customer?.company_id && customer.company_id !== order.company_id) {
+          res.status(403).json({ ok: false, error: "Kunde gehört zu anderem Unternehmen." });
+          return;
+        }
+        customerRecord = customer || null;
+        customerEmail = customer?.email || "";
+      }
+
+      if (!customerEmail) {
+        res.status(400).json({ ok: false, error: "Kunden-E-Mail fehlt." });
+        return;
+      }
+
+      const customerName = getCustomerDisplayName(order, customerRecord) || "Kunde";
+      const subject = `Auftragsbestätigung ${order.order_number || ""}`.trim();
+      const text = `Hallo ${customerName},
+
+hiermit bestätigen wir deinen Auftrag.
+
+Auftrag: ${order.order_number || "-"}
+Kundenauftrag: ${order.customer_order_number || "-"}
+Fahrzeug: ${[order.vehicle_brand, order.vehicle_model].filter(Boolean).join(" ") || "-"}
+Kennzeichen: ${order.license_plate || "-"}
+
+Abholung: ${pickupLine || "-"}
+Abholzeit: ${pickupWhen || "-"}
+
+Abgabe: ${dropoffLine || "-"}
+Abgabezeit: ${dropoffWhen || "-"}
+
+Vielen Dank für deinen Auftrag.`;
+
+      const html = `<p>Hallo ${customerName},</p>
+<p>hiermit bestätigen wir deinen Auftrag.</p>
+<ul>
+  <li><strong>Auftrag:</strong> ${order.order_number || "-"}</li>
+  <li><strong>Kundenauftrag:</strong> ${order.customer_order_number || "-"}</li>
+  <li><strong>Fahrzeug:</strong> ${[order.vehicle_brand, order.vehicle_model].filter(Boolean).join(" ") || "-"}</li>
+  <li><strong>Kennzeichen:</strong> ${order.license_plate || "-"}</li>
+</ul>
+<p><strong>Abholung:</strong> ${pickupLine || "-"}<br/>
+<strong>Abholzeit:</strong> ${pickupWhen || "-"}</p>
+<p><strong>Abgabe:</strong> ${dropoffLine || "-"}<br/>
+<strong>Abgabezeit:</strong> ${dropoffWhen || "-"}</p>
+<p>Vielen Dank für deinen Auftrag.</p>`;
+
+      try {
+        emailResults.customer = await sendEmail({
+          to: customerEmail,
+          subject,
+          text,
+          html,
+          from: fromAddress,
+          replyTo,
+        });
+      } catch (err) {
+        emailResults.customer = false;
+      }
+    }
+
+    const payload = resolvedTarget === "driver"
+      ? { emailSent: emailResults.driver }
+      : resolvedTarget === "customer"
+      ? { emailSent: emailResults.customer }
+      : { emailSent: emailResults };
+
+    res.status(200).json({ ok: true, data: payload });
   } catch (error) {
     res.status(500).json({ ok: false, error: error?.message || "Unknown error" });
   }
