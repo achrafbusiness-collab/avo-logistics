@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { createPageUrl } from "@/utils";
 import { supabase } from "@/lib/supabaseClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Building2, CheckCircle2, AlertCircle } from "lucide-react";
+import { ArrowLeft, Loader2, Building2, CheckCircle2, AlertCircle } from "lucide-react";
 import { appClient } from "@/api/appClient";
 
 const buildCompanyForm = (company, owner) => ({
@@ -284,6 +286,14 @@ export default function SystemVermietung() {
   return (
     <div className="space-y-6">
       <div>
+        <div className="mb-3">
+          <Link to={createPageUrl("AdminControlling")}>
+            <Button variant="outline" size="sm" className="gap-2">
+              <ArrowLeft className="h-4 w-4" />
+              Zurück zu Admin Controlling
+            </Button>
+          </Link>
+        </div>
         <h1 className="text-2xl font-bold text-slate-900">System‑Vermietung</h1>
         <p className="text-sm text-slate-500">
           Lege neue Mandanten an und erstelle den Geschäftsführer‑Zugang.

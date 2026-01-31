@@ -1,4 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { createPageUrl } from '@/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -10,7 +12,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { clearSystemLogs, getSystemLogs, subscribeSystemLogs } from '@/lib/systemLog';
-import { Copy, Trash2, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Copy, Trash2, AlertTriangle } from 'lucide-react';
 
 const levelOptions = [
   { value: 'all', label: 'Alle' },
@@ -60,6 +62,14 @@ export default function Terminal() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
+          <div className="mb-3">
+            <Link to={createPageUrl('AdminControlling')}>
+              <Button variant="outline" size="sm" className="gap-2">
+                <ArrowLeft className="w-4 h-4" />
+                Zurück zu Admin Controlling
+              </Button>
+            </Link>
+          </div>
           <h1 className="text-2xl font-bold text-white">Terminal</h1>
           <p className="text-sm text-slate-300">
             Zeigt Frontend-Fehler, Warnungen und API-Probleme an. Backend-Logs findest du weiterhin in Vercel/Supabase.

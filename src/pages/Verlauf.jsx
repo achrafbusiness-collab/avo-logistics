@@ -1,7 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import { createPageUrl } from "@/utils";
 import { supabase } from "@/lib/supabaseClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -9,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { History, Loader2, Search } from "lucide-react";
+import { ArrowLeft, History, Loader2, Search } from "lucide-react";
 import { format } from "date-fns";
 import StatusBadge from "@/components/ui/StatusBadge";
 
@@ -125,6 +128,14 @@ export default function Verlauf() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-2">
+        <div>
+          <Link to={createPageUrl("AdminControlling")}>
+            <Button variant="outline" size="sm" className="gap-2">
+              <ArrowLeft className="h-4 w-4" />
+              Zurück zu Admin Controlling
+            </Button>
+          </Link>
+        </div>
         <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
           <History className="h-6 w-6 text-[#1e3a5f]" />
           Verlauf
