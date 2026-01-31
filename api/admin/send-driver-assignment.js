@@ -130,7 +130,7 @@ export default async function handler(req, res) {
     }
 
     const body = await readJsonBody(req);
-    const { orderId, testEmail, to } = body || {};
+    const { orderId, testEmail, to, welcomeEmail } = body || {};
 
     const { data: settings } = await supabaseAdmin
       .from("app_settings")
@@ -163,6 +163,9 @@ export default async function handler(req, res) {
       fallback: resolvedSmtp.from || resolvedSmtp.user,
     });
     const replyTo = settings?.support_email || undefined;
+    const brandPrimary = "#1e3a5f";
+    const brandSecondary = "#2d5a8a";
+    const logoUrl = "https://avo-logistics.app/IMG_5222.JPG";
 
     if (testEmail) {
       const target = to || resolvedSmtp.user || senderAddress;
@@ -208,6 +211,103 @@ Wenn du diese E-Mail erhalten hast, ist SMTP korrekt eingerichtet.`;
         return;
       } catch (err) {
         res.status(400).json({ ok: false, error: err?.message || "Test-E-Mail fehlgeschlagen." });
+        return;
+      }
+    }
+
+    if (welcomeEmail) {
+      const target = to || authData.user.email || resolvedSmtp.user || senderAddress;
+      if (!target) {
+        res.status(400).json({ ok: false, error: "Bitte E-Mail-Adresse angeben." });
+        return;
+      }
+      if (!canSendEmail(resolvedSmtp)) {
+        res.status(400).json({ ok: false, error: "SMTP ist nicht konfiguriert." });
+        return;
+      }
+      const companyName = settings?.company_name || "AVO Logistics";
+      const subject = `Herzlich willkommen bei ${companyName}`;
+      const text = `Hallo,
+
+herzlich willkommen bei ${companyName}! Dein Konto ist jetzt aktiv.
+
+Du kannst ab sofort:
+- Aufträge anlegen und verwalten
+- Fahrer und Kunden einsehen
+- AI Import und AVO AI nutzen
+- Team und Einstellungen verwalten
+
+Admin Controlling ist nur für System-Admins sichtbar.
+
+Bei Fragen wende dich bitte an deinen Disponenten.
+
+Viele Grüße
+${companyName}`;
+      const html = `
+<div style="background:#f4f6fb; padding:24px 0; font-family:Arial, sans-serif; color:#0f172a;">
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width:640px; margin:0 auto;">
+    <tr>
+      <td style="padding:0 20px 16px;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+          <tr>
+            <td style="text-align:left;">
+              <img src="${logoUrl}" alt="${companyName}" style="height:46px; display:block; border-radius:8px;" />
+            </td>
+            <td style="text-align:right; font-size:12px; color:${brandSecondary}; font-weight:600;">
+              Willkommen
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:0 20px;">
+        <div style="background:#ffffff; border-radius:16px; box-shadow:0 8px 24px rgba(15,23,42,0.08); overflow:hidden;">
+          <div style="background:${brandPrimary}; color:#ffffff; padding:18px 24px;">
+            <h1 style="margin:0; font-size:20px; font-weight:700;">Herzlich willkommen!</h1>
+            <p style="margin:6px 0 0; font-size:14px; opacity:0.9;">Dein Konto ist jetzt aktiv.</p>
+          </div>
+          <div style="padding:20px 24px;">
+            <p style="margin:0 0 12px; font-size:14px;">
+              Schön, dass du dabei bist. Ab sofort kannst du im System:
+            </p>
+            <ul style="padding-left:18px; margin:0 0 16px; font-size:14px; color:#0f172a;">
+              <li>Aufträge anlegen und verwalten</li>
+              <li>Fahrer und Kunden einsehen</li>
+              <li>AI Import und AVO AI nutzen</li>
+              <li>Team und Einstellungen verwalten</li>
+            </ul>
+            <p style="margin:0 0 12px; font-size:13px; color:#64748b;">
+              Admin Controlling ist nur für System-Admins sichtbar.
+            </p>
+            <p style="margin:0; font-size:13px; color:#64748b;">
+              Bei Fragen wende dich bitte an deinen Disponenten.
+            </p>
+            <p style="margin:16px 0 0; font-size:14px;">Viele Grüße<br/>${companyName}</p>
+          </div>
+        </div>
+      </td>
+    </tr>
+  </table>
+</div>`;
+      try {
+        const emailSent = await sendEmail({
+          to: target,
+          subject,
+          text,
+          html,
+          from: fromAddress,
+          replyTo,
+          smtp: resolvedSmtp,
+        });
+        if (!emailSent) {
+          res.status(400).json({ ok: false, error: "Willkommens-E-Mail konnte nicht gesendet werden." });
+          return;
+        }
+        res.status(200).json({ ok: true, data: { emailSent: true } });
+        return;
+      } catch (err) {
+        res.status(400).json({ ok: false, error: err?.message || "Willkommens-E-Mail fehlgeschlagen." });
         return;
       }
     }
@@ -270,9 +370,6 @@ Wenn du diese E-Mail erhalten hast, ist SMTP korrekt eingerichtet.`;
     }
 
     const signatureName = senderName || settings?.company_name || "AVO Logistics";
-    const brandPrimary = "#1e3a5f";
-    const brandSecondary = "#2d5a8a";
-    const logoUrl = "https://avo-logistics.app/IMG_5222.JPG";
     const subject = `Auftragsbestätigung – Auftrag ${order.order_number || ""} zugewiesen`;
     const text = `Hallo ${order.assigned_driver_name || "Fahrer"},
 

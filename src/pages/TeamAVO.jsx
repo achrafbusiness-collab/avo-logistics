@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -14,6 +15,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,6 +40,7 @@ import {
   CheckCircle2,
   AlertCircle,
   Trash2,
+  Sparkles,
 } from "lucide-react";
 
 const roles = [
@@ -56,10 +66,12 @@ const permissionOptions = [
   { key: "TeamAVO", label: "Team" },
 ];
 
-const defaultPermissions = permissionOptions.reduce((acc, item) => {
-  acc[item.key] = false;
+const allPermissions = permissionOptions.reduce((acc, item) => {
+  acc[item.key] = true;
   return acc;
 }, {});
+
+const defaultPermissions = { ...allPermissions };
 
 const buildProfileForm = (profile) => ({
   id: profile?.id || "",
@@ -89,10 +101,18 @@ export default function TeamAVO() {
   const [form, setForm] = useState(buildProfileForm(null));
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [inviting, setInviting] = useState(false);
+  const [creating, setCreating] = useState(false);
   const [uploadingId, setUploadingId] = useState({ front: false, back: false });
-  const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState("minijobber");
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createForm, setCreateForm] = useState({
+    full_name: "",
+    email: "",
+    role: "dispatcher",
+    position: "",
+    employment_type: "",
+    address: "",
+    phone: "",
+  });
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -101,6 +121,21 @@ export default function TeamAVO() {
     () => profiles.find((profile) => profile.id === selectedId),
     [profiles, selectedId]
   );
+
+  const activeCount = profiles.filter((profile) => profile.is_active).length;
+  const pendingCount = profiles.length - activeCount;
+  const roleLabel = (value) => roles.find((role) => role.value === value)?.label || value;
+
+  const resetCreateForm = () =>
+    setCreateForm({
+      full_name: "",
+      email: "",
+      role: "dispatcher",
+      position: "",
+      employment_type: "",
+      address: "",
+      phone: "",
+    });
 
   useEffect(() => {
     const load = async () => {
@@ -214,12 +249,12 @@ export default function TeamAVO() {
     }
   };
 
-  const handleInvite = async () => {
-    if (!inviteEmail.trim()) {
+  const handleCreateMember = async () => {
+    if (!createForm.email.trim()) {
       setError("Bitte eine E-Mail angeben.");
       return;
     }
-    setInviting(true);
+    setCreating(true);
     setError("");
     setMessage("");
     try {
@@ -235,11 +270,16 @@ export default function TeamAVO() {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          email: inviteEmail,
-          redirectTo: `${window.location.origin}/reset-password`,
+          email: createForm.email.trim(),
+          redirectTo: `${window.location.origin}/set-password`,
           profile: {
-            role: inviteRole,
-            permissions: defaultPermissions,
+            full_name: createForm.full_name,
+            role: createForm.role,
+            position: createForm.position,
+            employment_type: createForm.employment_type,
+            address: createForm.address,
+            phone: createForm.phone,
+            permissions: allPermissions,
             is_active: false,
           },
         }),
@@ -247,20 +287,24 @@ export default function TeamAVO() {
 
       const payload = await response.json();
       if (!response.ok || !payload.ok) {
-        throw new Error(payload?.error || "Einladung fehlgeschlagen.");
+        throw new Error(payload?.error || "Konto konnte nicht erstellt werden.");
       }
       if (payload?.data?.emailSent === false && payload?.data?.actionLink) {
-        setMessage(`Einladung erstellt, E-Mail konnte nicht gesendet werden. Link: ${payload.data.actionLink}`);
+        setMessage(
+          `Konto erstellt, E-Mail konnte nicht gesendet werden. Link: ${payload.data.actionLink}`
+        );
       } else {
-        setMessage("Einladung wurde gesendet. Konto wartet auf Freigabe.");
+        setMessage(
+          "Mitarbeiterkonto erstellt. Einladung wurde gesendet und wird nach dem Passwort-Setup automatisch aktiviert."
+        );
       }
-      setInviteEmail("");
-      setInviteRole("minijobber");
+      resetCreateForm();
+      setCreateOpen(false);
       await refreshProfiles();
     } catch (err) {
-      setError(err?.message || "Einladung fehlgeschlagen.");
+      setError(err?.message || "Konto konnte nicht erstellt werden.");
     } finally {
-      setInviting(false);
+      setCreating(false);
     }
   };
 
@@ -354,55 +398,54 @@ export default function TeamAVO() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-          <Users className="h-6 w-6 text-[#1e3a5f]" />
-          Team
-        </h1>
-        <p className="text-slate-500">
-          Verwalte Konten, Rollen und Seiten-Zugriffe für dein Team.
-        </p>
+      <div className="rounded-2xl bg-gradient-to-br from-[#1e3a5f] via-[#1e3a5f] to-[#2d5a8a] px-6 py-5 text-white shadow-lg">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="space-y-2">
+            <p className="text-xs uppercase tracking-[0.35em] text-blue-100">AVO SYSTEM</p>
+            <h1 className="text-2xl font-semibold flex items-center gap-2">
+              <Users className="h-6 w-6" />
+              Team & Zugriffe
+            </h1>
+            <p className="text-sm text-blue-100">
+              Erstelle Mitarbeiterkonten, steuere Rollen und verwalte Berechtigungen.
+            </p>
+          </div>
+          <Button
+            onClick={() => setCreateOpen(true)}
+            className="bg-white text-[#1e3a5f] hover:bg-blue-50"
+          >
+            <UserPlus className="mr-2 h-4 w-4" />
+            Mitarbeiter Konto erstellen
+          </Button>
+        </div>
       </div>
 
-      <Card className="border border-slate-200 bg-white">
-        <CardHeader className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              <UserPlus className="h-5 w-5 text-[#1e3a5f]" />
-              Neues Konto einladen
-            </CardTitle>
-            <p className="text-sm text-slate-500">Mitarbeiter erhält E-Mail zum Passwort setzen.</p>
-          </div>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <Input
-              value={inviteEmail}
-              onChange={(e) => setInviteEmail(e.target.value)}
-              placeholder="name@firma.de"
-              className="sm:w-64"
-            />
-            <Select value={inviteRole} onValueChange={setInviteRole}>
-              <SelectTrigger className="sm:w-44">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {roles.map((role) => (
-                  <SelectItem key={role.value} value={role.value}>
-                    {role.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button
-              onClick={handleInvite}
-              disabled={inviting}
-              className="bg-[#1e3a5f] hover:bg-[#2d5a8a]"
-            >
-              {inviting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              Einladen
-            </Button>
-          </div>
-        </CardHeader>
-      </Card>
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm text-slate-500">Teammitglieder</CardTitle>
+          </CardHeader>
+          <CardContent className="text-2xl font-semibold text-slate-900">
+            {profiles.length}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm text-slate-500">Aktive Konten</CardTitle>
+          </CardHeader>
+          <CardContent className="text-2xl font-semibold text-emerald-600">
+            {activeCount}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm text-slate-500">Wartend</CardTitle>
+          </CardHeader>
+          <CardContent className="text-2xl font-semibold text-amber-600">
+            {pendingCount}
+          </CardContent>
+        </Card>
+      </div>
 
       {message && (
         <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-emerald-700">
@@ -418,14 +461,19 @@ export default function TeamAVO() {
       )}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[260px_1fr]">
-        <Card className="h-fit">
+        <Card className="h-fit border border-slate-200">
           <CardHeader>
-            <CardTitle>Konten</CardTitle>
+            <CardTitle className="flex items-center justify-between">
+              Teamliste
+              <Badge className="bg-slate-100 text-slate-700 hover:bg-slate-100">
+                {profiles.length} Personen
+              </Badge>
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
             {profiles.length === 0 ? (
               <p className="text-sm text-slate-500">
-                Noch keine Profile. Oben kannst du neue Konten einladen.
+                Noch keine Profile. Oben kannst du neue Konten erstellen.
               </p>
             ) : (
               profiles.map((profile) => (
@@ -439,13 +487,22 @@ export default function TeamAVO() {
                       : "border-slate-200 hover:border-slate-300 hover:bg-slate-50"
                   }`}
                 >
-                  <p className="text-sm font-semibold text-slate-900">
-                    {profile.full_name || profile.email}
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    {profile.role || "minijobber"}
-                    {!profile.is_active ? " • wartend" : ""}
-                  </p>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-semibold text-slate-900">
+                      {profile.full_name || profile.email}
+                    </p>
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+                        profile.is_active
+                          ? "bg-emerald-100 text-emerald-700"
+                          : "bg-amber-100 text-amber-700"
+                      }`}
+                    >
+                      {profile.is_active ? "Aktiv" : "Wartet"}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500">{profile.email}</p>
+                  <p className="text-xs text-slate-500">{roleLabel(profile.role || "minijobber")}</p>
                 </button>
               ))
             )}
@@ -558,6 +615,9 @@ export default function TeamAVO() {
           <Card>
             <CardHeader>
               <CardTitle>Seiten-Zugriffe</CardTitle>
+              <p className="text-sm text-slate-500">
+                Admin Controlling ist nur für System-Admins sichtbar.
+              </p>
             </CardHeader>
             <CardContent className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {permissionOptions.map((item) => (
@@ -594,6 +654,128 @@ export default function TeamAVO() {
           </div>
         </div>
       </div>
+
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-[#1e3a5f]">
+              <Sparkles className="h-5 w-5" />
+              Mitarbeiter Konto erstellen
+            </DialogTitle>
+            <DialogDescription>
+              Nach dem Speichern wird eine Einladung mit einem persönlichen Link verschickt,
+              damit der Mitarbeiter sein Passwort setzen kann.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="md:col-span-2">
+              <Label>Vollständiger Name</Label>
+              <Input
+                value={createForm.full_name}
+                onChange={(e) => setCreateForm((prev) => ({ ...prev, full_name: e.target.value }))}
+                placeholder="Max Mustermann"
+              />
+            </div>
+            <div>
+              <Label>E-Mail</Label>
+              <Input
+                type="email"
+                value={createForm.email}
+                onChange={(e) => setCreateForm((prev) => ({ ...prev, email: e.target.value }))}
+                placeholder="name@firma.de"
+              />
+            </div>
+            <div>
+              <Label>Rolle</Label>
+              <Select
+                value={createForm.role}
+                onValueChange={(value) => setCreateForm((prev) => ({ ...prev, role: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {roles.map((role) => (
+                    <SelectItem key={role.value} value={role.value}>
+                      {role.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Position</Label>
+              <Input
+                value={createForm.position}
+                onChange={(e) => setCreateForm((prev) => ({ ...prev, position: e.target.value }))}
+                placeholder="Disponent"
+              />
+            </div>
+            <div>
+              <Label>Beschäftigung</Label>
+              <Select
+                value={createForm.employment_type}
+                onValueChange={(value) =>
+                  setCreateForm((prev) => ({ ...prev, employment_type: value }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Auswählen" />
+                </SelectTrigger>
+                <SelectContent>
+                  {employmentTypes.map((type) => (
+                    <SelectItem key={type.value} value={type.value}>
+                      {type.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Telefon</Label>
+              <Input
+                value={createForm.phone}
+                onChange={(e) => setCreateForm((prev) => ({ ...prev, phone: e.target.value }))}
+                placeholder="+49 ..."
+              />
+            </div>
+            <div className="md:col-span-2">
+              <Label>Adresse</Label>
+              <Input
+                value={createForm.address}
+                onChange={(e) => setCreateForm((prev) => ({ ...prev, address: e.target.value }))}
+                placeholder="Straße, PLZ, Stadt"
+              />
+            </div>
+          </div>
+          <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-600">
+            Der Mitarbeiter erhält Zugriff auf alle Seiten außer Admin Controlling.
+            Nach dem Passwort-Setup wird das Konto automatisch aktiviert und eine Willkommensmail
+            gesendet.
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setCreateOpen(false);
+                resetCreateForm();
+              }}
+            >
+              Abbrechen
+            </Button>
+            <Button
+              type="button"
+              onClick={handleCreateMember}
+              disabled={creating}
+              className="bg-[#1e3a5f] hover:bg-[#2d5a8a]"
+            >
+              {creating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Konto erstellen & einladen
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
         <AlertDialogContent>

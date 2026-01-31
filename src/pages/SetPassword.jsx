@@ -16,6 +16,20 @@ export default function SetPassword() {
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
 
+  const sendWelcomeEmail = async () => {
+    const { data } = await supabase.auth.getSession();
+    const token = data?.session?.access_token;
+    if (!token) return;
+    await fetch("/api/admin/send-driver-assignment", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ welcomeEmail: true }),
+    });
+  };
+
   useEffect(() => {
     const loadSession = async () => {
       const { data } = await supabase.auth.getSession();
@@ -52,12 +66,16 @@ export default function SetPassword() {
       if (userData?.user?.id) {
         const { data: profileData } = await supabase
           .from("profiles")
-          .select("role, email, company_id")
+          .select("role, email, company_id, is_active")
           .eq("id", userData.user.id)
           .maybeSingle();
         await supabase
           .from("profiles")
-          .update({ must_reset_password: false, updated_at: new Date().toISOString() })
+          .update({
+            must_reset_password: false,
+            is_active: true,
+            updated_at: new Date().toISOString(),
+          })
           .eq("id", userData.user.id);
         if (profileData?.role === "driver" && profileData?.email) {
           await supabase
@@ -65,6 +83,12 @@ export default function SetPassword() {
             .update({ status: "active" })
             .eq("email", profileData.email)
             .eq("company_id", profileData.company_id || null);
+        } else if (profileData?.is_active === false) {
+          try {
+            await sendWelcomeEmail();
+          } catch (err) {
+            console.warn("Welcome email failed", err);
+          }
         }
       }
       setDone(true);
