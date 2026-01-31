@@ -125,6 +125,7 @@ export default function TeamAVO() {
   const activeCount = profiles.filter((profile) => profile.is_active).length;
   const pendingCount = profiles.length - activeCount;
   const roleLabel = (value) => roles.find((role) => role.value === value)?.label || value;
+  const baseInviteUrl = (import.meta.env.VITE_PUBLIC_SITE_URL || "").trim() || window.location.origin;
 
   const resetCreateForm = () =>
     setCreateForm({
@@ -271,7 +272,7 @@ export default function TeamAVO() {
         },
         body: JSON.stringify({
           email: createForm.email.trim(),
-          redirectTo: `${window.location.origin}/set-password`,
+          redirectTo: `${baseInviteUrl}/set-password`,
           profile: {
             full_name: createForm.full_name,
             role: createForm.role,
