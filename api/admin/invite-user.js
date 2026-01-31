@@ -107,40 +107,12 @@ export default async function handler(req, res) {
   }
 
   try {
-    const token = getBearerToken(req);
-    if (!token) {
-      res.status(401).json({ ok: false, error: "Missing auth token" });
-      return;
-    }
-
-    const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(token);
-    if (authError || !authData?.user) {
-      res.status(401).json({ ok: false, error: "Invalid auth token" });
-      return;
-    }
-
     const body = await readJsonBody(req);
     const { email, profile, redirectTo, purpose: bodyPurpose } = body || {};
     if (!email) {
       res.status(400).json({ ok: false, error: "Missing email" });
       return;
     }
-
-    const companyId = await getCompanyIdForUser(authData.user.id);
-    if (!companyId) {
-      res.status(403).json({ ok: false, error: "Kein Unternehmen gefunden." });
-      return;
-    }
-
-    const { data: settings } = await supabaseAdmin
-      .from("app_settings")
-      .select(
-        "email_sender_name, email_sender_address, support_email, company_name, smtp_host, smtp_port, smtp_user, smtp_pass, smtp_secure"
-      )
-      .eq("company_id", companyId)
-      .order("created_date", { ascending: false })
-      .limit(1)
-      .maybeSingle();
 
     const normalizedPublicUrl = normalizePublicUrl(publicSiteUrl);
     const effectiveRedirect =
@@ -151,6 +123,28 @@ export default async function handler(req, res) {
     const purpose = String(bodyPurpose || "invite");
 
     if (purpose === "recovery") {
+      const { data: profileData, error: profileError } = await supabaseAdmin
+        .from("profiles")
+        .select("company_id, full_name")
+        .eq("email", email)
+        .maybeSingle();
+      if (profileError) {
+        res.status(200).json({ ok: true, data: { emailSent: false } });
+        return;
+      }
+      const companyId = profileData?.company_id || null;
+      const { data: settings } = companyId
+        ? await supabaseAdmin
+            .from("app_settings")
+            .select(
+              "email_sender_name, email_sender_address, support_email, company_name, smtp_host, smtp_port, smtp_user, smtp_pass, smtp_secure"
+            )
+            .eq("company_id", companyId)
+            .order("created_date", { ascending: false })
+            .limit(1)
+            .maybeSingle()
+        : { data: null };
+
       const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
         type: "recovery",
         email,
@@ -160,7 +154,7 @@ export default async function handler(req, res) {
       });
 
       if (linkError || !linkData?.user) {
-        res.status(400).json({ ok: false, error: linkError?.message || "Recovery link failed" });
+        res.status(200).json({ ok: true, data: { emailSent: false } });
         return;
       }
 
@@ -263,6 +257,34 @@ ${actionLink}
       res.status(200).json({ ok: true, data: { email, actionLink, emailSent } });
       return;
     }
+
+    const token = getBearerToken(req);
+    if (!token) {
+      res.status(401).json({ ok: false, error: "Missing auth token" });
+      return;
+    }
+
+    const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(token);
+    if (authError || !authData?.user) {
+      res.status(401).json({ ok: false, error: "Invalid auth token" });
+      return;
+    }
+
+    const companyId = await getCompanyIdForUser(authData.user.id);
+    if (!companyId) {
+      res.status(403).json({ ok: false, error: "Kein Unternehmen gefunden." });
+      return;
+    }
+
+    const { data: settings } = await supabaseAdmin
+      .from("app_settings")
+      .select(
+        "email_sender_name, email_sender_address, support_email, company_name, smtp_host, smtp_port, smtp_user, smtp_pass, smtp_secure"
+      )
+      .eq("company_id", companyId)
+      .order("created_date", { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
     const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
       type: "invite",

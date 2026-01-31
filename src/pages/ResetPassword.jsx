@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { appClient } from "@/api/appClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -116,11 +115,22 @@ export default function ResetPassword() {
     }
     setSending(true);
     try {
-      await appClient.auth.resetPassword({
-        email,
-        redirectTo: getPublicResetUrl(),
+      const response = await fetch("/api/admin/invite-user", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: email.trim(),
+          purpose: "recovery",
+          redirectTo: getPublicResetUrl(),
+        }),
       });
-      setMessage("E-Mail gesendet. Bitte Link in der E-Mail öffnen.");
+      const payload = await response.json();
+      if (!response.ok || !payload?.ok) {
+        throw new Error(payload?.error || "Reset fehlgeschlagen.");
+      }
+      setMessage("Falls die E-Mail existiert, wurde ein Reset-Link gesendet.");
     } catch (err) {
       setError(err?.message || "Reset fehlgeschlagen.");
     } finally {
