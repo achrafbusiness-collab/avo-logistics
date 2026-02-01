@@ -125,7 +125,7 @@ export default function TeamAVO() {
         return;
       }
       try {
-        const data = filterTeamProfiles(await fetchProfiles());
+        const data = filterTeamProfiles(await fetchProfiles(user.company_id));
         setProfiles(data);
         if (data.length) {
           setSelectedId(data[0].id);
@@ -151,7 +151,7 @@ export default function TeamAVO() {
 
   const refreshProfiles = async () => {
     try {
-      const data = filterTeamProfiles(await fetchProfiles());
+      const data = filterTeamProfiles(await fetchProfiles(currentUser?.company_id));
       setProfiles(data);
       if (data.length) {
         const next = data.find((item) => item.id === selectedId) || data[0];
@@ -168,21 +168,16 @@ export default function TeamAVO() {
     return data?.session?.access_token || null;
   };
 
-  const fetchProfiles = async () => {
-    const token = await getAuthToken();
-    if (!token) {
-      throw new Error("Nicht angemeldet.");
+  const fetchProfiles = async (companyId) => {
+    let query = supabase.from("profiles").select("*").order("created_at", { ascending: true });
+    if (companyId) {
+      query = query.eq("company_id", companyId);
     }
-    const response = await fetch("/api/admin/list-profiles", {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-    const payload = await response.json();
-    if (!response.ok || !payload?.ok) {
-      throw new Error(payload?.error || "Profile konnten nicht geladen werden.");
+    const { data, error } = await query;
+    if (error) {
+      throw new Error(error.message || "Profile konnten nicht geladen werden.");
     }
-    return payload.data || [];
+    return data || [];
   };
 
   const uploadIdDocument = async (side, file) => {

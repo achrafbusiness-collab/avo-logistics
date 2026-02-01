@@ -46,7 +46,8 @@ import {
   Check,
   X,
   ArrowLeft,
-  Loader2
+  Loader2,
+  Mail
 } from 'lucide-react';
 
 export default function Orders() {
@@ -769,6 +770,13 @@ export default function Orders() {
           >
             <Truck className="w-4 h-4 mr-2" />
             AI Import
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => window.location.href = createPageUrl('EmailAIImport')}
+          >
+            <Mail className="w-4 h-4 mr-2" />
+            Email AI Import
           </Button>
           <Button
             variant="outline"

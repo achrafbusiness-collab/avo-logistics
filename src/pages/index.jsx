@@ -26,6 +26,7 @@ import DriverPriceRequests from "./DriverPriceRequests";
 import AdminControlling from "./AdminControlling";
 
 import AIImport from "./AIImport";
+import EmailAIImport from "./EmailAIImport";
 
 import AVOAI from "./AVOAI";
 
@@ -80,6 +81,8 @@ const PAGES = {
     AdminEmailSettings: AdminEmailSettings,
     
     AIImport: AIImport,
+
+    EmailAIImport: EmailAIImport,
     
     AVOAI: AVOAI,
 
@@ -234,6 +237,8 @@ function PagesContent() {
                 <Route path="/AdminEmailSettings" element={<AdminEmailSettings />} />
                 
                 <Route path="/AIImport" element={<AIImport />} />
+
+                <Route path="/EmailAIImport" element={<EmailAIImport />} />
                 
                 <Route path="/AVOAI" element={<AVOAI />} />
 

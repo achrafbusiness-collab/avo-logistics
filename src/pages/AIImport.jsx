@@ -25,9 +25,13 @@ import {
   AlertCircle,
   Save
 } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
+
+const PREFILL_KEY = 'avo:ai-import-prefill';
 
 export default function AIImport() {
   const queryClient = useQueryClient();
+  const location = useLocation();
   const [emailText, setEmailText] = useState('');
   const [analyzing, setAnalyzing] = useState(false);
   const [extractedOrders, setExtractedOrders] = useState([]);
@@ -37,6 +41,7 @@ export default function AIImport() {
   const [error, setError] = useState(null);
   const [calcLoading, setCalcLoading] = useState(false);
   const [calcError, setCalcError] = useState('');
+  const [autoAnalyze, setAutoAnalyze] = useState(false);
   const lastCalcKeyRef = useRef('');
 
   const formatKm = (value) => {
@@ -319,6 +324,30 @@ Gib ausschließlich die strukturierten Daten zurück.`,
       setAnalyzing(false);
     }
   };
+
+  useEffect(() => {
+    if (emailText.trim()) return;
+    const stored = sessionStorage.getItem(PREFILL_KEY);
+    if (!stored) return;
+    try {
+      const payload = JSON.parse(stored);
+      if (payload?.text) {
+        setEmailText(payload.text);
+        setAutoAnalyze(Boolean(payload.autoAnalyze));
+      }
+    } catch {
+      // ignore malformed cache
+    } finally {
+      sessionStorage.removeItem(PREFILL_KEY);
+    }
+  }, [emailText, location.key]);
+
+  useEffect(() => {
+    if (autoAnalyze && emailText.trim()) {
+      setAutoAnalyze(false);
+      analyzeEmail();
+    }
+  }, [autoAnalyze, emailText]);
 
   const handleConfirm = async () => {
     if (!currentOrder) return;
