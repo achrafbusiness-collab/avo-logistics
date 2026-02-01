@@ -550,23 +550,25 @@ export default function EmailAIImport() {
       >
         <DialogContent className="max-w-4xl max-h-[85vh] overflow-hidden p-0 bg-white text-slate-900">
           <div className="flex h-full flex-col">
-            <DialogHeader className="border-b border-slate-200 bg-slate-50 px-6 py-4">
+            <DialogHeader className="border-b border-slate-200 bg-gradient-to-r from-[#1e3a5f] via-[#1f476f] to-[#2d5a8a] px-6 py-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <DialogTitle className="text-lg text-slate-900">
+                  <DialogTitle className="text-lg text-white">
                     {preview?.subject || "E-Mail Vorschau"}
                   </DialogTitle>
-                  <p className="text-xs text-slate-500">{preview?.from || ""}</p>
+                  <p className="text-xs text-blue-100">{preview?.from || ""}</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <Button
                     variant="outline"
+                    className="border-white/30 text-white hover:bg-white/10"
                     onClick={() => handleImportText(preview?.body || "")}
                     disabled={previewLoading || !preview?.body}
                   >
                     Ganzes E-Mail importieren
                   </Button>
                   <Button
+                    className="bg-white text-[#1e3a5f] hover:bg-blue-50"
                     onClick={() => handleImportText(selectionText)}
                     disabled={previewLoading || !selectionText.trim()}
                   >
