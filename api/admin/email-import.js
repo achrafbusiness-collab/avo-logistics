@@ -172,7 +172,7 @@ export default async function handler(req, res) {
           }
           let uids = [];
           try {
-            uids = await client.search(searchQuery);
+            uids = await client.search(searchQuery, { uid: true });
           } catch (err) {
             throw new Error(`IMAP Suche fehlgeschlagen: ${formatImapError(err)}`);
           }
@@ -185,7 +185,7 @@ export default async function handler(req, res) {
                 envelope: true,
                 internalDate: true,
                 flags: true,
-              })) {
+              }, { uid: true })) {
                 messages.push(buildListPayload(message));
               }
             } catch (err) {
@@ -213,7 +213,7 @@ export default async function handler(req, res) {
               envelope: true,
               source: true,
               internalDate: true,
-            })) {
+            }, { uid: true })) {
               const parsed = await simpleParser(message.source);
               const subject = parsed.subject || message.envelope?.subject || "";
               const from = formatAddress(message.envelope?.from);
@@ -260,7 +260,7 @@ export default async function handler(req, res) {
             envelope: true,
             source: true,
             internalDate: true,
-          })) {
+          }, { uid: true })) {
             const parsed = await simpleParser(message.source);
             const bodyText =
               parsed.text?.trim() ||
