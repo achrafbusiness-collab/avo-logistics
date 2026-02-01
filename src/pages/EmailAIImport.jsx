@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
 import { createPageUrl } from "@/utils";
@@ -26,6 +26,7 @@ const PROVIDER_PRESETS = {
 };
 
 const PREFILL_KEY = "avo:ai-import-prefill";
+const STORAGE_KEY = "avo:email-import-config";
 
 export default function EmailAIImport() {
   const navigate = useNavigate();
@@ -47,6 +48,7 @@ export default function EmailAIImport() {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [selectionText, setSelectionText] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
+  const [autoConnect, setAutoConnect] = useState(false);
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
   const previewTextareaRef = useRef(null);
@@ -89,6 +91,7 @@ export default function EmailAIImport() {
       if (!token) {
         throw new Error("Nicht angemeldet.");
       }
+      const effectiveSearch = String(queryOverride ?? searchTerm).trim();
       const response = await fetch("/api/admin/email-import", {
         method: "POST",
         headers: {
@@ -98,7 +101,7 @@ export default function EmailAIImport() {
         body: JSON.stringify({
           action: "list",
           limit: 50,
-          search: String(queryOverride ?? searchTerm).trim(),
+          search: effectiveSearch,
           imap: {
             host: imap.host.trim(),
             port: imap.port,
@@ -118,6 +121,21 @@ export default function EmailAIImport() {
       setPreview(null);
       setSelectionText("");
       setStep("list");
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({
+          provider,
+          search: effectiveSearch,
+          imap: {
+            host: imap.host.trim(),
+            port: imap.port,
+            secure: Boolean(imap.secure),
+            user: imap.user.trim(),
+            pass: imap.pass,
+            mailbox: imap.mailbox || "INBOX",
+          },
+        })
+      );
       setInfo("IMAP verbunden. E-Mails wurden geladen.");
     } catch (err) {
       setError(err?.message || "IMAP Abruf fehlgeschlagen.");
@@ -231,6 +249,19 @@ export default function EmailAIImport() {
     }
   };
 
+  const handleEmailLogout = () => {
+    localStorage.removeItem(STORAGE_KEY);
+    setMessages([]);
+    setSelectedUids([]);
+    setPreview(null);
+    setSelectionText("");
+    setSearchTerm("");
+    setStep("connect");
+    setInfo("");
+    setError("");
+    navigate(createPageUrl("Orders"));
+  };
+
   const handleImportText = (text) => {
     if (!text?.trim()) {
       setError("Kein Text ausgewählt.");
@@ -255,6 +286,33 @@ export default function EmailAIImport() {
     }
   };
 
+  useEffect(() => {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (!stored) return;
+    try {
+      const payload = JSON.parse(stored);
+      if (payload?.imap?.user && payload?.imap?.pass && payload?.imap?.host) {
+        setProvider(payload?.provider || "other");
+        setImap((prev) => ({
+          ...prev,
+          ...payload.imap,
+        }));
+        if (payload?.search) {
+          setSearchTerm(payload.search);
+        }
+        setAutoConnect(true);
+      }
+    } catch {
+      // ignore malformed cache
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!autoConnect) return;
+    setAutoConnect(false);
+    loadMessages();
+  }, [autoConnect]);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -266,6 +324,11 @@ export default function EmailAIImport() {
           <Mail className="h-5 w-5 text-[#1e3a5f]" />
           <h1 className="text-2xl font-bold text-slate-900">Email AI Import</h1>
         </div>
+        {step === "list" && (
+          <Button variant="outline" size="sm" onClick={handleEmailLogout}>
+            E-Mail abmelden
+          </Button>
+        )}
       </div>
 
       {error && (
