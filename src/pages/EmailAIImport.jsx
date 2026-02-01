@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
 import { createPageUrl } from "@/utils";
@@ -43,8 +43,13 @@ export default function EmailAIImport() {
   const [selectedUids, setSelectedUids] = useState([]);
   const [loading, setLoading] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [preview, setPreview] = useState(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [selectionText, setSelectionText] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
+  const previewTextareaRef = useRef(null);
 
   const isAllSelected = useMemo(() => {
     if (!messages.length) return false;
@@ -71,7 +76,7 @@ export default function EmailAIImport() {
     return data?.session?.access_token || null;
   };
 
-  const loadMessages = async () => {
+  const loadMessages = async (queryOverride) => {
     setError("");
     setInfo("");
     if (!imap.user.trim() || !imap.pass.trim() || !imap.host.trim()) {
@@ -93,6 +98,7 @@ export default function EmailAIImport() {
         body: JSON.stringify({
           action: "list",
           limit: 50,
+          search: String(queryOverride ?? searchTerm).trim(),
           imap: {
             host: imap.host.trim(),
             port: imap.port,
@@ -109,6 +115,8 @@ export default function EmailAIImport() {
       }
       setMessages(payload?.data?.messages || []);
       setSelectedUids([]);
+      setPreview(null);
+      setSelectionText("");
       setStep("list");
       setInfo("IMAP verbunden. E-Mails wurden geladen.");
     } catch (err) {
@@ -180,6 +188,70 @@ export default function EmailAIImport() {
       setError(err?.message || "Import fehlgeschlagen.");
     } finally {
       setImporting(false);
+    }
+  };
+
+  const loadPreview = async (uid) => {
+    setPreviewLoading(true);
+    setError("");
+    try {
+      const token = await getToken();
+      if (!token) {
+        throw new Error("Nicht angemeldet.");
+      }
+      const response = await fetch("/api/admin/email-import", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          action: "preview",
+          uid,
+          imap: {
+            host: imap.host.trim(),
+            port: imap.port,
+            secure: Boolean(imap.secure),
+            user: imap.user.trim(),
+            pass: imap.pass,
+            mailbox: imap.mailbox || "INBOX",
+          },
+        }),
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload?.ok) {
+        throw new Error(payload?.error || "E-Mail konnte nicht geladen werden.");
+      }
+      setPreview(payload?.data || null);
+      setSelectionText("");
+    } catch (err) {
+      setError(err?.message || "E-Mail konnte nicht geladen werden.");
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  const handleImportText = (text) => {
+    if (!text?.trim()) {
+      setError("Kein Text ausgewählt.");
+      return;
+    }
+    sessionStorage.setItem(
+      PREFILL_KEY,
+      JSON.stringify({ text: text.trim(), autoAnalyze: true })
+    );
+    navigate(createPageUrl("AIImport"));
+  };
+
+  const updateSelection = () => {
+    const el = previewTextareaRef.current;
+    if (!el) return;
+    const start = el.selectionStart || 0;
+    const end = el.selectionEnd || 0;
+    if (end > start) {
+      setSelectionText(el.value.slice(start, end));
+    } else {
+      setSelectionText("");
     }
   };
 
@@ -298,13 +370,30 @@ export default function EmailAIImport() {
               <Button variant="outline" onClick={() => setStep("connect")}>
                 Konto ändern
               </Button>
-              <Button variant="outline" onClick={loadMessages} disabled={loading}>
+              <Button variant="outline" onClick={() => loadMessages()} disabled={loading}>
                 {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCcw className="mr-2 h-4 w-4" />}
                 Aktualisieren
               </Button>
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
+            <div className="flex flex-col gap-2 md:flex-row md:items-center">
+              <div className="flex-1">
+                <Label>Suche</Label>
+                <Input
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Betreff, Absender oder Text..."
+                />
+              </div>
+              <div className="pt-1 md:pt-6">
+                <Button onClick={() => loadMessages(searchTerm)} disabled={loading}>
+                  {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  Suchen
+                </Button>
+              </div>
+            </div>
+
             <div className="flex items-center justify-between">
               <label className="flex items-center gap-2 text-sm text-slate-600">
                 <Checkbox checked={isAllSelected} onCheckedChange={handleToggleAll} />
@@ -346,6 +435,14 @@ export default function EmailAIImport() {
                         </p>
                       )}
                     </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => loadPreview(msg.uid)}
+                    >
+                      Öffnen
+                    </Button>
                   </label>
                 ))
               )}
@@ -360,6 +457,77 @@ export default function EmailAIImport() {
                 Ausgewählte importieren
               </Button>
             </div>
+
+            {(preview || previewLoading) && (
+              <Card className="border border-slate-200 bg-slate-50">
+                <CardHeader className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <CardTitle className="text-base">
+                      {preview?.subject || "E-Mail Vorschau"}
+                    </CardTitle>
+                    <p className="text-xs text-slate-500">{preview?.from || ""}</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => setPreview(null)}
+                      disabled={previewLoading}
+                    >
+                      Schließen
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => handleImportText(preview?.body || "")}
+                      disabled={previewLoading || !preview?.body}
+                    >
+                      Ganzes E-Mail importieren
+                    </Button>
+                    <Button
+                      onClick={() => handleImportText(selectionText)}
+                      disabled={previewLoading || !selectionText.trim()}
+                    >
+                      Nur Auswahl importieren
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {preview?.date && (
+                    <p className="text-xs text-slate-400">
+                      {new Date(preview.date).toLocaleString("de-DE")}
+                    </p>
+                  )}
+                  {previewLoading ? (
+                    <div className="flex items-center gap-2 text-sm text-slate-500">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Vorschau wird geladen...
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <Label>E-Mail Text (markiere einen Abschnitt für Import)</Label>
+                      <Input
+                        type="hidden"
+                        value={selectionText}
+                        readOnly
+                      />
+                      <textarea
+                        ref={previewTextareaRef}
+                        value={preview?.body || ""}
+                        readOnly
+                        onSelect={updateSelection}
+                        onMouseUp={updateSelection}
+                        onKeyUp={updateSelection}
+                        className="min-h-[220px] w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm focus:outline-none"
+                      />
+                      {selectionText && (
+                        <p className="text-xs text-slate-500">
+                          Auswahl: {selectionText.length} Zeichen
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
           </CardContent>
         </Card>
       )}

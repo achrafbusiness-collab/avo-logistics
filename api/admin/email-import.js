@@ -135,6 +135,7 @@ export default async function handler(req, res) {
     const action = String(body?.action || "");
     const imap = normalizeImapConfig(body?.imap || {});
     const limit = Math.min(Math.max(Number(body?.limit || 30), 1), 100);
+    const searchTerm = String(body?.search || "").trim();
 
     if (!imap.host || !imap.user || !imap.pass) {
       res.status(400).json({ ok: false, error: "IMAP Zugangsdaten fehlen." });
@@ -146,7 +147,18 @@ export default async function handler(req, res) {
       const lock = await client.getMailboxLock(imap.mailbox);
       try {
         if (action === "list") {
-          const uids = await client.search({});
+          let searchQuery = { all: true };
+          if (searchTerm) {
+            searchQuery = {
+              or: [
+                { subject: searchTerm },
+                { from: searchTerm },
+                { body: searchTerm },
+                { text: searchTerm },
+              ],
+            };
+          }
+          const uids = await client.search(searchQuery);
           const recentUids = uids.slice(-limit);
           const messages = [];
           if (recentUids.length) {
@@ -165,6 +177,45 @@ export default async function handler(req, res) {
             return timeB - timeA;
           });
           res.status(200).json({ ok: true, data: { messages } });
+          return;
+        }
+
+        if (action === "preview") {
+          const uid = Number(body?.uid);
+          if (!Number.isFinite(uid)) {
+            res.status(400).json({ ok: false, error: "E-Mail fehlt." });
+            return;
+          }
+          for await (const message of client.fetch([uid], {
+            uid: true,
+            envelope: true,
+            source: true,
+            internalDate: true,
+          })) {
+            const parsed = await simpleParser(message.source);
+            const subject = parsed.subject || message.envelope?.subject || "";
+            const from = formatAddress(message.envelope?.from);
+            const date = message.envelope?.date
+              ? new Date(message.envelope.date).toISOString()
+              : null;
+            const bodyText =
+              parsed.text?.trim() ||
+              stripHtml(parsed.html) ||
+              stripHtml(parsed.textAsHtml) ||
+              "";
+            res.status(200).json({
+              ok: true,
+              data: {
+                uid: message.uid,
+                subject,
+                from,
+                date,
+                body: bodyText,
+              },
+            });
+            return;
+          }
+          res.status(404).json({ ok: false, error: "E-Mail nicht gefunden." });
           return;
         }
 
