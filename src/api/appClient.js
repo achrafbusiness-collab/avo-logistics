@@ -328,22 +328,7 @@ const buildUser = (authUser, profile) => {
 };
 
 const resolveEffectiveRole = async (authUser, profile) => {
-  const baseRole = profile?.role || profileDefaults.role;
-  if (!authUser?.email) return baseRole;
-  if (baseRole === 'admin') return baseRole;
-  try {
-    const { data: driverRecord } = await supabase
-      .from('drivers')
-      .select('id')
-      .eq('email', authUser.email)
-      .maybeSingle();
-    if (driverRecord?.id) {
-      return 'driver';
-    }
-  } catch (error) {
-    console.warn('Driver role lookup failed', error);
-  }
-  return baseRole;
+  return profile?.role || authUser?.user_metadata?.role || profileDefaults.role;
 };
 
 const auth = {

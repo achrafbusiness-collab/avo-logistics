@@ -160,6 +160,11 @@ export default function ResetPassword() {
       });
       const payload = await response.json();
       if (!response.ok || !payload?.ok) {
+        if (response.status === 401 || response.status === 403) {
+          throw new Error(
+            "Passwort-Reset muss von einem Admin freigegeben werden. Bitte Disponenten kontaktieren."
+          );
+        }
         throw new Error(payload?.error || "Reset fehlgeschlagen.");
       }
       setMessage("Falls die E-Mail existiert, wurde ein Reset-Link gesendet.");
@@ -280,7 +285,7 @@ export default function ResetPassword() {
                 Reset-Link senden
               </Button>
               <p className="text-xs text-slate-500">
-                Du erhältst eine E-Mail zur Freigabe. Nach dem Klick erscheinen die Passwort-Felder.
+                Der Reset-Link wird vom Admin freigegeben. Bitte Disponenten kontaktieren.
               </p>
             </div>
           )}

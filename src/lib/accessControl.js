@@ -2,7 +2,6 @@ const DRIVER_PAGES = new Set([
   "DriverOrders",
   "DriverChecklist",
   "DriverProtocol",
-  "DriverDocuments",
   "DriverProfile",
   "DriverSupport",
 ]);
@@ -30,6 +29,9 @@ const isSystemAdmin = (user) => {
 
 export const hasPageAccess = (user, pageName) => {
   if (!user) return false;
+  if (DRIVER_PAGES.has(pageName)) {
+    return user.role === "driver";
+  }
   if (user.role === "driver") {
     return DRIVER_PAGES.has(pageName);
   }

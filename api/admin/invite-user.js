@@ -63,6 +63,19 @@ const getCompanyIdForUser = async (userId) => {
   return data?.company_id || null;
 };
 
+const getProfileForUser = async (userId) => {
+  if (!userId) return null;
+  const { data, error } = await supabaseAdmin
+    .from("profiles")
+    .select("id, role, company_id")
+    .eq("id", userId)
+    .maybeSingle();
+  if (error) {
+    throw new Error(error.message);
+  }
+  return data || null;
+};
+
 const canSendEmail = (config) =>
   Boolean(
     config?.host &&
@@ -152,16 +165,42 @@ export default async function handler(req, res) {
     const purpose = String(bodyPurpose || "invite");
 
     if (purpose === "recovery") {
+      const token = getBearerToken(req);
+      if (!token) {
+        res.status(401).json({ ok: false, error: "Missing auth token" });
+        return;
+      }
+
+      const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(token);
+      if (authError || !authData?.user) {
+        res.status(401).json({ ok: false, error: "Invalid auth token" });
+        return;
+      }
+
+      const requesterProfile = await getProfileForUser(authData.user.id);
+      if (!requesterProfile?.company_id) {
+        res.status(403).json({ ok: false, error: "Kein Unternehmen gefunden." });
+        return;
+      }
+      if (requesterProfile.role === "driver") {
+        res.status(403).json({ ok: false, error: "Keine Berechtigung." });
+        return;
+      }
+
       const { data: profileData, error: profileError } = await supabaseAdmin
         .from("profiles")
         .select("company_id, full_name")
         .eq("email", email)
         .maybeSingle();
       if (profileError) {
-        res.status(200).json({ ok: true, data: { emailSent: false } });
+        res.status(500).json({ ok: false, error: profileError.message });
         return;
       }
       const companyId = profileData?.company_id || null;
+      if (!companyId || companyId !== requesterProfile.company_id) {
+        res.status(400).json({ ok: false, error: "E-Mail nicht gefunden." });
+        return;
+      }
       const { data: settings } = companyId
         ? await supabaseAdmin
             .from("app_settings")
@@ -183,7 +222,7 @@ export default async function handler(req, res) {
       });
 
       if (linkError || !linkData?.user) {
-        res.status(200).json({ ok: true, data: { emailSent: false } });
+        res.status(400).json({ ok: false, error: linkError?.message || "Reset link failed" });
         return;
       }
 

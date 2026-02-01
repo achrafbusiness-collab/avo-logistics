@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import {
   Select,
@@ -55,24 +54,6 @@ const employmentTypes = [
   { value: "vollzeit", label: "Vollzeit" },
 ];
 
-const permissionOptions = [
-  { key: "Dashboard", label: "Dashboard" },
-  { key: "Orders", label: "Aufträge" },
-  { key: "Drivers", label: "Fahrer" },
-  { key: "Customers", label: "Kunden" },
-  { key: "AIImport", label: "AI Import" },
-  { key: "AVOAI", label: "AVO AI" },
-  { key: "AppConnection", label: "App & Einstellungen" },
-  { key: "TeamAVO", label: "Team" },
-];
-
-const allPermissions = permissionOptions.reduce((acc, item) => {
-  acc[item.key] = true;
-  return acc;
-}, {});
-
-const defaultPermissions = { ...allPermissions };
-
 const buildProfileForm = (profile) => ({
   id: profile?.id || "",
   email: profile?.email || "",
@@ -85,10 +66,6 @@ const buildProfileForm = (profile) => ({
   id_front_url: profile?.id_front_url || "",
   id_back_url: profile?.id_back_url || "",
   is_active: profile?.is_active ?? true,
-  permissions: {
-    ...defaultPermissions,
-    ...(profile?.permissions || {}),
-  },
 });
 
 const filterTeamProfiles = (items) =>
@@ -170,16 +147,6 @@ export default function TeamAVO() {
 
   const handleFormChange = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }));
-  };
-
-  const handlePermissionToggle = (key) => {
-    setForm((prev) => ({
-      ...prev,
-      permissions: {
-        ...prev.permissions,
-        [key]: !prev.permissions[key],
-      },
-    }));
   };
 
   const refreshProfiles = async () => {
@@ -281,7 +248,6 @@ export default function TeamAVO() {
             employment_type: createForm.employment_type,
             address: createForm.address,
             phone: createForm.phone,
-            permissions: allPermissions,
             is_active: false,
           },
         }),
@@ -325,7 +291,6 @@ export default function TeamAVO() {
         phone: form.phone,
         id_front_url: form.id_front_url,
         id_back_url: form.id_back_url,
-        permissions: form.permissions,
         is_active: form.is_active,
         updated_at: new Date().toISOString(),
       };
@@ -445,7 +410,7 @@ export default function TeamAVO() {
               Team & Zugriffe
             </h1>
             <p className="text-sm text-blue-100">
-              Erstelle Mitarbeiterkonten, steuere Rollen und verwalte Berechtigungen.
+              Erstelle Mitarbeiterkonten, steuere Rollen und Zugriffe.
             </p>
           </div>
           <Button
@@ -647,26 +612,6 @@ export default function TeamAVO() {
                   />
                 )}
               </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Seiten-Zugriffe</CardTitle>
-              <p className="text-sm text-slate-500">
-                Admin Controlling ist nur für System-Admins sichtbar.
-              </p>
-            </CardHeader>
-            <CardContent className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              {permissionOptions.map((item) => (
-                <label key={item.key} className="flex items-center gap-2 text-sm text-slate-700">
-                  <Checkbox
-                    checked={!!form.permissions[item.key]}
-                    onCheckedChange={() => handlePermissionToggle(item.key)}
-                  />
-                  {item.label}
-                </label>
-              ))}
             </CardContent>
           </Card>
 
