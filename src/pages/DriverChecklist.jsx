@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { appClient } from '@/api/appClient';
+import { supabase } from '@/lib/supabaseClient';
 import { Link, useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -96,8 +97,42 @@ export default function DriverChecklist() {
   const { data: order, isLoading: orderLoading } = useQuery({
     queryKey: ['order', orderId],
     queryFn: async () => {
-      const orders = await appClient.entities.Order.filter({ id: orderId });
-      return orders[0];
+      if (!orderId) return null;
+      const { data, error } = await supabase
+        .from('orders')
+        .select([
+          'id',
+          'company_id',
+          'order_number',
+          'license_plate',
+          'customer_order_number',
+          'status',
+          'vehicle_brand',
+          'vehicle_model',
+          'vehicle_color',
+          'vin',
+          'pickup_address',
+          'pickup_postal_code',
+          'pickup_city',
+          'pickup_date',
+          'pickup_time',
+          'dropoff_address',
+          'dropoff_postal_code',
+          'dropoff_city',
+          'dropoff_date',
+          'dropoff_time',
+          'distance_km',
+          'customer_name',
+          'customer_phone',
+          'notes',
+        ].join(','))
+        .eq('id', orderId)
+        .maybeSingle();
+      if (error) {
+        console.error('Supabase driver order error:', error.message);
+        return null;
+      }
+      return data || null;
     },
     enabled: !!orderId,
   });

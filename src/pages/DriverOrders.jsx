@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { appClient } from '@/api/appClient';
+import { supabase } from '@/lib/supabaseClient';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { Card, CardContent } from "@/components/ui/card";
@@ -50,7 +51,35 @@ export default function DriverOrders() {
 
   const { data: allOrders = [], isLoading } = useQuery({
     queryKey: ['driver-orders', currentDriver?.id],
-    queryFn: () => appClient.entities.Order.filter({ assigned_driver_id: currentDriver?.id }, '-created_date'),
+    queryFn: async () => {
+      if (!currentDriver?.id) return [];
+      const { data, error } = await supabase
+        .from('orders')
+        .select([
+          'id',
+          'order_number',
+          'status',
+          'license_plate',
+          'customer_order_number',
+          'vehicle_brand',
+          'vehicle_model',
+          'vehicle_color',
+          'pickup_address',
+          'pickup_city',
+          'dropoff_address',
+          'dropoff_city',
+          'distance_km',
+          'pickup_date',
+          'pickup_time',
+        ].join(','))
+        .eq('assigned_driver_id', currentDriver.id)
+        .order('created_date', { ascending: false });
+      if (error) {
+        console.error('Supabase driver orders error:', error.message);
+        return [];
+      }
+      return data || [];
+    },
     enabled: !!currentDriver,
   });
 

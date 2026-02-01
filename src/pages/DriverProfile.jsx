@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { appClient } from "@/api/appClient";
+import { supabase } from "@/lib/supabaseClient";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,8 +48,19 @@ export default function DriverProfile() {
 
   const { data: driverOrders = [], isLoading: ordersLoading } = useQuery({
     queryKey: ["driver-orders", driver?.id],
-    queryFn: () =>
-      appClient.entities.Order.filter({ assigned_driver_id: driver?.id }, "-created_date"),
+    queryFn: async () => {
+      if (!driver?.id) return [];
+      const { data, error } = await supabase
+        .from("orders")
+        .select("id, license_plate")
+        .eq("assigned_driver_id", driver.id)
+        .order("created_date", { ascending: false });
+      if (error) {
+        console.error("Supabase driver orders error:", error.message);
+        return [];
+      }
+      return data || [];
+    },
     enabled: !!driver?.id,
   });
 

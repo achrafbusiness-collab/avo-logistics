@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { appClient } from '@/api/appClient';
+import { supabase } from '@/lib/supabaseClient';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -188,8 +189,29 @@ export default function DriverProtocol() {
   const { data: order } = useQuery({
     queryKey: ['order', orderId],
     queryFn: async () => {
-      const orders = await appClient.entities.Order.filter({ id: orderId });
-      return orders[0];
+      if (!orderId) return null;
+      const { data, error } = await supabase
+        .from('orders')
+        .select([
+          'id',
+          'company_id',
+          'order_number',
+          'license_plate',
+          'status',
+          'pickup_address',
+          'pickup_postal_code',
+          'pickup_city',
+          'dropoff_address',
+          'dropoff_postal_code',
+          'dropoff_city',
+        ].join(','))
+        .eq('id', orderId)
+        .maybeSingle();
+      if (error) {
+        console.error('Supabase driver order error:', error.message);
+        return null;
+      }
+      return data || null;
     },
     enabled: !!orderId,
   });
