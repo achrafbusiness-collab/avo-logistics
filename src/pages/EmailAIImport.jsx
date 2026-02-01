@@ -8,6 +8,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -46,6 +52,7 @@ export default function EmailAIImport() {
   const [importing, setImporting] = useState(false);
   const [preview, setPreview] = useState(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
   const [selectionText, setSelectionText] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [autoConnect, setAutoConnect] = useState(false);
@@ -210,6 +217,7 @@ export default function EmailAIImport() {
   };
 
   const loadPreview = async (uid) => {
+    setPreviewOpen(true);
     setPreviewLoading(true);
     setError("");
     try {
@@ -437,6 +445,10 @@ export default function EmailAIImport() {
                 {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCcw className="mr-2 h-4 w-4" />}
                 Aktualisieren
               </Button>
+              <Button onClick={handleImport} disabled={importing || !selectedUids.length}>
+                {importing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                Importieren
+              </Button>
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -522,80 +534,82 @@ export default function EmailAIImport() {
                 Ausgewählte importieren
               </Button>
             </div>
-
-            {(preview || previewLoading) && (
-              <Card className="border border-slate-200 bg-slate-50">
-                <CardHeader className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-                  <div>
-                    <CardTitle className="text-base">
-                      {preview?.subject || "E-Mail Vorschau"}
-                    </CardTitle>
-                    <p className="text-xs text-slate-500">{preview?.from || ""}</p>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      variant="outline"
-                      onClick={() => setPreview(null)}
-                      disabled={previewLoading}
-                    >
-                      Schließen
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => handleImportText(preview?.body || "")}
-                      disabled={previewLoading || !preview?.body}
-                    >
-                      Ganzes E-Mail importieren
-                    </Button>
-                    <Button
-                      onClick={() => handleImportText(selectionText)}
-                      disabled={previewLoading || !selectionText.trim()}
-                    >
-                      Nur Auswahl importieren
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  {preview?.date && (
-                    <p className="text-xs text-slate-400">
-                      {new Date(preview.date).toLocaleString("de-DE")}
-                    </p>
-                  )}
-                  {previewLoading ? (
-                    <div className="flex items-center gap-2 text-sm text-slate-500">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Vorschau wird geladen...
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <Label>E-Mail Text (markiere einen Abschnitt für Import)</Label>
-                      <Input
-                        type="hidden"
-                        value={selectionText}
-                        readOnly
-                      />
-                      <textarea
-                        ref={previewTextareaRef}
-                        value={preview?.body || ""}
-                        readOnly
-                        onSelect={updateSelection}
-                        onMouseUp={updateSelection}
-                        onKeyUp={updateSelection}
-                        className="min-h-[220px] w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm focus:outline-none"
-                      />
-                      {selectionText && (
-                        <p className="text-xs text-slate-500">
-                          Auswahl: {selectionText.length} Zeichen
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
           </CardContent>
         </Card>
       )}
+
+      <Dialog
+        open={previewOpen}
+        onOpenChange={(open) => {
+          setPreviewOpen(open);
+          if (!open) {
+            setPreview(null);
+            setSelectionText("");
+          }
+        }}
+      >
+        <DialogContent className="max-w-4xl max-h-[85vh] overflow-hidden p-0">
+          <div className="flex h-full flex-col">
+            <DialogHeader className="border-b border-slate-200 bg-slate-50 px-6 py-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <DialogTitle className="text-lg">
+                    {preview?.subject || "E-Mail Vorschau"}
+                  </DialogTitle>
+                  <p className="text-xs text-slate-500">{preview?.from || ""}</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => handleImportText(preview?.body || "")}
+                    disabled={previewLoading || !preview?.body}
+                  >
+                    Ganzes E-Mail importieren
+                  </Button>
+                  <Button
+                    onClick={() => handleImportText(selectionText)}
+                    disabled={previewLoading || !selectionText.trim()}
+                  >
+                    Nur Auswahl importieren
+                  </Button>
+                </div>
+              </div>
+            </DialogHeader>
+            <div className="flex-1 overflow-y-auto px-6 py-4">
+              {preview?.date && (
+                <p className="text-xs text-slate-400">
+                  {new Date(preview.date).toLocaleString("de-DE")}
+                </p>
+              )}
+              {previewLoading ? (
+                <div className="flex items-center gap-2 text-sm text-slate-500">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Vorschau wird geladen...
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Label>E-Mail Text (markiere einen Abschnitt für Import)</Label>
+                  <Input type="hidden" value={selectionText} readOnly />
+                  <textarea
+                    ref={previewTextareaRef}
+                    value={preview?.body || ""}
+                    readOnly
+                    onSelect={updateSelection}
+                    onMouseUp={updateSelection}
+                    onKeyUp={updateSelection}
+                    className="min-h-[360px] w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm focus:outline-none"
+                  />
+                  {selectionText && (
+                    <p className="text-xs text-slate-500">
+                      Auswahl: {selectionText.length} Zeichen
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
