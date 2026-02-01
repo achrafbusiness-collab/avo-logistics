@@ -97,6 +97,12 @@ const connectImap = async (config) => {
   return client;
 };
 
+const formatImapError = (error) => {
+  if (!error) return "IMAP Fehler.";
+  const responseText = error?.response?.text || error?.serverResponse?.text;
+  return responseText || error?.message || "IMAP Fehler.";
+};
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     res.status(405).json({ ok: false, error: "Method not allowed" });
@@ -144,6 +150,12 @@ export default async function handler(req, res) {
 
     const client = await connectImap(imap);
     try {
+      try {
+        await client.mailboxOpen(imap.mailbox);
+      } catch (err) {
+        res.status(400).json({ ok: false, error: `Postfach konnte nicht geöffnet werden: ${formatImapError(err)}` });
+        return;
+      }
       const lock = await client.getMailboxLock(imap.mailbox);
       try {
         if (action === "list") {
@@ -158,17 +170,26 @@ export default async function handler(req, res) {
               ],
             };
           }
-          const uids = await client.search(searchQuery);
+          let uids = [];
+          try {
+            uids = await client.search(searchQuery);
+          } catch (err) {
+            throw new Error(`IMAP Suche fehlgeschlagen: ${formatImapError(err)}`);
+          }
           const recentUids = uids.slice(-limit);
           const messages = [];
           if (recentUids.length) {
-            for await (const message of client.fetch(recentUids, {
-              uid: true,
-              envelope: true,
-              internalDate: true,
-              flags: true,
-            })) {
-              messages.push(buildListPayload(message));
+            try {
+              for await (const message of client.fetch(recentUids, {
+                uid: true,
+                envelope: true,
+                internalDate: true,
+                flags: true,
+              })) {
+                messages.push(buildListPayload(message));
+              }
+            } catch (err) {
+              throw new Error(`IMAP Abruf fehlgeschlagen: ${formatImapError(err)}`);
             }
           }
           messages.sort((a, b) => {
@@ -186,33 +207,38 @@ export default async function handler(req, res) {
             res.status(400).json({ ok: false, error: "E-Mail fehlt." });
             return;
           }
-          for await (const message of client.fetch([uid], {
-            uid: true,
-            envelope: true,
-            source: true,
-            internalDate: true,
-          })) {
-            const parsed = await simpleParser(message.source);
-            const subject = parsed.subject || message.envelope?.subject || "";
-            const from = formatAddress(message.envelope?.from);
-            const date = message.envelope?.date
-              ? new Date(message.envelope.date).toISOString()
-              : null;
-            const bodyText =
-              parsed.text?.trim() ||
-              stripHtml(parsed.html) ||
-              stripHtml(parsed.textAsHtml) ||
-              "";
-            res.status(200).json({
-              ok: true,
-              data: {
-                uid: message.uid,
-                subject,
-                from,
-                date,
-                body: bodyText,
-              },
-            });
+          try {
+            for await (const message of client.fetch([uid], {
+              uid: true,
+              envelope: true,
+              source: true,
+              internalDate: true,
+            })) {
+              const parsed = await simpleParser(message.source);
+              const subject = parsed.subject || message.envelope?.subject || "";
+              const from = formatAddress(message.envelope?.from);
+              const date = message.envelope?.date
+                ? new Date(message.envelope.date).toISOString()
+                : null;
+              const bodyText =
+                parsed.text?.trim() ||
+                stripHtml(parsed.html) ||
+                stripHtml(parsed.textAsHtml) ||
+                "";
+              res.status(200).json({
+                ok: true,
+                data: {
+                  uid: message.uid,
+                  subject,
+                  from,
+                  date,
+                  body: bodyText,
+                },
+              });
+              return;
+            }
+          } catch (err) {
+            res.status(400).json({ ok: false, error: `IMAP Abruf fehlgeschlagen: ${formatImapError(err)}` });
             return;
           }
           res.status(404).json({ ok: false, error: "E-Mail nicht gefunden." });
