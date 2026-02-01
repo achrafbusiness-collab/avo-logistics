@@ -14,7 +14,7 @@ const SYSTEM_ADMIN_PAGES = new Set([
   "SystemVermietung",
 ]);
 
-const ADMIN_ONLY_PAGES = new Set(["TeamAVO"]);
+const ADMIN_ONLY_PAGES = new Set(["TeamAVO", "Customers"]);
 
 const normalizeEmail = (value) => String(value || "").trim().toLowerCase();
 
