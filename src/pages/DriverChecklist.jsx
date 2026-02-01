@@ -465,12 +465,6 @@ export default function DriverChecklist() {
                 <span className="font-semibold text-white">{order.customer_order_number}</span>
               </p>
             )}
-            {order.driver_price !== null && order.driver_price !== undefined && (
-              <p className="text-white/80 text-sm">
-                {t('orders.driverPrice')}:{" "}
-                <span className="font-semibold text-white">{formatCurrency(order.driver_price)}</span>
-              </p>
-            )}
           </div>
           <StatusBadge status={order.status} label={t(`status.${order.status}`)} />
         </div>

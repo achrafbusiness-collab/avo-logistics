@@ -1072,7 +1072,7 @@ export default function OrderDetails({
             <Card>
               <CardContent className="pt-6 space-y-3">
                 <div>
-                  <p className="text-sm text-gray-500">Fahrerpreis</p>
+                  <p className="text-sm text-gray-500">Auftragspreis</p>
                   <p className="text-xl font-semibold text-slate-900">
                     {formatCurrency(driverPrice)}
                   </p>

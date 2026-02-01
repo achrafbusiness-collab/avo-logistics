@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { appClient } from '@/api/appClient';
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import StatusBadge from "@/components/ui/StatusBadge";
 import { getMapboxDistanceKm } from "@/utils/mapboxDistance";
+import { getPriceForDistance } from "@/utils/priceList";
 import { 
   Car, 
   MapPin, 
@@ -91,6 +92,8 @@ export default function OrderForm({ order, onSave, onCancel, currentUser }) {
   const [distanceLoading, setDistanceLoading] = useState(false);
   const [distanceError, setDistanceError] = useState('');
   const [distanceRecalcToken, setDistanceRecalcToken] = useState(0);
+  const [priceAuto, setPriceAuto] = useState(false);
+  const prevCustomerIdRef = useRef('');
 
   const { data: drivers = [] } = useQuery({
     queryKey: ['drivers'],
@@ -113,6 +116,7 @@ export default function OrderForm({ order, onSave, onCancel, currentUser }) {
         number: customer.customer_number || '',
         email: customer.email || '',
         phone: customer.phone || '',
+        price_list: customer.price_list || [],
       };
     });
   }, [customers]);
@@ -124,16 +128,23 @@ export default function OrderForm({ order, onSave, onCancel, currentUser }) {
         distance_km: formatKm(order.distance_km),
         driver_price: formatPrice(order.driver_price),
       });
+      setPriceAuto(false);
     } else {
       setFormData(prev => ({
         ...prev,
         order_number: '',
       }));
+      setPriceAuto(false);
     }
   }, [order]);
 
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handlePriceChange = (value) => {
+    setPriceAuto(false);
+    setFormData((prev) => ({ ...prev, driver_price: value }));
   };
 
   const handleRecalculateDistance = () => {
@@ -194,6 +205,7 @@ export default function OrderForm({ order, onSave, onCancel, currentUser }) {
         customer_email: match.email || '',
         customer_phone: match.phone || '',
       }));
+      setPriceAuto(true);
       return;
     }
     setFormData((prev) => ({
@@ -215,6 +227,31 @@ export default function OrderForm({ order, onSave, onCancel, currentUser }) {
       customer_phone: prev.customer_phone || match.phone || '',
     }));
   }, [customerOptions, formData.customer_id, formData.customer_name]);
+
+  useEffect(() => {
+    const currentCustomerId = formData.customer_id || '';
+    if (prevCustomerIdRef.current !== currentCustomerId) {
+      prevCustomerIdRef.current = currentCustomerId;
+      setPriceAuto(true);
+    }
+  }, [formData.customer_id]);
+
+  useEffect(() => {
+    if (!formData.customer_id) return;
+    const distance = parseFloat(formData.distance_km);
+    if (!Number.isFinite(distance)) return;
+    const customer = customerOptions.find((option) => option.id === formData.customer_id);
+    if (!customer) return;
+    const computedPrice = getPriceForDistance(customer.price_list, distance);
+    if (computedPrice === null || computedPrice === undefined) return;
+    if (formData.driver_price === '' || priceAuto) {
+      const nextValue = String(computedPrice);
+      if (nextValue !== formData.driver_price) {
+        setFormData((prev) => ({ ...prev, driver_price: nextValue }));
+      }
+      setPriceAuto(true);
+    }
+  }, [formData.customer_id, formData.distance_km, customerOptions, priceAuto, formData.driver_price]);
 
   const distanceKey = useMemo(() => {
     const pickupKey = [formData.pickup_address, formData.pickup_postal_code, formData.pickup_city]
@@ -397,16 +434,16 @@ export default function OrderForm({ order, onSave, onCancel, currentUser }) {
             </div>
             {canEditDriverPrice && (
               <div>
-                <Label>Fahrerpreis (EUR)</Label>
+                <Label>Auftragspreis (EUR)</Label>
                 <Input
                   type="number"
                   step="0.01"
                   value={formData.driver_price}
-                  onChange={(e) => handleChange('driver_price', e.target.value)}
+                  onChange={(e) => handlePriceChange(e.target.value)}
                   placeholder="z. B. 45.00"
                 />
                 <p className="mt-1 text-xs text-gray-500">
-                  Dieser Preis wird im Fahrer-Portal angezeigt.
+                  Wird automatisch aus der Kunden-Preisliste gesetzt (falls vorhanden).
                 </p>
               </div>
             )}

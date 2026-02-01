@@ -313,6 +313,7 @@ create table if not exists public.customers (
   tax_id text,
   notes text,
   status text default 'active',
+  price_list jsonb default '[]'::jsonb,
   created_date timestamptz default now(),
   updated_date timestamptz default now()
 );
@@ -701,6 +702,7 @@ add column if not exists must_reset_password boolean default false;
 alter table public.orders add column if not exists company_id uuid references public.companies;
 alter table public.drivers add column if not exists company_id uuid references public.companies;
 alter table public.customers add column if not exists company_id uuid references public.companies;
+alter table public.customers add column if not exists price_list jsonb default '[]'::jsonb;
 alter table public.checklists add column if not exists company_id uuid references public.companies;
 alter table public.app_settings add column if not exists company_id uuid references public.companies;
 alter table public.app_settings add column if not exists email_sender_name text;

@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Separator } from "@/components/ui/separator";
 import StatusBadge from '@/components/ui/StatusBadge';
+import { buildEmptyPriceRow, normalizePriceList } from '@/utils/priceList';
 import { 
   Plus, 
   Search, 
@@ -53,6 +54,12 @@ export default function Customers() {
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [priceListText, setPriceListText] = useState('');
+  const [priceListRows, setPriceListRows] = useState([]);
+  const [priceListError, setPriceListError] = useState('');
+  const [priceListMessage, setPriceListMessage] = useState('');
+  const [priceListAnalyzing, setPriceListAnalyzing] = useState(false);
+  const [priceListSaving, setPriceListSaving] = useState(false);
   
   const [formData, setFormData] = useState({
     customer_number: '',
@@ -68,7 +75,8 @@ export default function Customers() {
     country: 'Deutschland',
     tax_id: '',
     notes: '',
-    status: 'active'
+    status: 'active',
+    price_list: [],
   });
 
   const { data: customers = [], isLoading } = useQuery({
@@ -120,6 +128,7 @@ export default function Customers() {
     if (selectedCustomer && view === 'form') {
       setFormData({
         ...selectedCustomer,
+        price_list: selectedCustomer.price_list || [],
       });
     } else if (view === 'form' && !selectedCustomer) {
       const number = Math.floor(10000 + Math.random() * 90000);
@@ -137,9 +146,18 @@ export default function Customers() {
         country: 'Deutschland',
         tax_id: '',
         notes: '',
-        status: 'active'
+        status: 'active',
+        price_list: [],
       });
     }
+  }, [selectedCustomer, view]);
+
+  useEffect(() => {
+    if (!selectedCustomer || view !== 'details') return;
+    setPriceListRows(selectedCustomer.price_list || []);
+    setPriceListText('');
+    setPriceListError('');
+    setPriceListMessage('');
   }, [selectedCustomer, view]);
 
 
@@ -177,6 +195,99 @@ export default function Customers() {
       return customer.company_name;
     }
     return `${customer.first_name || ''} ${customer.last_name || ''}`.trim() || 'Unbekannt';
+  };
+
+  const handlePriceRowChange = (index, field, value) => {
+    setPriceListRows((prev) => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], [field]: value };
+      return updated;
+    });
+  };
+
+  const handlePriceRowRemove = (index) => {
+    setPriceListRows((prev) => prev.filter((_, idx) => idx !== index));
+  };
+
+  const handlePriceListAnalyze = async () => {
+    if (!priceListText.trim()) {
+      setPriceListError('Bitte Preisliste eingeben.');
+      return;
+    }
+    setPriceListAnalyzing(true);
+    setPriceListError('');
+    setPriceListMessage('');
+    try {
+      const result = await appClient.integrations.Core.InvokeLLM({
+        prompt: `Analysiere die folgende Preisliste (Deutsch) und gib eine Struktur zurück.
+Gib IMMER ein Objekt mit dem Feld "tiers" zurück.
+
+Text:
+${priceListText}
+
+Regeln:
+- min_km (Zahl) und max_km (Zahl) in Kilometern.
+- max_km kann null sein, wenn "ab" oder "über" angegeben ist.
+- price ist der Festpreis in EUR.
+
+Gib ausschließlich strukturierte Daten zurück.`,
+        response_json_schema: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            tiers: {
+              type: "array",
+              items: {
+                type: "object",
+                additionalProperties: false,
+                properties: {
+                  min_km: { type: ["number", "string"] },
+                  max_km: { type: ["number", "string", "null"] },
+                  price: { type: ["number", "string"] },
+                },
+                required: ["min_km", "price"],
+              },
+            },
+          },
+          required: ["tiers"],
+        },
+      });
+
+      const tiers = Array.isArray(result?.tiers) ? result.tiers : [];
+      setPriceListRows(tiers);
+      setPriceListMessage('Preisliste wurde analysiert. Bitte prüfen und speichern.');
+    } catch (err) {
+      setPriceListError(err?.message || 'Preisliste konnte nicht analysiert werden.');
+    } finally {
+      setPriceListAnalyzing(false);
+    }
+  };
+
+  const handlePriceListSave = async () => {
+    if (!selectedCustomer) return;
+    setPriceListSaving(true);
+    setPriceListError('');
+    setPriceListMessage('');
+    try {
+      const normalized = normalizePriceList(priceListRows);
+      await updateMutation.mutateAsync({
+        id: selectedCustomer.id,
+        data: {
+          price_list: normalized,
+        },
+      });
+      const updatedCustomer = {
+        ...selectedCustomer,
+        price_list: normalized,
+      };
+      setSelectedCustomer(updatedCustomer);
+      setPriceListRows(normalized);
+      setPriceListMessage('Preisliste gespeichert.');
+    } catch (err) {
+      setPriceListError(err?.message || 'Preisliste konnte nicht gespeichert werden.');
+    } finally {
+      setPriceListSaving(false);
+    }
   };
 
   const filteredCustomers = customers.filter(customer => {
@@ -477,6 +588,114 @@ export default function Customers() {
                     <p className="font-medium">{selectedCustomer.tax_id}</p>
                   </div>
                 )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg">Preisliste</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {priceListMessage && (
+                  <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+                    {priceListMessage}
+                  </div>
+                )}
+                {priceListError && (
+                  <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                    {priceListError}
+                  </div>
+                )}
+                <div className="space-y-2">
+                  <Label>Preisliste (Text)</Label>
+                  <Textarea
+                    value={priceListText}
+                    onChange={(e) => setPriceListText(e.target.value)}
+                    rows={4}
+                    placeholder="z.B. 0-50 km = 10€\n51-100 km = 20€\n101-150 km = 35€"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handlePriceListAnalyze}
+                    disabled={priceListAnalyzing}
+                  >
+                    {priceListAnalyzing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                    AI analysieren
+                  </Button>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label>Preis-Staffeln</Label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setPriceListRows((prev) => [...prev, buildEmptyPriceRow()])}
+                    >
+                      Neue Zeile
+                    </Button>
+                  </div>
+                  <div className="space-y-2">
+                    {priceListRows.length === 0 ? (
+                      <p className="text-sm text-gray-500">Noch keine Preise hinterlegt.</p>
+                    ) : (
+                      priceListRows.map((row, index) => (
+                        <div
+                          key={`price-row-${index}`}
+                          className="grid grid-cols-1 gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3 md:grid-cols-[1fr_1fr_1fr_auto]"
+                        >
+                          <div>
+                            <Label className="text-xs text-slate-500">Von (km)</Label>
+                            <Input
+                              type="number"
+                              value={row.min_km ?? ''}
+                              onChange={(e) => handlePriceRowChange(index, 'min_km', e.target.value)}
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-xs text-slate-500">Bis (km)</Label>
+                            <Input
+                              type="number"
+                              value={row.max_km ?? ''}
+                              onChange={(e) => handlePriceRowChange(index, 'max_km', e.target.value)}
+                              placeholder="offen"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-xs text-slate-500">Preis (EUR)</Label>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              value={row.price ?? ''}
+                              onChange={(e) => handlePriceRowChange(index, 'price', e.target.value)}
+                            />
+                          </div>
+                          <div className="flex items-end">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="text-red-600 hover:bg-red-50"
+                              onClick={() => handlePriceRowRemove(index)}
+                            >
+                              Entfernen
+                            </Button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                <Button
+                  type="button"
+                  className="bg-[#1e3a5f] hover:bg-[#2d5a8a]"
+                  onClick={handlePriceListSave}
+                  disabled={priceListSaving}
+                >
+                  {priceListSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                  Preisliste speichern
+                </Button>
               </CardContent>
             </Card>
 

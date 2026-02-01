@@ -3,6 +3,7 @@ import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { appClient } from '@/api/appClient';
 import { createPageUrl } from '@/utils';
 import { getMapboxDistanceKm } from '@/utils/mapboxDistance';
+import { getPriceForDistance } from '@/utils/priceList';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -81,6 +82,7 @@ export default function AIImport() {
         number: customer.customer_number || '',
         email: customer.email || '',
         phone: customer.phone || '',
+        price_list: customer.price_list || [],
       };
     });
   }, [customers]);
@@ -377,24 +379,29 @@ Gib ausschließlich die strukturierten Daten zurück.`,
       return;
     }
 
-    const { _customerResolved, _customerMatchType, ...orderPayload } = currentOrder || {};
+    const { _customerResolved, _customerMatchType, _priceAuto, ...orderPayload } = currentOrder || {};
     const resolvedCustomer = !orderPayload.customer_id
       ? resolveCustomerMatch(orderPayload.customer_name)
       : null;
+    const resolvedCustomerId = orderPayload.customer_id || resolvedCustomer?.id || null;
+    const priceCustomer = customerOptions.find((option) => option.id === resolvedCustomerId) || null;
+    const autoPrice = priceCustomer ? getPriceForDistance(priceCustomer.price_list, distanceKm) : null;
+    const parsedDriverPrice = (() => {
+      if (currentOrder.driver_price === '' || currentOrder.driver_price === null || currentOrder.driver_price === undefined) {
+        return null;
+      }
+      const parsed = parseFloat(currentOrder.driver_price);
+      return Number.isFinite(parsed) ? parsed : null;
+    })();
+
     const dataToSave = {
       ...orderPayload,
-      customer_id: orderPayload.customer_id || resolvedCustomer?.id || null,
+      customer_id: resolvedCustomerId,
       customer_name: resolvedCustomer?.name || orderPayload.customer_name || '',
       customer_email: orderPayload.customer_email || resolvedCustomer?.email || '',
       customer_phone: orderPayload.customer_phone || resolvedCustomer?.phone || '',
       distance_km: distanceKm,
-      driver_price: (() => {
-        if (currentOrder.driver_price === '' || currentOrder.driver_price === null || currentOrder.driver_price === undefined) {
-          return null;
-        }
-        const parsed = parseFloat(currentOrder.driver_price);
-        return Number.isFinite(parsed) ? parsed : null;
-      })(),
+      driver_price: parsedDriverPrice !== null ? parsedDriverPrice : autoPrice,
     };
 
     const created = await createOrderMutation.mutateAsync(dataToSave);
@@ -462,6 +469,7 @@ Gib ausschließlich die strukturierten Daten zurück.`,
         customer_email: match.email || '',
         _customerResolved: true,
         _customerMatchType: 'manual',
+        _priceAuto: true,
       });
       setCustomerEditOpen((prev) => ({ ...prev, [selectedOrderIndex]: false }));
       return;
@@ -551,6 +559,23 @@ Gib ausschließlich die strukturierten Daten zurück.`,
     lastCalcKeyRef.current = distanceKey;
     computeDistance();
   }, [distanceKey, currentOrder]);
+
+  useEffect(() => {
+    if (!currentOrder) return;
+    if (!currentOrder.customer_id) return;
+    const distance = parseFloat(currentOrder.distance_km);
+    if (!Number.isFinite(distance)) return;
+    const customer = customerOptions.find((option) => option.id === currentOrder.customer_id);
+    if (!customer) return;
+    const computedPrice = getPriceForDistance(customer.price_list, distance);
+    if (computedPrice === null || computedPrice === undefined) return;
+    const currentPrice = currentOrder.driver_price;
+    const shouldAuto = currentOrder._priceAuto || currentPrice === '' || currentPrice === null || currentPrice === undefined;
+    if (!shouldAuto) return;
+    const nextValue = String(computedPrice);
+    if (nextValue === String(currentPrice || '')) return;
+    updateCurrentOrder({ driver_price: nextValue, _priceAuto: true });
+  }, [currentOrder?.customer_id, currentOrder?.distance_km, customerOptions]);
 
   return (
     <div className="space-y-6">
@@ -983,13 +1008,15 @@ Gib ausschließlich die strukturierten Daten zurück.`,
                         )}
                       </div>
                       <div>
-                        <Label>Fahrerpreis (EUR)</Label>
+                        <Label>Auftragspreis (EUR)</Label>
                         <Input
                           type="number"
                           step="0.01"
                           min="0"
                           value={currentOrder.driver_price || ''}
-                          onChange={(e) => updateExtractedData('driver_price', e.target.value)}
+                          onChange={(e) =>
+                            updateCurrentOrder({ driver_price: e.target.value, _priceAuto: false })
+                          }
                           placeholder="0.00"
                         />
                       </div>
