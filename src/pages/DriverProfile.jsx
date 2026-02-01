@@ -247,6 +247,162 @@ export default function DriverProfile() {
         </CardContent>
       </Card>
 
+      <Card>
+        <CardContent className="p-4 space-y-4">
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-900">{t("billing.title")}</h2>
+              <p className="text-sm text-slate-500">{t("billing.subtitle")}</p>
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              <div>
+                <label className="text-xs text-slate-500">{t("billing.rangeStart")}</label>
+                <Input
+                  type="date"
+                  value={billingRange.start}
+                  onChange={(event) =>
+                    setBillingRange((prev) => ({ ...prev, start: event.target.value }))
+                  }
+                />
+              </div>
+              <div>
+                <label className="text-xs text-slate-500">{t("billing.rangeEnd")}</label>
+                <Input
+                  type="date"
+                  value={billingRange.end}
+                  onChange={(event) =>
+                    setBillingRange((prev) => ({ ...prev, end: event.target.value }))
+                  }
+                />
+              </div>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                const today = new Date();
+                const date = today.toISOString().slice(0, 10);
+                setBillingRange({ start: date, end: date });
+              }}
+            >
+              {t("billing.quick.today")}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                const day = new Date();
+                day.setDate(day.getDate() - 1);
+                const date = day.toISOString().slice(0, 10);
+                setBillingRange({ start: date, end: date });
+              }}
+            >
+              {t("billing.quick.yesterday")}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                const day = new Date();
+                day.setDate(day.getDate() - 2);
+                const date = day.toISOString().slice(0, 10);
+                setBillingRange({ start: date, end: date });
+              }}
+            >
+              {t("billing.quick.dayBefore")}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                const end = new Date();
+                const start = new Date();
+                start.setDate(start.getDate() - 7);
+                setBillingRange({
+                  start: start.toISOString().slice(0, 10),
+                  end: end.toISOString().slice(0, 10),
+                });
+              }}
+            >
+              {t("billing.quick.weekAgo")}
+            </Button>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <p className="text-xs text-slate-500">{t("billing.totalEarnings")}</p>
+              <p className="text-lg font-semibold text-slate-900">
+                {formatCurrency(billingTotals.price)}
+              </p>
+            </div>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <p className="text-xs text-slate-500">{t("billing.totalExpenses")}</p>
+              <p className="text-lg font-semibold text-slate-900">
+                {formatCurrency(billingTotals.expenses)}
+              </p>
+            </div>
+          </div>
+
+          {ordersLoading || checklistsLoading || segmentsLoading || driverLoading ? (
+            <div className="flex items-center gap-2 text-sm text-slate-500">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              {t("billing.loading")}
+            </div>
+          ) : billingRows.length === 0 ? (
+            <p className="text-sm text-slate-500">{t("billing.empty")}</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="text-left text-slate-500">
+                    <th className="py-2 pr-4">{t("billing.table.date")}</th>
+                    <th className="py-2 pr-4">{t("billing.table.plate")}</th>
+                    <th className="py-2 pr-4">{t("billing.table.tour")}</th>
+                    <th className="py-2 pr-4">{t("billing.table.type")}</th>
+                    <th className="py-2 pr-4">{t("billing.table.status")}</th>
+                    <th className="py-2 pr-4 text-right">{t("billing.table.price")}</th>
+                    <th className="py-2 text-right">{t("billing.table.expenses")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {billingRows.map((row) => (
+                    <tr key={row.id} className="border-t">
+                      <td className="py-2 pr-4">{row.dateLabel}</td>
+                      <td className="py-2 pr-4 text-slate-700">{row.licensePlate}</td>
+                      <td className="py-2 pr-4 text-slate-700">{row.tour || "-"}</td>
+                      <td className="py-2 pr-4 text-slate-700">{row.typeLabel}</td>
+                      <td className="py-2 pr-4 text-sm">
+                        <div className="flex flex-col gap-1">
+                          <span>
+                            {row.priceStatus === "approved"
+                              ? "✅"
+                              : row.priceStatus === "rejected"
+                                ? "❌"
+                                : "⏳"}{" "}
+                            {t(`billing.status.${row.priceStatus}`)}
+                          </span>
+                          {row.priceStatus === "rejected" && row.priceRejectionReason ? (
+                            <span className="text-xs text-red-600">
+                              {row.priceRejectionReason}
+                            </span>
+                          ) : null}
+                        </div>
+                      </td>
+                      <td className="py-2 pr-4 text-right">
+                        {row.priceStatus === "approved" ? formatCurrency(row.price) : "-"}
+                      </td>
+                      <td className="py-2 text-right">{formatCurrency(row.expenses)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
     </div>
   );
 }
