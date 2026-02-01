@@ -560,8 +560,7 @@ export default function EmailAIImport() {
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <Button
-                    variant="outline"
-                    className="border-white/30 text-white hover:bg-white/10"
+                    className="bg-[#1e3a5f] text-white hover:bg-[#2d5a8a]"
                     onClick={() => handleImportText(preview?.body || "")}
                     disabled={previewLoading || !preview?.body}
                   >
