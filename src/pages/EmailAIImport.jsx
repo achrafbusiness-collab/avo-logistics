@@ -472,7 +472,7 @@ export default function EmailAIImport() {
                 </div>
               ) : (
                 messages.map((msg) => (
-                  <label
+                  <div
                     key={msg.uid}
                     className="flex items-start gap-3 rounded-lg border border-slate-200 bg-white px-3 py-3 shadow-sm"
                   >
@@ -503,10 +503,12 @@ export default function EmailAIImport() {
                       size="sm"
                       variant="outline"
                       onClick={() => loadPreview(msg.uid)}
+                      disabled={previewLoading}
                     >
+                      {previewLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                       Öffnen
                     </Button>
-                  </label>
+                  </div>
                 ))
               )}
             </div>
