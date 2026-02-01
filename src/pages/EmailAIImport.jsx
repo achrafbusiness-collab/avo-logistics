@@ -548,12 +548,12 @@ export default function EmailAIImport() {
           }
         }}
       >
-        <DialogContent className="max-w-4xl max-h-[85vh] overflow-hidden p-0">
+        <DialogContent className="max-w-4xl max-h-[85vh] overflow-hidden p-0 bg-white text-slate-900">
           <div className="flex h-full flex-col">
             <DialogHeader className="border-b border-slate-200 bg-slate-50 px-6 py-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <DialogTitle className="text-lg">
+                  <DialogTitle className="text-lg text-slate-900">
                     {preview?.subject || "E-Mail Vorschau"}
                   </DialogTitle>
                   <p className="text-xs text-slate-500">{preview?.from || ""}</p>
