@@ -593,12 +593,145 @@ export default function OrderDetails({
               </p>
             )}
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={onEdit}>
+          <div className="flex flex-wrap justify-end gap-2">
+            <Dialog open={protocolDialogOpen} onOpenChange={setProtocolDialogOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm" className="bg-[#1e3a5f] hover:bg-[#2d5a8a]" disabled={!protocolChecklistId}>
+                  <FileText className="w-4 h-4 mr-2" />
+                  Protokoll öffnen
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-xl">
+                <DialogHeader>
+                  <DialogTitle>Protokoll-Details</DialogTitle>
+                  <DialogDescription>
+                    Übernahme- und Übergabezeiten prüfen und das PDF öffnen.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-3 text-sm text-slate-700">
+                  <div className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                    <span>Übernahme</span>
+                    <span className="font-semibold">{pickupChecklistDate || '—'}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                    <span>Übergabe</span>
+                    <span className="font-semibold">{dropoffChecklistDate || '—'}</span>
+                  </div>
+                </div>
+                <DialogFooter className="gap-2 sm:justify-start">
+                  {protocolChecklistId ? (
+                    <a
+                      href={`/checklists?id=${protocolChecklistId}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Button className="bg-[#1e3a5f] hover:bg-[#2d5a8a]">
+                        <FileText className="w-4 h-4 mr-2" />
+                        Protokoll-PDF öffnen
+                      </Button>
+                    </a>
+                  ) : (
+                    <Button disabled>Kein Protokoll vorhanden</Button>
+                  )}
+                  <Button variant="outline" onClick={() => setProtocolDialogOpen(false)}>
+                    Schließen
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
+            <Dialog open={expensesDialogOpen} onOpenChange={setExpensesDialogOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm" variant="outline" disabled={!expensesChecklist}>
+                  <FileText className="w-4 h-4 mr-2" />
+                  Auslagen öffnen
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>Auslagen</DialogTitle>
+                  <DialogDescription>
+                    Wähle die gewünschte Kategorie und öffne das PDF.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="flex flex-col gap-4">
+                  <div className="max-w-xs">
+                    <Select value={expenseTypeFilter} onValueChange={setExpenseTypeFilter}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Alle Auslagen" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Alle Auslagen</SelectItem>
+                        <SelectItem value="fuel">Tankbeleg</SelectItem>
+                        <SelectItem value="ticket">Ticket</SelectItem>
+                        <SelectItem value="taxi">Taxi</SelectItem>
+                        <SelectItem value="toll">Maut</SelectItem>
+                        <SelectItem value="additional_protocol">Zusatzprotokoll</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2 text-sm text-slate-700">
+                    {filteredExpenses.length === 0 ? (
+                      <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
+                        Keine passenden Auslagen gefunden.
+                      </div>
+                    ) : (
+                      filteredExpenses.map((expense, index) => (
+                        <div key={`${expense.file_url || 'expense'}-${index}`} className="rounded-lg border border-slate-200 p-3">
+                          <div className="flex items-center justify-between gap-2 font-semibold">
+                            <span>Auslage {index + 1}</span>
+                            <span className="text-slate-500">
+                              {expenseTypeLabels[expense.type] || 'Sonstiges'}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-sm text-slate-600">
+                            <div>Betrag: {expense.amount ? formatCurrency(expense.amount) : '—'}</div>
+                            <div>Notiz: {expense.note || '—'}</div>
+                          </div>
+                          {expense.file_url && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="mt-3"
+                              onClick={() => openExpenseFile(expense)}
+                            >
+                              <ExternalLink className="h-4 w-4 mr-2" />
+                              Beleg öffnen
+                            </Button>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+                <DialogFooter className="gap-2 sm:justify-start">
+                  {expensesChecklist ? (
+                    <a
+                      href={`/expenses-pdf?checklistId=${expensesChecklist.id}&print=1&types=${encodeURIComponent(expenseTypeFilter)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Button className="bg-[#1e3a5f] hover:bg-[#2d5a8a]">
+                        <FileText className="w-4 h-4 mr-2" />
+                        Auslagen-PDF öffnen
+                      </Button>
+                    </a>
+                  ) : (
+                    <Button disabled>Keine Auslagen</Button>
+                  )}
+                  <Button variant="outline" onClick={() => setExpensesDialogOpen(false)}>
+                    Schließen
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
+            <Button size="sm" variant="outline" onClick={onEdit}>
               <Edit className="w-4 h-4 mr-2" />
               Bearbeiten
             </Button>
-            <Button variant="outline" className="text-red-600 hover:bg-red-50" onClick={onDelete}>
+            <Button size="sm" variant="outline" className="text-red-600 hover:bg-red-50" onClick={onDelete}>
               <Trash2 className="w-4 h-4" />
             </Button>
           </div>
@@ -619,7 +752,19 @@ export default function OrderDetails({
             <CardContent className="grid grid-cols-2 md:grid-cols-3 gap-4">
               <InfoRow label="Kennzeichen" value={order.license_plate} />
               <InfoRow label="Marke" value={order.vehicle_brand} />
-              <InfoRow label="Modell" value={order.vehicle_model} />
+              <InfoRow
+                label="Modell"
+                value={
+                  <div className="space-y-1">
+                    <div>{order.vehicle_model || '-'}</div>
+                    {distanceKm !== null && (
+                      <div className="text-sm font-semibold text-[#1e3a5f]">
+                        Strecke: {distanceKm} km
+                      </div>
+                    )}
+                  </div>
+                }
+              />
               <InfoRow label="Farbe" value={order.vehicle_color} />
               <InfoRow label="VIN" value={order.vin} />
             </CardContent>
@@ -1055,19 +1200,6 @@ export default function OrderDetails({
             </CardContent>
           </Card>
 
-          {distanceKm !== null && (
-            <Card>
-              <CardContent className="pt-6 space-y-3">
-                <div>
-                  <p className="text-sm text-gray-500">Strecke</p>
-                  <p className="text-xl font-semibold text-slate-900">
-                    {distanceKm} km
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
           {showDriverPrice && driverPrice !== null && driverPrice !== undefined && (
             <Card>
               <CardContent className="pt-6 space-y-3">
@@ -1448,148 +1580,6 @@ export default function OrderDetails({
               )}
             </CardContent>
           </Card>
-
-          {/* PDF */}
-          {(protocolChecklistId || expensesChecklist) && (
-            <Card>
-              <CardContent className="pt-6">
-                <div className="flex flex-col gap-3">
-                  <Dialog open={protocolDialogOpen} onOpenChange={setProtocolDialogOpen}>
-                    <DialogTrigger asChild>
-                      <Button className="w-full bg-[#1e3a5f] hover:bg-[#2d5a8a]" disabled={!protocolChecklistId}>
-                        <FileText className="w-4 h-4 mr-2" />
-                        Protokoll öffnen
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-xl">
-                      <DialogHeader>
-                        <DialogTitle>Protokoll-Details</DialogTitle>
-                        <DialogDescription>
-                          Übernahme- und Übergabezeiten prüfen und das PDF öffnen.
-                        </DialogDescription>
-                      </DialogHeader>
-                      <div className="space-y-3 text-sm text-slate-700">
-                        <div className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
-                          <span>Übernahme</span>
-                          <span className="font-semibold">{pickupChecklistDate || '—'}</span>
-                        </div>
-                        <div className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
-                          <span>Übergabe</span>
-                          <span className="font-semibold">{dropoffChecklistDate || '—'}</span>
-                        </div>
-                      </div>
-                      <DialogFooter className="gap-2 sm:justify-start">
-                        {protocolChecklistId ? (
-                          <a
-                            href={`/checklists?id=${protocolChecklistId}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            <Button className="bg-[#1e3a5f] hover:bg-[#2d5a8a]">
-                              <FileText className="w-4 h-4 mr-2" />
-                              Protokoll-PDF öffnen
-                            </Button>
-                          </a>
-                        ) : (
-                          <Button disabled>Kein Protokoll vorhanden</Button>
-                        )}
-                        <Button variant="outline" onClick={() => setProtocolDialogOpen(false)}>
-                          Schließen
-                        </Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
-
-                  <Dialog open={expensesDialogOpen} onOpenChange={setExpensesDialogOpen}>
-                    <DialogTrigger asChild>
-                      <Button variant="outline" className="w-full" disabled={!expensesChecklist}>
-                        <FileText className="w-4 h-4 mr-2" />
-                        Auslagen öffnen
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-2xl">
-                      <DialogHeader>
-                        <DialogTitle>Auslagen</DialogTitle>
-                        <DialogDescription>
-                          Wähle die gewünschte Kategorie und öffne das PDF.
-                        </DialogDescription>
-                      </DialogHeader>
-                      <div className="flex flex-col gap-4">
-                        <div className="max-w-xs">
-                          <Select value={expenseTypeFilter} onValueChange={setExpenseTypeFilter}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Alle Auslagen" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="all">Alle Auslagen</SelectItem>
-                              <SelectItem value="fuel">Tankbeleg</SelectItem>
-                              <SelectItem value="ticket">Ticket</SelectItem>
-                              <SelectItem value="taxi">Taxi</SelectItem>
-                              <SelectItem value="toll">Maut</SelectItem>
-                              <SelectItem value="additional_protocol">Zusatzprotokoll</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-2 text-sm text-slate-700">
-                          {filteredExpenses.length === 0 ? (
-                            <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
-                              Keine passenden Auslagen gefunden.
-                            </div>
-                          ) : (
-                            filteredExpenses.map((expense, index) => (
-                              <div key={`${expense.file_url || 'expense'}-${index}`} className="rounded-lg border border-slate-200 p-3">
-                                <div className="flex items-center justify-between gap-2 font-semibold">
-                                  <span>Auslage {index + 1}</span>
-                                  <span className="text-slate-500">
-                                    {expenseTypeLabels[expense.type] || 'Sonstiges'}
-                                  </span>
-                                </div>
-                                <div className="mt-2 text-sm text-slate-600">
-                                  <div>Betrag: {expense.amount ? formatCurrency(expense.amount) : '—'}</div>
-                                  <div>Notiz: {expense.note || '—'}</div>
-                                </div>
-                                {expense.file_url && (
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    className="mt-3"
-                                    onClick={() => openExpenseFile(expense)}
-                                  >
-                                    <ExternalLink className="h-4 w-4 mr-2" />
-                                    Beleg öffnen
-                                  </Button>
-                                )}
-                              </div>
-                            ))
-                          )}
-                        </div>
-                      </div>
-                      <DialogFooter className="gap-2 sm:justify-start">
-                        {expensesChecklist ? (
-                          <a
-                            href={`/expenses-pdf?checklistId=${expensesChecklist.id}&print=1&types=${encodeURIComponent(expenseTypeFilter)}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            <Button className="bg-[#1e3a5f] hover:bg-[#2d5a8a]">
-                              <FileText className="w-4 h-4 mr-2" />
-                              Auslagen-PDF öffnen
-                            </Button>
-                          </a>
-                        ) : (
-                          <Button disabled>Keine Auslagen</Button>
-                        )}
-                        <Button variant="outline" onClick={() => setExpensesDialogOpen(false)}>
-                          Schließen
-                        </Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
-                </div>
-              </CardContent>
-            </Card>
-          )}
 
           <Card>
             <CardHeader>
