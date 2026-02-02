@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabaseClient";
 import { appClient } from "@/api/appClient";
@@ -79,6 +79,7 @@ export default function DriverPriceRequests() {
   const [rejectErrors, setRejectErrors] = useState({});
   const [rejecting, setRejecting] = useState({});
   const [rejectOpen, setRejectOpen] = useState({});
+  const priceInputRefs = useRef({});
 
   const { data: segments = [], isLoading, error } = useQuery({
     queryKey: ["driver-price-requests"],
@@ -163,7 +164,7 @@ export default function DriverPriceRequests() {
         ...prev,
         [segment.id]: "Bitte einen gültigen Preis eingeben.",
       }));
-      return;
+      return false;
     }
     setSaving((prev) => ({ ...prev, [segment.id]: true }));
     setPriceErrors((prev) => ({ ...prev, [segment.id]: "" }));
@@ -176,11 +177,13 @@ export default function DriverPriceRequests() {
       setPriceEdits((prev) => ({ ...prev, [segment.id]: "" }));
       queryClient.invalidateQueries({ queryKey: ["driver-price-requests"] });
       queryClient.invalidateQueries({ queryKey: ["order-segments"], exact: false });
+      return true;
     } catch (err) {
       setPriceErrors((prev) => ({
         ...prev,
         [segment.id]: err?.message || "Preis konnte nicht gespeichert werden.",
       }));
+      return false;
     } finally {
       setSaving((prev) => ({ ...prev, [segment.id]: false }));
     }
@@ -202,7 +205,7 @@ export default function DriverPriceRequests() {
         [segment.id]: "Bitte einen kurzen Ablehnungsgrund angeben.",
       }));
       setRejectOpen((prev) => ({ ...prev, [segment.id]: true }));
-      return;
+      return false;
     }
     setRejecting((prev) => ({ ...prev, [segment.id]: true }));
     setRejectErrors((prev) => ({ ...prev, [segment.id]: "" }));
@@ -216,13 +219,39 @@ export default function DriverPriceRequests() {
       setRejectOpen((prev) => ({ ...prev, [segment.id]: false }));
       queryClient.invalidateQueries({ queryKey: ["driver-price-requests"] });
       queryClient.invalidateQueries({ queryKey: ["order-segments"], exact: false });
+      return true;
     } catch (err) {
       setRejectErrors((prev) => ({
         ...prev,
         [segment.id]: err?.message || "Ablehnung konnte nicht gespeichert werden.",
       }));
+      return false;
     } finally {
       setRejecting((prev) => ({ ...prev, [segment.id]: false }));
+    }
+  };
+
+  const focusNextPriceInput = (segmentId) => {
+    const ids = sortedSegments.map((item) => item.id);
+    const index = ids.indexOf(segmentId);
+    const nextId = index >= 0 ? ids[index + 1] : null;
+    if (!nextId) return;
+    requestAnimationFrame(() => {
+      priceInputRefs.current[nextId]?.focus();
+    });
+  };
+
+  const handleApproveAndFocus = async (segment) => {
+    const ok = await saveSegmentPrice(segment);
+    if (ok) {
+      focusNextPriceInput(segment.id);
+    }
+  };
+
+  const handleRejectAndFocus = async (segment) => {
+    const ok = await rejectSegment(segment);
+    if (ok) {
+      focusNextPriceInput(segment.id);
     }
   };
 
@@ -332,9 +361,20 @@ export default function DriverPriceRequests() {
                               type="number"
                               step="0.01"
                               value={priceEdits[segment.id] ?? ""}
+                              ref={(node) => {
+                                if (node) {
+                                  priceInputRefs.current[segment.id] = node;
+                                }
+                              }}
                               onChange={(event) =>
                                 handlePriceChange(segment.id, event.target.value)
                               }
+                              onKeyDown={async (event) => {
+                                if (event.key === "Enter") {
+                                  event.preventDefault();
+                                  await handleApproveAndFocus(segment);
+                                }
+                              }}
                               placeholder="Preis (€)"
                               className="w-32 text-right"
                             />
@@ -342,7 +382,7 @@ export default function DriverPriceRequests() {
                               size="sm"
                               className="bg-[#1e3a5f] hover:bg-[#2d5a8a]"
                               disabled={saving[segment.id]}
-                              onClick={() => saveSegmentPrice(segment)}
+                              onClick={() => handleApproveAndFocus(segment)}
                             >
                               {saving[segment.id] ? (
                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -371,7 +411,7 @@ export default function DriverPriceRequests() {
                                   size="sm"
                                   className="bg-red-600 hover:bg-red-700"
                                   disabled={rejecting[segment.id]}
-                                  onClick={() => rejectSegment(segment)}
+                                  onClick={() => handleRejectAndFocus(segment)}
                                 >
                                   {rejecting[segment.id] ? (
                                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
