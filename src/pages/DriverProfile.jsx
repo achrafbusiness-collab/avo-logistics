@@ -19,6 +19,12 @@ export default function DriverProfile() {
   const [addressError, setAddressError] = useState("");
   const [uploadingDocs, setUploadingDocs] = useState({});
   const [uploadError, setUploadError] = useState("");
+  const [addressForm, setAddressForm] = useState({
+    address: "",
+    postal_code: "",
+    city: "",
+    country: "",
+  });
   const [billingRange, setBillingRange] = useState(() => {
     const now = new Date();
     const start = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -185,12 +191,26 @@ export default function DriverProfile() {
     loadToken();
   }, [user, t]);
 
+  useEffect(() => {
+    if (!driver) return;
+    setAddressForm({
+      address: driver.address || "",
+      postal_code: driver.postal_code || "",
+      city: driver.city || "",
+      country: driver.country || "",
+    });
+  }, [driver?.id]);
+
   const handleConfirmAddress = async () => {
     if (!driver?.id) return;
     setConfirmingAddress(true);
     setAddressError("");
     try {
       await appClient.entities.Driver.update(driver.id, {
+        address: addressForm.address || null,
+        postal_code: addressForm.postal_code || null,
+        city: addressForm.city || null,
+        country: addressForm.country || null,
         address_confirmed: true,
         address_confirmed_at: new Date().toISOString(),
       });
@@ -312,13 +332,58 @@ export default function DriverProfile() {
               <Building2 className="h-4 w-4 text-slate-400" />
               <span className="font-medium">Adresse</span>
             </div>
-            <div className="text-sm text-slate-600">
-              <p>{driver?.address || "Keine Adresse hinterlegt."}</p>
-              <p>
-                {[driver?.postal_code, driver?.city].filter(Boolean).join(" ")}
-              </p>
-              <p>{driver?.country || ""}</p>
-            </div>
+            {addressConfirmed ? (
+              <div className="text-sm text-slate-600">
+                <p>{driver?.address || "Keine Adresse hinterlegt."}</p>
+                <p>
+                  {[driver?.postal_code, driver?.city].filter(Boolean).join(" ")}
+                </p>
+                <p>{driver?.country || ""}</p>
+              </div>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="sm:col-span-2">
+                  <label className="text-xs text-slate-500">Straße & Hausnummer</label>
+                  <Input
+                    value={addressForm.address}
+                    onChange={(event) =>
+                      setAddressForm((prev) => ({ ...prev, address: event.target.value }))
+                    }
+                    placeholder="z.B. Musterstraße 12"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-500">PLZ</label>
+                  <Input
+                    value={addressForm.postal_code}
+                    onChange={(event) =>
+                      setAddressForm((prev) => ({ ...prev, postal_code: event.target.value }))
+                    }
+                    placeholder="z.B. 40210"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-500">Stadt</label>
+                  <Input
+                    value={addressForm.city}
+                    onChange={(event) =>
+                      setAddressForm((prev) => ({ ...prev, city: event.target.value }))
+                    }
+                    placeholder="z.B. Düsseldorf"
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="text-xs text-slate-500">Land</label>
+                  <Input
+                    value={addressForm.country}
+                    onChange={(event) =>
+                      setAddressForm((prev) => ({ ...prev, country: event.target.value }))
+                    }
+                    placeholder="Deutschland"
+                  />
+                </div>
+              </div>
+            )}
             {addressError && <p className="text-sm text-red-600">{addressError}</p>}
             {addressConfirmed ? (
               <div className="text-sm text-emerald-700 flex items-center gap-2">
@@ -329,7 +394,7 @@ export default function DriverProfile() {
               <Button
                 type="button"
                 onClick={handleConfirmAddress}
-                disabled={confirmingAddress || !driver?.address}
+                disabled={confirmingAddress || !addressForm.address.trim()}
                 className="bg-[#1e3a5f] hover:bg-[#2d5a8a]"
               >
                 {confirmingAddress ? (
