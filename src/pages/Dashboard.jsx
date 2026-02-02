@@ -519,7 +519,7 @@ export default function Dashboard() {
                 <div className="space-y-3">
                   {recentOrders.length === 0 ? (
                     <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
-                      Fuer die Kartenansicht fehlen Adressen oder Auftraege.
+                      Für die Kartenansicht fehlen Adressen oder Aufträge.
                     </div>
                   ) : (
                     recentOrders.map((order) => (

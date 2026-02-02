@@ -565,7 +565,7 @@ export default function OrdersMap({
       )}
       {!loading && !routes.length && !error && (
         <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/80 px-4 text-center text-sm text-slate-600">
-          Keine Adressen fuer die Kartenansicht gefunden.
+          Keine Adressen für die Kartenansicht gefunden.
         </div>
       )}
       <div className="absolute bottom-3 left-3 z-10 rounded-full border border-white/50 bg-white/80 px-3 py-1 text-xs text-slate-600 shadow-sm">

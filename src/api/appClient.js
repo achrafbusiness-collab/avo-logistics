@@ -234,7 +234,7 @@ const uploadFileToStorage = async ({
 const Core = {
   InvokeLLM: async ({ prompt, response_json_schema }) => {
     if (!prompt) {
-      throw new Error('Es fehlt ein Prompt fuer die AI-Anfrage.');
+      throw new Error('Es fehlt ein Prompt für die AI-Anfrage.');
     }
     const response = await fetch('/api/ai', {
       method: 'POST',
@@ -265,7 +265,7 @@ const getSessionToken = async () => {
 const notifications = {
   sendDriverAssignment: async ({ orderId }) => {
     if (!orderId) {
-      throw new Error('Auftrag fehlt fuer die Fahrer-Benachrichtigung.');
+      throw new Error('Auftrag fehlt für die Fahrer-Benachrichtigung.');
     }
     const token = await getSessionToken();
     if (!token) {

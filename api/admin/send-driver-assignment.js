@@ -505,7 +505,7 @@ ${companyName}`;
       const selectedChecklistId =
         protocolChecklist?.id || dropoffChecklist?.id || pickupChecklist?.id || null;
       if (!selectedChecklistId) {
-        res.status(400).json({ ok: false, error: "Kein Protokoll fuer den Auftrag vorhanden." });
+        res.status(400).json({ ok: false, error: "Kein Protokoll für den Auftrag vorhanden." });
         return;
       }
       const companyName = settings?.company_name || "AVO Logistics";
@@ -523,7 +523,7 @@ ${companyName}`;
       const subject = `Protokoll Auftrag ${order.order_number || "-"}`;
       const text = `Sehr geehrte Damen und Herren,
 
-anbei erhalten Sie das Protokoll fuer das Fahrzeug ${vehicleLabel} (${order.license_plate || "-"}) zum Auftrag ${order.order_number || "-"}.
+anbei erhalten Sie das Protokoll für das Fahrzeug ${vehicleLabel} (${order.license_plate || "-"}) zum Auftrag ${order.order_number || "-"}.
 
 Strecke:
 Von: ${pickupLine || "-"}
@@ -531,7 +531,7 @@ Nach: ${dropoffLine || "-"}
 
 Das Protokoll finden Sie im Anhang dieser E-Mail.
 
-Mit freundlichen Gruessen
+Mit freundlichen Grüßen
 ${companyName}`;
       const html = `
 <div style="background:#f4f6fb; padding:24px 0; font-family:Arial, sans-serif; color:#0f172a;">
@@ -545,14 +545,14 @@ ${companyName}`;
           <div style="padding:20px 24px; font-size:14px; line-height:1.5;">
             <p style="margin:0 0 12px;">Sehr geehrte Damen und Herren,</p>
             <p style="margin:0 0 12px;">
-              anbei erhalten Sie das Protokoll fuer das Fahrzeug <strong>${vehicleLabel}</strong>
+              anbei erhalten Sie das Protokoll für das Fahrzeug <strong>${vehicleLabel}</strong>
               (${order.license_plate || "-"}) zum Auftrag <strong>${order.order_number || "-"}</strong>.
             </p>
             <p style="margin:0 0 6px;"><strong>Strecke:</strong></p>
             <p style="margin:0;">Von: ${pickupLine || "-"}</p>
             <p style="margin:0 0 12px;">Nach: ${dropoffLine || "-"}</p>
             <p style="margin:0 0 12px;">Das Protokoll finden Sie im Anhang dieser E-Mail.</p>
-            <p style="margin:0;">Mit freundlichen Gruessen<br/>${companyName}</p>
+            <p style="margin:0;">Mit freundlichen Grüßen<br/>${companyName}</p>
           </div>
         </div>
       </td>
@@ -663,8 +663,8 @@ Weitere Details findest du in der Fahrer‑App.
 Viele Grüße
 ${signatureName}
 
-hinweis: diese e-mail kann nicht beantwortet werden. antworten werden nicht gelesen.
-bei fragen bitte deinen disponenten kontaktieren.`;
+Hinweis: Diese E-Mail kann nicht beantwortet werden. Antworten werden nicht gelesen.
+Bei Fragen kontaktiere bitte deinen Disponenten.`;
 
     const html = `
 <div style="background:#f4f6fb; padding:24px 0; font-family:Arial, sans-serif; color:#0f172a;">
@@ -735,8 +735,8 @@ bei fragen bitte deinen disponenten kontaktieren.`;
             <p style="margin:18px 0 0; font-size:14px;">Weitere Details findest du in der Fahrer‑App.</p>
             <p style="margin:18px 0 0; font-size:14px;">Viele Grüße<br/>${signatureName}</p>
             <p style="margin:18px 0 0; font-size:11px; color:#94a3b8; text-transform:lowercase;">
-              hinweis: diese e-mail kann nicht beantwortet werden. antworten werden nicht gelesen.<br/>
-              bei fragen bitte deinen disponenten kontaktieren.
+              Hinweis: Diese E-Mail kann nicht beantwortet werden. Antworten werden nicht gelesen.<br/>
+              Bei Fragen kontaktiere bitte deinen Disponenten.
             </p>
           </div>
         </div>

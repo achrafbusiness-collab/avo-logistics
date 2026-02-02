@@ -174,7 +174,7 @@ export default function AppConnection() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <FileText className="w-5 h-5" />
-            E-Mail Absender fuer Fahrer-Benachrichtigungen
+            E-Mail Absender für Fahrer-Benachrichtigungen
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -327,7 +327,7 @@ export default function AppConnection() {
           <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
             <h4 className="font-semibold text-blue-900 mb-2">📱 App-Link für Fahrer</h4>
             <p className="text-sm text-blue-800 mb-3">
-              Verwenden Sie die URL Ihrer eigenen Installation. Fuer eine eigene Domain wie
+              Verwenden Sie die URL Ihrer eigenen Installation. Für eine eigene Domain wie
               "app.avo-logistics.app" registrieren Sie die Domain und verknuepfen Sie diese
               mit Ihrem Hosting-Anbieter.
             </p>
