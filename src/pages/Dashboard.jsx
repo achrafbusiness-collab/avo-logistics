@@ -313,20 +313,6 @@ export default function Dashboard() {
     setDateTo(format(end, 'yyyy-MM-dd'));
   };
 
-  const setTomorrowRange = () => {
-    const tomorrow = subDays(new Date(), -1);
-    const key = format(tomorrow, 'yyyy-MM-dd');
-    setDateFrom(key);
-    setDateTo(key);
-  };
-
-  const setThisWeekRange = () => {
-    const start = subDays(new Date(), new Date().getDay() === 0 ? 6 : new Date().getDay() - 1);
-    const end = subDays(start, -6);
-    setDateFrom(format(start, 'yyyy-MM-dd'));
-    setDateTo(format(end, 'yyyy-MM-dd'));
-  };
-
   const statisticsUrl = useMemo(() => {
     const params = new URLSearchParams();
     if (dateFrom) params.set('from', dateFrom);
@@ -443,25 +429,35 @@ export default function Dashboard() {
               variant="outline"
               size="sm"
               className="border-slate-300 text-slate-700 hover:bg-slate-900 hover:text-white"
-              onClick={setTomorrowRange}
-            >
-              Morgen
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="border-slate-300 text-slate-700 hover:bg-slate-900 hover:text-white"
-              onClick={setThisWeekRange}
-            >
-              Diese Woche
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="border-slate-300 text-slate-700 hover:bg-slate-900 hover:text-white"
               onClick={setLastSevenDays}
             >
               Letzte 7 Tage
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-slate-300 text-slate-700 hover:bg-slate-900 hover:text-white"
+              onClick={() => {
+                const end = new Date();
+                const start = subDays(end, 13);
+                setDateFrom(format(start, 'yyyy-MM-dd'));
+                setDateTo(format(end, 'yyyy-MM-dd'));
+              }}
+            >
+              Letzte 14 Tage
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-slate-300 text-slate-700 hover:bg-slate-900 hover:text-white"
+              onClick={() => {
+                const end = new Date();
+                const start = subDays(end, 29);
+                setDateFrom(format(start, 'yyyy-MM-dd'));
+                setDateTo(format(end, 'yyyy-MM-dd'));
+              }}
+            >
+              Letzte 30 Tage
             </Button>
             <Button
               variant={onlyDue ? "default" : "outline"}
