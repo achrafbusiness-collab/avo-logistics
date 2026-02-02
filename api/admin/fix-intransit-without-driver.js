@@ -75,20 +75,90 @@ export default async function handler(req, res) {
       return;
     }
 
-    const { data, error } = await supabaseAdmin
+    const { data: inTransitOrders, error: ordersError } = await supabaseAdmin
       .from("orders")
-      .update({ status: "zwischenabgabe", assigned_driver_name: "" })
+      .select("id, assigned_driver_id")
       .eq("company_id", profile.company_id)
-      .is("assigned_driver_id", null)
-      .eq("status", "in_transit")
-      .select("id");
+      .eq("status", "in_transit");
 
-    if (error) {
-      res.status(500).json({ ok: false, error: error.message });
+    if (ordersError) {
+      res.status(500).json({ ok: false, error: ordersError.message });
       return;
     }
 
-    res.status(200).json({ ok: true, updated: data?.length || 0 });
+    const orders = inTransitOrders || [];
+    if (!orders.length) {
+      res.status(200).json({ ok: true, updated: 0, reasons: { noDriver: 0, handoff: 0 } });
+      return;
+    }
+
+    const noDriverIds = orders
+      .filter((order) => !order.assigned_driver_id)
+      .map((order) => order.id);
+
+    const orderIds = orders.map((order) => order.id);
+    const { data: segments, error: segmentsError } = await supabaseAdmin
+      .from("order_segments")
+      .select("order_id, segment_type, created_date, created_at")
+      .in("order_id", orderIds);
+
+    if (segmentsError) {
+      res.status(500).json({ ok: false, error: segmentsError.message });
+      return;
+    }
+
+    const latestSegmentByOrder = new Map();
+    (segments || []).forEach((segment) => {
+      if (!segment?.order_id) return;
+      const timestamp = new Date(segment.created_date || segment.created_at || 0).getTime();
+      const existing = latestSegmentByOrder.get(segment.order_id);
+      if (!existing || timestamp > existing.timestamp) {
+        latestSegmentByOrder.set(segment.order_id, {
+          timestamp,
+          segment_type: segment.segment_type,
+        });
+      }
+    });
+
+    const handoffIds = orders
+      .filter((order) => {
+        const latest = latestSegmentByOrder.get(order.id);
+        return latest?.segment_type === "handoff";
+      })
+      .map((order) => order.id);
+
+    const updateIds = Array.from(new Set([...noDriverIds, ...handoffIds]));
+    if (!updateIds.length) {
+      res.status(200).json({
+        ok: true,
+        updated: 0,
+        reasons: { noDriver: noDriverIds.length, handoff: handoffIds.length },
+      });
+      return;
+    }
+
+    const { data: updatedOrders, error: updateError } = await supabaseAdmin
+      .from("orders")
+      .update({
+        status: "zwischenabgabe",
+        assigned_driver_id: null,
+        assigned_driver_name: "",
+      })
+      .eq("company_id", profile.company_id)
+      .eq("status", "in_transit")
+      .in("id", updateIds)
+      .select("id");
+
+    if (updateError) {
+      res.status(500).json({ ok: false, error: updateError.message });
+      return;
+    }
+
+    res.status(200).json({
+      ok: true,
+      updated: updatedOrders?.length || 0,
+      reasons: { noDriver: noDriverIds.length, handoff: handoffIds.length },
+    });
   } catch (error) {
     res.status(500).json({ ok: false, error: error?.message || "Unknown error" });
   }
