@@ -11,7 +11,8 @@ import {
   Calendar,
   Route,
   Search,
-  Settings
+  Settings,
+  BarChart3
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -56,6 +57,16 @@ export default function Dashboard() {
     queryFn: () => appClient.entities.Checklist.list('-created_date', 10),
   });
 
+  const { data: orderSegments = [] } = useQuery({
+    queryKey: ['dashboard-order-segments'],
+    queryFn: () => appClient.entities.OrderSegment.list('-created_date', 3000),
+  });
+
+  const { data: financeChecklists = [] } = useQuery({
+    queryKey: ['dashboard-finance-checklists'],
+    queryFn: () => appClient.entities.Checklist.list('-created_date', 3000),
+  });
+
   const rangeOrders = useMemo(() => {
     if (!dateFrom && !dateTo) return orders;
     const start = dateFrom && dateTo && dateFrom > dateTo ? dateTo : dateFrom;
@@ -79,6 +90,61 @@ export default function Dashboard() {
     activeDrivers: drivers.filter(d => d.status === 'active').length,
     completedOrders: rangeOrders.filter(o => ['completed', 'review', 'ready_for_billing', 'approved'].includes(o.status)).length,
   };
+
+  const driverCostByOrder = useMemo(() => {
+    const map = new Map();
+    orderSegments.forEach((segment) => {
+      const status =
+        segment.price_status ||
+        (segment.price !== null && segment.price !== undefined && segment.price !== ''
+          ? 'approved'
+          : 'pending');
+      if (status !== 'approved') return;
+      const value = Number.parseFloat(segment.price);
+      if (!Number.isFinite(value)) return;
+      map.set(segment.order_id, (map.get(segment.order_id) || 0) + value);
+    });
+    return map;
+  }, [orderSegments]);
+
+  const fuelAdvanceByOrder = useMemo(() => {
+    const map = new Map();
+    financeChecklists.forEach((checklist) => {
+      if (!checklist?.order_id || !Array.isArray(checklist.expenses)) return;
+      const totalFuel = checklist.expenses.reduce((sum, expense) => {
+        if (expense?.type !== 'fuel') return sum;
+        const amount = Number.parseFloat(String(expense.amount || '').replace(',', '.'));
+        return Number.isFinite(amount) ? sum + amount : sum;
+      }, 0);
+      if (!totalFuel) return;
+      map.set(checklist.order_id, (map.get(checklist.order_id) || 0) + totalFuel);
+    });
+    return map;
+  }, [financeChecklists]);
+
+  const financialOverview = useMemo(() => {
+    const completedStatuses = new Set(['completed', 'review', 'ready_for_billing', 'approved']);
+    return rangeOrders
+      .filter((order) => completedStatuses.has(order.status))
+      .reduce(
+        (acc, order) => {
+          const revenue = Number.parseFloat(String(order.driver_price || '').replace(',', '.'));
+          const safeRevenue = Number.isFinite(revenue) ? revenue : 0;
+          const driverCost = driverCostByOrder.get(order.id) || 0;
+          const fuelAdvance = fuelAdvanceByOrder.get(order.id) || 0;
+          acc.tours += 1;
+          acc.revenue += safeRevenue;
+          acc.driverCost += driverCost;
+          acc.fuelAdvance += fuelAdvance;
+          acc.profit += safeRevenue - driverCost;
+          return acc;
+        },
+        { tours: 0, revenue: 0, driverCost: 0, fuelAdvance: 0, profit: 0 }
+      );
+  }, [rangeOrders, driverCostByOrder, fuelAdvanceByOrder]);
+
+  const formatCurrency = (value) =>
+    new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(value || 0);
 
   const getDueDateTime = (order) => {
     if (!order?.dropoff_date) return null;
@@ -435,6 +501,50 @@ export default function Dashboard() {
           onClick={() => navigate(`${createPageUrl('Orders')}?list=active&due=overdue`)}
         />
       </div>
+
+      <Card className="border border-slate-200/80 bg-white/90 shadow-[0_20px_40px_-30px_rgba(15,23,42,0.6)]">
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <CardTitle className="text-lg font-semibold text-slate-900">Finanz-Übersicht</CardTitle>
+              <p className="text-sm text-slate-500">Abgeschlossene Touren im gewählten Zeitraum</p>
+            </div>
+            <Link to={createPageUrl('Statistics')}>
+              <Button className="bg-[#1e3a5f] hover:bg-[#2d5a8a]">
+                <BarChart3 className="mr-2 h-4 w-4" />
+                Statistik öffnen
+              </Button>
+            </Link>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <p className="text-xs text-slate-500">Touren abgeschlossen</p>
+              <p className="mt-1 text-xl font-semibold text-slate-900">{financialOverview.tours}</p>
+            </div>
+            <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+              <p className="text-xs text-emerald-700">Umsatz</p>
+              <p className="mt-1 text-xl font-semibold text-emerald-800">{formatCurrency(financialOverview.revenue)}</p>
+            </div>
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+              <p className="text-xs text-amber-700">Fahrer-Kosten</p>
+              <p className="mt-1 text-xl font-semibold text-amber-800">{formatCurrency(financialOverview.driverCost)}</p>
+            </div>
+            <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
+              <p className="text-xs text-blue-700">Gewinn</p>
+              <p className="mt-1 text-xl font-semibold text-blue-800">{formatCurrency(financialOverview.profit)}</p>
+            </div>
+            <div className="rounded-lg border border-slate-200 bg-white p-3">
+              <p className="text-xs text-slate-500">Getankt (Vorkasse)</p>
+              <p className="mt-1 text-xl font-semibold text-slate-800">{formatCurrency(financialOverview.fuelAdvance)}</p>
+            </div>
+          </div>
+          <p className="mt-3 text-xs text-slate-500">
+            Tank-Belege werden als Vorkasse ausgewiesen und nicht als Kosten vom Gewinn abgezogen.
+          </p>
+        </CardContent>
+      </Card>
 
       {/* Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

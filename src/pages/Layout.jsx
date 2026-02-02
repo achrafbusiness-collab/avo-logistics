@@ -5,6 +5,7 @@ import { createPageUrl } from '@/utils';
 import { appClient } from '@/api/appClient';
 import { 
   LayoutDashboard, 
+  BarChart3,
   Truck, 
   Users, 
   Menu,
@@ -31,6 +32,7 @@ import { useI18n } from "@/i18n";
 // Admin pages (full sidebar)
 const adminPages = [
   { name: 'Dashboard', icon: LayoutDashboard, page: 'Dashboard' },
+  { name: 'Statistik', icon: BarChart3, page: 'Statistics' },
   { name: 'Aufträge', icon: Truck, page: 'Orders' },
   { name: 'Fahrer', icon: Users, page: 'Drivers' },
   { name: 'Kunden', icon: User, page: 'Customers' },

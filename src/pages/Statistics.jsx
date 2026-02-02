@@ -1,0 +1,515 @@
+import React, { useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { Link } from 'react-router-dom';
+import {
+  Calendar,
+  Search,
+  TrendingUp,
+  Truck,
+  Wallet,
+  Coins,
+  Fuel,
+  ArrowRight,
+} from 'lucide-react';
+import {
+  format,
+  startOfDay,
+  endOfDay,
+  startOfWeek,
+  endOfWeek,
+  startOfMonth,
+  endOfMonth,
+  startOfYear,
+  endOfYear,
+  eachDayOfInterval,
+  eachMonthOfInterval,
+  differenceInCalendarDays,
+} from 'date-fns';
+import { de } from 'date-fns/locale';
+import {
+  LineChart,
+  Line,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  Legend,
+} from 'recharts';
+
+import { appClient } from '@/api/appClient';
+import { createPageUrl } from '@/utils';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
+
+const COMPLETED_STATUSES = new Set(['completed', 'review', 'ready_for_billing', 'approved']);
+
+const PERIODS = [
+  { value: 'daily', label: 'Täglich' },
+  { value: 'weekly', label: 'Wöchentlich' },
+  { value: 'monthly', label: 'Monatlich' },
+  { value: 'yearly', label: 'Jährlich' },
+  { value: 'custom', label: 'Eigener Zeitraum' },
+];
+
+const toDate = (value) => {
+  if (!value) return null;
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value;
+  }
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const date = new Date(`${value}T12:00:00`);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const toDateInput = (date) => format(date, 'yyyy-MM-dd');
+
+const parseAmount = (value) => {
+  if (value === null || value === undefined || value === '') return 0;
+  if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+  const normalized = String(value).replace(',', '.');
+  const parsed = Number.parseFloat(normalized);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const formatCurrency = (value) =>
+  new Intl.NumberFormat('de-DE', {
+    style: 'currency',
+    currency: 'EUR',
+    maximumFractionDigits: 2,
+  }).format(value || 0);
+
+const getRangeForPeriod = (period, customFrom, customTo) => {
+  const now = new Date();
+  if (period === 'daily') {
+    const from = startOfDay(now);
+    const to = endOfDay(now);
+    return { from, to, bucket: 'day' };
+  }
+  if (period === 'weekly') {
+    const from = startOfWeek(now, { weekStartsOn: 1 });
+    const to = endOfWeek(now, { weekStartsOn: 1 });
+    return { from, to, bucket: 'day' };
+  }
+  if (period === 'monthly') {
+    const from = startOfMonth(now);
+    const to = endOfMonth(now);
+    return { from, to, bucket: 'day' };
+  }
+  if (period === 'yearly') {
+    const from = startOfYear(now);
+    const to = endOfYear(now);
+    return { from, to, bucket: 'month' };
+  }
+
+  const rawFrom = toDate(customFrom);
+  const rawTo = toDate(customTo);
+  const safeFrom = rawFrom ? startOfDay(rawFrom) : startOfMonth(now);
+  const safeTo = rawTo ? endOfDay(rawTo) : endOfDay(now);
+  const from = safeFrom.getTime() <= safeTo.getTime() ? safeFrom : startOfDay(safeTo);
+  const to = safeFrom.getTime() <= safeTo.getTime() ? safeTo : endOfDay(safeFrom);
+  const days = Math.abs(differenceInCalendarDays(to, from));
+  return { from, to, bucket: days > 92 ? 'month' : 'day' };
+};
+
+const orderDate = (order) =>
+  toDate(order?.dropoff_date) || toDate(order?.pickup_date) || toDate(order?.created_date);
+
+export default function Statistics() {
+  const [period, setPeriod] = useState('monthly');
+  const [customFrom, setCustomFrom] = useState(() => toDateInput(startOfMonth(new Date())));
+  const [customTo, setCustomTo] = useState(() => toDateInput(new Date()));
+  const [search, setSearch] = useState('');
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [seriesVisible, setSeriesVisible] = useState({
+    revenue: true,
+    cost: true,
+    profit: true,
+  });
+
+  const { data: orders = [], isLoading: ordersLoading } = useQuery({
+    queryKey: ['stats-orders'],
+    queryFn: () => appClient.entities.Order.list('-created_date', 5000),
+  });
+
+  const { data: orderSegments = [], isLoading: segmentsLoading } = useQuery({
+    queryKey: ['stats-order-segments'],
+    queryFn: () => appClient.entities.OrderSegment.list('-created_date', 5000),
+  });
+
+  const { data: checklists = [], isLoading: checklistsLoading } = useQuery({
+    queryKey: ['stats-checklists'],
+    queryFn: () => appClient.entities.Checklist.list('-created_date', 5000),
+  });
+
+  const loading = ordersLoading || segmentsLoading || checklistsLoading;
+
+  const range = useMemo(
+    () => getRangeForPeriod(period, customFrom, customTo),
+    [period, customFrom, customTo]
+  );
+
+  const driverCostByOrder = useMemo(() => {
+    const map = new Map();
+    for (const segment of orderSegments) {
+      const status =
+        segment.price_status ||
+        (segment.price !== null && segment.price !== undefined && segment.price !== ''
+          ? 'approved'
+          : 'pending');
+      if (status !== 'approved') continue;
+      const price = parseAmount(segment.price);
+      if (!price) continue;
+      const prev = map.get(segment.order_id) || 0;
+      map.set(segment.order_id, prev + price);
+    }
+    return map;
+  }, [orderSegments]);
+
+  const fuelByOrder = useMemo(() => {
+    const map = new Map();
+    for (const checklist of checklists) {
+      if (!checklist?.order_id || !Array.isArray(checklist.expenses)) continue;
+      const fuelTotal = checklist.expenses.reduce((sum, expense) => {
+        if (expense?.type !== 'fuel') return sum;
+        return sum + parseAmount(expense?.amount);
+      }, 0);
+      if (!fuelTotal) continue;
+      const prev = map.get(checklist.order_id) || 0;
+      map.set(checklist.order_id, prev + fuelTotal);
+    }
+    return map;
+  }, [checklists]);
+
+  const rows = useMemo(() => {
+    return orders
+      .filter((order) => COMPLETED_STATUSES.has(order.status))
+      .map((order) => {
+        const date = orderDate(order);
+        if (!date) return null;
+        if (date < range.from || date > range.to) return null;
+
+        const revenue = parseAmount(order.driver_price);
+        const cost = driverCostByOrder.get(order.id) || 0;
+        const fuelAdvance = fuelByOrder.get(order.id) || 0;
+        const profit = revenue - cost;
+
+        return {
+          id: order.id,
+          orderNumber: order.order_number || '-',
+          customerOrderNumber: order.customer_order_number || '',
+          status: order.status,
+          date,
+          route: `${order.pickup_city || order.pickup_postal_code || 'Start'} -> ${
+            order.dropoff_city || order.dropoff_postal_code || 'Ziel'
+          }`,
+          distanceKm: parseAmount(order.distance_km),
+          revenue,
+          cost,
+          fuelAdvance,
+          profit,
+          licensePlate: order.license_plate || '-',
+          customerName: order.customer_name || '-',
+        };
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.date.getTime() - a.date.getTime());
+  }, [orders, range.from, range.to, driverCostByOrder, fuelByOrder]);
+
+  const totals = useMemo(() => {
+    return rows.reduce(
+      (acc, row) => {
+        acc.revenue += row.revenue;
+        acc.cost += row.cost;
+        acc.fuelAdvance += row.fuelAdvance;
+        acc.profit += row.profit;
+        return acc;
+      },
+      { revenue: 0, cost: 0, fuelAdvance: 0, profit: 0 }
+    );
+  }, [rows]);
+
+  const chartData = useMemo(() => {
+    const bucketFormat = range.bucket === 'month' ? 'yyyy-MM' : 'yyyy-MM-dd';
+    const labelFormat = range.bucket === 'month' ? 'MMM yy' : 'dd.MM';
+    const points =
+      range.bucket === 'month'
+        ? eachMonthOfInterval({ start: range.from, end: range.to })
+        : eachDayOfInterval({ start: range.from, end: range.to });
+
+    const map = new Map(
+      points.map((point) => {
+        const key = format(point, bucketFormat);
+        return [
+          key,
+          {
+            key,
+            label: format(point, labelFormat, { locale: de }),
+            revenue: 0,
+            cost: 0,
+            profit: 0,
+          },
+        ];
+      })
+    );
+
+    for (const row of rows) {
+      const key = format(row.date, bucketFormat);
+      const bucket = map.get(key);
+      if (!bucket) continue;
+      bucket.revenue += row.revenue;
+      bucket.cost += row.cost;
+      bucket.profit += row.profit;
+    }
+
+    return Array.from(map.values());
+  }, [rows, range.bucket, range.from, range.to]);
+
+  const filteredRows = useMemo(() => {
+    const needle = search.trim().toLowerCase();
+    if (!needle) return rows;
+    return rows.filter((row) =>
+      [
+        row.orderNumber,
+        row.customerOrderNumber,
+        row.licensePlate,
+        row.route,
+        row.customerName,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase()
+        .includes(needle)
+    );
+  }, [rows, search]);
+
+  const rangeLabel = `${format(range.from, 'dd.MM.yyyy')} - ${format(range.to, 'dd.MM.yyyy')}`;
+
+  return (
+    <div className="space-y-6">
+      <div className="relative overflow-hidden rounded-3xl bg-slate-950 text-white shadow-[0_30px_60px_-40px_rgba(15,23,42,0.8)]">
+        <div className="absolute -right-24 -top-24 h-56 w-56 rounded-full bg-blue-500/30 blur-3xl" />
+        <div className="absolute -left-20 -bottom-20 h-56 w-56 rounded-full bg-blue-600/20 blur-3xl" />
+        <div className="relative flex flex-wrap items-center justify-between gap-4 p-6 md:p-8">
+          <div>
+            <p className="text-xs uppercase tracking-[0.35em] text-blue-200">AVO SYSTEM</p>
+            <h1 className="mt-2 text-3xl font-semibold tracking-tight">Statistik</h1>
+            <p className="text-sm text-slate-300">Umsatz, Fahrer-Kosten und Gewinn pro Zeitraum</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs uppercase tracking-wide text-slate-200">
+              Zeitraum: {rangeLabel}
+            </div>
+            <Link to={createPageUrl('Dashboard')}>
+              <Button variant="outline" className="border-white/30 bg-white/10 text-white hover:bg-white/20">
+                Zurück
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      <Card className="border border-slate-200/80 bg-white/90">
+        <CardContent className="space-y-4 p-4">
+          <div className="flex flex-wrap gap-2">
+            {PERIODS.map((item) => (
+              <Button
+                key={item.value}
+                size="sm"
+                variant={period === item.value ? 'default' : 'outline'}
+                className={period === item.value ? 'bg-[#1e3a5f] hover:bg-[#2d5a8a]' : ''}
+                onClick={() => setPeriod(item.value)}
+              >
+                <Calendar className="mr-2 h-4 w-4" />
+                {item.label}
+              </Button>
+            ))}
+          </div>
+
+          {period === 'custom' ? (
+            <div className="flex flex-wrap items-center gap-3">
+              <Input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} className="w-44" />
+              <span className="text-slate-500">bis</span>
+              <Input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} className="w-44" />
+            </div>
+          ) : null}
+        </CardContent>
+      </Card>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <Card><CardContent className="p-5"><p className="text-xs text-slate-500">Abgeschlossene Touren</p><p className="mt-2 text-2xl font-semibold">{rows.length}</p><Truck className="mt-2 h-4 w-4 text-slate-400" /></CardContent></Card>
+        <Card><CardContent className="p-5"><p className="text-xs text-slate-500">Umsatz</p><p className="mt-2 text-2xl font-semibold">{formatCurrency(totals.revenue)}</p><TrendingUp className="mt-2 h-4 w-4 text-emerald-500" /></CardContent></Card>
+        <Card><CardContent className="p-5"><p className="text-xs text-slate-500">Fahrer-Kosten</p><p className="mt-2 text-2xl font-semibold">{formatCurrency(totals.cost)}</p><Wallet className="mt-2 h-4 w-4 text-amber-500" /></CardContent></Card>
+        <Card><CardContent className="p-5"><p className="text-xs text-slate-500">Gewinn</p><p className="mt-2 text-2xl font-semibold">{formatCurrency(totals.profit)}</p><Coins className="mt-2 h-4 w-4 text-blue-500" /></CardContent></Card>
+        <Card><CardContent className="p-5"><p className="text-xs text-slate-500">Getankt (Vorkasse)</p><p className="mt-2 text-2xl font-semibold">{formatCurrency(totals.fuelAdvance)}</p><Fuel className="mt-2 h-4 w-4 text-slate-500" /></CardContent></Card>
+      </div>
+
+      <Card className="border border-slate-200/80 bg-white/90">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-lg">Verlauf</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-wrap items-center gap-4 text-sm">
+            <label className="flex items-center gap-2">
+              <Checkbox checked={seriesVisible.revenue} onCheckedChange={(checked) => setSeriesVisible((prev) => ({ ...prev, revenue: Boolean(checked) }))} />
+              Umsatz
+            </label>
+            <label className="flex items-center gap-2">
+              <Checkbox checked={seriesVisible.cost} onCheckedChange={(checked) => setSeriesVisible((prev) => ({ ...prev, cost: Boolean(checked) }))} />
+              Kosten
+            </label>
+            <label className="flex items-center gap-2">
+              <Checkbox checked={seriesVisible.profit} onCheckedChange={(checked) => setSeriesVisible((prev) => ({ ...prev, profit: Boolean(checked) }))} />
+              Gewinn
+            </label>
+          </div>
+
+          <div className="h-80">
+            {chartData.length === 0 ? (
+              <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50 text-sm text-slate-500">
+                Keine Daten im gewählten Zeitraum.
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={chartData} margin={{ top: 8, right: 16, left: 8, bottom: 8 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <XAxis dataKey="label" stroke="#64748b" tick={{ fontSize: 12 }} />
+                  <YAxis stroke="#64748b" tickFormatter={(value) => `${Math.round(value)}€`} tick={{ fontSize: 12 }} />
+                  <Tooltip formatter={(value) => formatCurrency(Number(value || 0))} />
+                  <Legend />
+                  {seriesVisible.revenue ? <Line type="monotone" dataKey="revenue" name="Umsatz" stroke="#10b981" strokeWidth={2.5} dot={false} /> : null}
+                  {seriesVisible.cost ? <Line type="monotone" dataKey="cost" name="Kosten" stroke="#f59e0b" strokeWidth={2.5} dot={false} /> : null}
+                  {seriesVisible.profit ? <Line type="monotone" dataKey="profit" name="Gewinn" stroke="#2563eb" strokeWidth={2.5} dot={false} /> : null}
+                </LineChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border border-slate-200/80 bg-white/90">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-lg">Aufträge im Zeitraum</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="relative max-w-md">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <Input
+              className="pl-9"
+              placeholder="Auftrag, Kennzeichen, Kunde oder Route suchen"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+
+          {loading ? (
+            <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
+              Statistik wird geladen...
+            </div>
+          ) : filteredRows.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
+              Keine passenden Aufträge gefunden.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200 text-left text-slate-500">
+                    <th className="px-3 py-2 font-medium">Auftrag</th>
+                    <th className="px-3 py-2 font-medium">Datum</th>
+                    <th className="px-3 py-2 font-medium">Strecke</th>
+                    <th className="px-3 py-2 font-medium">Auftragspreis</th>
+                    <th className="px-3 py-2 font-medium">Fahrer-Kosten</th>
+                    <th className="px-3 py-2 font-medium">Gewinn</th>
+                    <th className="px-3 py-2 font-medium">Getankt (Vorkasse)</th>
+                    <th className="px-3 py-2 font-medium"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredRows.map((row) => (
+                    <tr
+                      key={row.id}
+                      className="cursor-pointer border-b border-slate-100 hover:bg-slate-50"
+                      onClick={() => setSelectedOrder(row)}
+                    >
+                      <td className="px-3 py-3">
+                        <p className="font-semibold text-slate-900">{row.orderNumber}</p>
+                        <p className="text-xs text-slate-500">{row.route}</p>
+                      </td>
+                      <td className="px-3 py-3 text-slate-600">{format(row.date, 'dd.MM.yyyy')}</td>
+                      <td className="px-3 py-3 text-slate-600">{row.distanceKm ? `${row.distanceKm} km` : '-'}</td>
+                      <td className="px-3 py-3 font-medium text-emerald-700">{formatCurrency(row.revenue)}</td>
+                      <td className="px-3 py-3 font-medium text-amber-700">{formatCurrency(row.cost)}</td>
+                      <td className="px-3 py-3 font-medium text-blue-700">{formatCurrency(row.profit)}</td>
+                      <td className="px-3 py-3 text-slate-700">{formatCurrency(row.fuelAdvance)}</td>
+                      <td className="px-3 py-3 text-right">
+                        <ArrowRight className="h-4 w-4 text-slate-400" />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Dialog open={Boolean(selectedOrder)} onOpenChange={(open) => !open && setSelectedOrder(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Auftragsanalyse</DialogTitle>
+            <DialogDescription>
+              Detaillierte Statistik zum ausgewählten Auftrag.
+            </DialogDescription>
+          </DialogHeader>
+          {selectedOrder ? (
+            <div className="space-y-3 text-sm">
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                <p className="font-semibold text-slate-900">{selectedOrder.orderNumber}</p>
+                <p className="text-slate-600">{selectedOrder.route}</p>
+                <p className="text-xs text-slate-500">{selectedOrder.customerName} • {selectedOrder.licensePlate}</p>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-lg border border-slate-200 p-3">
+                  <p className="text-xs text-slate-500">Auftragspreis</p>
+                  <p className="mt-1 font-semibold text-emerald-700">{formatCurrency(selectedOrder.revenue)}</p>
+                </div>
+                <div className="rounded-lg border border-slate-200 p-3">
+                  <p className="text-xs text-slate-500">Fahrer-Kosten</p>
+                  <p className="mt-1 font-semibold text-amber-700">{formatCurrency(selectedOrder.cost)}</p>
+                </div>
+                <div className="rounded-lg border border-slate-200 p-3">
+                  <p className="text-xs text-slate-500">Gewinn</p>
+                  <p className="mt-1 font-semibold text-blue-700">{formatCurrency(selectedOrder.profit)}</p>
+                </div>
+                <div className="rounded-lg border border-slate-200 p-3">
+                  <p className="text-xs text-slate-500">Getankt (Vorkasse)</p>
+                  <p className="mt-1 font-semibold text-slate-700">{formatCurrency(selectedOrder.fuelAdvance)}</p>
+                </div>
+              </div>
+              <div className="flex items-center justify-between rounded-lg border border-slate-200 p-3">
+                <span className="text-slate-500">Strecke</span>
+                <span className="font-medium text-slate-900">{selectedOrder.distanceKm ? `${selectedOrder.distanceKm} km` : '-'}</span>
+              </div>
+              <Link to={`${createPageUrl('Orders')}?id=${selectedOrder.id}`}>
+                <Button className="w-full bg-[#1e3a5f] hover:bg-[#2d5a8a]">Auftrag öffnen</Button>
+              </Link>
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}

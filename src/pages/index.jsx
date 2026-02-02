@@ -5,6 +5,7 @@ import AppConnection from "./AppConnection";
 import Customers from "./Customers";
 
 import Dashboard from "./Dashboard";
+import Statistics from "./Statistics";
 
 import DriverChecklist from "./DriverChecklist";
 
@@ -58,6 +59,8 @@ const PAGES = {
     Customers: Customers,
     
     Dashboard: Dashboard,
+
+    Statistics: Statistics,
     
     DriverChecklist: DriverChecklist,
     
@@ -212,6 +215,8 @@ function PagesContent() {
                 <Route path="/Customers" element={<Customers />} />
                 
                 <Route path="/Dashboard" element={<Dashboard />} />
+
+                <Route path="/Statistics" element={<Statistics />} />
                 
                 <Route path="/DriverChecklist" element={<DriverChecklist />} />
                 
