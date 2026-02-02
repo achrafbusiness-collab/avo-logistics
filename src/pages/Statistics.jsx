@@ -1,6 +1,6 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
   Calendar,
   Search,
@@ -21,6 +21,7 @@ import {
   endOfMonth,
   startOfYear,
   endOfYear,
+  subDays,
   eachDayOfInterval,
   eachMonthOfInterval,
   differenceInCalendarDays,
@@ -128,6 +129,7 @@ const orderDate = (order) =>
   toDate(order?.dropoff_date) || toDate(order?.pickup_date) || toDate(order?.created_date);
 
 export default function Statistics() {
+  const [searchParams] = useSearchParams();
   const [period, setPeriod] = useState('monthly');
   const [customFrom, setCustomFrom] = useState(() => toDateInput(startOfMonth(new Date())));
   const [customTo, setCustomTo] = useState(() => toDateInput(new Date()));
@@ -160,6 +162,22 @@ export default function Statistics() {
     () => getRangeForPeriod(period, customFrom, customTo),
     [period, customFrom, customTo]
   );
+
+  useEffect(() => {
+    const fromParam = searchParams.get('from');
+    const toParam = searchParams.get('to');
+    if (fromParam || toParam) {
+      setPeriod('custom');
+      if (fromParam) setCustomFrom(fromParam);
+      if (toParam) setCustomTo(toParam);
+    }
+  }, [searchParams.toString()]);
+
+  const applyQuickRange = (fromDate, toDate) => {
+    setPeriod('custom');
+    setCustomFrom(toDateInput(fromDate));
+    setCustomTo(toDateInput(toDate));
+  };
 
   const driverCostByOrder = useMemo(() => {
     const map = new Map();
@@ -336,6 +354,70 @@ export default function Statistics() {
                 {item.label}
               </Button>
             ))}
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                const today = new Date();
+                applyQuickRange(startOfDay(today), endOfDay(today));
+              }}
+            >
+              Heute
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                const yesterday = subDays(new Date(), 1);
+                applyQuickRange(startOfDay(yesterday), endOfDay(yesterday));
+              }}
+            >
+              Gestern
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                const dayBefore = subDays(new Date(), 2);
+                applyQuickRange(startOfDay(dayBefore), endOfDay(dayBefore));
+              }}
+            >
+              Vorgestern
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                const now = new Date();
+                applyQuickRange(startOfWeek(now, { weekStartsOn: 1 }), endOfWeek(now, { weekStartsOn: 1 }));
+              }}
+            >
+              Diese Woche
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                const now = new Date();
+                const lastWeek = subDays(now, 7);
+                applyQuickRange(startOfWeek(lastWeek, { weekStartsOn: 1 }), endOfWeek(lastWeek, { weekStartsOn: 1 }));
+              }}
+            >
+              Letzte Woche
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                const now = new Date();
+                applyQuickRange(startOfMonth(now), endOfMonth(now));
+              }}
+            >
+              Ganzen Monat
+            </Button>
           </div>
 
           {period === 'custom' ? (

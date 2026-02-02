@@ -326,6 +326,14 @@ export default function Dashboard() {
     setDateTo(format(end, 'yyyy-MM-dd'));
   };
 
+  const statisticsUrl = useMemo(() => {
+    const params = new URLSearchParams();
+    if (dateFrom) params.set('from', dateFrom);
+    if (dateTo) params.set('to', dateTo);
+    const query = params.toString();
+    return `${createPageUrl('Statistics')}${query ? `?${query}` : ''}`;
+  }, [dateFrom, dateTo]);
+
   return (
     <div className="space-y-6">
       {/* Hero Header */}
@@ -509,7 +517,7 @@ export default function Dashboard() {
               <CardTitle className="text-lg font-semibold text-slate-900">Finanz-Übersicht</CardTitle>
               <p className="text-sm text-slate-500">Abgeschlossene Touren im gewählten Zeitraum</p>
             </div>
-            <Link to={createPageUrl('Statistics')}>
+            <Link to={statisticsUrl}>
               <Button className="bg-[#1e3a5f] hover:bg-[#2d5a8a]">
                 <BarChart3 className="mr-2 h-4 w-4" />
                 Statistik öffnen
