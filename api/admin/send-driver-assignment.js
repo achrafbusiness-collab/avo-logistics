@@ -482,7 +482,7 @@ ${companyName}`;
 
       const { data: orderChecklists, error: checklistError } = await supabaseAdmin
         .from("checklists")
-        .select("id, type, datetime, kilometer, created_date, created_at")
+        .select("id, type, datetime, kilometer, created_date")
         .eq("order_id", order.id)
         .eq("company_id", profile.company_id)
         .order("created_date", { ascending: false })
