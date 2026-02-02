@@ -76,6 +76,7 @@ export default function Orders() {
   const [bulkWorking, setBulkWorking] = useState(false);
   const [bulkMessage, setBulkMessage] = useState('');
   const [bulkError, setBulkError] = useState('');
+  const [maintenanceChecked, setMaintenanceChecked] = useState(false);
   const [noteDrafts, setNoteDrafts] = useState({});
   const [noteSaving, setNoteSaving] = useState({});
   const [noteErrors, setNoteErrors] = useState({});
@@ -118,6 +119,50 @@ export default function Orders() {
       active = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!currentUser || maintenanceChecked) return;
+    const normalizeEmail = (value) => String(value || '').trim().toLowerCase();
+    const isSystemAdmin = (user) => {
+      const adminEmail = import.meta.env.VITE_SYSTEM_ADMIN_EMAIL;
+      const adminUserId = import.meta.env.VITE_SYSTEM_ADMIN_USER_ID;
+      if (adminUserId && user.id === adminUserId) return true;
+      if (adminEmail && normalizeEmail(user.email) === normalizeEmail(adminEmail)) return true;
+      return false;
+    };
+    const canRun = currentUser.role === 'admin' || isSystemAdmin(currentUser);
+    if (!canRun) {
+      setMaintenanceChecked(true);
+      return;
+    }
+    const companyKey = currentUser.company_id || currentUser.id || 'global';
+    const storageKey = `avo:fix-intransit-no-driver:${companyKey}`;
+    if (typeof window !== 'undefined' && window.localStorage.getItem(storageKey) === 'done') {
+      setMaintenanceChecked(true);
+      return;
+    }
+    let cancelled = false;
+    appClient.maintenance
+      .fixInTransitWithoutDriver()
+      .then((result) => {
+        if (cancelled) return;
+        if (typeof window !== 'undefined') {
+          window.localStorage.setItem(storageKey, 'done');
+        }
+        if (result?.updated) {
+          queryClient.invalidateQueries({ queryKey: ['orders'] });
+        }
+      })
+      .catch((error) => {
+        console.warn('Status-Korrektur fehlgeschlagen', error);
+      })
+      .finally(() => {
+        if (!cancelled) setMaintenanceChecked(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [currentUser, maintenanceChecked, queryClient]);
 
   const { data: orders = [], isLoading } = useQuery({
     queryKey: ['orders'],

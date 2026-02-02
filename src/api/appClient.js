@@ -287,6 +287,28 @@ const notifications = {
   },
 };
 
+const maintenance = {
+  fixInTransitWithoutDriver: async () => {
+    const token = await getSessionToken();
+    if (!token) {
+      throw new Error('Nicht angemeldet.');
+    }
+    const response = await fetch('/api/admin/fix-intransit-without-driver', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({}),
+    });
+    const payload = await response.json();
+    if (!response.ok || !payload?.ok) {
+      throw new Error(payload?.error || 'Status-Korrektur fehlgeschlagen.');
+    }
+    return payload;
+  },
+};
+
 const profileDefaults = {
   role: 'minijobber',
   permissions: {},
@@ -411,6 +433,7 @@ export const appClient = {
     AppSettings: createEntityClient('AppSettings'),
   },
   notifications,
+  maintenance,
   integrations: {
     Core,
   },
