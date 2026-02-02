@@ -379,11 +379,6 @@ export default async function handler(req, res) {
     const brandPrimary = "#1e3a5f";
     const brandSecondary = "#2d5a8a";
     const logoUrl = "https://avo-logistics.app/IMG_5222.JPG";
-    const publicSiteUrl = String(
-      process.env.PUBLIC_SITE_URL ||
-        process.env.VITE_PUBLIC_SITE_URL ||
-        "https://avo-logistics.app"
-    ).replace(/\/+$/, "");
 
     if (testEmail) {
       const target = to || resolvedSmtp.user || senderAddress;
@@ -597,11 +592,6 @@ ${companyName}`;
         : null;
       const pickupChecklist = pickLatestChecklist(orderChecklists, "pickup");
       const dropoffChecklist = pickLatestChecklist(orderChecklists, "dropoff");
-      const protocolLinkChecklistId =
-        protocolChecklist?.id || dropoffChecklist?.id || pickupChecklist?.id || "";
-      const protocolUrl = protocolLinkChecklistId
-        ? `${publicSiteUrl}/protocol-pdf?checklistId=${encodeURIComponent(protocolLinkChecklistId)}&print=1`
-        : "";
       const companyName = settings?.company_name || "AVO Logistics";
       const vehicleLabel = [order.vehicle_brand, order.vehicle_model].filter(Boolean).join(" ") || "-";
       const pickupLine = formatAddress([
@@ -624,7 +614,6 @@ Von: ${pickupLine || "-"}
 Nach: ${dropoffLine || "-"}
 
 Das Protokoll finden Sie im Anhang dieser E-Mail.
-${protocolUrl ? `Zusatzlich koennen Sie das gleiche Protokoll online oeffnen: ${protocolUrl}` : ""}
 
 Mit freundlichen Gruessen
 ${companyName}`;
@@ -647,16 +636,6 @@ ${companyName}`;
             <p style="margin:0;">Von: ${pickupLine || "-"}</p>
             <p style="margin:0 0 12px;">Nach: ${dropoffLine || "-"}</p>
             <p style="margin:0 0 12px;">Das Protokoll finden Sie im Anhang dieser E-Mail.</p>
-            ${
-              protocolUrl
-                ? `<p style="margin:0 0 12px; font-size:12px;">Online-Protokoll: <a href="${protocolUrl}" target="_blank" rel="noreferrer">${protocolUrl}</a></p>`
-                : ""
-            }
-            ${
-              protocolChecklist?.id
-                ? `<p style="margin:0 0 12px; font-size:12px; color:#64748b;">Protokoll-ID: ${protocolChecklist.id}</p>`
-                : ""
-            }
             <p style="margin:0;">Mit freundlichen Gruessen<br/>${companyName}</p>
           </div>
         </div>
