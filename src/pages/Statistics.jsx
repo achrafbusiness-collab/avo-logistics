@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
@@ -125,11 +125,14 @@ export default function Statistics() {
   const [customTo, setCustomTo] = useState(() => toDateInput(new Date()));
   const [search, setSearch] = useState('');
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [profitTargetInput, setProfitTargetInput] = useState('');
   const [seriesVisible, setSeriesVisible] = useState({
     revenue: true,
     cost: true,
     profit: true,
   });
+  const targetLoadedRef = useRef(null);
 
   const { data: orders = [], isLoading: ordersLoading } = useQuery({
     queryKey: ['stats-orders'],
@@ -152,6 +155,37 @@ export default function Statistics() {
     () => getRangeForPeriod(period, customFrom, customTo),
     [period, customFrom, customTo]
   );
+
+  useEffect(() => {
+    let active = true;
+    appClient.auth.getCurrentUser().then((user) => {
+      if (active) setCurrentUser(user);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const targetStorageKey = useMemo(() => {
+    const companyKey = currentUser?.company_id || currentUser?.id || 'global';
+    return `avo:monthly-profit-target:${companyKey}`;
+  }, [currentUser]);
+
+  useEffect(() => {
+    if (!targetStorageKey || targetLoadedRef.current === targetStorageKey) return;
+    if (typeof window === 'undefined') return;
+    const saved = window.localStorage.getItem(targetStorageKey);
+    if (saved !== null) {
+      setProfitTargetInput(saved);
+    }
+    targetLoadedRef.current = targetStorageKey;
+  }, [targetStorageKey]);
+
+  useEffect(() => {
+    if (!targetStorageKey) return;
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(targetStorageKey, profitTargetInput);
+  }, [targetStorageKey, profitTargetInput]);
 
   useEffect(() => {
     const fromParam = searchParams.get('from');
@@ -246,6 +280,24 @@ export default function Statistics() {
       { revenue: 0, cost: 0, fuelAdvance: 0, profit: 0 }
     );
   }, [rows]);
+
+  const profitTargetValue = parseAmount(profitTargetInput);
+
+  const currentMonthProfit = useMemo(() => {
+    const start = startOfMonth(new Date());
+    const end = endOfMonth(new Date());
+    return orders
+      .filter((order) => COMPLETED_STATUSES.has(order.status))
+      .reduce((sum, order) => {
+        const date = orderDate(order);
+        if (!date || date < start || date > end) return sum;
+        const revenue = parseAmount(order.driver_price);
+        const cost = driverCostByOrder.get(order.id) || 0;
+        return sum + (revenue - cost);
+      }, 0);
+  }, [orders, driverCostByOrder]);
+
+  const monthlyGoalReached = profitTargetValue > 0 && currentMonthProfit >= profitTargetValue;
 
   const chartConfig = useMemo(() => {
     const showWeekYear = range.from.getFullYear() !== range.to.getFullYear();
@@ -490,13 +542,34 @@ export default function Statistics() {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-6">
         <Card><CardContent className="p-5"><p className="text-xs text-slate-500">Abgeschlossene Touren</p><p className="mt-2 text-2xl font-semibold">{rows.length}</p><Truck className="mt-2 h-4 w-4 text-slate-400" /></CardContent></Card>
         <Card><CardContent className="p-5"><p className="text-xs text-slate-500">Umsatz</p><p className="mt-2 text-2xl font-semibold">{formatCurrency(totals.revenue)}</p><TrendingUp className="mt-2 h-4 w-4 text-emerald-500" /></CardContent></Card>
         <Card><CardContent className="p-5"><p className="text-xs text-slate-500">Fahrer-Kosten</p><p className="mt-2 text-2xl font-semibold">{formatCurrency(totals.cost)}</p><Wallet className="mt-2 h-4 w-4 text-amber-500" /></CardContent></Card>
         <Card><CardContent className="p-5"><p className="text-xs text-slate-500">Gewinn</p><p className="mt-2 text-2xl font-semibold">{formatCurrency(totals.profit)}</p><Coins className="mt-2 h-4 w-4 text-blue-500" /></CardContent></Card>
+        <Card>
+          <CardContent className="p-5 space-y-2">
+            <p className="text-xs text-slate-500">Monatliches Gewinnziel</p>
+            <Input
+              type="number"
+              step="0.01"
+              value={profitTargetInput}
+              onChange={(e) => setProfitTargetInput(e.target.value)}
+              placeholder="z. B. 5000"
+            />
+            <p className="text-xs text-slate-500">
+              Aktuell: <span className="font-medium text-slate-700">{formatCurrency(currentMonthProfit)}</span>
+            </p>
+          </CardContent>
+        </Card>
         <Card><CardContent className="p-5"><p className="text-xs text-slate-500">Getankt (Vorkasse)</p><p className="mt-2 text-2xl font-semibold">{formatCurrency(totals.fuelAdvance)}</p><Fuel className="mt-2 h-4 w-4 text-slate-500" /></CardContent></Card>
       </div>
+
+      {monthlyGoalReached ? (
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+          Glückwunsch. Sie haben Ihr monatliches Gewinnziel erreicht.
+        </div>
+      ) : null}
 
       <Card className="border border-slate-200/80 bg-white/90">
         <CardHeader className="pb-2">
@@ -553,6 +626,19 @@ export default function Statistics() {
                       }}
                     />
                   ))}
+                  {profitTargetValue > 0 ? (
+                    <ReferenceLine
+                      y={profitTargetValue}
+                      stroke="#16a34a"
+                      strokeDasharray="6 4"
+                      label={{
+                        value: "Ziel",
+                        position: "right",
+                        fill: "#16a34a",
+                        fontSize: 11,
+                      }}
+                    />
+                  ) : null}
                   {seriesVisible.revenue ? <Line type="monotone" dataKey="revenue" name="Umsatz" stroke="#10b981" strokeWidth={2.5} dot={false} /> : null}
                   {seriesVisible.cost ? <Line type="monotone" dataKey="cost" name="Kosten" stroke="#f59e0b" strokeWidth={2.5} dot={false} /> : null}
                   {seriesVisible.profit ? <Line type="monotone" dataKey="profit" name="Gewinn" stroke="#2563eb" strokeWidth={2.5} dot={false} /> : null}

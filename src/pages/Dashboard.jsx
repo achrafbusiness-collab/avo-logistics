@@ -19,7 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import StatusBadge from '@/components/ui/StatusBadge';
 import OrdersMap from '@/components/dashboard/OrdersMap';
-import { format, subDays } from 'date-fns';
+import { format, startOfMonth, endOfMonth, subDays } from 'date-fns';
 import { de } from 'date-fns/locale';
 
 const toDateKey = (value) => {
@@ -458,6 +458,18 @@ export default function Dashboard() {
               }}
             >
               Letzte 30 Tage
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-slate-300 text-slate-700 hover:bg-slate-900 hover:text-white"
+              onClick={() => {
+                const lastMonth = subDays(startOfMonth(new Date()), 1);
+                setDateFrom(format(startOfMonth(lastMonth), 'yyyy-MM-dd'));
+                setDateTo(format(endOfMonth(lastMonth), 'yyyy-MM-dd'));
+              }}
+            >
+              Letzter Monat
             </Button>
             <Button
               variant={onlyDue ? "default" : "outline"}
