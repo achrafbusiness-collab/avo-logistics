@@ -219,8 +219,13 @@ export default function Layout({ children, currentPageName }) {
       >
         <div className="flex h-full flex-col">
           <div className={`flex items-center justify-between p-4 border-b ${darkMode ? 'border-slate-800' : 'border-white/10'}`}>
-            <div className="flex items-center gap-2">
-              <p className="text-xs uppercase tracking-[0.35em] text-blue-200">AVO SYSTEM</p>
+            <div className="flex items-center gap-3">
+              <div>
+                <p className="text-xs uppercase tracking-[0.35em] text-blue-200">AVO SYSTEM</p>
+                <p className={`text-[11px] mt-1 ${darkMode ? 'text-slate-400' : 'text-white/70'}`}>
+                  Ihr KI-automatisiertes System für Fahrzeugüberführung
+                </p>
+              </div>
               <img
                 src="/IMG_5222.JPG"
                 alt="AVO Logo"
