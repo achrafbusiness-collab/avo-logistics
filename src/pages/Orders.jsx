@@ -586,6 +586,7 @@ export default function Orders() {
     setBulkMessage('');
     try {
       let updatedPriceCount = 0;
+      const missingPriceOrders = [];
       for (const order of selectedOrders) {
         const updates = {
           customer_id: customer.id,
@@ -600,13 +601,19 @@ export default function Orders() {
         if (priceFromList !== null && priceFromList !== undefined) {
           updates.driver_price = priceFromList;
           updatedPriceCount += 1;
+        } else {
+          missingPriceOrders.push(order.order_number || order.id);
         }
         await appClient.entities.Order.update(order.id, updates);
       }
 
-      setBulkMessage(
-        `Kunde wurde zugeordnet. Preise aus Preisliste aktualisiert: ${updatedPriceCount}/${selectedOrders.length}.`
-      );
+      const summary = `Kunde wurde zugeordnet. Preise aus Preisliste aktualisiert: ${updatedPriceCount}/${selectedOrders.length}.`;
+      if (missingPriceOrders.length) {
+        const details = ` Nicht aktualisiert: ${missingPriceOrders.join(', ')}.`;
+        setBulkMessage(`${summary}${details}`);
+      } else {
+        setBulkMessage(summary);
+      }
       setBulkAssignCustomerOpen(false);
       setSelectedIds([]);
       setBulkCustomerId('none');
