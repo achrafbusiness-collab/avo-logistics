@@ -468,6 +468,17 @@ export default function Statistics() {
             >
               Ganzen Monat
             </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                const now = new Date();
+                const lastMonth = subDays(startOfMonth(now), 1);
+                applyQuickRange(startOfMonth(lastMonth), endOfMonth(lastMonth));
+              }}
+            >
+              Letzter Monat
+            </Button>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
