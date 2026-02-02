@@ -406,9 +406,18 @@ export default function DriverChecklist() {
           data: {
             assigned_driver_id: null,
             assigned_driver_name: '',
+            status: 'zwischenabgabe',
           },
         });
         queryClient.invalidateQueries({ queryKey: ['driver-orders'] });
+        queryClient.invalidateQueries({ queryKey: ['orders'] });
+      } else if (order?.status !== 'in_transit') {
+        await updateOrderMutation.mutateAsync({
+          id: orderId,
+          data: {
+            status: 'in_transit',
+          },
+        });
         queryClient.invalidateQueries({ queryKey: ['orders'] });
       }
 
