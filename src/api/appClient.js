@@ -162,8 +162,17 @@ const buildSchemaDefaults = (schema) => {
   }, {});
 };
 
+const safeGetUser = async () => {
+  try {
+    return await supabase.auth.getUser();
+  } catch (error) {
+    console.warn("Supabase auth.getUser failed", error);
+    return { data: { user: null }, error };
+  }
+};
+
 const getCompanyIdForCurrentUser = async () => {
-  const { data } = await supabase.auth.getUser();
+  const { data } = await safeGetUser();
   if (!data?.user) return null;
   const profile = await getProfile(data.user.id);
   if (profile?.company_id) return profile.company_id;
@@ -355,7 +364,7 @@ const resolveEffectiveRole = async (authUser, profile) => {
 
 const auth = {
   getCurrentUser: async () => {
-    const { data } = await supabase.auth.getUser();
+    const { data } = await safeGetUser();
     if (!data?.user) return null;
     const profile = await getProfile(data.user.id);
     const active = await ensureActiveProfile(profile);
@@ -364,7 +373,7 @@ const auth = {
     return buildUser(data.user, { ...profile, role });
   },
   me: async () => {
-    const { data } = await supabase.auth.getUser();
+    const { data } = await safeGetUser();
     if (!data?.user) return null;
     const profile = await getProfile(data.user.id);
     const active = await ensureActiveProfile(profile);
