@@ -39,6 +39,7 @@ import StatusBadge from '@/components/ui/StatusBadge';
 import OrderForm from '@/components/orders/OrderForm';
 import OrderDetails from '@/components/orders/OrderDetails';
 import { getPriceForDistance } from '@/utils/priceList';
+import { getMapboxDistanceKm } from '@/utils/mapboxDistance';
 import { 
   Plus, 
   Search, 
@@ -650,15 +651,36 @@ export default function Orders() {
       let updatedPriceCount = 0;
       const missingPriceOrders = [];
       for (const order of selectedOrders) {
+        let computedDistance = Number.parseFloat(order.distance_km);
+        if (!Number.isFinite(computedDistance)) {
+          try {
+            const distanceKm = await getMapboxDistanceKm({
+              pickupAddress: order.pickup_address,
+              pickupCity: order.pickup_city,
+              pickupPostalCode: order.pickup_postal_code,
+              dropoffAddress: order.dropoff_address,
+              dropoffCity: order.dropoff_city,
+              dropoffPostalCode: order.dropoff_postal_code,
+            });
+            if (distanceKm !== null && distanceKm !== undefined) {
+              computedDistance = distanceKm;
+            }
+          } catch (error) {
+            console.warn('Strecke konnte nicht berechnet werden', error);
+          }
+        }
+
         const updates = {
           customer_id: customer.id,
           customer_name: customerName,
           customer_email: customer.email || '',
           customer_phone: customer.phone || '',
         };
-        const distance = Number.parseFloat(order.distance_km);
-        const priceFromList = Number.isFinite(distance)
-          ? getPriceForDistance(customer.price_list || [], distance)
+        if (Number.isFinite(computedDistance)) {
+          updates.distance_km = computedDistance;
+        }
+        const priceFromList = Number.isFinite(computedDistance)
+          ? getPriceForDistance(customer.price_list || [], computedDistance)
           : null;
         if (priceFromList !== null && priceFromList !== undefined) {
           updates.driver_price = priceFromList;
