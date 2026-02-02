@@ -207,7 +207,8 @@ export default function Dashboard() {
     const nextMonthStart = startOfMonth(new Date());
     return endOfMonth(targetMonthDate).getTime() < nextMonthStart.getTime();
   }, [targetMonthDate]);
-  const showGoalStatus = profitTargetValue > 0 && monthCompleted;
+  const showSuccess = monthlyGoalReached;
+  const showFailure = profitTargetValue > 0 && monthCompleted && !monthlyGoalReached;
 
   const getDueDateTime = (order) => {
     if (!order?.dropoff_date) return null;
@@ -627,18 +628,16 @@ export default function Dashboard() {
                 <span>
                   Ziel: {profitTargetValue > 0 ? formatCurrency(profitTargetValue) : '—'}
                 </span>
-                {showGoalStatus && monthlyGoalReached ? (
+                {showSuccess ? (
                   <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
                 ) : null}
               </div>
-              {showGoalStatus ? (
-                monthlyGoalReached ? (
-                  <p className="mt-1 text-xs text-emerald-600">Glückwunsch. Sie haben Ihr Ziel erreicht.</p>
-                ) : (
-                  <p className="mt-1 text-xs text-red-600">
-                    Sie haben Ihr Ziel dieses Monats leider nicht erreicht.
-                  </p>
-                )
+              {showSuccess ? (
+                <p className="mt-1 text-xs text-emerald-600">Glückwunsch. Sie haben Ihr Ziel erreicht.</p>
+              ) : showFailure ? (
+                <p className="mt-1 text-xs text-red-600">
+                  Sie haben Ihr Ziel dieses Monats leider nicht erreicht.
+                </p>
               ) : null}
             </div>
             <div className="rounded-lg border border-slate-200 bg-white p-3">
