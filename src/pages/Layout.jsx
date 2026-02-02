@@ -219,10 +219,13 @@ export default function Layout({ children, currentPageName }) {
       >
         <div className="flex h-full flex-col">
           <div className={`flex items-center justify-between p-4 border-b ${darkMode ? 'border-slate-800' : 'border-white/10'}`}>
-            <div>
+            <div className="flex items-center gap-2">
               <p className="text-xs uppercase tracking-[0.35em] text-blue-200">AVO SYSTEM</p>
-              <h1 className="font-semibold text-lg mt-1">Logistics Control</h1>
-              <p className={`text-xs ${darkMode ? 'text-slate-400' : 'text-white/60'}`}>Achraf Bolakhrif</p>
+              <img
+                src="/IMG_5222.JPG"
+                alt="AVO Logo"
+                className="h-7 w-7 rounded-md object-cover border border-white/20"
+              />
             </div>
             <button 
               onClick={() => {
