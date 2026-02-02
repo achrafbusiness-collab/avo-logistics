@@ -19,11 +19,11 @@ import {
   endOfWeek,
   startOfMonth,
   endOfMonth,
-  startOfYear,
-  endOfYear,
   subDays,
   eachDayOfInterval,
+  eachWeekOfInterval,
   eachMonthOfInterval,
+  eachYearOfInterval,
   differenceInCalendarDays,
 } from 'date-fns';
 import { de } from 'date-fns/locale';
@@ -36,6 +36,7 @@ import {
   Tooltip,
   ResponsiveContainer,
   Legend,
+  ReferenceLine,
 } from 'recharts';
 
 import { appClient } from '@/api/appClient';
@@ -94,27 +95,6 @@ const formatCurrency = (value) =>
 
 const getRangeForPeriod = (period, customFrom, customTo) => {
   const now = new Date();
-  if (period === 'daily') {
-    const from = startOfDay(now);
-    const to = endOfDay(now);
-    return { from, to, bucket: 'day' };
-  }
-  if (period === 'weekly') {
-    const from = startOfWeek(now, { weekStartsOn: 1 });
-    const to = endOfWeek(now, { weekStartsOn: 1 });
-    return { from, to, bucket: 'day' };
-  }
-  if (period === 'monthly') {
-    const from = startOfMonth(now);
-    const to = endOfMonth(now);
-    return { from, to, bucket: 'day' };
-  }
-  if (period === 'yearly') {
-    const from = startOfYear(now);
-    const to = endOfYear(now);
-    return { from, to, bucket: 'month' };
-  }
-
   const rawFrom = toDate(customFrom);
   const rawTo = toDate(customTo);
   const safeFrom = rawFrom ? startOfDay(rawFrom) : startOfMonth(now);
@@ -122,7 +102,17 @@ const getRangeForPeriod = (period, customFrom, customTo) => {
   const from = safeFrom.getTime() <= safeTo.getTime() ? safeFrom : startOfDay(safeTo);
   const to = safeFrom.getTime() <= safeTo.getTime() ? safeTo : endOfDay(safeFrom);
   const days = Math.abs(differenceInCalendarDays(to, from));
-  return { from, to, bucket: days > 92 ? 'month' : 'day' };
+  let bucket = 'day';
+  if (period === 'weekly') {
+    bucket = 'week';
+  } else if (period === 'monthly') {
+    bucket = 'month';
+  } else if (period === 'yearly') {
+    bucket = 'year';
+  } else if (period === 'custom') {
+    bucket = days > 92 ? 'month' : 'day';
+  }
+  return { from, to, bucket };
 };
 
 const orderDate = (order) =>
@@ -167,14 +157,12 @@ export default function Statistics() {
     const fromParam = searchParams.get('from');
     const toParam = searchParams.get('to');
     if (fromParam || toParam) {
-      setPeriod('custom');
       if (fromParam) setCustomFrom(fromParam);
       if (toParam) setCustomTo(toParam);
     }
   }, [searchParams.toString()]);
 
   const applyQuickRange = (fromDate, toDate) => {
-    setPeriod('custom');
     setCustomFrom(toDateInput(fromDate));
     setCustomTo(toDateInput(toDate));
   };
@@ -259,22 +247,76 @@ export default function Statistics() {
     );
   }, [rows]);
 
-  const chartData = useMemo(() => {
-    const bucketFormat = range.bucket === 'month' ? 'yyyy-MM' : 'yyyy-MM-dd';
-    const labelFormat = range.bucket === 'month' ? 'MMM yy' : 'dd.MM';
-    const points =
-      range.bucket === 'month'
-        ? eachMonthOfInterval({ start: range.from, end: range.to })
-        : eachDayOfInterval({ start: range.from, end: range.to });
+  const chartConfig = useMemo(() => {
+    const showWeekYear = range.from.getFullYear() !== range.to.getFullYear();
+    const showMonthYear = range.from.getFullYear() !== range.to.getFullYear();
+
+    const buildKeyLabel = (point) => {
+      if (range.bucket === 'week') {
+        const weekStart = startOfWeek(point, { weekStartsOn: 1 });
+        const weekKey = format(weekStart, "RRRR-'W'II");
+        const weekNumber = format(weekStart, 'II');
+        return {
+          key: weekKey,
+          label: showWeekYear ? `KW ${weekNumber}/${format(weekStart, 'yy')}` : `KW ${weekNumber}`,
+          monthKey: format(weekStart, 'yyyy-MM'),
+          monthLabel: format(weekStart, 'MMM', { locale: de }),
+        };
+      }
+      if (range.bucket === 'month') {
+        const key = format(point, 'yyyy-MM');
+        return {
+          key,
+          label: showMonthYear ? format(point, 'MMM yy', { locale: de }) : format(point, 'MMM', { locale: de }),
+          monthKey: key,
+          monthLabel: format(point, 'MMM', { locale: de }),
+        };
+      }
+      if (range.bucket === 'year') {
+        const key = format(point, 'yyyy');
+        return { key, label: key, monthKey: null, monthLabel: null };
+      }
+      const key = format(point, 'yyyy-MM-dd');
+      return {
+        key,
+        label: format(point, 'dd.MM', { locale: de }),
+        monthKey: format(point, 'yyyy-MM'),
+        monthLabel: format(point, 'MMM', { locale: de }),
+      };
+    };
+
+    const points = (() => {
+      if (range.bucket === 'week') {
+        return eachWeekOfInterval({ start: range.from, end: range.to }, { weekStartsOn: 1 });
+      }
+      if (range.bucket === 'month') {
+        return eachMonthOfInterval({ start: range.from, end: range.to });
+      }
+      if (range.bucket === 'year') {
+        return eachYearOfInterval({ start: range.from, end: range.to });
+      }
+      return eachDayOfInterval({ start: range.from, end: range.to });
+    })();
+
+    const labelMap = new Map();
+    const monthSeparators = [];
+    let lastMonthKey = null;
 
     const map = new Map(
-      points.map((point) => {
-        const key = format(point, bucketFormat);
+      points.map((point, index) => {
+        const { key, label, monthKey, monthLabel } = buildKeyLabel(point);
+        labelMap.set(key, label);
+        if (range.bucket === 'week' && monthKey && monthKey !== lastMonthKey) {
+          if (index !== 0) {
+            monthSeparators.push({ key, label: monthLabel });
+          }
+          lastMonthKey = monthKey;
+        }
         return [
           key,
           {
             key,
-            label: format(point, labelFormat, { locale: de }),
+            label,
             revenue: 0,
             cost: 0,
             profit: 0,
@@ -284,7 +326,15 @@ export default function Statistics() {
     );
 
     for (const row of rows) {
-      const key = format(row.date, bucketFormat);
+      const key = (() => {
+        if (range.bucket === 'week') {
+          const weekStart = startOfWeek(row.date, { weekStartsOn: 1 });
+          return format(weekStart, "RRRR-'W'II");
+        }
+        if (range.bucket === 'month') return format(row.date, 'yyyy-MM');
+        if (range.bucket === 'year') return format(row.date, 'yyyy');
+        return format(row.date, 'yyyy-MM-dd');
+      })();
       const bucket = map.get(key);
       if (!bucket) continue;
       bucket.revenue += row.revenue;
@@ -292,7 +342,7 @@ export default function Statistics() {
       bucket.profit += row.profit;
     }
 
-    return Array.from(map.values());
+    return { data: Array.from(map.values()), labelMap, monthSeparators };
   }, [rows, range.bucket, range.from, range.to]);
 
   const filteredRows = useMemo(() => {
@@ -420,13 +470,12 @@ export default function Statistics() {
             </Button>
           </div>
 
-          {period === 'custom' ? (
-            <div className="flex flex-wrap items-center gap-3">
-              <Input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} className="w-44" />
-              <span className="text-slate-500">bis</span>
-              <Input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} className="w-44" />
-            </div>
-          ) : null}
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="text-xs uppercase tracking-wide text-slate-500">Zeitraum</span>
+            <Input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} className="w-44" />
+            <span className="text-slate-500">bis</span>
+            <Input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} className="w-44" />
+          </div>
         </CardContent>
       </Card>
 
@@ -459,18 +508,40 @@ export default function Statistics() {
           </div>
 
           <div className="h-80">
-            {chartData.length === 0 ? (
+            {chartConfig.data.length === 0 ? (
               <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50 text-sm text-slate-500">
                 Keine Daten im gewählten Zeitraum.
               </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData} margin={{ top: 8, right: 16, left: 8, bottom: 8 }}>
+                <LineChart data={chartConfig.data} margin={{ top: 8, right: 16, left: 8, bottom: 8 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                  <XAxis dataKey="label" stroke="#64748b" tick={{ fontSize: 12 }} />
+                  <XAxis
+                    dataKey="key"
+                    stroke="#64748b"
+                    tick={{ fontSize: 12 }}
+                    tickFormatter={(value) => chartConfig.labelMap.get(value) || value}
+                  />
                   <YAxis stroke="#64748b" tickFormatter={(value) => `${Math.round(value)}€`} tick={{ fontSize: 12 }} />
-                  <Tooltip formatter={(value) => formatCurrency(Number(value || 0))} />
+                  <Tooltip
+                    labelFormatter={(value) => chartConfig.labelMap.get(value) || value}
+                    formatter={(value) => formatCurrency(Number(value || 0))}
+                  />
                   <Legend />
+                  {chartConfig.monthSeparators.map((separator) => (
+                    <ReferenceLine
+                      key={separator.key}
+                      x={separator.key}
+                      stroke="#cbd5f5"
+                      strokeDasharray="4 4"
+                      label={{
+                        value: separator.label,
+                        position: 'top',
+                        fill: '#94a3b8',
+                        fontSize: 11,
+                      }}
+                    />
+                  ))}
                   {seriesVisible.revenue ? <Line type="monotone" dataKey="revenue" name="Umsatz" stroke="#10b981" strokeWidth={2.5} dot={false} /> : null}
                   {seriesVisible.cost ? <Line type="monotone" dataKey="cost" name="Kosten" stroke="#f59e0b" strokeWidth={2.5} dot={false} /> : null}
                   {seriesVisible.profit ? <Line type="monotone" dataKey="profit" name="Gewinn" stroke="#2563eb" strokeWidth={2.5} dot={false} /> : null}
