@@ -7,4 +7,26 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.warn("Supabase env vars missing: VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY");
 }
 
-export const supabase = createClient(supabaseUrl || "", supabaseAnonKey || "");
+const resolveUrlString = (input) => {
+  if (!input) return "";
+  if (typeof input === "string") return input;
+  if (typeof input?.url === "string") return input.url;
+  return "";
+};
+
+const createFetchWithProxy = () => {
+  const baseUrl = (supabaseUrl || "").replace(/\/$/, "");
+  return async (input, init) => {
+    const url = resolveUrlString(input);
+    if (baseUrl && url.startsWith(baseUrl) && url.includes("/auth/v1/user")) {
+      return fetch("/api/auth-user", init);
+    }
+    return fetch(input, init);
+  };
+};
+
+export const supabase = createClient(supabaseUrl || "", supabaseAnonKey || "", {
+  global: {
+    fetch: createFetchWithProxy(),
+  },
+});
