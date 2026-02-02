@@ -8,20 +8,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowLeft, Inbox, Loader2, Mail, RefreshCcw } from "lucide-react";
 
@@ -100,7 +92,42 @@ export default function EmailAIImport() {
 
   const getToken = async () => {
     const { data } = await supabase.auth.getSession();
-    return data?.session?.access_token || null;
+    if (data?.session?.access_token) {
+      return data.session.access_token;
+    }
+    const { data: refreshed } = await supabase.auth.refreshSession();
+    return refreshed?.session?.access_token || null;
+  };
+
+  const requestEmailImport = async (payload) => {
+    let token = await getToken();
+    if (!token) {
+      throw new Error("Nicht angemeldet.");
+    }
+    const doRequest = async (accessToken) =>
+      fetch("/api/admin/email-import", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+    let response = await doRequest(token);
+    if (response.status === 401) {
+      const { data: refreshed } = await supabase.auth.refreshSession();
+      token = refreshed?.session?.access_token || null;
+      if (!token) {
+        throw new Error("Nicht angemeldet.");
+      }
+      response = await doRequest(token);
+    }
+    const data = await response.json();
+    if (!response.ok || !data?.ok) {
+      throw new Error(data?.error || "IMAP Abruf fehlgeschlagen.");
+    }
+    return data;
   };
 
   const persistImapSettings = async (imapPayload) => {
@@ -128,35 +155,20 @@ export default function EmailAIImport() {
     }
     setLoading(true);
     try {
-      const token = await getToken();
-      if (!token) {
-        throw new Error("Nicht angemeldet.");
-      }
       const effectiveSearch = String(queryOverride ?? searchTerm).trim();
-      const response = await fetch("/api/admin/email-import", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+      const payload = await requestEmailImport({
+        action: "list",
+        limit: 50,
+        search: effectiveSearch,
+        imap: {
+          host: imap.host.trim(),
+          port: imap.port,
+          secure: Boolean(imap.secure),
+          user: imap.user.trim(),
+          pass: imap.pass,
+          mailbox: imap.mailbox || "INBOX",
         },
-        body: JSON.stringify({
-          action: "list",
-          limit: 50,
-          search: effectiveSearch,
-          imap: {
-            host: imap.host.trim(),
-            port: imap.port,
-            secure: Boolean(imap.secure),
-            user: imap.user.trim(),
-            pass: imap.pass,
-            mailbox: imap.mailbox || "INBOX",
-          },
-        }),
       });
-      const payload = await response.json();
-      if (!response.ok || !payload?.ok) {
-        throw new Error(payload?.error || "IMAP Abruf fehlgeschlagen.");
-      }
       setMessages(payload?.data?.messages || []);
       setSelectedUids([]);
       setPreview(null);
@@ -170,6 +182,7 @@ export default function EmailAIImport() {
           user: imap.user.trim(),
           pass: imap.pass,
         });
+        setHasStoredConfig(true);
       } catch (persistError) {
         console.warn("IMAP Einstellungen konnten nicht gespeichert werden", persistError);
       }
@@ -218,33 +231,18 @@ export default function EmailAIImport() {
     setImporting(true);
     setError("");
     try {
-      const token = await getToken();
-      if (!token) {
-        throw new Error("Nicht angemeldet.");
-      }
-      const response = await fetch("/api/admin/email-import", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+      const payload = await requestEmailImport({
+        action: "fetch",
+        uids: selectedUids,
+        imap: {
+          host: imap.host.trim(),
+          port: imap.port,
+          secure: Boolean(imap.secure),
+          user: imap.user.trim(),
+          pass: imap.pass,
+          mailbox: imap.mailbox || "INBOX",
         },
-        body: JSON.stringify({
-          action: "fetch",
-          uids: selectedUids,
-          imap: {
-            host: imap.host.trim(),
-            port: imap.port,
-            secure: Boolean(imap.secure),
-            user: imap.user.trim(),
-            pass: imap.pass,
-            mailbox: imap.mailbox || "INBOX",
-          },
-        }),
       });
-      const payload = await response.json();
-      if (!response.ok || !payload?.ok) {
-        throw new Error(payload?.error || "E-Mails konnten nicht geladen werden.");
-      }
       const combinedText = payload?.data?.combinedText || "";
       if (!combinedText.trim()) {
         throw new Error("Kein E-Mail-Text gefunden.");
@@ -266,33 +264,18 @@ export default function EmailAIImport() {
     setPreviewLoading(true);
     setError("");
     try {
-      const token = await getToken();
-      if (!token) {
-        throw new Error("Nicht angemeldet.");
-      }
-      const response = await fetch("/api/admin/email-import", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+      const payload = await requestEmailImport({
+        action: "preview",
+        uid,
+        imap: {
+          host: imap.host.trim(),
+          port: imap.port,
+          secure: Boolean(imap.secure),
+          user: imap.user.trim(),
+          pass: imap.pass,
+          mailbox: imap.mailbox || "INBOX",
         },
-        body: JSON.stringify({
-          action: "preview",
-          uid,
-          imap: {
-            host: imap.host.trim(),
-            port: imap.port,
-            secure: Boolean(imap.secure),
-            user: imap.user.trim(),
-            pass: imap.pass,
-            mailbox: imap.mailbox || "INBOX",
-          },
-        }),
       });
-      const payload = await response.json();
-      if (!response.ok || !payload?.ok) {
-        throw new Error(payload?.error || "E-Mail konnte nicht geladen werden.");
-      }
       setPreview(payload?.data || null);
       setSelectionText("");
     } catch (err) {
@@ -310,7 +293,7 @@ export default function EmailAIImport() {
     setSelectionText("");
     setSearchTerm("");
     setHasStoredConfig(false);
-    setStep("connect");
+    setStep("list");
     setInfo("");
     setError("");
     navigate(createPageUrl("Orders"));
@@ -354,9 +337,6 @@ export default function EmailAIImport() {
         user: fromSettings.imap_user || prev.user,
         pass: fromSettings.imap_pass || prev.pass,
       }));
-      if (fromSettings?.imap_mailbox) {
-        setImap((prev) => ({ ...prev, mailbox: fromSettings.imap_mailbox }));
-      }
       setHasStoredConfig(true);
       setAutoConnect(true);
       appSettingsRef.current = "done";
@@ -366,7 +346,7 @@ export default function EmailAIImport() {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (!stored) {
       setHasStoredConfig(false);
-      setStep("connect");
+      setStep("list");
       appSettingsRef.current = "done";
       return;
     }
@@ -383,13 +363,24 @@ export default function EmailAIImport() {
         }
         setHasStoredConfig(true);
         setAutoConnect(true);
+        try {
+          persistImapSettings({
+            host: payload.imap.host,
+            port: payload.imap.port,
+            secure: payload.imap.secure,
+            user: payload.imap.user,
+            pass: payload.imap.pass,
+          });
+        } catch (persistError) {
+          console.warn("IMAP Einstellungen konnten nicht gespeichert werden", persistError);
+        }
       } else {
         setHasStoredConfig(false);
-        setStep("connect");
+        setStep("list");
       }
     } catch {
       setHasStoredConfig(false);
-      setStep("connect");
+      setStep("list");
     }
     appSettingsRef.current = "done";
   }, [appSettings]);
@@ -429,78 +420,22 @@ export default function EmailAIImport() {
         </div>
       )}
 
-      {step === "connect" && (
+      {!hasStoredConfig && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Inbox className="h-5 w-5 text-[#1e3a5f]" />
-              E-Mail Konto verbinden
+              Kein E-Mail Postfach gespeichert
             </CardTitle>
           </CardHeader>
-          <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <CardContent className="flex flex-col gap-3 text-sm text-slate-600">
+            <p>
+              Bitte dein E-Mail Postfach unter „Admin Controlling → E-Mail Postfach“ speichern.
+              Danach werden die E-Mails automatisch geladen – auf jedem Gerät.
+            </p>
             <div>
-              <Label>Provider</Label>
-              <Select value={provider} onValueChange={applyPreset}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="gmail">Google (Gmail)</SelectItem>
-                  <SelectItem value="outlook">Outlook / Office 365</SelectItem>
-                  <SelectItem value="icloud">Apple iCloud</SelectItem>
-                  <SelectItem value="yahoo">Yahoo</SelectItem>
-                  <SelectItem value="other">Andere</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>IMAP Host</Label>
-              <Input value={imap.host} onChange={(e) => updateImap("host", e.target.value)} />
-            </div>
-            <div>
-              <Label>IMAP Port</Label>
-              <Input value={imap.port} onChange={(e) => updateImap("port", e.target.value)} />
-            </div>
-            <div className="flex items-center gap-3 pt-6">
-              <Switch
-                checked={Boolean(imap.secure)}
-                onCheckedChange={(value) => updateImap("secure", value)}
-              />
-              <span className="text-sm text-slate-600">SSL/TLS verwenden</span>
-            </div>
-            <div>
-              <Label>E-Mail</Label>
-              <Input
-                type="email"
-                value={imap.user}
-                onChange={(e) => updateImap("user", e.target.value)}
-                placeholder="name@firma.de"
-              />
-            </div>
-            <div>
-              <Label>Passwort / App-Passwort</Label>
-              <Input
-                type="password"
-                value={imap.pass}
-                onChange={(e) => updateImap("pass", e.target.value)}
-                placeholder="App-Passwort"
-              />
-            </div>
-            <div className="md:col-span-2">
-              <Label>Postfach (optional)</Label>
-              <Input
-                value={imap.mailbox}
-                onChange={(e) => updateImap("mailbox", e.target.value)}
-                placeholder="INBOX"
-              />
-            </div>
-            <div className="md:col-span-2 flex flex-wrap items-center justify-between gap-3">
-              <p className="text-xs text-slate-500">
-                Hinweis: Bei Gmail/Outlook/iCloud ist oft ein App-Passwort notwendig und IMAP muss aktiviert sein.
-              </p>
-              <Button onClick={loadMessages} disabled={loading}>
-                {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                Verbinden & E-Mails laden
+              <Button onClick={() => navigate(createPageUrl("AdminEmailSettings"))}>
+                E-Mail Postfach öffnen
               </Button>
             </div>
           </CardContent>
