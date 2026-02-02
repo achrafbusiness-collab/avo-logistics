@@ -104,7 +104,9 @@ export default async function handler(req, res) {
     const { data: segments, error: segmentsError } = await supabaseAdmin
       .from("order_segments")
       .select("order_id, segment_type, created_date, created_at")
-      .in("order_id", orderIds);
+      .in("order_id", orderIds)
+      .order("created_date", { ascending: false })
+      .order("created_at", { ascending: false });
 
     if (segmentsError) {
       res.status(500).json({ ok: false, error: segmentsError.message });
@@ -114,14 +116,11 @@ export default async function handler(req, res) {
     const latestSegmentByOrder = new Map();
     (segments || []).forEach((segment) => {
       if (!segment?.order_id) return;
-      const timestamp = new Date(segment.created_date || segment.created_at || 0).getTime();
-      const existing = latestSegmentByOrder.get(segment.order_id);
-      if (!existing || timestamp > existing.timestamp) {
-        latestSegmentByOrder.set(segment.order_id, {
-          timestamp,
-          segment_type: segment.segment_type,
-        });
-      }
+      if (latestSegmentByOrder.has(segment.order_id)) return;
+      latestSegmentByOrder.set(segment.order_id, {
+        timestamp: new Date(segment.created_date || segment.created_at || 0).getTime(),
+        segment_type: segment.segment_type,
+      });
     });
 
     const handoffIds = [];

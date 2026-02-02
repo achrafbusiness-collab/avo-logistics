@@ -136,7 +136,7 @@ export default function Orders() {
       return;
     }
     const companyKey = currentUser.company_id || currentUser.id || 'global';
-    const storageKey = `avo:fix-intransit-no-driver:v3:${companyKey}`;
+    const storageKey = `avo:fix-intransit-no-driver:v4:${companyKey}`;
     if (typeof window !== 'undefined' && window.localStorage.getItem(storageKey) === 'done') {
       setMaintenanceChecked(true);
       return;
