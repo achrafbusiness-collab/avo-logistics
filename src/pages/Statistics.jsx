@@ -121,9 +121,17 @@ const orderDate = (order) =>
 
 export default function Statistics() {
   const [searchParams] = useSearchParams();
-  const [period, setPeriod] = useState('monthly');
-  const [customFrom, setCustomFrom] = useState(() => toDateInput(startOfMonth(new Date())));
-  const [customTo, setCustomTo] = useState(() => toDateInput(new Date()));
+  const defaultLastWeek = useMemo(() => {
+    const now = new Date();
+    const lastWeek = subDays(now, 7);
+    return {
+      from: startOfWeek(lastWeek, { weekStartsOn: 1 }),
+      to: endOfWeek(lastWeek, { weekStartsOn: 1 }),
+    };
+  }, []);
+  const [period, setPeriod] = useState('daily');
+  const [customFrom, setCustomFrom] = useState(() => toDateInput(defaultLastWeek.from));
+  const [customTo, setCustomTo] = useState(() => toDateInput(defaultLastWeek.to));
   const [search, setSearch] = useState('');
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
