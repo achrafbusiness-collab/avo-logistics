@@ -137,7 +137,85 @@ const normalizeAscii = (value) =>
 const escapePdfText = (value) =>
   value.replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
 
-const createProtocolPdfBuffer = ({ companyName, order, pickupChecklist, dropoffChecklist }) => {
+const createProtocolPdfBuffer = ({
+  companyName,
+  order,
+  protocolChecklist,
+  pickupChecklist,
+  dropoffChecklist,
+}) => {
+  const formatChecklistValue = (value) => {
+    if (value === null || value === undefined || value === "") return "-";
+    return String(value);
+  };
+  const buildChecklistBlock = (title, checklist) => {
+    if (!checklist) {
+      return [title, "Nicht vorhanden", ""];
+    }
+    const mandatoryChecks = checklist.mandatory_checks || {};
+    const accessoryChecks = checklist.accessories || {};
+    const mandatoryDone = Object.values(mandatoryChecks).filter(Boolean).length;
+    const mandatoryTotal = Object.keys(mandatoryChecks).length;
+    const accessoryDone = Object.values(accessoryChecks).filter(Boolean).length;
+    const accessoryTotal = Object.keys(accessoryChecks).length;
+    const damages = Array.isArray(checklist.damages) ? checklist.damages : [];
+    const expenses = Array.isArray(checklist.expenses) ? checklist.expenses : [];
+    const damageLines =
+      damages.length === 0
+        ? ["Schaeden: keine"]
+        : [
+            `Schaeden: ${damages.length}`,
+            ...damages.slice(0, 6).map((item, index) => {
+              const part = [
+                item?.slot_id || item?.location || `Pos.${index + 1}`,
+                item?.type || "-",
+                item?.description || "-",
+              ]
+                .filter(Boolean)
+                .join(" | ");
+              return ` - ${part}`;
+            }),
+          ];
+    const expenseTotal = expenses.reduce((sum, item) => {
+      const amount = Number(item?.amount);
+      return Number.isFinite(amount) ? sum + amount : sum;
+    }, 0);
+    const expenseLines =
+      expenses.length === 0
+        ? ["Auslagen: keine"]
+        : [
+            `Auslagen: ${expenses.length} (Summe ${expenseTotal.toFixed(2)} EUR)`,
+            ...expenses.slice(0, 6).map((item, index) => {
+              const part = [
+                item?.type || `Typ ${index + 1}`,
+                item?.amount !== null && item?.amount !== undefined && item?.amount !== ""
+                  ? `${item.amount} EUR`
+                  : "-",
+                item?.note || "",
+              ]
+                .filter(Boolean)
+                .join(" | ");
+              return ` - ${part}`;
+            }),
+          ];
+    return [
+      title,
+      `Zeitpunkt: ${formatDateTimeValue(checklist.datetime)}`,
+      `Ort: ${formatChecklistValue(checklist.location)}`,
+      `Kilometer: ${formatChecklistValue(checklist.kilometer)}`,
+      `Tankstand: ${formatChecklistValue(checklist.fuel_level)}`,
+      `Sauberkeit innen/außen: ${formatChecklistValue(checklist.cleanliness_inside)} / ${formatChecklistValue(checklist.cleanliness_outside)}`,
+      `Beleuchtung: ${formatChecklistValue(checklist.lighting)}`,
+      `Pflichtpruefungen: ${mandatoryDone}/${mandatoryTotal}`,
+      `Zubehoer geprueft: ${accessoryDone}/${accessoryTotal}`,
+      `Unterschrift Fahrer: ${checklist.signature_driver ? "ja" : "nein"}`,
+      `Unterschrift Kunde: ${checklist.signature_customer ? "ja" : "nein"}`,
+      `Unterschrift verweigert: ${checklist.signature_refused ? "ja" : "nein"}`,
+      ...damageLines,
+      ...expenseLines,
+      "",
+    ];
+  };
   const vehicleLabel = [order?.vehicle_brand, order?.vehicle_model].filter(Boolean).join(" ") || "-";
   const pickupLine = formatAddress([
     order?.pickup_address,
@@ -163,6 +241,9 @@ const createProtocolPdfBuffer = ({ companyName, order, pickupChecklist, dropoffC
     `Abgabe: ${dropoffLine}`,
     `Abgabetermin: ${formatDateTime(order?.dropoff_date, order?.dropoff_time) || "-"}`,
     "",
+    `Referenz-Protokoll: ${protocolChecklist?.id || "-"}`,
+    `Referenz-Typ: ${protocolChecklist?.type || "-"}`,
+    "",
     `Protokoll Uebernahme: ${formatDateTimeValue(pickupChecklist?.datetime)}`,
     `Kilometer Uebernahme: ${
       pickupChecklist?.kilometer === null || pickupChecklist?.kilometer === undefined
@@ -178,11 +259,14 @@ const createProtocolPdfBuffer = ({ companyName, order, pickupChecklist, dropoffC
     }`,
     "",
     `Erstellt am: ${formatDateValue(new Date().toISOString())}`,
+    "",
+    ...buildChecklistBlock("DETAILS UEBERNAHME", pickupChecklist),
+    ...buildChecklistBlock("DETAILS UEBERGABE", dropoffChecklist),
   ].map((line) => normalizeAscii(line));
 
-  const maxLines = 48;
+  const maxLines = 180;
   const visibleLines = lines.slice(0, maxLines);
-  const contentLines = ["BT", "/F1 11 Tf", "50 792 Td", "14 TL"];
+  const contentLines = ["BT", "/F1 9 Tf", "50 805 Td", "12 TL"];
   visibleLines.forEach((line, index) => {
     if (index === 0) {
       contentLines.push(`(${escapePdfText(line)}) Tj`);
@@ -251,7 +335,15 @@ export default async function handler(req, res) {
     }
 
     const body = await readJsonBody(req);
-    const { orderId, testEmail, to, welcomeEmail, sendCustomerProtocol, customerProtocolEmail } = body || {};
+    const {
+      orderId,
+      testEmail,
+      to,
+      welcomeEmail,
+      sendCustomerProtocol,
+      customerProtocolEmail,
+      protocolChecklistId,
+    } = body || {};
 
     const { data: settings } = await supabaseAdmin
       .from("app_settings")
@@ -287,6 +379,11 @@ export default async function handler(req, res) {
     const brandPrimary = "#1e3a5f";
     const brandSecondary = "#2d5a8a";
     const logoUrl = "https://avo-logistics.app/IMG_5222.JPG";
+    const publicSiteUrl = String(
+      process.env.PUBLIC_SITE_URL ||
+        process.env.VITE_PUBLIC_SITE_URL ||
+        "https://avo-logistics.app"
+    ).replace(/\/+$/, "");
 
     if (testEmail) {
       const target = to || resolvedSmtp.user || senderAddress;
@@ -482,7 +579,9 @@ ${companyName}`;
 
       const { data: orderChecklists, error: checklistError } = await supabaseAdmin
         .from("checklists")
-        .select("id, type, datetime, kilometer, created_date")
+        .select(
+          "id, type, datetime, location, kilometer, fuel_level, cleanliness_inside, cleanliness_outside, lighting, accessories, damages, expenses, mandatory_checks, signature_driver, signature_customer, signature_refused, created_date"
+        )
         .eq("order_id", order.id)
         .eq("company_id", profile.company_id)
         .order("created_date", { ascending: false })
@@ -493,8 +592,16 @@ ${companyName}`;
         return;
       }
 
+      const protocolChecklist = protocolChecklistId
+        ? (orderChecklists || []).find((item) => item.id === protocolChecklistId) || null
+        : null;
       const pickupChecklist = pickLatestChecklist(orderChecklists, "pickup");
       const dropoffChecklist = pickLatestChecklist(orderChecklists, "dropoff");
+      const protocolLinkChecklistId =
+        protocolChecklist?.id || dropoffChecklist?.id || pickupChecklist?.id || "";
+      const protocolUrl = protocolLinkChecklistId
+        ? `${publicSiteUrl}/protocol-pdf?checklistId=${encodeURIComponent(protocolLinkChecklistId)}&print=1`
+        : "";
       const companyName = settings?.company_name || "AVO Logistics";
       const vehicleLabel = [order.vehicle_brand, order.vehicle_model].filter(Boolean).join(" ") || "-";
       const pickupLine = formatAddress([
@@ -517,12 +624,13 @@ Von: ${pickupLine || "-"}
 Nach: ${dropoffLine || "-"}
 
 Das Protokoll finden Sie im Anhang dieser E-Mail.
+${protocolUrl ? `Zusatzlich koennen Sie das gleiche Protokoll online oeffnen: ${protocolUrl}` : ""}
 
 Mit freundlichen Gruessen
 ${companyName}`;
       const html = `
 <div style="background:#f4f6fb; padding:24px 0; font-family:Arial, sans-serif; color:#0f172a;">
-  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width:640px; margin:0 auto;">
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width:640px; margin:0 auto;">
     <tr>
       <td style="padding:0 20px;">
         <div style="background:#ffffff; border-radius:16px; box-shadow:0 8px 24px rgba(15,23,42,0.08); overflow:hidden;">
@@ -539,6 +647,16 @@ ${companyName}`;
             <p style="margin:0;">Von: ${pickupLine || "-"}</p>
             <p style="margin:0 0 12px;">Nach: ${dropoffLine || "-"}</p>
             <p style="margin:0 0 12px;">Das Protokoll finden Sie im Anhang dieser E-Mail.</p>
+            ${
+              protocolUrl
+                ? `<p style="margin:0 0 12px; font-size:12px;">Online-Protokoll: <a href="${protocolUrl}" target="_blank" rel="noreferrer">${protocolUrl}</a></p>`
+                : ""
+            }
+            ${
+              protocolChecklist?.id
+                ? `<p style="margin:0 0 12px; font-size:12px; color:#64748b;">Protokoll-ID: ${protocolChecklist.id}</p>`
+                : ""
+            }
             <p style="margin:0;">Mit freundlichen Gruessen<br/>${companyName}</p>
           </div>
         </div>
@@ -549,6 +667,7 @@ ${companyName}`;
       const attachment = createProtocolPdfBuffer({
         companyName,
         order,
+        protocolChecklist,
         pickupChecklist,
         dropoffChecklist,
       });

@@ -649,6 +649,7 @@ export default function OrderDetails({
         },
         body: JSON.stringify({
           orderId: order.id,
+          protocolChecklistId,
           sendCustomerProtocol: true,
           customerProtocolEmail: targetEmail,
         }),
@@ -719,7 +720,7 @@ export default function OrderDetails({
                 <DialogFooter className="gap-2 sm:justify-start">
                   {protocolChecklistId ? (
                     <a
-                      href={`/checklists?id=${protocolChecklistId}`}
+                      href={`/protocol-pdf?checklistId=${protocolChecklistId}&print=1`}
                       target="_blank"
                       rel="noopener noreferrer"
                     >
