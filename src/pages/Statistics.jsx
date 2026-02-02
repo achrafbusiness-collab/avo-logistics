@@ -328,7 +328,7 @@ export default function Statistics() {
   );
   const showTargetActions = profitTargetInput !== profitTargetSaved;
 
-  const currentMonthProfit = useMemo(() => {
+  const selectedMonthProfit = useMemo(() => {
     const start = startOfMonth(selectedTargetMonthDate);
     const end = endOfMonth(selectedTargetMonthDate);
     return orders
@@ -340,10 +340,14 @@ export default function Statistics() {
         const cost = driverCostByOrder.get(order.id) || 0;
         return sum + (revenue - cost);
       }, 0);
-  }, [orders, driverCostByOrder]);
+  }, [orders, driverCostByOrder, selectedTargetMonthDate]);
 
-  const monthlyGoalReached = profitTargetValue > 0 && currentMonthProfit >= profitTargetValue;
-  const showGoalStatus = profitTargetValue > 0;
+  const monthlyGoalReached = profitTargetValue > 0 && selectedMonthProfit >= profitTargetValue;
+  const monthCompleted = useMemo(() => {
+    const nextMonthStart = startOfMonth(new Date());
+    return endOfMonth(selectedTargetMonthDate).getTime() < nextMonthStart.getTime();
+  }, [selectedTargetMonthDate]);
+  const showGoalStatus = profitTargetValue > 0 && monthCompleted;
 
   const chartConfig = useMemo(() => {
     const showWeekYear = range.from.getFullYear() !== range.to.getFullYear();
@@ -602,7 +606,9 @@ export default function Statistics() {
               <span>
                 Ziel: {profitTargetValue > 0 ? formatCurrency(profitTargetValue) : '—'}
               </span>
-              {monthlyGoalReached ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> : null}
+              {showGoalStatus && monthlyGoalReached ? (
+                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+              ) : null}
             </div>
             {showGoalStatus ? (
               monthlyGoalReached ? (
@@ -653,7 +659,7 @@ export default function Statistics() {
               </div>
             ) : null}
             <p className="text-xs text-slate-500">
-              Aktuell: <span className="font-medium text-slate-700">{formatCurrency(currentMonthProfit)}</span>
+              Monatsergebnis: <span className="font-medium text-slate-700">{formatCurrency(selectedMonthProfit)}</span>
             </p>
           </CardContent>
         </Card>

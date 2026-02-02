@@ -169,32 +169,45 @@ export default function Dashboard() {
     };
   }, []);
 
+  const targetMonthKey = useMemo(() => {
+    if (dateFrom && dateTo && dateFrom.slice(0, 7) === dateTo.slice(0, 7)) {
+      return dateFrom.slice(0, 7);
+    }
+    return format(new Date(), 'yyyy-MM');
+  }, [dateFrom, dateTo]);
+
   useEffect(() => {
     const companyKey = currentUser?.company_id || currentUser?.id || 'global';
-    const monthKey = format(new Date(), 'yyyy-MM');
-    const storageKey = `avo:monthly-profit-target:${companyKey}:${monthKey}`;
+    const storageKey = `avo:monthly-profit-target:${companyKey}:${targetMonthKey}`;
     if (typeof window === 'undefined') return;
     const saved = window.localStorage.getItem(storageKey);
     setProfitTargetSaved(saved || '');
-  }, [currentUser]);
+  }, [currentUser, targetMonthKey]);
 
   const profitTargetValue = parseAmount(profitTargetSaved);
+  const targetMonthDate = useMemo(() => new Date(`${targetMonthKey}-01T12:00:00`), [targetMonthKey]);
 
-  const currentMonthProfit = useMemo(() => {
-    const start = startOfMonth(new Date());
-    const end = endOfMonth(new Date());
+  const targetMonthProfit = useMemo(() => {
+    const start = startOfMonth(targetMonthDate);
+    const end = endOfMonth(targetMonthDate);
     return orders
       .filter((order) => COMPLETED_STATUSES.has(order.status))
       .reduce((sum, order) => {
-        const date = new Date(toDateKey(order.dropoff_date) || toDateKey(order.pickup_date) || toDateKey(order.created_date));
+        const dateValue = toDateKey(order.dropoff_date) || toDateKey(order.pickup_date) || toDateKey(order.created_date);
+        const date = dateValue ? new Date(`${dateValue}T12:00:00`) : null;
         if (!date || Number.isNaN(date.getTime()) || date < start || date > end) return sum;
         const revenue = parseAmount(order.driver_price);
         const cost = driverCostByOrder.get(order.id) || 0;
         return sum + (revenue - cost);
       }, 0);
-  }, [orders, driverCostByOrder]);
+  }, [orders, driverCostByOrder, targetMonthDate]);
 
-  const monthlyGoalReached = profitTargetValue > 0 && currentMonthProfit >= profitTargetValue;
+  const monthlyGoalReached = profitTargetValue > 0 && targetMonthProfit >= profitTargetValue;
+  const monthCompleted = useMemo(() => {
+    const nextMonthStart = startOfMonth(new Date());
+    return endOfMonth(targetMonthDate).getTime() < nextMonthStart.getTime();
+  }, [targetMonthDate]);
+  const showGoalStatus = profitTargetValue > 0 && monthCompleted;
 
   const getDueDateTime = (order) => {
     if (!order?.dropoff_date) return null;
@@ -614,10 +627,18 @@ export default function Dashboard() {
                 <span>
                   Ziel: {profitTargetValue > 0 ? formatCurrency(profitTargetValue) : '—'}
                 </span>
-                {monthlyGoalReached ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> : null}
+                {showGoalStatus && monthlyGoalReached ? (
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                ) : null}
               </div>
-              {monthlyGoalReached ? (
-                <p className="mt-1 text-xs text-emerald-600">Glückwunsch. Sie haben Ihr Ziel erreicht.</p>
+              {showGoalStatus ? (
+                monthlyGoalReached ? (
+                  <p className="mt-1 text-xs text-emerald-600">Glückwunsch. Sie haben Ihr Ziel erreicht.</p>
+                ) : (
+                  <p className="mt-1 text-xs text-red-600">
+                    Sie haben Ihr Ziel dieses Monats leider nicht erreicht.
+                  </p>
+                )
               ) : null}
             </div>
             <div className="rounded-lg border border-slate-200 bg-white p-3">
