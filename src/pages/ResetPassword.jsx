@@ -103,12 +103,13 @@ export default function ResetPassword() {
   };
 
   const activateProfile = async () => {
-    const { data: userData } = await supabase.auth.getUser();
-    if (!userData?.user?.id) return;
+    const { data: sessionData } = await supabase.auth.getSession();
+    const sessionUser = sessionData?.session?.user;
+    if (!sessionUser?.id) return;
     const { data: profileData } = await supabase
       .from("profiles")
       .select("role, email, company_id, is_active")
-      .eq("id", userData.user.id)
+      .eq("id", sessionUser.id)
       .maybeSingle();
 
     await supabase
@@ -118,7 +119,7 @@ export default function ResetPassword() {
         is_active: true,
         updated_at: new Date().toISOString(),
       })
-      .eq("id", userData.user.id);
+      .eq("id", sessionUser.id);
 
     if (profileData?.role === "driver" && profileData?.email) {
       await supabase

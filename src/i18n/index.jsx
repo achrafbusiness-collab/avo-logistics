@@ -109,9 +109,10 @@ export function I18nProvider({ children }) {
     const normalized = normalizeLanguage(nextLanguage) || FALLBACK_LANGUAGE;
     setLanguageState(normalized);
     try {
-      const { data } = await supabase.auth.getUser();
-      if (data?.user?.id) {
-        await supabase.from("profiles").update({ language: normalized }).eq("id", data.user.id);
+      const { data } = await supabase.auth.getSession();
+      const user = data?.session?.user;
+      if (user?.id) {
+        await supabase.from("profiles").update({ language: normalized }).eq("id", user.id);
       }
     } catch (error) {
       console.warn("Language persist failed", error);

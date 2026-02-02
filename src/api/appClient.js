@@ -162,6 +162,15 @@ const buildSchemaDefaults = (schema) => {
   }, {});
 };
 
+const safeGetSession = async () => {
+  try {
+    return await supabase.auth.getSession();
+  } catch (error) {
+    console.warn("Supabase auth.getSession failed", error);
+    return { data: { session: null }, error };
+  }
+};
+
 const safeGetUser = async () => {
   try {
     return await supabase.auth.getUser();
@@ -171,16 +180,23 @@ const safeGetUser = async () => {
   }
 };
 
-const getCompanyIdForCurrentUser = async () => {
+const getAuthUser = async () => {
+  const { data: sessionData } = await safeGetSession();
+  if (sessionData?.session?.user) return sessionData.session.user;
   const { data } = await safeGetUser();
-  if (!data?.user) return null;
-  const profile = await getProfile(data.user.id);
+  return data?.user || null;
+};
+
+const getCompanyIdForCurrentUser = async () => {
+  const user = await getAuthUser();
+  if (!user) return null;
+  const profile = await getProfile(user.id);
   if (profile?.company_id) return profile.company_id;
-  if (data.user.email) {
+  if (user.email) {
     const { data: driverRecord } = await supabase
       .from('drivers')
       .select('company_id')
-      .eq('email', data.user.email)
+      .eq('email', user.email)
       .maybeSingle();
     if (driverRecord?.company_id) {
       return driverRecord.company_id;
@@ -364,22 +380,22 @@ const resolveEffectiveRole = async (authUser, profile) => {
 
 const auth = {
   getCurrentUser: async () => {
-    const { data } = await safeGetUser();
-    if (!data?.user) return null;
-    const profile = await getProfile(data.user.id);
+    const user = await getAuthUser();
+    if (!user) return null;
+    const profile = await getProfile(user.id);
     const active = await ensureActiveProfile(profile);
     if (!active) return null;
-    const role = await resolveEffectiveRole(data.user, profile);
-    return buildUser(data.user, { ...profile, role });
+    const role = await resolveEffectiveRole(user, profile);
+    return buildUser(user, { ...profile, role });
   },
   me: async () => {
-    const { data } = await safeGetUser();
-    if (!data?.user) return null;
-    const profile = await getProfile(data.user.id);
+    const user = await getAuthUser();
+    if (!user) return null;
+    const profile = await getProfile(user.id);
     const active = await ensureActiveProfile(profile);
     if (!active) return null;
-    const role = await resolveEffectiveRole(data.user, profile);
-    return buildUser(data.user, { ...profile, role });
+    const role = await resolveEffectiveRole(user, profile);
+    return buildUser(user, { ...profile, role });
   },
   login: async ({ email, password }) => {
     const { data, error } = await supabase.auth.signInWithPassword({
