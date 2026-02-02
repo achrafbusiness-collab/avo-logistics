@@ -171,7 +171,8 @@ export default function Dashboard() {
 
   useEffect(() => {
     const companyKey = currentUser?.company_id || currentUser?.id || 'global';
-    const storageKey = `avo:monthly-profit-target:${companyKey}`;
+    const monthKey = format(new Date(), 'yyyy-MM');
+    const storageKey = `avo:monthly-profit-target:${companyKey}:${monthKey}`;
     if (typeof window === 'undefined') return;
     const saved = window.localStorage.getItem(storageKey);
     setProfitTargetSaved(saved || '');

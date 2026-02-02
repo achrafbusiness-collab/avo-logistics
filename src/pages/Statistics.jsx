@@ -47,6 +47,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -135,6 +142,7 @@ export default function Statistics() {
   const [search, setSearch] = useState('');
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
+  const [targetMonth, setTargetMonth] = useState(() => format(new Date(), 'yyyy-MM'));
   const [profitTargetInput, setProfitTargetInput] = useState('');
   const [profitTargetSaved, setProfitTargetSaved] = useState('');
   const [seriesVisible, setSeriesVisible] = useState({
@@ -176,10 +184,21 @@ export default function Statistics() {
     };
   }, []);
 
+  const monthOptions = useMemo(() => {
+    const year = new Date().getFullYear();
+    return Array.from({ length: 12 }, (_, index) => {
+      const date = new Date(year, index, 1);
+      return {
+        value: format(date, 'yyyy-MM'),
+        label: format(date, 'MMMM', { locale: de }),
+      };
+    });
+  }, []);
+
   const targetStorageKey = useMemo(() => {
     const companyKey = currentUser?.company_id || currentUser?.id || 'global';
-    return `avo:monthly-profit-target:${companyKey}`;
-  }, [currentUser]);
+    return `avo:monthly-profit-target:${companyKey}:${targetMonth}`;
+  }, [currentUser, targetMonth]);
 
   useEffect(() => {
     if (!targetStorageKey || targetLoadedRef.current === targetStorageKey) return;
@@ -188,6 +207,9 @@ export default function Statistics() {
     if (saved !== null) {
       setProfitTargetSaved(saved);
       setProfitTargetInput(saved);
+    } else {
+      setProfitTargetSaved('');
+      setProfitTargetInput('');
     }
     targetLoadedRef.current = targetStorageKey;
   }, [targetStorageKey]);
@@ -300,11 +322,15 @@ export default function Statistics() {
   }, [rows]);
 
   const profitTargetValue = parseAmount(profitTargetSaved);
+  const selectedTargetMonthDate = useMemo(
+    () => new Date(`${targetMonth}-01T12:00:00`),
+    [targetMonth]
+  );
   const showTargetActions = profitTargetInput !== profitTargetSaved;
 
   const currentMonthProfit = useMemo(() => {
-    const start = startOfMonth(new Date());
-    const end = endOfMonth(new Date());
+    const start = startOfMonth(selectedTargetMonthDate);
+    const end = endOfMonth(selectedTargetMonthDate);
     return orders
       .filter((order) => COMPLETED_STATUSES.has(order.status))
       .reduce((sum, order) => {
@@ -584,6 +610,18 @@ export default function Statistics() {
         <Card>
           <CardContent className="p-5 space-y-2">
             <p className="text-xs text-slate-500">Monatliches Gewinnziel</p>
+            <Select value={targetMonth} onValueChange={setTargetMonth}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Monat auswählen" />
+              </SelectTrigger>
+              <SelectContent>
+                {monthOptions.map((month) => (
+                  <SelectItem key={month.value} value={month.value}>
+                    {month.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Input
               type="number"
               step="0.01"
