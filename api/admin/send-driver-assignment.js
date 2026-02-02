@@ -61,7 +61,7 @@ const buildFromAddress = ({ name, address, fallback }) => {
   return `"${safeName}" <${address}>`;
 };
 
-const sendEmail = async ({ from, to, subject, html, text, replyTo, smtp }) => {
+const sendEmail = async ({ from, to, subject, html, text, replyTo, smtp, attachments }) => {
   if (!canSendEmail(smtp)) {
     return false;
   }
@@ -81,6 +81,7 @@ const sendEmail = async ({ from, to, subject, html, text, replyTo, smtp }) => {
     text,
     html,
     replyTo,
+    attachments,
   });
   return true;
 };
@@ -94,6 +95,126 @@ const formatAddress = (parts) =>
 
 const formatDateTime = (dateValue, timeValue) =>
   [dateValue, timeValue].filter(Boolean).join(" ").trim();
+
+const pickLatestChecklist = (checklists, type) => {
+  const list = (checklists || []).filter((item) => item?.type === type);
+  if (!list.length) return null;
+  return [...list].sort((a, b) => {
+    const aTime = new Date(a.datetime || a.created_date || a.created_at || 0).getTime();
+    const bTime = new Date(b.datetime || b.created_date || b.created_at || 0).getTime();
+    return bTime - aTime;
+  })[0];
+};
+
+const formatDateValue = (value) => {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return date.toLocaleDateString("de-DE");
+};
+
+const formatDateTimeValue = (value) => {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return `${date.toLocaleDateString("de-DE")} ${date.toLocaleTimeString("de-DE", {
+    hour: "2-digit",
+    minute: "2-digit",
+  })}`;
+};
+
+const normalizeAscii = (value) =>
+  String(value || "")
+    .replace(/Ä/g, "Ae")
+    .replace(/Ö/g, "Oe")
+    .replace(/Ü/g, "Ue")
+    .replace(/ä/g, "ae")
+    .replace(/ö/g, "oe")
+    .replace(/ü/g, "ue")
+    .replace(/ß/g, "ss")
+    .replace(/[^\x20-\x7E]/g, "");
+
+const escapePdfText = (value) =>
+  value.replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
+
+const createProtocolPdfBuffer = ({ companyName, order, pickupChecklist, dropoffChecklist }) => {
+  const vehicleLabel = [order?.vehicle_brand, order?.vehicle_model].filter(Boolean).join(" ") || "-";
+  const pickupLine = formatAddress([
+    order?.pickup_address,
+    order?.pickup_postal_code,
+    order?.pickup_city,
+  ]) || "-";
+  const dropoffLine = formatAddress([
+    order?.dropoff_address,
+    order?.dropoff_postal_code,
+    order?.dropoff_city,
+  ]) || "-";
+  const lines = [
+    `${companyName || "AVO Logistics"} - Protokoll`,
+    "",
+    `Auftrag: ${order?.order_number || "-"}`,
+    `Kundenauftrag: ${order?.customer_order_number || "-"}`,
+    `Fahrzeug: ${vehicleLabel}`,
+    `Kennzeichen: ${order?.license_plate || "-"}`,
+    "",
+    `Abholung: ${pickupLine}`,
+    `Abholtermin: ${formatDateTime(order?.pickup_date, order?.pickup_time) || "-"}`,
+    "",
+    `Abgabe: ${dropoffLine}`,
+    `Abgabetermin: ${formatDateTime(order?.dropoff_date, order?.dropoff_time) || "-"}`,
+    "",
+    `Protokoll Uebernahme: ${formatDateTimeValue(pickupChecklist?.datetime)}`,
+    `Kilometer Uebernahme: ${
+      pickupChecklist?.kilometer === null || pickupChecklist?.kilometer === undefined
+        ? "-"
+        : pickupChecklist.kilometer
+    }`,
+    "",
+    `Protokoll Uebergabe: ${formatDateTimeValue(dropoffChecklist?.datetime)}`,
+    `Kilometer Uebergabe: ${
+      dropoffChecklist?.kilometer === null || dropoffChecklist?.kilometer === undefined
+        ? "-"
+        : dropoffChecklist.kilometer
+    }`,
+    "",
+    `Erstellt am: ${formatDateValue(new Date().toISOString())}`,
+  ].map((line) => normalizeAscii(line));
+
+  const maxLines = 48;
+  const visibleLines = lines.slice(0, maxLines);
+  const contentLines = ["BT", "/F1 11 Tf", "50 792 Td", "14 TL"];
+  visibleLines.forEach((line, index) => {
+    if (index === 0) {
+      contentLines.push(`(${escapePdfText(line)}) Tj`);
+    } else {
+      contentLines.push(`T* (${escapePdfText(line)}) Tj`);
+    }
+  });
+  contentLines.push("ET");
+  const streamContent = contentLines.join("\n");
+  const objects = [
+    "1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n",
+    "2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n",
+    "3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>\nendobj\n",
+    "4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n",
+    `5 0 obj\n<< /Length ${Buffer.byteLength(streamContent, "utf8")} >>\nstream\n${streamContent}\nendstream\nendobj\n`,
+  ];
+
+  let pdf = "%PDF-1.4\n";
+  const offsets = [0];
+  for (const obj of objects) {
+    offsets.push(Buffer.byteLength(pdf, "utf8"));
+    pdf += obj;
+  }
+  const xrefStart = Buffer.byteLength(pdf, "utf8");
+  pdf += `xref\n0 ${objects.length + 1}\n`;
+  pdf += "0000000000 65535 f \n";
+  for (let i = 1; i <= objects.length; i += 1) {
+    pdf += `${String(offsets[i]).padStart(10, "0")} 00000 n \n`;
+  }
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefStart}\n%%EOF`;
+  return Buffer.from(pdf, "utf8");
+};
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -130,7 +251,7 @@ export default async function handler(req, res) {
     }
 
     const body = await readJsonBody(req);
-    const { orderId, testEmail, to, welcomeEmail } = body || {};
+    const { orderId, testEmail, to, welcomeEmail, sendCustomerProtocol, customerProtocolEmail } = body || {};
 
     const { data: settings } = await supabaseAdmin
       .from("app_settings")
@@ -320,7 +441,7 @@ ${companyName}`;
     const { data: order, error: orderError } = await supabaseAdmin
       .from("orders")
       .select(
-        "id, order_number, customer_order_number, customer_name, license_plate, vehicle_brand, vehicle_model, pickup_address, pickup_postal_code, pickup_city, pickup_date, pickup_time, dropoff_address, dropoff_postal_code, dropoff_city, dropoff_date, dropoff_time, assigned_driver_id, assigned_driver_name, company_id"
+        "id, order_number, customer_order_number, customer_id, customer_name, customer_email, license_plate, vehicle_brand, vehicle_model, pickup_address, pickup_postal_code, pickup_city, pickup_date, pickup_time, dropoff_address, dropoff_postal_code, dropoff_city, dropoff_date, dropoff_time, assigned_driver_id, assigned_driver_name, company_id"
       )
       .eq("id", orderId)
       .maybeSingle();
@@ -332,6 +453,133 @@ ${companyName}`;
 
     if (!order || order.company_id !== profile.company_id) {
       res.status(404).json({ ok: false, error: "Auftrag nicht gefunden." });
+      return;
+    }
+
+    if (sendCustomerProtocol) {
+      if (!canSendEmail(resolvedSmtp)) {
+        res.status(400).json({ ok: false, error: "SMTP ist nicht konfiguriert." });
+        return;
+      }
+
+      let recipientEmail = String(customerProtocolEmail || order.customer_email || "").trim();
+      if (!recipientEmail && order.customer_id) {
+        const { data: customer } = await supabaseAdmin
+          .from("customers")
+          .select("email")
+          .eq("id", order.customer_id)
+          .eq("company_id", profile.company_id)
+          .maybeSingle();
+        if (customer?.email) {
+          recipientEmail = String(customer.email).trim();
+        }
+      }
+
+      if (!recipientEmail) {
+        res.status(400).json({ ok: false, error: "Keine Kunden-E-Mail gefunden." });
+        return;
+      }
+
+      const { data: orderChecklists, error: checklistError } = await supabaseAdmin
+        .from("checklists")
+        .select("id, type, datetime, kilometer, created_date, created_at")
+        .eq("order_id", order.id)
+        .eq("company_id", profile.company_id)
+        .order("created_date", { ascending: false })
+        .limit(200);
+
+      if (checklistError) {
+        res.status(500).json({ ok: false, error: checklistError.message });
+        return;
+      }
+
+      const pickupChecklist = pickLatestChecklist(orderChecklists, "pickup");
+      const dropoffChecklist = pickLatestChecklist(orderChecklists, "dropoff");
+      const companyName = settings?.company_name || "AVO Logistics";
+      const vehicleLabel = [order.vehicle_brand, order.vehicle_model].filter(Boolean).join(" ") || "-";
+      const pickupLine = formatAddress([
+        order.pickup_address,
+        order.pickup_postal_code,
+        order.pickup_city,
+      ]);
+      const dropoffLine = formatAddress([
+        order.dropoff_address,
+        order.dropoff_postal_code,
+        order.dropoff_city,
+      ]);
+      const subject = `Protokoll Auftrag ${order.order_number || "-"}`;
+      const text = `Sehr geehrte Damen und Herren,
+
+anbei erhalten Sie das Protokoll fuer das Fahrzeug ${vehicleLabel} (${order.license_plate || "-"}) zum Auftrag ${order.order_number || "-"}.
+
+Strecke:
+Von: ${pickupLine || "-"}
+Nach: ${dropoffLine || "-"}
+
+Das Protokoll finden Sie im Anhang dieser E-Mail.
+
+Mit freundlichen Gruessen
+${companyName}`;
+      const html = `
+<div style="background:#f4f6fb; padding:24px 0; font-family:Arial, sans-serif; color:#0f172a;">
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width:640px; margin:0 auto;">
+    <tr>
+      <td style="padding:0 20px;">
+        <div style="background:#ffffff; border-radius:16px; box-shadow:0 8px 24px rgba(15,23,42,0.08); overflow:hidden;">
+          <div style="background:${brandPrimary}; color:#ffffff; padding:18px 24px;">
+            <h1 style="margin:0; font-size:20px; font-weight:700;">Protokoll zum Auftrag ${order.order_number || "-"}</h1>
+          </div>
+          <div style="padding:20px 24px; font-size:14px; line-height:1.5;">
+            <p style="margin:0 0 12px;">Sehr geehrte Damen und Herren,</p>
+            <p style="margin:0 0 12px;">
+              anbei erhalten Sie das Protokoll fuer das Fahrzeug <strong>${vehicleLabel}</strong>
+              (${order.license_plate || "-"}) zum Auftrag <strong>${order.order_number || "-"}</strong>.
+            </p>
+            <p style="margin:0 0 6px;"><strong>Strecke:</strong></p>
+            <p style="margin:0;">Von: ${pickupLine || "-"}</p>
+            <p style="margin:0 0 12px;">Nach: ${dropoffLine || "-"}</p>
+            <p style="margin:0 0 12px;">Das Protokoll finden Sie im Anhang dieser E-Mail.</p>
+            <p style="margin:0;">Mit freundlichen Gruessen<br/>${companyName}</p>
+          </div>
+        </div>
+      </td>
+    </tr>
+  </table>
+</div>`;
+      const attachment = createProtocolPdfBuffer({
+        companyName,
+        order,
+        pickupChecklist,
+        dropoffChecklist,
+      });
+      const safeOrderFileId = String(order.order_number || order.id).replace(/[^a-z0-9._-]/gi, "_");
+
+      const emailSent = await sendEmail({
+        to: recipientEmail,
+        subject,
+        text,
+        html,
+        from: fromAddress,
+        replyTo,
+        smtp: resolvedSmtp,
+        attachments: [
+          {
+            filename: `protokoll-${safeOrderFileId}.pdf`,
+            content: attachment,
+            contentType: "application/pdf",
+          },
+        ],
+      });
+
+      if (!emailSent) {
+        res.status(400).json({ ok: false, error: "E-Mail konnte nicht gesendet werden." });
+        return;
+      }
+
+      res.status(200).json({
+        ok: true,
+        data: { emailSent: true, to: recipientEmail },
+      });
       return;
     }
 
