@@ -226,11 +226,13 @@ export default function Layout({ children, currentPageName }) {
                   Ihr KI-automatisiertes System für Fahrzeugüberführung
                 </p>
               </div>
-              <img
-                src="/IMG_5222.JPG"
-                alt="AVO Logo"
-                className="h-7 w-7 rounded-md object-cover border border-white/20"
-              />
+              <div className="h-11 w-11 rounded-lg bg-white/90 p-1 shadow-sm border border-white/30 shrink-0">
+                <img
+                  src="/IMG_5222.JPG"
+                  alt="AVO Logo"
+                  className="h-full w-full object-contain"
+                />
+              </div>
             </div>
             <button 
               onClick={() => {
