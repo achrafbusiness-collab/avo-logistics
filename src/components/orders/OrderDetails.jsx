@@ -111,6 +111,7 @@ export default function OrderDetails({
   const [handoffsLoading, setHandoffsLoading] = useState(false);
   const [handoffsError, setHandoffsError] = useState('');
   const docInputRef = useRef(null);
+  const sendNoticeTimerRef = useRef(null);
   const pickupChecklist = checklists.find(c => c.type === 'pickup');
   const dropoffChecklist = checklists.find(c => c.type === 'dropoff');
   const expensesChecklist = useMemo(() => {
@@ -125,6 +126,7 @@ export default function OrderDetails({
   const [customerProtocolEmail, setCustomerProtocolEmail] = useState('');
   const [customerProtocolSending, setCustomerProtocolSending] = useState(false);
   const [customerProtocolFeedback, setCustomerProtocolFeedback] = useState({ type: '', message: '' });
+  const [sendNotice, setSendNotice] = useState('');
   const [expenseTypeFilter, setExpenseTypeFilter] = useState('all');
   const isAdmin = currentUser?.role === 'admin';
   const distanceKm = order?.distance_km ?? null;
@@ -201,6 +203,14 @@ export default function OrderDetails({
     };
     loadCustomerEmail();
   }, [order?.customer_id, order?.customer_email, customerProtocolEmail]);
+
+  useEffect(() => {
+    return () => {
+      if (sendNoticeTimerRef.current) {
+        window.clearTimeout(sendNoticeTimerRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const loadNotes = async () => {
@@ -663,6 +673,13 @@ export default function OrderDetails({
         message: `Protokoll wurde an ${payload?.data?.to || targetEmail} gesendet.`,
       });
       setCustomerProtocolDialogOpen(false);
+      setSendNotice('E-Mail wurde erfolgreich gesendet.');
+      if (sendNoticeTimerRef.current) {
+        window.clearTimeout(sendNoticeTimerRef.current);
+      }
+      sendNoticeTimerRef.current = window.setTimeout(() => {
+        setSendNotice('');
+      }, 2000);
     } catch (error) {
       setCustomerProtocolFeedback({
         type: 'error',
@@ -675,6 +692,11 @@ export default function OrderDetails({
 
   return (
     <div className="space-y-6">
+      {sendNotice ? (
+        <div className="fixed right-4 top-4 z-[120] rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700 shadow-lg">
+          {sendNotice}
+        </div>
+      ) : null}
       {/* Header */}
       <Card>
         <CardHeader className="flex flex-row items-start justify-between">

@@ -137,6 +137,7 @@ const generateProtocolPdfFromPage = async ({ siteUrl, checklistId, authToken }) 
   });
   try {
     const page = await browser.newPage();
+    await page.setViewport({ width: 1440, height: 2200, deviceScaleFactor: 1 });
     await page.setRequestInterception(true);
     page.on("request", (request) => {
       const requestUrl = request.url();
@@ -155,7 +156,7 @@ const generateProtocolPdfFromPage = async ({ siteUrl, checklistId, authToken }) 
     const url = `${siteUrl.replace(/\/+$/, "")}/protocol-pdf?checklistId=${encodeURIComponent(
       checklistId
     )}`;
-    await page.goto(url, { waitUntil: "networkidle2", timeout: 120000 });
+    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 120000 });
     try {
       await page.waitForFunction(
         () => {
@@ -165,13 +166,32 @@ const generateProtocolPdfFromPage = async ({ siteUrl, checklistId, authToken }) 
         },
         { timeout: 120000 }
       );
+      await page.waitForFunction(
+        () => {
+          const images = Array.from(document.querySelectorAll(".pdf-page img"));
+          if (!images.length) return true;
+          return images.every((img) => img.complete && img.naturalWidth > 0);
+        },
+        { timeout: 180000 }
+      );
+      await page.evaluate(async () => {
+        const images = Array.from(document.querySelectorAll(".pdf-page img"));
+        await Promise.all(
+          images.map((img) => {
+            if (typeof img.decode === "function") {
+              return img.decode().catch(() => null);
+            }
+            return Promise.resolve();
+          })
+        );
+      });
     } catch (error) {
       const previewText = await page.evaluate(() =>
         String(document.body?.innerText || "").replace(/\s+/g, " ").slice(0, 240)
       );
       throw new Error(`Render timeout. Seite: ${previewText || "leer"}`);
     }
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    await new Promise((resolve) => setTimeout(resolve, 800));
     await page.emulateMediaType("print");
     const pdf = await page.pdf({
       format: "A4",
