@@ -47,7 +47,7 @@ export default function Drivers() {
 
   const isImageUrl = (value) => {
     if (!value) return false;
-    return /\.(png|jpe?g|webp|gif|bmp)$/i.test(String(value).split("?")[0]);
+    return /\.(png|jpe?g|webp|gif|bmp|heic|heif)$/i.test(String(value).split("?")[0]);
   };
   
   const [view, setView] = useState('list'); // list, form, details
