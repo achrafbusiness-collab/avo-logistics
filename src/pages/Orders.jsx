@@ -38,6 +38,7 @@ import {
 import StatusBadge from '@/components/ui/StatusBadge';
 import OrderForm from '@/components/orders/OrderForm';
 import OrderDetails from '@/components/orders/OrderDetails';
+import { getPriceForDistance } from '@/utils/priceList';
 import { 
   Plus, 
   Search, 
@@ -68,6 +69,8 @@ export default function Orders() {
   const [currentUser, setCurrentUser] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkAssignCustomerOpen, setBulkAssignCustomerOpen] = useState(false);
+  const [bulkCustomerId, setBulkCustomerId] = useState('none');
   const [bulkWorking, setBulkWorking] = useState(false);
   const [bulkMessage, setBulkMessage] = useState('');
   const [bulkError, setBulkError] = useState('');
@@ -347,6 +350,14 @@ export default function Orders() {
     return updated;
   };
 
+  const getCustomerDisplayName = (customer) => {
+    if (!customer) return '';
+    if (customer.type === 'business' && customer.company_name) {
+      return customer.company_name;
+    }
+    return `${customer.first_name || ''} ${customer.last_name || ''}`.trim();
+  };
+
   const searchLower = searchTerm.trim().toLowerCase();
   const filteredOrders = orders.filter(order => {
     const matchesSearch =
@@ -551,6 +562,57 @@ export default function Orders() {
       queryClient.invalidateQueries({ queryKey: ['orders'] });
     } catch (err) {
       setBulkError(err?.message || 'Bulk-Duplizieren fehlgeschlagen.');
+    } finally {
+      setBulkWorking(false);
+    }
+  };
+
+  const handleBulkAssignCustomer = async () => {
+    if (!selectedOrders.length) return;
+    if (!bulkCustomerId || bulkCustomerId === 'none') {
+      setBulkError('Bitte zuerst einen Kunden auswählen.');
+      return;
+    }
+    const customer = customers.find((item) => item.id === bulkCustomerId);
+    if (!customer) {
+      setBulkError('Kunde konnte nicht gefunden werden.');
+      return;
+    }
+
+    const customerName = getCustomerDisplayName(customer) || customer.email || 'Kunde';
+
+    setBulkWorking(true);
+    setBulkError('');
+    setBulkMessage('');
+    try {
+      let updatedPriceCount = 0;
+      for (const order of selectedOrders) {
+        const updates = {
+          customer_id: customer.id,
+          customer_name: customerName,
+          customer_email: customer.email || '',
+          customer_phone: customer.phone || '',
+        };
+        const distance = Number.parseFloat(order.distance_km);
+        const priceFromList = Number.isFinite(distance)
+          ? getPriceForDistance(customer.price_list || [], distance)
+          : null;
+        if (priceFromList !== null && priceFromList !== undefined) {
+          updates.driver_price = priceFromList;
+          updatedPriceCount += 1;
+        }
+        await appClient.entities.Order.update(order.id, updates);
+      }
+
+      setBulkMessage(
+        `Kunde wurde zugeordnet. Preise aus Preisliste aktualisiert: ${updatedPriceCount}/${selectedOrders.length}.`
+      );
+      setBulkAssignCustomerOpen(false);
+      setSelectedIds([]);
+      setBulkCustomerId('none');
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+    } catch (err) {
+      setBulkError(err?.message || 'Kundenzuordnung fehlgeschlagen.');
     } finally {
       setBulkWorking(false);
     }
@@ -987,6 +1049,17 @@ export default function Orders() {
                 disabled={bulkWorking}
               >
                 Duplizieren
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setBulkError('');
+                  setBulkMessage('');
+                  setBulkAssignCustomerOpen(true);
+                }}
+                disabled={bulkWorking}
+              >
+                An Kunden zuordnen
               </Button>
               <Button
                 variant="outline"
@@ -1491,6 +1564,53 @@ export default function Orders() {
             >
               {bulkWorking ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               Löschen
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={bulkAssignCustomerOpen} onOpenChange={setBulkAssignCustomerOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Aufträge an Kunden zuordnen</AlertDialogTitle>
+            <AlertDialogDescription>
+              Wähle einen Kunden aus. Die ausgewählten Aufträge werden diesem Kunden zugeordnet und
+              der Auftragspreis wird – falls möglich – aus der Kunden-Preisliste aktualisiert.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-3">
+            <Select value={bulkCustomerId} onValueChange={setBulkCustomerId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Kunde auswählen" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Bitte Kunde wählen</SelectItem>
+                {customers.map((customer) => {
+                  const name = getCustomerDisplayName(customer);
+                  const label = customer.customer_number
+                    ? `${name || customer.email || 'Kunde'} (${customer.customer_number})`
+                    : name || customer.email || 'Kunde';
+                  return (
+                    <SelectItem key={customer.id} value={customer.id}>
+                      {label}
+                    </SelectItem>
+                  );
+                })}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-slate-500">
+              Ausgewählte Aufträge: {selectedOrders.length}
+            </p>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkWorking}>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-[#1e3a5f] hover:bg-[#2d5a8a]"
+              onClick={handleBulkAssignCustomer}
+              disabled={bulkWorking || !bulkCustomerId || bulkCustomerId === 'none'}
+            >
+              {bulkWorking ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Zuordnen
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
