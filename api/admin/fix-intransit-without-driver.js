@@ -75,26 +75,30 @@ export default async function handler(req, res) {
       return;
     }
 
-    const { data: inTransitOrders, error: ordersError } = await supabaseAdmin
+    const { data: activeOrders, error: ordersError } = await supabaseAdmin
       .from("orders")
-      .select("id, assigned_driver_id")
+      .select("id, status, assigned_driver_id")
       .eq("company_id", profile.company_id)
-      .eq("status", "in_transit");
+      .in("status", [
+        "new",
+        "assigned",
+        "pickup_started",
+        "in_transit",
+        "delivery_started",
+        "zwischenabgabe",
+        "shuttle",
+      ]);
 
     if (ordersError) {
       res.status(500).json({ ok: false, error: ordersError.message });
       return;
     }
 
-    const orders = inTransitOrders || [];
+    const orders = activeOrders || [];
     if (!orders.length) {
       res.status(200).json({ ok: true, updated: 0, reasons: { noDriver: 0, handoff: 0 } });
       return;
     }
-
-    const noDriverIds = orders
-      .filter((order) => !order.assigned_driver_id)
-      .map((order) => order.id);
 
     const orderIds = orders.map((order) => order.id);
     const { data: segments, error: segmentsError } = await supabaseAdmin
@@ -120,45 +124,81 @@ export default async function handler(req, res) {
       }
     });
 
-    const handoffIds = orders
-      .filter((order) => {
-        const latest = latestSegmentByOrder.get(order.id);
-        return latest?.segment_type === "handoff";
-      })
-      .map((order) => order.id);
+    const handoffIds = [];
+    const inTransitIds = [];
+    const resetIds = [];
 
-    const updateIds = Array.from(new Set([...noDriverIds, ...handoffIds]));
-    if (!updateIds.length) {
-      res.status(200).json({
-        ok: true,
-        updated: 0,
-        reasons: { noDriver: noDriverIds.length, handoff: handoffIds.length },
-      });
-      return;
-    }
-
-    const { data: updatedOrders, error: updateError } = await supabaseAdmin
-      .from("orders")
-      .update({
-        status: "zwischenabgabe",
-        assigned_driver_id: null,
-        assigned_driver_name: "",
-      })
-      .eq("company_id", profile.company_id)
-      .eq("status", "in_transit")
-      .in("id", updateIds)
-      .select("id");
-
-    if (updateError) {
-      res.status(500).json({ ok: false, error: updateError.message });
-      return;
-    }
-
-    res.status(200).json({
-      ok: true,
-      updated: updatedOrders?.length || 0,
-      reasons: { noDriver: noDriverIds.length, handoff: handoffIds.length },
+    orders.forEach((order) => {
+      const latest = latestSegmentByOrder.get(order.id);
+      if (latest?.segment_type === "handoff") {
+        handoffIds.push(order.id);
+        return;
+      }
+      if (order.assigned_driver_id) {
+        if (order.status !== "in_transit") {
+          inTransitIds.push(order.id);
+        }
+        return;
+      }
+      if (
+        ["assigned", "pickup_started", "in_transit", "delivery_started", "zwischenabgabe", "shuttle"].includes(
+          order.status
+        )
+      ) {
+        resetIds.push(order.id);
+      }
     });
+
+    let updatedTotal = 0;
+    const reasons = { handoff: handoffIds.length, toInTransit: inTransitIds.length, toNew: resetIds.length };
+
+    if (handoffIds.length) {
+      const { data, error } = await supabaseAdmin
+        .from("orders")
+        .update({
+          status: "zwischenabgabe",
+          assigned_driver_id: null,
+          assigned_driver_name: "",
+        })
+        .eq("company_id", profile.company_id)
+        .in("id", handoffIds)
+        .select("id");
+      if (error) {
+        res.status(500).json({ ok: false, error: error.message });
+        return;
+      }
+      updatedTotal += data?.length || 0;
+    }
+
+    if (inTransitIds.length) {
+      const { data, error } = await supabaseAdmin
+        .from("orders")
+        .update({ status: "in_transit" })
+        .eq("company_id", profile.company_id)
+        .in("id", inTransitIds)
+        .select("id");
+      if (error) {
+        res.status(500).json({ ok: false, error: error.message });
+        return;
+      }
+      updatedTotal += data?.length || 0;
+    }
+
+    if (resetIds.length) {
+      const { data, error } = await supabaseAdmin
+        .from("orders")
+        .update({ status: "new", assigned_driver_name: "" })
+        .eq("company_id", profile.company_id)
+        .in("id", resetIds)
+        .select("id");
+      if (error) {
+        res.status(500).json({ ok: false, error: error.message });
+        return;
+      }
+      updatedTotal += data?.length || 0;
+    }
+
+    res.status(200).json({ ok: true, updated: updatedTotal, reasons });
   } catch (error) {
     res.status(500).json({ ok: false, error: error?.message || "Unknown error" });
   }

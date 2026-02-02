@@ -136,7 +136,7 @@ export default function Orders() {
       return;
     }
     const companyKey = currentUser.company_id || currentUser.id || 'global';
-    const storageKey = `avo:fix-intransit-no-driver:v2:${companyKey}`;
+    const storageKey = `avo:fix-intransit-no-driver:v3:${companyKey}`;
     if (typeof window !== 'undefined' && window.localStorage.getItem(storageKey) === 'done') {
       setMaintenanceChecked(true);
       return;
@@ -331,6 +331,17 @@ export default function Orders() {
       if (!normalized.assigned_driver_id) {
         normalized.assigned_driver_name = '';
       }
+      if (
+        normalized.assigned_driver_id &&
+        ['new', 'assigned', 'pickup_started', 'delivery_started', 'zwischenabgabe', 'shuttle', ''].includes(
+          normalized.status || 'new'
+        )
+      ) {
+        normalized.status = 'in_transit';
+      }
+      if (!normalized.assigned_driver_id && ['in_transit', 'shuttle'].includes(normalized.status)) {
+        normalized.status = 'new';
+      }
       if (normalized.customer_id === '') {
         normalized.customer_id = null;
       }
@@ -372,13 +383,13 @@ export default function Orders() {
       assigned_driver_name: driverName,
     };
     if (driverId) {
-      if (!selectedOrder.status || selectedOrder.status === 'new') {
-        updates.status = 'assigned';
+      if (!selectedOrder.status || selectedOrder.status !== 'in_transit') {
+        updates.status = 'in_transit';
       }
     } else {
       updates.assigned_driver_id = null;
       updates.assigned_driver_name = '';
-      if (selectedOrder.status === 'assigned') {
+      if (['assigned', 'in_transit', 'shuttle'].includes(selectedOrder.status)) {
         updates.status = 'new';
       }
     }

@@ -455,6 +455,7 @@ export default function DriverChecklist() {
         data: {
           assigned_driver_id: currentDriver.id,
           assigned_driver_name: currentDriver.name,
+          status: "in_transit",
         },
       });
       queryClient.invalidateQueries({ queryKey: ['driver-orders'] });
