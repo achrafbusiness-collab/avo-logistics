@@ -10,6 +10,7 @@ import {
   Coins,
   Fuel,
   ArrowRight,
+  CheckCircle2,
 } from 'lucide-react';
 import {
   format,
@@ -127,6 +128,7 @@ export default function Statistics() {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
   const [profitTargetInput, setProfitTargetInput] = useState('');
+  const [profitTargetSaved, setProfitTargetSaved] = useState('');
   const [seriesVisible, setSeriesVisible] = useState({
     revenue: true,
     cost: true,
@@ -176,16 +178,24 @@ export default function Statistics() {
     if (typeof window === 'undefined') return;
     const saved = window.localStorage.getItem(targetStorageKey);
     if (saved !== null) {
+      setProfitTargetSaved(saved);
       setProfitTargetInput(saved);
     }
     targetLoadedRef.current = targetStorageKey;
   }, [targetStorageKey]);
 
-  useEffect(() => {
-    if (!targetStorageKey) return;
-    if (typeof window === 'undefined') return;
+  const handleConfirmTarget = () => {
+    if (!targetStorageKey || typeof window === 'undefined') return;
+    setProfitTargetSaved(profitTargetInput);
     window.localStorage.setItem(targetStorageKey, profitTargetInput);
-  }, [targetStorageKey, profitTargetInput]);
+  };
+
+  const handleDeleteTarget = () => {
+    if (!targetStorageKey || typeof window === 'undefined') return;
+    setProfitTargetInput('');
+    setProfitTargetSaved('');
+    window.localStorage.removeItem(targetStorageKey);
+  };
 
   useEffect(() => {
     const fromParam = searchParams.get('from');
@@ -281,7 +291,7 @@ export default function Statistics() {
     );
   }, [rows]);
 
-  const profitTargetValue = parseAmount(profitTargetInput);
+  const profitTargetValue = parseAmount(profitTargetSaved);
 
   const currentMonthProfit = useMemo(() => {
     const start = startOfMonth(new Date());
@@ -546,7 +556,19 @@ export default function Statistics() {
         <Card><CardContent className="p-5"><p className="text-xs text-slate-500">Abgeschlossene Touren</p><p className="mt-2 text-2xl font-semibold">{rows.length}</p><Truck className="mt-2 h-4 w-4 text-slate-400" /></CardContent></Card>
         <Card><CardContent className="p-5"><p className="text-xs text-slate-500">Umsatz</p><p className="mt-2 text-2xl font-semibold">{formatCurrency(totals.revenue)}</p><TrendingUp className="mt-2 h-4 w-4 text-emerald-500" /></CardContent></Card>
         <Card><CardContent className="p-5"><p className="text-xs text-slate-500">Fahrer-Kosten</p><p className="mt-2 text-2xl font-semibold">{formatCurrency(totals.cost)}</p><Wallet className="mt-2 h-4 w-4 text-amber-500" /></CardContent></Card>
-        <Card><CardContent className="p-5"><p className="text-xs text-slate-500">Gewinn</p><p className="mt-2 text-2xl font-semibold">{formatCurrency(totals.profit)}</p><Coins className="mt-2 h-4 w-4 text-blue-500" /></CardContent></Card>
+        <Card>
+          <CardContent className="p-5">
+            <p className="text-xs text-slate-500">Gewinn</p>
+            <p className="mt-2 text-2xl font-semibold">{formatCurrency(totals.profit)}</p>
+            <div className="mt-1 flex items-center gap-1 text-xs text-slate-500">
+              <span>
+                Ziel: {profitTargetValue > 0 ? formatCurrency(profitTargetValue) : '—'}
+              </span>
+              {monthlyGoalReached ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> : null}
+            </div>
+            <Coins className="mt-2 h-4 w-4 text-blue-500" />
+          </CardContent>
+        </Card>
         <Card>
           <CardContent className="p-5 space-y-2">
             <p className="text-xs text-slate-500">Monatliches Gewinnziel</p>
@@ -557,6 +579,18 @@ export default function Statistics() {
               onChange={(e) => setProfitTargetInput(e.target.value)}
               placeholder="z. B. 5000"
             />
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                size="sm"
+                className="bg-[#1e3a5f] hover:bg-[#2d5a8a]"
+                onClick={handleConfirmTarget}
+              >
+                Bestätigen
+              </Button>
+              <Button size="sm" variant="outline" onClick={handleDeleteTarget}>
+                Löschen
+              </Button>
+            </div>
             <p className="text-xs text-slate-500">
               Aktuell: <span className="font-medium text-slate-700">{formatCurrency(currentMonthProfit)}</span>
             </p>
