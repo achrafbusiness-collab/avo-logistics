@@ -12,7 +12,8 @@ import {
   Route,
   Search,
   Settings,
-  BarChart3
+  BarChart3,
+  CheckCircle2,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -34,6 +35,15 @@ const toDateKey = (value) => {
 
 const DELIVERY_STATUSES = new Set(['in_transit', 'shuttle']);
 const OPEN_STATUSES = ['new', 'assigned', 'pickup_started', 'delivery_started', 'zwischenabgabe'];
+const COMPLETED_STATUSES = new Set(['completed', 'review', 'ready_for_billing', 'approved']);
+
+const parseAmount = (value) => {
+  if (value === null || value === undefined || value === '') return 0;
+  if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+  const normalized = String(value).replace(',', '.');
+  const parsed = Number.parseFloat(normalized);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -44,6 +54,8 @@ export default function Dashboard() {
   const [mapMode, setMapMode] = useState('open');
   const [onlyDue, setOnlyDue] = useState(false);
   const [quickSearch, setQuickSearch] = useState('');
+  const [currentUser, setCurrentUser] = useState(null);
+  const [profitTargetSaved, setProfitTargetSaved] = useState('');
 
   const { data: orders = [], isLoading: ordersLoading } = useQuery({
     queryKey: ['orders'],
@@ -91,7 +103,7 @@ export default function Dashboard() {
   const stats = {
     pendingOrders: rangeOrders.filter(o => o.status === 'new').length,
     activeDrivers: drivers.filter(d => d.status === 'active').length,
-    completedOrders: rangeOrders.filter(o => ['completed', 'review', 'ready_for_billing', 'approved'].includes(o.status)).length,
+    completedOrders: rangeOrders.filter(o => COMPLETED_STATUSES.has(o.status)).length,
   };
 
   const driverCostByOrder = useMemo(() => {
@@ -126,13 +138,11 @@ export default function Dashboard() {
   }, [financeChecklists]);
 
   const financialOverview = useMemo(() => {
-    const completedStatuses = new Set(['completed', 'review', 'ready_for_billing', 'approved']);
     return rangeOrders
-      .filter((order) => completedStatuses.has(order.status))
+      .filter((order) => COMPLETED_STATUSES.has(order.status))
       .reduce(
         (acc, order) => {
-          const revenue = Number.parseFloat(String(order.driver_price || '').replace(',', '.'));
-          const safeRevenue = Number.isFinite(revenue) ? revenue : 0;
+          const safeRevenue = parseAmount(order.driver_price);
           const driverCost = driverCostByOrder.get(order.id) || 0;
           const fuelAdvance = fuelAdvanceByOrder.get(order.id) || 0;
           acc.tours += 1;
@@ -148,6 +158,42 @@ export default function Dashboard() {
 
   const formatCurrency = (value) =>
     new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(value || 0);
+
+  useEffect(() => {
+    let active = true;
+    appClient.auth.getCurrentUser().then((user) => {
+      if (active) setCurrentUser(user);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const companyKey = currentUser?.company_id || currentUser?.id || 'global';
+    const storageKey = `avo:monthly-profit-target:${companyKey}`;
+    if (typeof window === 'undefined') return;
+    const saved = window.localStorage.getItem(storageKey);
+    setProfitTargetSaved(saved || '');
+  }, [currentUser]);
+
+  const profitTargetValue = parseAmount(profitTargetSaved);
+
+  const currentMonthProfit = useMemo(() => {
+    const start = startOfMonth(new Date());
+    const end = endOfMonth(new Date());
+    return orders
+      .filter((order) => COMPLETED_STATUSES.has(order.status))
+      .reduce((sum, order) => {
+        const date = new Date(toDateKey(order.dropoff_date) || toDateKey(order.pickup_date) || toDateKey(order.created_date));
+        if (!date || Number.isNaN(date.getTime()) || date < start || date > end) return sum;
+        const revenue = parseAmount(order.driver_price);
+        const cost = driverCostByOrder.get(order.id) || 0;
+        return sum + (revenue - cost);
+      }, 0);
+  }, [orders, driverCostByOrder]);
+
+  const monthlyGoalReached = profitTargetValue > 0 && currentMonthProfit >= profitTargetValue;
 
   const getDueDateTime = (order) => {
     if (!order?.dropoff_date) return null;
@@ -551,6 +597,15 @@ export default function Dashboard() {
             <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
               <p className="text-xs text-blue-700">Gewinn</p>
               <p className="mt-1 text-xl font-semibold text-blue-800">{formatCurrency(financialOverview.profit)}</p>
+              <div className="mt-1 flex items-center gap-1 text-xs text-blue-700">
+                <span>
+                  Ziel: {profitTargetValue > 0 ? formatCurrency(profitTargetValue) : '—'}
+                </span>
+                {monthlyGoalReached ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> : null}
+              </div>
+              {monthlyGoalReached ? (
+                <p className="mt-1 text-xs text-emerald-600">Glückwunsch. Sie haben Ihr Ziel erreicht.</p>
+              ) : null}
             </div>
             <div className="rounded-lg border border-slate-200 bg-white p-3">
               <p className="text-xs text-slate-500">Getankt (Vorkasse)</p>

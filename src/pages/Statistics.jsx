@@ -292,6 +292,7 @@ export default function Statistics() {
   }, [rows]);
 
   const profitTargetValue = parseAmount(profitTargetSaved);
+  const showTargetActions = profitTargetInput !== profitTargetSaved;
 
   const currentMonthProfit = useMemo(() => {
     const start = startOfMonth(new Date());
@@ -566,6 +567,9 @@ export default function Statistics() {
               </span>
               {monthlyGoalReached ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> : null}
             </div>
+            {monthlyGoalReached ? (
+              <p className="mt-1 text-xs text-emerald-600">Glückwunsch. Sie haben Ihr Ziel erreicht.</p>
+            ) : null}
             <Coins className="mt-2 h-4 w-4 text-blue-500" />
           </CardContent>
         </Card>
@@ -579,18 +583,20 @@ export default function Statistics() {
               onChange={(e) => setProfitTargetInput(e.target.value)}
               placeholder="z. B. 5000"
             />
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                size="sm"
-                className="bg-[#1e3a5f] hover:bg-[#2d5a8a]"
-                onClick={handleConfirmTarget}
-              >
-                Bestätigen
-              </Button>
-              <Button size="sm" variant="outline" onClick={handleDeleteTarget}>
-                Löschen
-              </Button>
-            </div>
+            {showTargetActions ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  size="sm"
+                  className="bg-[#1e3a5f] hover:bg-[#2d5a8a]"
+                  onClick={handleConfirmTarget}
+                >
+                  Bestätigen
+                </Button>
+                <Button size="sm" variant="outline" onClick={handleDeleteTarget}>
+                  Löschen
+                </Button>
+              </div>
+            ) : null}
             <p className="text-xs text-slate-500">
               Aktuell: <span className="font-medium text-slate-700">{formatCurrency(currentMonthProfit)}</span>
             </p>
@@ -598,12 +604,6 @@ export default function Statistics() {
         </Card>
         <Card><CardContent className="p-5"><p className="text-xs text-slate-500">Getankt (Vorkasse)</p><p className="mt-2 text-2xl font-semibold">{formatCurrency(totals.fuelAdvance)}</p><Fuel className="mt-2 h-4 w-4 text-slate-500" /></CardContent></Card>
       </div>
-
-      {monthlyGoalReached ? (
-        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-          Glückwunsch. Sie haben Ihr monatliches Gewinnziel erreicht.
-        </div>
-      ) : null}
 
       <Card className="border border-slate-200/80 bg-white/90">
         <CardHeader className="pb-2">
