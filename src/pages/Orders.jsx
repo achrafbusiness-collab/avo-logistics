@@ -185,6 +185,11 @@ export default function Orders() {
     queryFn: () => appClient.entities.Driver.filter({ status: 'active' }),
   });
 
+  const { data: pendingPriceSegments = [] } = useQuery({
+    queryKey: ['driver-price-requests-count'],
+    queryFn: () => appClient.entities.OrderSegment.filter({ price_status: 'pending' }, '-created_date', 500),
+  });
+
   const { data: customers = [] } = useQuery({
     queryKey: ['customers'],
     queryFn: () => appClient.entities.Customer.list('-created_date', 500),
@@ -936,6 +941,11 @@ export default function Orders() {
             onClick={() => window.location.href = createPageUrl('DriverPriceRequests')}
           >
             Fahrer Preis Anfragen
+            {pendingPriceSegments.length ? (
+              <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
+                {pendingPriceSegments.length}
+              </span>
+            ) : null}
           </Button>
           <Button 
             className="bg-[#1e3a5f] hover:bg-[#2d5a8a]"
