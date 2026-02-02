@@ -35,6 +35,9 @@ export default function AdminEmailSettings() {
   const [testSending, setTestSending] = useState(false);
   const [testMessage, setTestMessage] = useState("");
   const [testError, setTestError] = useState("");
+  const [imapTesting, setImapTesting] = useState(false);
+  const [imapMessage, setImapMessage] = useState("");
+  const [imapError, setImapError] = useState("");
 
   const toIntOrNull = (value) => {
     if (value === null || value === undefined || value === "") return null;
@@ -145,10 +148,69 @@ export default function AdminEmailSettings() {
       smtp_secure: Boolean(settings.smtp_secure),
       imap_secure: Boolean(settings.imap_secure),
     };
-    if (appSettings.length > 0) {
-      await updateMutation.mutateAsync({ id: appSettings[0].id, data: payload });
-    } else {
-      await createMutation.mutateAsync(payload);
+    try {
+      if (appSettings.length > 0) {
+        await updateMutation.mutateAsync({ id: appSettings[0].id, data: payload });
+      } else {
+        await createMutation.mutateAsync(payload);
+      }
+    } catch (error) {
+      setSaving(false);
+      throw error;
+    }
+  };
+
+  const getAuthToken = async () => {
+    const { data } = await supabase.auth.getSession();
+    if (data?.session?.access_token) {
+      return data.session.access_token;
+    }
+    const { data: refreshed } = await supabase.auth.refreshSession();
+    return refreshed?.session?.access_token || null;
+  };
+
+  const handleImapConnect = async () => {
+    setImapMessage("");
+    setImapError("");
+    if (!settings.imap_host.trim() || !settings.imap_user.trim() || !settings.imap_pass.trim()) {
+      setImapError("Bitte IMAP Host, Benutzer und Passwort eingeben.");
+      return;
+    }
+    setImapTesting(true);
+    try {
+      await handleSave();
+      const token = await getAuthToken();
+      if (!token) {
+        throw new Error("Nicht angemeldet.");
+      }
+      const response = await fetch("/api/admin/email-import", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          action: "list",
+          limit: 1,
+          imap: {
+            host: settings.imap_host.trim(),
+            port: toIntOrNull(settings.imap_port),
+            secure: Boolean(settings.imap_secure),
+            user: settings.imap_user.trim(),
+            pass: settings.imap_pass,
+            mailbox: "INBOX",
+          },
+        }),
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload?.ok) {
+        throw new Error(payload?.error || "IMAP Verbindung fehlgeschlagen.");
+      }
+      setImapMessage("Postfach verbunden. E-Mails werden im Email AI Import angezeigt.");
+    } catch (error) {
+      setImapError(error?.message || "IMAP Verbindung fehlgeschlagen.");
+    } finally {
+      setImapTesting(false);
     }
   };
 
@@ -390,6 +452,21 @@ export default function AdminEmailSettings() {
               }
             />
             <span className="text-sm text-slate-600">TLS/SSL aktiv</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-3 md:col-span-2">
+            <Button
+              onClick={handleImapConnect}
+              disabled={imapTesting}
+              className="bg-[#1e3a5f] hover:bg-[#2d5a8a]"
+            >
+              {imapTesting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
+              Postfach verbinden
+            </Button>
+            <Link to={createPageUrl("EmailAIImport")}>
+              <Button variant="outline">Email AI Import öffnen</Button>
+            </Link>
+            {imapMessage && <span className="text-sm text-emerald-600">{imapMessage}</span>}
+            {imapError && <span className="text-sm text-red-600">{imapError}</span>}
           </div>
         </CardContent>
       </Card>
