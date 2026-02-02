@@ -137,16 +137,34 @@ const generateProtocolPdfFromPage = async ({ siteUrl, checklistId }) => {
   });
   try {
     const page = await browser.newPage();
+    await page.setRequestInterception(true);
+    page.on("request", (request) => {
+      const requestUrl = request.url();
+      if (
+        supabaseUrl &&
+        serviceRoleKey &&
+        requestUrl.startsWith(`${supabaseUrl}/rest/v1/`)
+      ) {
+        const headers = {
+          ...request.headers(),
+          apikey: serviceRoleKey,
+          authorization: `Bearer ${serviceRoleKey}`,
+        };
+        request.continue({ headers });
+        return;
+      }
+      request.continue();
+    });
     const url = `${siteUrl.replace(/\/+$/, "")}/protocol-pdf?checklistId=${encodeURIComponent(
       checklistId
     )}`;
-    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 90000 });
+    await page.goto(url, { waitUntil: "networkidle2", timeout: 120000 });
     await page.waitForSelector(".pdf-page", { timeout: 90000 });
     await page.waitForFunction(
       () => !String(document.body?.innerText || "").includes("Protokoll wird geladen"),
       { timeout: 90000 }
     );
-    await page.waitForNetworkIdle({ idleTime: 1000, timeout: 90000 });
+    await page.waitForTimeout(1500);
     await page.emulateMediaType("print");
     const pdf = await page.pdf({
       format: "A4",
@@ -522,9 +540,10 @@ ${companyName}`;
           checklistId: selectedChecklistId,
         });
       } catch (error) {
+        const reason = String(error?.message || "unbekannt");
         res.status(500).json({
           ok: false,
-          error: "Protokoll-PDF konnte nicht erzeugt werden. Bitte erneut versuchen.",
+          error: `Protokoll-PDF konnte nicht erzeugt werden: ${reason}`,
         });
         return;
       }
