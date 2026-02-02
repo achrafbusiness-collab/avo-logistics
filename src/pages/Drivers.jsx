@@ -162,7 +162,9 @@ export default function Drivers() {
     const driverOrders = orders.filter(o => o.assigned_driver_id === driverId);
     return {
       total: driverOrders.length,
-      active: driverOrders.filter(o => ['assigned', 'accepted', 'pickup_started', 'in_transit', 'delivery_started'].includes(o.status)).length,
+      active: driverOrders.filter((o) =>
+        ['assigned', 'accepted', 'pickup_started', 'in_transit', 'shuttle', 'zwischenabgabe', 'delivery_started'].includes(o.status)
+      ).length,
       completed: driverOrders.filter(o => o.status === 'completed').length,
     };
   };

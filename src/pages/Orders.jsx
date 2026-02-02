@@ -51,6 +51,8 @@ import {
   Mail
 } from 'lucide-react';
 
+const IN_DELIVERY_STATUSES = new Set(['in_transit', 'shuttle']);
+
 export default function Orders() {
   const queryClient = useQueryClient();
   const urlParams = new URLSearchParams(window.location.search);
@@ -160,7 +162,7 @@ export default function Orders() {
 
     orders.forEach((order) => {
       if (order.status === 'cancelled') return;
-      if (order.status === 'in_transit') {
+      if (IN_DELIVERY_STATUSES.has(order.status)) {
         inDelivery += 1;
       } else if (order.status !== 'completed') {
         open += 1;
@@ -381,7 +383,11 @@ export default function Orders() {
       listMode === 'completed'
         ? order.status === 'completed' || order.status === 'cancelled'
         : order.status !== 'completed' && order.status !== 'cancelled';
-    const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
+    const matchesStatus =
+      statusFilter === 'all' ||
+      (statusFilter === 'in_transit'
+        ? IN_DELIVERY_STATUSES.has(order.status)
+        : order.status === statusFilter);
     
     const matchesDriver =
       driverFilter === 'all' || order.assigned_driver_id === driverFilter;
@@ -412,7 +418,7 @@ export default function Orders() {
         return order.status !== 'completed';
       }
       if (dueFilter === 'in_transit') {
-        return order.status === 'in_transit';
+        return IN_DELIVERY_STATUSES.has(order.status);
       }
       return true;
     })();
@@ -982,6 +988,8 @@ export default function Orders() {
                     <SelectItem value="assigned">Zugewiesen</SelectItem>
                     <SelectItem value="pickup_started">Übernahme läuft</SelectItem>
                     <SelectItem value="in_transit">In Lieferung</SelectItem>
+                    <SelectItem value="shuttle">Shuttle</SelectItem>
+                    <SelectItem value="zwischenabgabe">Zwischenabgabe</SelectItem>
                     <SelectItem value="delivery_started">Übergabe läuft</SelectItem>
                     <SelectItem value="review">Prüfung</SelectItem>
                     <SelectItem value="ready_for_billing">Freigabe Abrechnung</SelectItem>

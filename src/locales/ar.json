@@ -53,6 +53,8 @@
     "accepted": "مقبول",
     "pickup_started": "الاستلام جارٍ",
     "in_transit": "في الطريق",
+    "shuttle": "شاتل",
+    "zwischenabgabe": "تسليم وسيط",
     "delivery_started": "التسليم جارٍ",
     "completed": "مكتمل",
     "review": "مراجعة",

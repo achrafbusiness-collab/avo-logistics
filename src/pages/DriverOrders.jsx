@@ -96,7 +96,15 @@ export default function DriverOrders() {
 
   const appSettings = appSettingsList[0] || null;
 
-  const activeStatuses = ['assigned', 'accepted', 'pickup_started', 'in_transit', 'delivery_started'];
+  const activeStatuses = [
+    'assigned',
+    'accepted',
+    'pickup_started',
+    'in_transit',
+    'shuttle',
+    'zwischenabgabe',
+    'delivery_started',
+  ];
   const completedStatuses = ['completed', 'review', 'ready_for_billing', 'approved', 'cancelled'];
   const activeOrders = allOrders.filter((order) => activeStatuses.includes(order.status));
   const completedOrders = allOrders.filter((order) => completedStatuses.includes(order.status));

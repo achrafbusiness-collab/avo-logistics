@@ -32,6 +32,9 @@ const toDateKey = (value) => {
   return format(date, 'yyyy-MM-dd');
 };
 
+const DELIVERY_STATUSES = new Set(['in_transit', 'shuttle']);
+const OPEN_STATUSES = ['new', 'assigned', 'pickup_started', 'delivery_started', 'zwischenabgabe'];
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const todayKey = format(new Date(), 'yyyy-MM-dd');
@@ -157,7 +160,7 @@ export default function Dashboard() {
   const deliveryOrderIds = useMemo(() => {
     const ids = new Set();
     orders.forEach((order) => {
-      if (order.status === 'in_transit' && order.assigned_driver_id) {
+      if (DELIVERY_STATUSES.has(order.status) && order.assigned_driver_id) {
         ids.add(order.assigned_driver_id);
       }
     });
@@ -232,15 +235,13 @@ export default function Dashboard() {
   }, [dateFrom, dateTo]);
 
   const mapCounts = useMemo(() => {
-    const openStatuses = ['new', 'assigned', 'pickup_started', 'delivery_started'];
     return {
-      open: rangeOrders.filter((order) => openStatuses.includes(order.status)).length,
-      inDelivery: rangeOrders.filter((order) => order.status === 'in_transit').length,
+      open: rangeOrders.filter((order) => OPEN_STATUSES.includes(order.status)).length,
+      inDelivery: rangeOrders.filter((order) => DELIVERY_STATUSES.has(order.status)).length,
     };
   }, [rangeOrders]);
 
   const mapOrders = useMemo(() => {
-    const openStatuses = ['new', 'assigned', 'pickup_started', 'delivery_started'];
     return rangeOrders.filter((order) => {
       const pickup = [order.pickup_address, order.pickup_postal_code, order.pickup_city]
         .filter(Boolean)
@@ -251,8 +252,8 @@ export default function Dashboard() {
         .join(", ")
         .trim();
       if (!pickup || !dropoff) return false;
-      if (mapMode === 'open') return openStatuses.includes(order.status);
-      if (mapMode === 'in_transit') return order.status === 'in_transit';
+      if (mapMode === 'open') return OPEN_STATUSES.includes(order.status);
+      if (mapMode === 'in_transit') return DELIVERY_STATUSES.has(order.status);
       return true;
     });
   }, [rangeOrders, mapMode]);

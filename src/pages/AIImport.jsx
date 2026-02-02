@@ -727,6 +727,8 @@ Gib ausschließlich die strukturierten Daten zurück.`,
                             <SelectItem value="accepted">Angenommen</SelectItem>
                             <SelectItem value="pickup_started">Übernahme</SelectItem>
                             <SelectItem value="in_transit">Bearbeitung</SelectItem>
+                            <SelectItem value="shuttle">Shuttle</SelectItem>
+                            <SelectItem value="zwischenabgabe">Zwischenabgabe</SelectItem>
                             <SelectItem value="delivery_started">Übergabe</SelectItem>
                             <SelectItem value="completed">Fertig</SelectItem>
                             <SelectItem value="cancelled">Storniert</SelectItem>

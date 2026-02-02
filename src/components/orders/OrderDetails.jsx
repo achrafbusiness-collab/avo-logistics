@@ -49,6 +49,8 @@ const STATUS_FLOW = [
   { value: 'assigned', label: 'Zugewiesen' },
   { value: 'pickup_started', label: 'Übernahme läuft' },
   { value: 'in_transit', label: 'In Lieferung' },
+  { value: 'shuttle', label: 'Shuttle' },
+  { value: 'zwischenabgabe', label: 'Zwischenabgabe' },
   { value: 'delivery_started', label: 'Übergabe läuft' },
   { value: 'completed', label: 'Erfolgreich beendet' },
   { value: 'review', label: 'Prüfung' },

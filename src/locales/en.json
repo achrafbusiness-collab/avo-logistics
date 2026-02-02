@@ -53,6 +53,8 @@
     "accepted": "Accepted",
     "pickup_started": "Pickup in progress",
     "in_transit": "In transit",
+    "shuttle": "Shuttle",
+    "zwischenabgabe": "Interim drop-off",
     "delivery_started": "Drop-off in progress",
     "completed": "Completed",
     "review": "Review",

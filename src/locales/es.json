@@ -53,6 +53,8 @@
     "accepted": "Aceptado",
     "pickup_started": "Recogida en curso",
     "in_transit": "En tránsito",
+    "shuttle": "Transbordo",
+    "zwischenabgabe": "Entrega intermedia",
     "delivery_started": "Entrega en curso",
     "completed": "Completado",
     "review": "Revisión",

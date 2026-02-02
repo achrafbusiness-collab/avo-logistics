@@ -368,7 +368,10 @@ export default function DriverProtocol() {
     if (type === 'pickup' && ['new', 'assigned'].includes(order.status)) {
       nextStatus = 'pickup_started';
     }
-    if (type === 'dropoff' && ['in_transit', 'pickup_started', 'assigned', 'new'].includes(order.status)) {
+    if (
+      type === 'dropoff' &&
+      ['in_transit', 'shuttle', 'zwischenabgabe', 'pickup_started', 'assigned', 'new'].includes(order.status)
+    ) {
       nextStatus = 'delivery_started';
     }
     if (nextStatus && nextStatus !== order.status) {

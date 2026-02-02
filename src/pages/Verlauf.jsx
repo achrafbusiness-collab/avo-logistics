@@ -37,6 +37,8 @@ const STATUS_LABELS = {
   assigned: "Zugewiesen",
   pickup_started: "Übernahme läuft",
   in_transit: "In Lieferung",
+  shuttle: "Shuttle",
+  zwischenabgabe: "Zwischenabgabe",
   delivery_started: "Übergabe läuft",
   completed: "Erfolgreich beendet",
   review: "Prüfung",
