@@ -106,198 +106,63 @@ const pickLatestChecklist = (checklists, type) => {
   })[0];
 };
 
-const formatDateValue = (value) => {
-  if (!value) return "-";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "-";
-  return date.toLocaleDateString("de-DE");
+const resolvePublicSiteUrl = (req) => {
+  const fromEnv =
+    process.env.PUBLIC_SITE_URL ||
+    process.env.VITE_PUBLIC_SITE_URL ||
+    process.env.NEXT_PUBLIC_SITE_URL;
+  if (fromEnv) {
+    return String(fromEnv).replace(/\/+$/, "");
+  }
+  const forwardedProto = String(req?.headers?.["x-forwarded-proto"] || "https")
+    .split(",")[0]
+    .trim();
+  const forwardedHost =
+    req?.headers?.["x-forwarded-host"] || req?.headers?.host || "avo-logistics.app";
+  return `${forwardedProto}://${String(forwardedHost).replace(/\/+$/, "")}`;
 };
 
-const formatDateTimeValue = (value) => {
-  if (!value) return "-";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "-";
-  return `${date.toLocaleDateString("de-DE")} ${date.toLocaleTimeString("de-DE", {
-    hour: "2-digit",
-    minute: "2-digit",
-  })}`;
-};
-
-const normalizeAscii = (value) =>
-  String(value || "")
-    .replace(/Ä/g, "Ae")
-    .replace(/Ö/g, "Oe")
-    .replace(/Ü/g, "Ue")
-    .replace(/ä/g, "ae")
-    .replace(/ö/g, "oe")
-    .replace(/ü/g, "ue")
-    .replace(/ß/g, "ss")
-    .replace(/[^\x20-\x7E]/g, "");
-
-const escapePdfText = (value) =>
-  value.replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
-
-const createProtocolPdfBuffer = ({
-  companyName,
-  order,
-  protocolChecklist,
-  pickupChecklist,
-  dropoffChecklist,
-}) => {
-  const formatChecklistValue = (value) => {
-    if (value === null || value === undefined || value === "") return "-";
-    return String(value);
-  };
-  const buildChecklistBlock = (title, checklist) => {
-    if (!checklist) {
-      return [title, "Nicht vorhanden", ""];
-    }
-    const mandatoryChecks = checklist.mandatory_checks || {};
-    const accessoryChecks = checklist.accessories || {};
-    const mandatoryDone = Object.values(mandatoryChecks).filter(Boolean).length;
-    const mandatoryTotal = Object.keys(mandatoryChecks).length;
-    const accessoryDone = Object.values(accessoryChecks).filter(Boolean).length;
-    const accessoryTotal = Object.keys(accessoryChecks).length;
-    const damages = Array.isArray(checklist.damages) ? checklist.damages : [];
-    const expenses = Array.isArray(checklist.expenses) ? checklist.expenses : [];
-    const damageLines =
-      damages.length === 0
-        ? ["Schaeden: keine"]
-        : [
-            `Schaeden: ${damages.length}`,
-            ...damages.slice(0, 6).map((item, index) => {
-              const part = [
-                item?.slot_id || item?.location || `Pos.${index + 1}`,
-                item?.type || "-",
-                item?.description || "-",
-              ]
-                .filter(Boolean)
-                .join(" | ");
-              return ` - ${part}`;
-            }),
-          ];
-    const expenseTotal = expenses.reduce((sum, item) => {
-      const amount = Number(item?.amount);
-      return Number.isFinite(amount) ? sum + amount : sum;
-    }, 0);
-    const expenseLines =
-      expenses.length === 0
-        ? ["Auslagen: keine"]
-        : [
-            `Auslagen: ${expenses.length} (Summe ${expenseTotal.toFixed(2)} EUR)`,
-            ...expenses.slice(0, 6).map((item, index) => {
-              const part = [
-                item?.type || `Typ ${index + 1}`,
-                item?.amount !== null && item?.amount !== undefined && item?.amount !== ""
-                  ? `${item.amount} EUR`
-                  : "-",
-                item?.note || "",
-              ]
-                .filter(Boolean)
-                .join(" | ");
-              return ` - ${part}`;
-            }),
-          ];
-    return [
-      title,
-      `Zeitpunkt: ${formatDateTimeValue(checklist.datetime)}`,
-      `Ort: ${formatChecklistValue(checklist.location)}`,
-      `Kilometer: ${formatChecklistValue(checklist.kilometer)}`,
-      `Tankstand: ${formatChecklistValue(checklist.fuel_level)}`,
-      `Sauberkeit innen/außen: ${formatChecklistValue(checklist.cleanliness_inside)} / ${formatChecklistValue(checklist.cleanliness_outside)}`,
-      `Beleuchtung: ${formatChecklistValue(checklist.lighting)}`,
-      `Pflichtpruefungen: ${mandatoryDone}/${mandatoryTotal}`,
-      `Zubehoer geprueft: ${accessoryDone}/${accessoryTotal}`,
-      `Unterschrift Fahrer: ${checklist.signature_driver ? "ja" : "nein"}`,
-      `Unterschrift Kunde: ${checklist.signature_customer ? "ja" : "nein"}`,
-      `Unterschrift verweigert: ${checklist.signature_refused ? "ja" : "nein"}`,
-      ...damageLines,
-      ...expenseLines,
-      "",
-    ];
-  };
-  const vehicleLabel = [order?.vehicle_brand, order?.vehicle_model].filter(Boolean).join(" ") || "-";
-  const pickupLine = formatAddress([
-    order?.pickup_address,
-    order?.pickup_postal_code,
-    order?.pickup_city,
-  ]) || "-";
-  const dropoffLine = formatAddress([
-    order?.dropoff_address,
-    order?.dropoff_postal_code,
-    order?.dropoff_city,
-  ]) || "-";
-  const lines = [
-    `${companyName || "AVO Logistics"} - Protokoll`,
-    "",
-    `Auftrag: ${order?.order_number || "-"}`,
-    `Kundenauftrag: ${order?.customer_order_number || "-"}`,
-    `Fahrzeug: ${vehicleLabel}`,
-    `Kennzeichen: ${order?.license_plate || "-"}`,
-    "",
-    `Abholung: ${pickupLine}`,
-    `Abholtermin: ${formatDateTime(order?.pickup_date, order?.pickup_time) || "-"}`,
-    "",
-    `Abgabe: ${dropoffLine}`,
-    `Abgabetermin: ${formatDateTime(order?.dropoff_date, order?.dropoff_time) || "-"}`,
-    "",
-    `Referenz-Protokoll: ${protocolChecklist?.id || "-"}`,
-    `Referenz-Typ: ${protocolChecklist?.type || "-"}`,
-    "",
-    `Protokoll Uebernahme: ${formatDateTimeValue(pickupChecklist?.datetime)}`,
-    `Kilometer Uebernahme: ${
-      pickupChecklist?.kilometer === null || pickupChecklist?.kilometer === undefined
-        ? "-"
-        : pickupChecklist.kilometer
-    }`,
-    "",
-    `Protokoll Uebergabe: ${formatDateTimeValue(dropoffChecklist?.datetime)}`,
-    `Kilometer Uebergabe: ${
-      dropoffChecklist?.kilometer === null || dropoffChecklist?.kilometer === undefined
-        ? "-"
-        : dropoffChecklist.kilometer
-    }`,
-    "",
-    `Erstellt am: ${formatDateValue(new Date().toISOString())}`,
-    "",
-    ...buildChecklistBlock("DETAILS UEBERNAHME", pickupChecklist),
-    ...buildChecklistBlock("DETAILS UEBERGABE", dropoffChecklist),
-  ].map((line) => normalizeAscii(line));
-
-  const maxLines = 180;
-  const visibleLines = lines.slice(0, maxLines);
-  const contentLines = ["BT", "/F1 9 Tf", "50 805 Td", "12 TL"];
-  visibleLines.forEach((line, index) => {
-    if (index === 0) {
-      contentLines.push(`(${escapePdfText(line)}) Tj`);
-    } else {
-      contentLines.push(`T* (${escapePdfText(line)}) Tj`);
-    }
+const generateProtocolPdfFromPage = async ({ siteUrl, checklistId }) => {
+  const [{ default: puppeteer }, chromiumModule] = await Promise.all([
+    import("puppeteer-core"),
+    import("@sparticuz/chromium"),
+  ]);
+  const chromium = chromiumModule.default || chromiumModule;
+  const executablePath = await chromium.executablePath();
+  const browser = await puppeteer.launch({
+    args: chromium.args,
+    defaultViewport: chromium.defaultViewport,
+    executablePath,
+    headless: chromium.headless,
   });
-  contentLines.push("ET");
-  const streamContent = contentLines.join("\n");
-  const objects = [
-    "1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n",
-    "2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n",
-    "3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>\nendobj\n",
-    "4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n",
-    `5 0 obj\n<< /Length ${Buffer.byteLength(streamContent, "utf8")} >>\nstream\n${streamContent}\nendstream\nendobj\n`,
-  ];
-
-  let pdf = "%PDF-1.4\n";
-  const offsets = [0];
-  for (const obj of objects) {
-    offsets.push(Buffer.byteLength(pdf, "utf8"));
-    pdf += obj;
+  try {
+    const page = await browser.newPage();
+    const url = `${siteUrl.replace(/\/+$/, "")}/protocol-pdf?checklistId=${encodeURIComponent(
+      checklistId
+    )}`;
+    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 90000 });
+    await page.waitForSelector(".pdf-page", { timeout: 90000 });
+    await page.waitForFunction(
+      () => !String(document.body?.innerText || "").includes("Protokoll wird geladen"),
+      { timeout: 90000 }
+    );
+    await page.waitForNetworkIdle({ idleTime: 1000, timeout: 90000 });
+    await page.emulateMediaType("print");
+    const pdf = await page.pdf({
+      format: "A4",
+      printBackground: true,
+      preferCSSPageSize: true,
+      margin: {
+        top: "0mm",
+        right: "0mm",
+        bottom: "0mm",
+        left: "0mm",
+      },
+    });
+    return Buffer.from(pdf);
+  } finally {
+    await browser.close();
   }
-  const xrefStart = Buffer.byteLength(pdf, "utf8");
-  pdf += `xref\n0 ${objects.length + 1}\n`;
-  pdf += "0000000000 65535 f \n";
-  for (let i = 1; i <= objects.length; i += 1) {
-    pdf += `${String(offsets[i]).padStart(10, "0")} 00000 n \n`;
-  }
-  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefStart}\n%%EOF`;
-  return Buffer.from(pdf, "utf8");
 };
 
 export default async function handler(req, res) {
@@ -592,6 +457,12 @@ ${companyName}`;
         : null;
       const pickupChecklist = pickLatestChecklist(orderChecklists, "pickup");
       const dropoffChecklist = pickLatestChecklist(orderChecklists, "dropoff");
+      const selectedChecklistId =
+        protocolChecklist?.id || dropoffChecklist?.id || pickupChecklist?.id || null;
+      if (!selectedChecklistId) {
+        res.status(400).json({ ok: false, error: "Kein Protokoll fuer den Auftrag vorhanden." });
+        return;
+      }
       const companyName = settings?.company_name || "AVO Logistics";
       const vehicleLabel = [order.vehicle_brand, order.vehicle_model].filter(Boolean).join(" ") || "-";
       const pickupLine = formatAddress([
@@ -643,13 +514,20 @@ ${companyName}`;
     </tr>
   </table>
 </div>`;
-      const attachment = createProtocolPdfBuffer({
-        companyName,
-        order,
-        protocolChecklist,
-        pickupChecklist,
-        dropoffChecklist,
-      });
+      let attachment;
+      try {
+        const siteUrl = resolvePublicSiteUrl(req);
+        attachment = await generateProtocolPdfFromPage({
+          siteUrl,
+          checklistId: selectedChecklistId,
+        });
+      } catch (error) {
+        res.status(500).json({
+          ok: false,
+          error: "Protokoll-PDF konnte nicht erzeugt werden. Bitte erneut versuchen.",
+        });
+        return;
+      }
       const safeOrderFileId = String(order.order_number || order.id).replace(/[^a-z0-9._-]/gi, "_");
 
       const emailSent = await sendEmail({
