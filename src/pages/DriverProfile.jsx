@@ -57,6 +57,12 @@ export default function DriverProfile() {
   const appSettings = appSettingsList[0] || null;
   const driver = drivers.find((item) => item.email === user?.email);
   const addressConfirmed = Boolean(driver?.address_confirmed || driver?.address_confirmed_at);
+  const allDocumentsUploaded = Boolean(
+    driver?.license_front &&
+      driver?.license_back &&
+      driver?.id_card_front &&
+      driver?.id_card_back
+  );
 
   const { data: driverOrders = [], isLoading: ordersLoading } = useQuery({
     queryKey: ["driver-orders", driver?.id],
@@ -240,6 +246,7 @@ export default function DriverProfile() {
   const DocumentUploadField = ({ label, field }) => {
     const value = driver?.[field];
     const isUploading = uploadingDocs[field];
+    const locked = addressConfirmed;
     return (
       <div className="space-y-2">
         <p className="text-sm font-medium text-slate-700">{label}</p>
@@ -257,18 +264,26 @@ export default function DriverProfile() {
             </a>
           </div>
         ) : (
-          <label className="flex cursor-pointer items-center gap-3 rounded-lg border-2 border-dashed border-slate-200 bg-white px-3 py-3 text-sm text-slate-500 transition hover:border-[#1e3a5f] hover:bg-slate-50">
+          <label
+            className={`flex items-center gap-3 rounded-lg border-2 border-dashed px-3 py-3 text-sm transition ${
+              locked
+                ? "cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400"
+                : "cursor-pointer border-slate-200 bg-white text-slate-500 hover:border-[#1e3a5f] hover:bg-slate-50"
+            }`}
+          >
             {isUploading ? (
               <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
             ) : (
               <Upload className="h-4 w-4 text-slate-400" />
             )}
-            <span>{isUploading ? "Hochladen..." : "Foto/Scan auswählen"}</span>
+            <span>
+              {locked ? "Upload nach Bestätigung gesperrt" : isUploading ? "Hochladen..." : "Foto/Scan auswählen"}
+            </span>
             <input
               type="file"
               accept="image/*,.pdf"
               className="hidden"
-              disabled={isUploading}
+              disabled={isUploading || locked}
               onChange={(event) => handleDocumentUpload(field, event.target.files?.[0])}
             />
           </label>
@@ -391,19 +406,26 @@ export default function DriverProfile() {
                 Adresse bestätigt
               </div>
             ) : (
-              <Button
-                type="button"
-                onClick={handleConfirmAddress}
-                disabled={confirmingAddress || !addressForm.address.trim()}
-                className="bg-[#1e3a5f] hover:bg-[#2d5a8a]"
-              >
-                {confirmingAddress ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <ShieldCheck className="mr-2 h-4 w-4" />
+              <div className="space-y-2">
+                <Button
+                  type="button"
+                  onClick={handleConfirmAddress}
+                  disabled={confirmingAddress || !addressForm.address.trim() || !allDocumentsUploaded}
+                  className="bg-[#1e3a5f] hover:bg-[#2d5a8a]"
+                >
+                  {confirmingAddress ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <ShieldCheck className="mr-2 h-4 w-4" />
+                  )}
+                  Adresse bestätigen
+                </Button>
+                {!allDocumentsUploaded && (
+                  <p className="text-xs text-slate-500">
+                    Bitte zuerst alle Dokumente hochladen, dann bestätigen.
+                  </p>
                 )}
-                Adresse bestätigen
-              </Button>
+              </div>
             )}
           </div>
 
@@ -420,7 +442,8 @@ export default function DriverProfile() {
               <DocumentUploadField label="Ausweis Rückseite" field="id_card_back" />
             </div>
             <p className="text-xs text-slate-500">
-              Hinweis: Nach dem Upload können Dokumente nicht mehr entfernt werden.
+              Hinweis: Nach dem Upload können Dokumente nicht mehr entfernt werden. Nach der
+              Bestätigung ist kein weiterer Upload möglich.
             </p>
           </div>
         </CardContent>

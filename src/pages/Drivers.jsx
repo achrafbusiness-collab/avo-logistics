@@ -44,6 +44,11 @@ import { createPageUrl } from '@/utils';
 export default function Drivers() {
   const queryClient = useQueryClient();
   const urlParams = new URLSearchParams(window.location.search);
+
+  const isImageUrl = (value) => {
+    if (!value) return false;
+    return /\.(png|jpe?g|webp|gif|bmp)$/i.test(String(value).split("?")[0]);
+  };
   
   const [view, setView] = useState('list'); // list, form, details
   const [selectedDriver, setSelectedDriver] = useState(null);
@@ -511,15 +516,30 @@ export default function Drivers() {
                     <div key={field} className={`p-3 rounded-lg border ${selectedDriver[field] ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'}`}>
                       <p className="text-sm font-medium">{label}</p>
                       {selectedDriver[field] ? (
-                        <a 
-                          href={selectedDriver[field]} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-sm text-blue-600 hover:underline flex items-center gap-1 mt-1"
-                        >
-                          <ExternalLink className="w-3 h-3" />
-                          Anzeigen
-                        </a>
+                        <div className="mt-2 space-y-2">
+                          {isImageUrl(selectedDriver[field]) ? (
+                            <img
+                              src={selectedDriver[field]}
+                              alt={`${label} Vorschau`}
+                              className="h-24 w-full rounded-md object-cover border border-white"
+                              loading="lazy"
+                            />
+                          ) : (
+                            <div className="flex items-center gap-2 text-sm text-gray-600">
+                              <FileText className="w-4 h-4" />
+                              Dokument gespeichert
+                            </div>
+                          )}
+                          <a 
+                            href={selectedDriver[field]} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-sm text-blue-600 hover:underline flex items-center gap-1"
+                          >
+                            <ExternalLink className="w-3 h-3" />
+                            Anzeigen
+                          </a>
+                        </div>
                       ) : (
                         <p className="text-sm text-gray-500 mt-1">Nicht hochgeladen</p>
                       )}
