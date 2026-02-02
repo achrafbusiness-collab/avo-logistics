@@ -38,7 +38,8 @@ const STORAGE_KEY = "avo:email-import-config";
 
 export default function EmailAIImport() {
   const navigate = useNavigate();
-  const [step, setStep] = useState("connect");
+  const [step, setStep] = useState("list");
+  const [hasStoredConfig, setHasStoredConfig] = useState(false);
   const [provider, setProvider] = useState("gmail");
   const [imap, setImap] = useState({
     host: PROVIDER_PRESETS.gmail.host,
@@ -103,6 +104,7 @@ export default function EmailAIImport() {
   };
 
   const persistImapSettings = async (imapPayload) => {
+    if (!imapPayload?.host || !imapPayload?.user || !imapPayload?.pass) return;
     const payload = {
       imap_host: imapPayload.host,
       imap_port: imapPayload.port ? Number(imapPayload.port) : null,
@@ -307,6 +309,7 @@ export default function EmailAIImport() {
     setPreview(null);
     setSelectionText("");
     setSearchTerm("");
+    setHasStoredConfig(false);
     setStep("connect");
     setInfo("");
     setError("");
@@ -351,13 +354,19 @@ export default function EmailAIImport() {
         user: fromSettings.imap_user || prev.user,
         pass: fromSettings.imap_pass || prev.pass,
       }));
-      appSettingsRef.current = "done";
+      if (fromSettings?.imap_mailbox) {
+        setImap((prev) => ({ ...prev, mailbox: fromSettings.imap_mailbox }));
+      }
+      setHasStoredConfig(true);
       setAutoConnect(true);
+      appSettingsRef.current = "done";
       return;
     }
 
     const stored = localStorage.getItem(STORAGE_KEY);
     if (!stored) {
+      setHasStoredConfig(false);
+      setStep("connect");
       appSettingsRef.current = "done";
       return;
     }
@@ -372,10 +381,15 @@ export default function EmailAIImport() {
         if (payload?.search) {
           setSearchTerm(payload.search);
         }
+        setHasStoredConfig(true);
         setAutoConnect(true);
+      } else {
+        setHasStoredConfig(false);
+        setStep("connect");
       }
     } catch {
-      // ignore malformed cache
+      setHasStoredConfig(false);
+      setStep("connect");
     }
     appSettingsRef.current = "done";
   }, [appSettings]);
