@@ -1365,7 +1365,7 @@ export default function Orders() {
               <div className="hidden md:block">
                 <Table>
                   <TableHeader>
-                    <TableRow className="bg-gray-50">
+                    <TableRow className="bg-gray-50 hover:bg-gray-50 cursor-default select-none">
                       <TableHead className="w-12">
                         <Checkbox
                           checked={allSelected || (someSelected ? "indeterminate" : false)}
