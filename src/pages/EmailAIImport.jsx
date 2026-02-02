@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabaseClient";
+import { appClient } from "@/api/appClient";
 import { createPageUrl } from "@/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -59,11 +61,26 @@ export default function EmailAIImport() {
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
   const previewTextareaRef = useRef(null);
+  const appSettingsRef = useRef(null);
+
+  const { data: appSettings = [] } = useQuery({
+    queryKey: ["appSettings"],
+    queryFn: () => appClient.entities.AppSettings.list("-created_date", 1),
+  });
 
   const isAllSelected = useMemo(() => {
     if (!messages.length) return false;
     return messages.every((msg) => selectedUids.includes(msg.uid));
   }, [messages, selectedUids]);
+
+  const detectProviderFromHost = (host) => {
+    const lower = String(host || "").toLowerCase();
+    if (lower.includes("gmail")) return "gmail";
+    if (lower.includes("office365") || lower.includes("outlook")) return "outlook";
+    if (lower.includes("icloud") || lower.includes("me.com")) return "icloud";
+    if (lower.includes("yahoo")) return "yahoo";
+    return "other";
+  };
 
   const applyPreset = (value) => {
     const preset = PROVIDER_PRESETS[value] || PROVIDER_PRESETS.other;
@@ -83,6 +100,21 @@ export default function EmailAIImport() {
   const getToken = async () => {
     const { data } = await supabase.auth.getSession();
     return data?.session?.access_token || null;
+  };
+
+  const persistImapSettings = async (imapPayload) => {
+    const payload = {
+      imap_host: imapPayload.host,
+      imap_port: imapPayload.port ? Number(imapPayload.port) : null,
+      imap_user: imapPayload.user,
+      imap_pass: imapPayload.pass,
+      imap_secure: Boolean(imapPayload.secure),
+    };
+    if (appSettings.length > 0) {
+      await appClient.entities.AppSettings.update(appSettings[0].id, payload);
+    } else {
+      await appClient.entities.AppSettings.create(payload);
+    }
   };
 
   const loadMessages = async (queryOverride) => {
@@ -128,6 +160,17 @@ export default function EmailAIImport() {
       setPreview(null);
       setSelectionText("");
       setStep("list");
+      try {
+        await persistImapSettings({
+          host: imap.host.trim(),
+          port: imap.port,
+          secure: Boolean(imap.secure),
+          user: imap.user.trim(),
+          pass: imap.pass,
+        });
+      } catch (persistError) {
+        console.warn("IMAP Einstellungen konnten nicht gespeichert werden", persistError);
+      }
       localStorage.setItem(
         STORAGE_KEY,
         JSON.stringify({
@@ -295,8 +338,29 @@ export default function EmailAIImport() {
   };
 
   useEffect(() => {
+    if (appSettingsRef.current === "done") return;
+    const fromSettings = appSettings[0];
+    if (fromSettings?.imap_user && fromSettings?.imap_pass && fromSettings?.imap_host) {
+      const providerValue = detectProviderFromHost(fromSettings.imap_host);
+      setProvider(providerValue);
+      setImap((prev) => ({
+        ...prev,
+        host: fromSettings.imap_host || prev.host,
+        port: fromSettings.imap_port ? String(fromSettings.imap_port) : prev.port,
+        secure: fromSettings.imap_secure ?? prev.secure,
+        user: fromSettings.imap_user || prev.user,
+        pass: fromSettings.imap_pass || prev.pass,
+      }));
+      appSettingsRef.current = "done";
+      setAutoConnect(true);
+      return;
+    }
+
     const stored = localStorage.getItem(STORAGE_KEY);
-    if (!stored) return;
+    if (!stored) {
+      appSettingsRef.current = "done";
+      return;
+    }
     try {
       const payload = JSON.parse(stored);
       if (payload?.imap?.user && payload?.imap?.pass && payload?.imap?.host) {
@@ -313,7 +377,8 @@ export default function EmailAIImport() {
     } catch {
       // ignore malformed cache
     }
-  }, []);
+    appSettingsRef.current = "done";
+  }, [appSettings]);
 
   useEffect(() => {
     if (!autoConnect) return;
