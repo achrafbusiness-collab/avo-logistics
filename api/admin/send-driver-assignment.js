@@ -122,7 +122,7 @@ const resolvePublicSiteUrl = (req) => {
   return `${forwardedProto}://${String(forwardedHost).replace(/\/+$/, "")}`;
 };
 
-const generateProtocolPdfFromPage = async ({ siteUrl, checklistId }) => {
+const generateProtocolPdfFromPage = async ({ siteUrl, checklistId, authToken }) => {
   const [{ default: puppeteer }, chromiumModule] = await Promise.all([
     import("puppeteer-core"),
     import("@sparticuz/chromium"),
@@ -140,15 +140,12 @@ const generateProtocolPdfFromPage = async ({ siteUrl, checklistId }) => {
     await page.setRequestInterception(true);
     page.on("request", (request) => {
       const requestUrl = request.url();
-      if (
-        supabaseUrl &&
-        serviceRoleKey &&
-        requestUrl.startsWith(`${supabaseUrl}/rest/v1/`)
-      ) {
+      const isSupabaseRest = supabaseUrl && requestUrl.startsWith(`${supabaseUrl}/rest/v1/`);
+      const isSupabaseStorage = supabaseUrl && requestUrl.startsWith(`${supabaseUrl}/storage/v1/`);
+      if ((isSupabaseRest || isSupabaseStorage) && authToken) {
         const headers = {
           ...request.headers(),
-          apikey: serviceRoleKey,
-          authorization: `Bearer ${serviceRoleKey}`,
+          authorization: `Bearer ${authToken}`,
         };
         request.continue({ headers });
         return;
@@ -159,12 +156,22 @@ const generateProtocolPdfFromPage = async ({ siteUrl, checklistId }) => {
       checklistId
     )}`;
     await page.goto(url, { waitUntil: "networkidle2", timeout: 120000 });
-    await page.waitForSelector(".pdf-page", { timeout: 90000 });
-    await page.waitForFunction(
-      () => !String(document.body?.innerText || "").includes("Protokoll wird geladen"),
-      { timeout: 90000 }
-    );
-    await page.waitForTimeout(1500);
+    try {
+      await page.waitForFunction(
+        () => {
+          const hasPdf = !!document.querySelector(".pdf-page");
+          const text = String(document.body?.innerText || "");
+          return hasPdf && !text.includes("Protokoll wird geladen");
+        },
+        { timeout: 120000 }
+      );
+    } catch (error) {
+      const previewText = await page.evaluate(() =>
+        String(document.body?.innerText || "").replace(/\s+/g, " ").slice(0, 240)
+      );
+      throw new Error(`Render timeout. Seite: ${previewText || "leer"}`);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 1500));
     await page.emulateMediaType("print");
     const pdf = await page.pdf({
       format: "A4",
@@ -538,6 +545,7 @@ ${companyName}`;
         attachment = await generateProtocolPdfFromPage({
           siteUrl,
           checklistId: selectedChecklistId,
+          authToken: token,
         });
       } catch (error) {
         const reason = String(error?.message || "unbekannt");
