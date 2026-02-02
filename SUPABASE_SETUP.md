@@ -286,6 +286,8 @@ create table if not exists public.drivers (
   id_card_front text,
   id_card_back text,
   license_expiry date,
+  address_confirmed boolean default false,
+  address_confirmed_at timestamptz,
   notes text,
   created_date timestamptz default now(),
   updated_date timestamptz default now()
@@ -296,6 +298,12 @@ add column if not exists birth_date date;
 
 alter table public.drivers
 add column if not exists license_number text;
+
+alter table public.drivers
+add column if not exists address_confirmed boolean default false;
+
+alter table public.drivers
+add column if not exists address_confirmed_at timestamptz;
 
 create table if not exists public.customers (
   id uuid primary key default gen_random_uuid(),

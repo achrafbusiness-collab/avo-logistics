@@ -1,19 +1,24 @@
 import React, { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { appClient } from "@/api/appClient";
 import { supabase } from "@/lib/supabaseClient";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, ShieldCheck, User, Building2, Copy } from "lucide-react";
+import { Loader2, ShieldCheck, User, Building2, Copy, Upload, Image } from "lucide-react";
 import { useI18n } from "@/i18n";
 
 export default function DriverProfile() {
   const { t, formatDate, formatNumber } = useI18n();
+  const queryClient = useQueryClient();
   const [user, setUser] = useState(null);
   const [licenseToken, setLicenseToken] = useState(null);
   const [tokenError, setTokenError] = useState("");
   const [loadingToken, setLoadingToken] = useState(false);
+  const [confirmingAddress, setConfirmingAddress] = useState(false);
+  const [addressError, setAddressError] = useState("");
+  const [uploadingDocs, setUploadingDocs] = useState({});
+  const [uploadError, setUploadError] = useState("");
   const [billingRange, setBillingRange] = useState(() => {
     const now = new Date();
     const start = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -45,6 +50,7 @@ export default function DriverProfile() {
 
   const appSettings = appSettingsList[0] || null;
   const driver = drivers.find((item) => item.email === user?.email);
+  const addressConfirmed = Boolean(driver?.address_confirmed || driver?.address_confirmed_at);
 
   const { data: driverOrders = [], isLoading: ordersLoading } = useQuery({
     queryKey: ["driver-orders", driver?.id],
@@ -179,6 +185,78 @@ export default function DriverProfile() {
     loadToken();
   }, [user, t]);
 
+  const handleConfirmAddress = async () => {
+    if (!driver?.id) return;
+    setConfirmingAddress(true);
+    setAddressError("");
+    try {
+      await appClient.entities.Driver.update(driver.id, {
+        address_confirmed: true,
+        address_confirmed_at: new Date().toISOString(),
+      });
+      await queryClient.invalidateQueries({ queryKey: ["drivers"] });
+    } catch (error) {
+      setAddressError(error?.message || "Adresse konnte nicht bestätigt werden.");
+    } finally {
+      setConfirmingAddress(false);
+    }
+  };
+
+  const handleDocumentUpload = async (field, file) => {
+    if (!driver?.id || !file) return;
+    setUploadError("");
+    setUploadingDocs((prev) => ({ ...prev, [field]: true }));
+    try {
+      const { file_url } = await appClient.integrations.Core.UploadFile({ file });
+      await appClient.entities.Driver.update(driver.id, { [field]: file_url });
+      await queryClient.invalidateQueries({ queryKey: ["drivers"] });
+    } catch (error) {
+      setUploadError(error?.message || "Dokument konnte nicht hochgeladen werden.");
+    } finally {
+      setUploadingDocs((prev) => ({ ...prev, [field]: false }));
+    }
+  };
+
+  const DocumentUploadField = ({ label, field }) => {
+    const value = driver?.[field];
+    const isUploading = uploadingDocs[field];
+    return (
+      <div className="space-y-2">
+        <p className="text-sm font-medium text-slate-700">{label}</p>
+        {value ? (
+          <div className="flex flex-wrap items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+            <ShieldCheck className="h-4 w-4" />
+            <span>Dokument hochgeladen</span>
+            <a
+              href={value}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm text-[#1e3a5f] underline underline-offset-2"
+            >
+              Anzeigen
+            </a>
+          </div>
+        ) : (
+          <label className="flex cursor-pointer items-center gap-3 rounded-lg border-2 border-dashed border-slate-200 bg-white px-3 py-3 text-sm text-slate-500 transition hover:border-[#1e3a5f] hover:bg-slate-50">
+            {isUploading ? (
+              <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
+            ) : (
+              <Upload className="h-4 w-4 text-slate-400" />
+            )}
+            <span>{isUploading ? "Hochladen..." : "Foto/Scan auswählen"}</span>
+            <input
+              type="file"
+              accept="image/*,.pdf"
+              className="hidden"
+              disabled={isUploading}
+              onChange={(event) => handleDocumentUpload(field, event.target.files?.[0])}
+            />
+          </label>
+        )}
+      </div>
+    );
+  };
+
   if (!user) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -217,8 +295,71 @@ export default function DriverProfile() {
               {driver?.phone && <p>{t("profile.phone")}: {driver.phone}</p>}
               {driver?.city && <p>{t("profile.city")}: {driver.city}</p>}
             </div>
-          </CardContent>
-        </Card>
+        </CardContent>
+      </Card>
+
+      <Card className="border border-slate-200">
+        <CardContent className="p-4 space-y-4">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-900">Profil bestätigen</h2>
+            <p className="text-sm text-slate-500">
+              Bitte bestätige einmalig deine Adresse und lade deine Dokumente hoch.
+            </p>
+          </div>
+
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 space-y-3">
+            <div className="flex items-center gap-2 text-slate-700">
+              <Building2 className="h-4 w-4 text-slate-400" />
+              <span className="font-medium">Adresse</span>
+            </div>
+            <div className="text-sm text-slate-600">
+              <p>{driver?.address || "Keine Adresse hinterlegt."}</p>
+              <p>
+                {[driver?.postal_code, driver?.city].filter(Boolean).join(" ")}
+              </p>
+              <p>{driver?.country || ""}</p>
+            </div>
+            {addressError && <p className="text-sm text-red-600">{addressError}</p>}
+            {addressConfirmed ? (
+              <div className="text-sm text-emerald-700 flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4" />
+                Adresse bestätigt
+              </div>
+            ) : (
+              <Button
+                type="button"
+                onClick={handleConfirmAddress}
+                disabled={confirmingAddress || !driver?.address}
+                className="bg-[#1e3a5f] hover:bg-[#2d5a8a]"
+              >
+                {confirmingAddress ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <ShieldCheck className="mr-2 h-4 w-4" />
+                )}
+                Adresse bestätigen
+              </Button>
+            )}
+          </div>
+
+          <div className="rounded-lg border border-slate-200 bg-white p-4 space-y-4">
+            <div className="flex items-center gap-2 text-slate-700">
+              <Image className="h-4 w-4 text-slate-400" />
+              <span className="font-medium">Dokumente hochladen</span>
+            </div>
+            {uploadError && <p className="text-sm text-red-600">{uploadError}</p>}
+            <div className="grid gap-4 md:grid-cols-2">
+              <DocumentUploadField label="Führerschein Vorderseite" field="license_front" />
+              <DocumentUploadField label="Führerschein Rückseite" field="license_back" />
+              <DocumentUploadField label="Ausweis Vorderseite" field="id_card_front" />
+              <DocumentUploadField label="Ausweis Rückseite" field="id_card_back" />
+            </div>
+            <p className="text-xs text-slate-500">
+              Hinweis: Nach dem Upload können Dokumente nicht mehr entfernt werden.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card className="border border-emerald-200 bg-emerald-50">
         <CardContent className="p-4 space-y-3">
