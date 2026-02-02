@@ -36,6 +36,7 @@ import {
   ClipboardList,
   Phone,
   Mail,
+  Copy,
   Trash2,
   ExternalLink,
   Loader2,
@@ -104,6 +105,7 @@ export default function OrderDetails({
   const [segmentsError, setSegmentsError] = useState('');
   const [segmentEdits, setSegmentEdits] = useState({});
   const [segmentSaving, setSegmentSaving] = useState({});
+  const [copiedField, setCopiedField] = useState('');
   const [orderHandoffs, setOrderHandoffs] = useState([]);
   const [handoffsLoading, setHandoffsLoading] = useState(false);
   const [handoffsError, setHandoffsError] = useState('');
@@ -482,12 +484,37 @@ export default function OrderDetails({
   const canApprove =
     Boolean(order?.status === 'ready_for_billing' && reviewComplete && isAdmin);
 
-  const InfoRow = ({ label, value, icon: Icon }) => (
+  const handleCopyValue = async (key, value) => {
+    if (!value) return;
+    try {
+      await navigator.clipboard.writeText(String(value));
+      setCopiedField(key);
+      window.setTimeout(() => {
+        setCopiedField((prev) => (prev === key ? '' : prev));
+      }, 1200);
+    } catch (error) {
+      console.error('Copy failed:', error);
+    }
+  };
+
+  const InfoRow = ({ label, value, icon: Icon, copyKey, copyValue }) => (
     <div className="flex items-start gap-3 py-2">
       {Icon && <Icon className="w-4 h-4 text-gray-400 mt-0.5" />}
       <div className="flex-1">
         <p className="text-sm text-gray-500">{label}</p>
-        <p className="font-medium text-gray-900">{value || '-'}</p>
+        <div className="flex items-start justify-between gap-2">
+          <p className="font-medium text-gray-900 break-words">{value || '-'}</p>
+          {copyValue ? (
+            <button
+              type="button"
+              onClick={() => handleCopyValue(copyKey || label, copyValue)}
+              className="rounded-md p-1 text-slate-500 hover:bg-slate-100 hover:text-[#1e3a5f]"
+              title={`${label} kopieren`}
+            >
+              <Copy className={`h-4 w-4 ${copiedField === (copyKey || label) ? 'text-[#1e3a5f]' : ''}`} />
+            </button>
+          ) : null}
+        </div>
       </div>
     </div>
   );
@@ -750,23 +777,21 @@ export default function OrderDetails({
               </CardTitle>
             </CardHeader>
             <CardContent className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              <InfoRow label="Kennzeichen" value={order.license_plate} />
-              <InfoRow label="Marke" value={order.vehicle_brand} />
               <InfoRow
-                label="Modell"
-                value={
-                  <div className="space-y-1">
-                    <div>{order.vehicle_model || '-'}</div>
-                    {distanceKm !== null && (
-                      <div className="text-sm font-semibold text-[#1e3a5f]">
-                        Strecke: {distanceKm} km
-                      </div>
-                    )}
-                  </div>
-                }
+                label="Kennzeichen"
+                value={order.license_plate}
+                copyKey="license_plate"
+                copyValue={order.license_plate}
               />
+              <InfoRow label="Marke" value={order.vehicle_brand} />
+              <InfoRow label="Modell" value={order.vehicle_model} />
               <InfoRow label="Farbe" value={order.vehicle_color} />
-              <InfoRow label="VIN" value={order.vin} />
+              <InfoRow
+                label="VIN"
+                value={order.vin}
+                copyKey="vin"
+                copyValue={order.vin}
+              />
             </CardContent>
           </Card>
 
@@ -779,7 +804,11 @@ export default function OrderDetails({
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div
+                className={`grid grid-cols-1 gap-6 ${
+                  distanceKm !== null ? 'md:grid-cols-[1fr_auto_1fr]' : 'md:grid-cols-2'
+                }`}
+              >
                 {/* Pickup */}
                 <div className="p-4 bg-blue-50 rounded-lg border border-blue-100">
                   <h4 className="font-semibold text-blue-900 mb-3 flex items-center gap-2">
@@ -811,6 +840,15 @@ export default function OrderDetails({
                     </p>
                   )}
                 </div>
+
+                {distanceKm !== null && (
+                  <div className="flex items-center justify-center">
+                    <div className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-center">
+                      <p className="text-xs uppercase tracking-wide text-slate-500">Strecke</p>
+                      <p className="text-lg font-semibold text-[#1e3a5f]">{distanceKm} km</p>
+                    </div>
+                  </div>
+                )}
 
                 {/* Dropoff */}
                 <div className="p-4 bg-green-50 rounded-lg border border-green-100">
