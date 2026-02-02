@@ -510,6 +510,18 @@ export default function Dashboard() {
               size="sm"
               className="border-slate-300 text-slate-700 hover:bg-slate-900 hover:text-white"
               onClick={() => {
+                const now = new Date();
+                setDateFrom(format(startOfMonth(now), 'yyyy-MM-dd'));
+                setDateTo(format(endOfMonth(now), 'yyyy-MM-dd'));
+              }}
+            >
+              Dieser Monat
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-slate-300 text-slate-700 hover:bg-slate-900 hover:text-white"
+              onClick={() => {
                 const lastMonth = subDays(startOfMonth(new Date()), 1);
                 setDateFrom(format(startOfMonth(lastMonth), 'yyyy-MM-dd'));
                 setDateTo(format(endOfMonth(lastMonth), 'yyyy-MM-dd'));

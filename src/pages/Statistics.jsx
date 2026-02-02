@@ -537,7 +537,7 @@ export default function Statistics() {
                 applyQuickRange(startOfMonth(now), endOfMonth(now));
               }}
             >
-              Ganzen Monat
+              Dieser Monat
             </Button>
             <Button
               size="sm"
