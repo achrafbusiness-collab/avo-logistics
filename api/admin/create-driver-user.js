@@ -317,8 +317,10 @@ export default async function handler(req, res) {
 
 herzlich willkommen bei ${companyName}. Dein Fahrer-Konto wurde erstellt.
 
-Bitte richte jetzt dein Passwort ein:
-${actionLink}
+Dein temporäres Passwort lautet:
+${tempPassword || "-"}
+
+Bitte logge dich damit ein und ändere dein Passwort in den Einstellungen.
 
 Login: ${loginUrl}
 E-Mail: ${email}
@@ -351,15 +353,12 @@ ${companyName}`;
             <p style="margin:6px 0 0; font-size:14px; opacity:0.9;">Dein Fahrer-Konto ist bereit.</p>
           </div>
           <div style="padding:20px 24px;">
-            <p style="margin:0 0 12px; font-size:14px;">Bitte richte jetzt dein Passwort ein:</p>
-            <p style="margin:0 0 16px;">
-              <a href="${actionLink}" style="display:inline-block; background:${brandPrimary}; color:#ffffff; text-decoration:none; padding:10px 16px; border-radius:8px; font-weight:600;">
-                Passwort einrichten
-              </a>
-            </p>
-            <p style="margin:0 0 12px; font-size:12px; color:#64748b;">
-              Falls der Button nicht funktioniert, kopiere diesen Link in deinen Browser:<br/>
-              <a href="${actionLink}" style="color:${brandSecondary};">${actionLink}</a>
+            <p style="margin:0 0 8px; font-size:14px;">Dein temporäres Passwort:</p>
+            <div style="display:inline-block; background:#f1f5f9; border:1px solid #e2e8f0; padding:10px 14px; border-radius:8px; font-family:monospace; font-size:14px; font-weight:600; color:#0f172a;">
+              ${tempPassword || "-"}
+            </div>
+            <p style="margin:12px 0 16px; font-size:13px; color:#64748b;">
+              Bitte logge dich damit ein und ändere dein Passwort in den Einstellungen.
             </p>
             <p style="margin:0; font-size:13px;">Login: <a href="${loginUrl}">${loginUrl}</a></p>
             <p style="margin:0; font-size:13px;">E-Mail: ${email}</p>
