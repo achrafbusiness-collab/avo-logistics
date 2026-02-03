@@ -22,7 +22,13 @@ const createFetchWithProxy = () => {
       return fetch("/api/auth-user", init);
     }
     if (baseUrl && url.startsWith(baseUrl) && url.includes("/auth/v1/token?grant_type=")) {
-      return fetch("/api/auth-token", init);
+      try {
+        const grantType = new URL(url).searchParams.get("grant_type") || "";
+        const suffix = grantType ? `?grant_type=${encodeURIComponent(grantType)}` : "";
+        return fetch(`/api/auth-token${suffix}`, init);
+      } catch {
+        return fetch("/api/auth-token", init);
+      }
     }
     return fetch(input, init);
   };
