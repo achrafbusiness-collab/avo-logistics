@@ -192,6 +192,23 @@ const generateProtocolPdfFromPage = async ({ siteUrl, checklistId, authToken }) 
     }
     await new Promise((resolve) => setTimeout(resolve, 800));
     await page.emulateMediaType("print");
+    try {
+      const client = await page.target().createCDPSession();
+      const pdfData = await client.send("Page.printToPDF", {
+        printBackground: true,
+        preferCSSPageSize: true,
+        transferMode: "ReturnAsBase64",
+        marginTop: 0,
+        marginBottom: 0,
+        marginLeft: 0,
+        marginRight: 0,
+      });
+      if (pdfData?.data) {
+        return Buffer.from(pdfData.data, "base64");
+      }
+    } catch (err) {
+      // Fallback to default pdf generation below.
+    }
     const pdf = await page.pdf({
       format: "A4",
       printBackground: true,
