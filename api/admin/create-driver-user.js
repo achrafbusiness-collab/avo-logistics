@@ -170,7 +170,8 @@ export default async function handler(req, res) {
     }
 
     const { email, profile, login_url } = await readJsonBody(req);
-    if (!email) {
+    const normalizedEmail = String(email || "").trim().toLowerCase();
+    if (!normalizedEmail) {
       res.status(400).json({ ok: false, error: "Missing email" });
       return;
     }
@@ -184,7 +185,7 @@ export default async function handler(req, res) {
     const { data: existingProfile, error: existingProfileError } = await supabaseAdmin
       .from("profiles")
       .select("id, role, company_id, full_name, phone")
-      .eq("email", email)
+      .eq("email", normalizedEmail)
       .maybeSingle();
     if (existingProfileError) {
       res.status(500).json({ ok: false, error: existingProfileError.message });
@@ -203,14 +204,14 @@ export default async function handler(req, res) {
 
     let user = existingProfile?.id ? await getAuthUserById(existingProfile.id) : null;
     if (!user) {
-      user = await getAuthUserByEmail(email);
+      user = await getAuthUserByEmail(normalizedEmail);
     }
 
     if (!user) {
       const tempPassword = crypto.randomBytes(12).toString("base64url");
       const { data: createUserData, error: createUserError } =
         await supabaseAdmin.auth.admin.createUser({
-          email,
+          email: normalizedEmail,
           password: tempPassword,
           email_confirm: true,
           user_metadata: {
@@ -250,7 +251,7 @@ export default async function handler(req, res) {
     await supabaseAdmin
       .from("drivers")
       .update({ status: "pending" })
-      .eq("email", email)
+      .eq("email", normalizedEmail)
       .eq("company_id", companyId);
 
     const { data: settings } = await supabaseAdmin
@@ -270,7 +271,7 @@ export default async function handler(req, res) {
 
     const { data: linkData } = await supabaseAdmin.auth.admin.generateLink({
       type: "recovery",
-      email,
+      email: normalizedEmail,
       options: { redirectTo: effectiveRedirect },
     });
 
@@ -279,7 +280,7 @@ export default async function handler(req, res) {
     const verificationType = linkData?.properties?.verification_type || "recovery";
     const appLink = buildAppLink({
       baseUrl: normalizedPublicUrl,
-      email,
+      email: normalizedEmail,
       otp: emailOtp,
       type: verificationType,
     });
@@ -320,7 +321,7 @@ Bitte richte jetzt dein Passwort ein:
 ${actionLink}
 
 Login: ${loginUrl}
-E-Mail: ${email}
+E-Mail: ${normalizedEmail}
 
 Viele Grüße
 ${companyName}`;
@@ -361,7 +362,7 @@ ${companyName}`;
               <a href="${actionLink}" style="color:${brandSecondary};">${actionLink}</a>
             </p>
             <p style="margin:0; font-size:13px;">Login: <a href="${loginUrl}">${loginUrl}</a></p>
-            <p style="margin:0; font-size:13px;">E-Mail: ${email}</p>
+            <p style="margin:0; font-size:13px;">E-Mail: ${normalizedEmail}</p>
           </div>
         </div>
       </td>
@@ -376,10 +377,10 @@ ${companyName}`;
     } else {
       try {
         await sendEmail({
-          to: email,
-          subject,
-          text,
-          html,
+        to: normalizedEmail,
+        subject,
+        text,
+        html,
           replyTo,
           from: fromAddress,
           smtp: resolvedSmtp,
@@ -394,7 +395,7 @@ ${companyName}`;
     res.status(200).json({
       ok: true,
       data: {
-        email,
+        email: normalizedEmail,
         loginUrl,
         resetLink: actionLink,
         emailSent,

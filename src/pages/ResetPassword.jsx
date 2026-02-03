@@ -26,6 +26,8 @@ const validatePassword = (value) => {
   return "";
 };
 
+const normalizeEmail = (value) => String(value || "").trim().toLowerCase();
+
 export default function ResetPassword() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -40,10 +42,11 @@ export default function ResetPassword() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search || "");
     const queryEmail = params.get("email") || "";
+    const normalizedQueryEmail = normalizeEmail(queryEmail);
     const token = params.get("token") || "";
     const type = params.get("type") || "";
-    if (queryEmail) {
-      setEmail((prev) => prev || queryEmail);
+    if (normalizedQueryEmail) {
+      setEmail((prev) => prev || normalizedQueryEmail);
     }
 
     const loadSession = async () => {
@@ -51,17 +54,23 @@ export default function ResetPassword() {
       const session = data?.session || null;
       setHasSession(!!session);
       if (session?.user?.email) {
-        setEmail((prev) => prev || session.user.email || "");
+        setEmail((prev) => prev || normalizeEmail(session.user.email) || "");
       }
     };
 
     const verifyToken = async () => {
-      if (!token || !type || !queryEmail) return;
+      if (!token || !type || !normalizedQueryEmail) return;
       setVerifying(true);
       setError("");
       try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const sessionEmail = normalizeEmail(sessionData?.session?.user?.email);
+        if (sessionEmail && sessionEmail !== normalizedQueryEmail) {
+          await supabase.auth.signOut();
+          setHasSession(false);
+        }
         const { data, error: verifyError } = await supabase.auth.verifyOtp({
-          email: queryEmail,
+          email: normalizedQueryEmail,
           token,
           type,
         });
@@ -70,6 +79,7 @@ export default function ResetPassword() {
         }
         if (data?.session) {
           setHasSession(true);
+          setEmail(normalizedQueryEmail);
           window.history.replaceState({}, document.title, "/reset-password");
         }
       } catch (err) {
@@ -142,7 +152,8 @@ export default function ResetPassword() {
   const handleSendReset = async () => {
     setError("");
     setMessage("");
-    if (!email.trim()) {
+    const normalizedEmail = normalizeEmail(email);
+    if (!normalizedEmail) {
       setError("Bitte E-Mail-Adresse eingeben.");
       return;
     }
@@ -154,7 +165,7 @@ export default function ResetPassword() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          email: email.trim(),
+          email: normalizedEmail,
           purpose: "recovery",
           redirectTo: getPublicResetUrl(),
         }),
