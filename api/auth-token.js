@@ -3,18 +3,34 @@ const readRawBody = async (req) => {
     if (typeof req.body === "string") {
       return req.body;
     }
-    if (Buffer.isBuffer(req.body)) {
+    const hasBuffer = typeof Buffer !== "undefined";
+    if (hasBuffer && Buffer.isBuffer(req.body)) {
       return req.body.toString("utf-8");
     }
     if (req.body && typeof req.body === "object") {
       return JSON.stringify(req.body);
     }
-    const chunks = [];
+    let body = "";
     for await (const chunk of req) {
-      chunks.push(chunk);
+      if (typeof chunk === "string") {
+        body += chunk;
+        continue;
+      }
+      if (hasBuffer && Buffer.isBuffer(chunk)) {
+        body += chunk.toString("utf-8");
+        continue;
+      }
+      if (chunk instanceof Uint8Array) {
+        body += new TextDecoder("utf-8").decode(chunk);
+        continue;
+      }
+      try {
+        body += String(chunk);
+      } catch {
+        body += "";
+      }
     }
-    if (!chunks.length) return "";
-    return Buffer.concat(chunks).toString("utf-8");
+    return body;
   } catch (error) {
     console.warn("auth-token read body failed", error);
     return "";
@@ -23,7 +39,8 @@ const readRawBody = async (req) => {
 
 const buildForwardBody = (req, raw) => {
   const type = String(req?.headers?.["content-type"] || "").toLowerCase();
-  if (req?.body && typeof req.body === "object" && !Buffer.isBuffer(req.body)) {
+  const hasBuffer = typeof Buffer !== "undefined";
+  if (req?.body && typeof req.body === "object" && !(hasBuffer && Buffer.isBuffer(req.body))) {
     try {
       return new URLSearchParams(req.body).toString();
     } catch {
@@ -87,6 +104,9 @@ export default async function handler(req, res) {
     const forwardUrl = `${supabaseUrl.replace(/\\/$/, "")}/auth/v1/token?grant_type=${encodeURIComponent(
       grantType
     )}`;
+    if (typeof fetch !== "function") {
+      throw new Error("fetch ist nicht verfügbar.");
+    }
     const response = await fetch(forwardUrl, {
       method: "POST",
       headers: {
