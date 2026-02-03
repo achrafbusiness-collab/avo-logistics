@@ -35,10 +35,18 @@ export default async function handler(req, res) {
     return;
   }
 
-  const supabaseUrl =
+  const rawSupabaseUrl =
     process.env.SUPABASE_URL ||
     process.env.VITE_SUPABASE_URL ||
     process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseUrl = (() => {
+    const trimmed = String(rawSupabaseUrl || "").trim();
+    if (!trimmed) return "";
+    if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+      return trimmed.replace(/\/$/, "");
+    }
+    return `https://${trimmed.replace(/\/$/, "")}`;
+  })();
   const anonKey =
     process.env.SUPABASE_ANON_KEY ||
     process.env.VITE_SUPABASE_ANON_KEY ||
@@ -47,7 +55,14 @@ export default async function handler(req, res) {
   const apiKey = anonKey || serviceRoleKey;
 
   if (!supabaseUrl || !apiKey) {
-    res.status(500).json({ error: "Supabase env vars missing" });
+    res.status(500).json({
+      error: "Supabase env vars missing",
+      details: {
+        hasUrl: Boolean(supabaseUrl),
+        hasAnonKey: Boolean(anonKey),
+        hasServiceRole: Boolean(serviceRoleKey),
+      },
+    });
     return;
   }
 
