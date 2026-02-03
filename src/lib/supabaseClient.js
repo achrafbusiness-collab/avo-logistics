@@ -21,7 +21,7 @@ const createFetchWithProxy = () => {
     if (baseUrl && url.startsWith(baseUrl) && url.includes("/auth/v1/user")) {
       return fetch("/api/auth-user", init);
     }
-    if (baseUrl && url.startsWith(baseUrl) && url.includes("/auth/v1/token?grant_type=refresh_token")) {
+    if (baseUrl && url.startsWith(baseUrl) && url.includes("/auth/v1/token?grant_type=")) {
       return fetch("/api/auth-token", init);
     }
     return fetch(input, init);

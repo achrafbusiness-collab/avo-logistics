@@ -1,29 +1,29 @@
-const readJsonBody = async (req) => {
-  if (req.body && typeof req.body === "object") {
+const readRawBody = async (req) => {
+  if (typeof req.body === "string") {
     return req.body;
+  }
+  if (req.body && typeof req.body === "object") {
+    return JSON.stringify(req.body);
   }
   const chunks = [];
   for await (const chunk of req) {
     chunks.push(chunk);
   }
-  if (!chunks.length) return {};
-  const raw = Buffer.concat(chunks).toString("utf-8");
-  if (!raw) return {};
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return { _raw: raw };
-  }
+  if (!chunks.length) return "";
+  return Buffer.concat(chunks).toString("utf-8");
 };
 
-const extractRefreshToken = (body) => {
-  if (!body) return "";
-  if (typeof body.refresh_token === "string") return body.refresh_token;
-  if (typeof body._raw === "string") {
-    const params = new URLSearchParams(body._raw);
-    return params.get("refresh_token") || "";
+const buildForwardBody = (raw, contentType) => {
+  const type = String(contentType || "").toLowerCase();
+  if (type.includes("application/json")) {
+    try {
+      const parsed = JSON.parse(raw || "{}");
+      return new URLSearchParams(parsed).toString();
+    } catch {
+      return raw || "";
+    }
   }
-  return "";
+  return raw || "";
 };
 
 export default async function handler(req, res) {
@@ -42,26 +42,24 @@ export default async function handler(req, res) {
     return;
   }
 
-  const body = await readJsonBody(req);
-  const refreshToken = extractRefreshToken(body);
-  if (!refreshToken) {
-    res.status(400).json({ error: "Missing refresh_token" });
-    return;
-  }
+  const rawBody = await readRawBody(req);
+  const forwardBody = buildForwardBody(rawBody, req.headers["content-type"]);
 
   try {
-    const response = await fetch(
-      `${supabaseUrl.replace(/\\/$/, "")}/auth/v1/token?grant_type=refresh_token`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-          apikey: apiKey,
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: new URLSearchParams({ refresh_token: refreshToken }).toString(),
-      }
-    );
+    const incomingUrl = new URL(req.url || "/auth-token", "http://localhost");
+    const grantType = incomingUrl.searchParams.get("grant_type") || "refresh_token";
+    const forwardUrl = `${supabaseUrl.replace(/\\/$/, "")}/auth/v1/token?grant_type=${encodeURIComponent(
+      grantType
+    )}`;
+    const response = await fetch(forwardUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        apikey: apiKey,
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: forwardBody,
+    });
     const data = await response.json();
     res.status(response.status).json(data);
   } catch (error) {
