@@ -45,6 +45,11 @@ export default function ResetPassword() {
     const normalizedQueryEmail = normalizeEmail(queryEmail);
     const token = params.get("token") || "";
     const type = params.get("type") || "";
+    const hashParams = new URLSearchParams(
+      String(window.location.hash || "").replace(/^#/, "")
+    );
+    const hashAccessToken = hashParams.get("access_token") || "";
+    const hashRefreshToken = hashParams.get("refresh_token") || "";
     if (normalizedQueryEmail) {
       setEmail((prev) => prev || normalizedQueryEmail);
     }
@@ -89,8 +94,28 @@ export default function ResetPassword() {
       }
     };
 
-    loadSession();
-    verifyToken();
+    const applyHashSession = async () => {
+      if (!hashAccessToken || !hashRefreshToken) return false;
+      try {
+        await supabase.auth.setSession({
+          access_token: hashAccessToken,
+          refresh_token: hashRefreshToken,
+        });
+        window.history.replaceState({}, document.title, "/reset-password");
+        return true;
+      } catch (err) {
+        console.warn("Hash session set failed", err);
+        return false;
+      }
+    };
+
+    (async () => {
+      const appliedHash = await applyHashSession();
+      await loadSession();
+      if (!appliedHash) {
+        await verifyToken();
+      }
+    })();
 
     const { data: listener } = supabase.auth.onAuthStateChange(() => {
       loadSession();
