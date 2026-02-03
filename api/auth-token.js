@@ -35,7 +35,10 @@ export default async function handler(req, res) {
     return;
   }
 
-  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseUrl =
+    process.env.SUPABASE_URL ||
+    process.env.VITE_SUPABASE_URL ||
+    process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey =
     process.env.SUPABASE_ANON_KEY ||
     process.env.VITE_SUPABASE_ANON_KEY ||
@@ -66,8 +69,22 @@ export default async function handler(req, res) {
       },
       body: forwardBody,
     });
-    const data = await response.json();
-    res.status(response.status).json(data);
+    let data = null;
+    let text = "";
+    try {
+      data = await response.json();
+    } catch (err) {
+      try {
+        text = await response.text();
+      } catch {
+        text = "";
+      }
+    }
+    if (data) {
+      res.status(response.status).json(data);
+      return;
+    }
+    res.status(response.status).send(text || "");
   } catch (error) {
     res.status(500).json({ error: error?.message || "Unknown error" });
   }
