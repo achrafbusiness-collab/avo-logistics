@@ -202,12 +202,13 @@ export default async function handler(req, res) {
     }
 
     let user = existingProfile?.id ? await getAuthUserById(existingProfile.id) : null;
+    let tempPassword = "";
     if (!user) {
       user = await getAuthUserByEmail(email);
     }
 
     if (!user) {
-      const tempPassword = crypto.randomBytes(12).toString("base64url");
+      tempPassword = crypto.randomBytes(12).toString("base64url");
       const { data: createUserData, error: createUserError } =
         await supabaseAdmin.auth.admin.createUser({
           email,
@@ -399,6 +400,7 @@ ${companyName}`;
         resetLink: actionLink,
         emailSent,
         emailError,
+        tempPassword: tempPassword || null,
       },
     });
   } catch (error) {

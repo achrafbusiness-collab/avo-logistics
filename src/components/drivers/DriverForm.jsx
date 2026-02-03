@@ -470,6 +470,20 @@ export default function DriverForm({ driver, onSave, onCancel }) {
                 {loginResult && (
                   <div className="space-y-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
                     <p>Einladungs-E-Mail wurde verarbeitet.</p>
+                    {loginResult.tempPassword && (
+                      <div className="flex items-center gap-2">
+                        <Input value={loginResult.tempPassword} readOnly />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() =>
+                            navigator.clipboard?.writeText(loginResult.tempPassword || '')
+                          }
+                        >
+                          Passwort kopieren
+                        </Button>
+                      </div>
+                    )}
                     {loginResult.loginUrl && (
                       <div className="flex items-center gap-2">
                         <Input value={loginResult.loginUrl} readOnly />
