@@ -26,8 +26,6 @@ const validatePassword = (value) => {
   return "";
 };
 
-const normalizeEmail = (value) => String(value || "").trim().toLowerCase();
-
 export default function ResetPassword() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -42,16 +40,10 @@ export default function ResetPassword() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search || "");
     const queryEmail = params.get("email") || "";
-    const normalizedQueryEmail = normalizeEmail(queryEmail);
     const token = params.get("token") || "";
     const type = params.get("type") || "";
-    const hashParams = new URLSearchParams(
-      String(window.location.hash || "").replace(/^#/, "")
-    );
-    const hashAccessToken = hashParams.get("access_token") || "";
-    const hashRefreshToken = hashParams.get("refresh_token") || "";
-    if (normalizedQueryEmail) {
-      setEmail((prev) => prev || normalizedQueryEmail);
+    if (queryEmail) {
+      setEmail((prev) => prev || queryEmail);
     }
 
     const loadSession = async () => {
@@ -59,23 +51,17 @@ export default function ResetPassword() {
       const session = data?.session || null;
       setHasSession(!!session);
       if (session?.user?.email) {
-        setEmail((prev) => prev || normalizeEmail(session.user.email) || "");
+        setEmail((prev) => prev || session.user.email || "");
       }
     };
 
     const verifyToken = async () => {
-      if (!token || !type || !normalizedQueryEmail) return;
+      if (!token || !type || !queryEmail) return;
       setVerifying(true);
       setError("");
       try {
-        const { data: sessionData } = await supabase.auth.getSession();
-        const sessionEmail = normalizeEmail(sessionData?.session?.user?.email);
-        if (sessionEmail && sessionEmail !== normalizedQueryEmail) {
-          await supabase.auth.signOut();
-          setHasSession(false);
-        }
         const { data, error: verifyError } = await supabase.auth.verifyOtp({
-          email: normalizedQueryEmail,
+          email: queryEmail,
           token,
           type,
         });
@@ -84,7 +70,6 @@ export default function ResetPassword() {
         }
         if (data?.session) {
           setHasSession(true);
-          setEmail(normalizedQueryEmail);
           window.history.replaceState({}, document.title, "/reset-password");
         }
       } catch (err) {
@@ -94,28 +79,8 @@ export default function ResetPassword() {
       }
     };
 
-    const applyHashSession = async () => {
-      if (!hashAccessToken || !hashRefreshToken) return false;
-      try {
-        await supabase.auth.setSession({
-          access_token: hashAccessToken,
-          refresh_token: hashRefreshToken,
-        });
-        window.history.replaceState({}, document.title, "/reset-password");
-        return true;
-      } catch (err) {
-        console.warn("Hash session set failed", err);
-        return false;
-      }
-    };
-
-    (async () => {
-      const appliedHash = await applyHashSession();
-      await loadSession();
-      if (!appliedHash) {
-        await verifyToken();
-      }
-    })();
+    loadSession();
+    verifyToken();
 
     const { data: listener } = supabase.auth.onAuthStateChange(() => {
       loadSession();
@@ -177,8 +142,7 @@ export default function ResetPassword() {
   const handleSendReset = async () => {
     setError("");
     setMessage("");
-    const normalizedEmail = normalizeEmail(email);
-    if (!normalizedEmail) {
+    if (!email.trim()) {
       setError("Bitte E-Mail-Adresse eingeben.");
       return;
     }
@@ -190,7 +154,7 @@ export default function ResetPassword() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          email: normalizedEmail,
+          email: email.trim(),
           purpose: "recovery",
           redirectTo: getPublicResetUrl(),
         }),

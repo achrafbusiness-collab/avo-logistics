@@ -44,11 +44,7 @@ export default function LoginPortal({
     setResetSent(false);
     setSubmitting(true);
     try {
-      const cleanEmail = email.trim().toLowerCase();
-      if (!cleanEmail) {
-        throw new Error(t('login.errors.invalidEmail'));
-      }
-      const user = await appClient.auth.login({ email: cleanEmail, password });
+      const user = await appClient.auth.login({ email, password });
       if (user?.must_reset_password) {
         window.location.href = "/reset-password";
         return;
@@ -63,7 +59,7 @@ export default function LoginPortal({
 
   const handleReset = async () => {
     setError('');
-    const targetEmail = email.trim().toLowerCase();
+    const targetEmail = email.trim();
     const query = targetEmail ? `?email=${encodeURIComponent(targetEmail)}` : '';
     window.location.href = `/reset-password${query}`;
   };
