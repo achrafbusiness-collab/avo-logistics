@@ -13,8 +13,11 @@ const readRawBody = async (req) => {
   return Buffer.concat(chunks).toString("utf-8");
 };
 
-const buildForwardBody = (raw, contentType) => {
-  const type = String(contentType || "").toLowerCase();
+const buildForwardBody = (req, raw) => {
+  const type = String(req?.headers?.["content-type"] || "").toLowerCase();
+  if (req?.body && typeof req.body === "object" && !Buffer.isBuffer(req.body)) {
+    return new URLSearchParams(req.body).toString();
+  }
   if (type.includes("application/json")) {
     try {
       const parsed = JSON.parse(raw || "{}");
@@ -46,7 +49,7 @@ export default async function handler(req, res) {
   }
 
   const rawBody = await readRawBody(req);
-  const forwardBody = buildForwardBody(rawBody, req.headers["content-type"]);
+  const forwardBody = buildForwardBody(req, rawBody);
 
   try {
     const incomingUrl = new URL(req.url || "/auth-token", "http://localhost");
