@@ -63,7 +63,7 @@ const buildFromAddress = ({ name, address, fallback }) => {
 
 const sendEmail = async ({ from, to, subject, html, text, replyTo, smtp, attachments }) => {
   if (!canSendEmail(smtp)) {
-    return false;
+    throw new Error("SMTP ist nicht konfiguriert.");
   }
   const transporter = nodemailer.createTransport({
     host: smtp.host,
@@ -83,7 +83,6 @@ const sendEmail = async ({ from, to, subject, html, text, replyTo, smtp, attachm
     replyTo,
     attachments,
   });
-  return true;
 };
 
 const formatAddress = (parts) =>
@@ -317,7 +316,7 @@ Wenn du diese E-Mail erhalten hast, ist SMTP korrekt eingerichtet.`;
 </ul>
 <p>Wenn du diese E-Mail erhalten hast, ist SMTP korrekt eingerichtet.</p>`;
       try {
-        const emailSent = await sendEmail({
+        await sendEmail({
           to: target,
           subject,
           text,
@@ -326,10 +325,6 @@ Wenn du diese E-Mail erhalten hast, ist SMTP korrekt eingerichtet.`;
           replyTo,
           smtp: resolvedSmtp,
         });
-        if (!emailSent) {
-          res.status(400).json({ ok: false, error: "Test-E-Mail konnte nicht gesendet werden." });
-          return;
-        }
         res.status(200).json({ ok: true, data: { emailSent: true } });
         return;
       } catch (err) {
@@ -414,7 +409,7 @@ ${companyName}`;
   </table>
 </div>`;
       try {
-        const emailSent = await sendEmail({
+        await sendEmail({
           to: target,
           subject,
           text,
@@ -423,16 +418,17 @@ ${companyName}`;
           replyTo,
           smtp: resolvedSmtp,
         });
-        if (!emailSent) {
-          res.status(400).json({ ok: false, error: "Willkommens-E-Mail konnte nicht gesendet werden." });
-          return;
-        }
         res.status(200).json({ ok: true, data: { emailSent: true } });
         return;
       } catch (err) {
         res.status(400).json({ ok: false, error: err?.message || "Willkommens-E-Mail fehlgeschlagen." });
         return;
       }
+    }
+
+    if (!canSendEmail(resolvedSmtp)) {
+      res.status(400).json({ ok: false, error: "SMTP ist nicht konfiguriert." });
+      return;
     }
 
     if (!orderId) {
@@ -750,9 +746,8 @@ Bei Fragen kontaktiere bitte deinen Disponenten.`;
   </table>
 </div>`;
 
-    let emailSent = false;
     try {
-      emailSent = await sendEmail({
+      await sendEmail({
         to: driver.email,
         subject,
         text,
@@ -762,10 +757,11 @@ Bei Fragen kontaktiere bitte deinen Disponenten.`;
         smtp: resolvedSmtp,
       });
     } catch (err) {
-      emailSent = false;
+      res.status(400).json({ ok: false, error: err?.message || "E-Mail konnte nicht gesendet werden." });
+      return;
     }
 
-    res.status(200).json({ ok: true, data: { emailSent } });
+    res.status(200).json({ ok: true, data: { emailSent: true } });
   } catch (error) {
     res.status(500).json({ ok: false, error: error?.message || "Unknown error" });
   }

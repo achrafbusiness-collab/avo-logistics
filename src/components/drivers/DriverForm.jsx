@@ -496,7 +496,9 @@ export default function DriverForm({ driver, onSave, onCancel }) {
                     )}
                     {!loginResult.emailSent && (
                       <p className="text-xs text-emerald-700">
-                        E-Mail konnte nicht gesendet werden. Bitte Link manuell weitergeben.
+                        {loginResult.emailError
+                          ? `E-Mail konnte nicht gesendet werden: ${loginResult.emailError}`
+                          : "E-Mail konnte nicht gesendet werden. Bitte Link manuell weitergeben."}
                       </p>
                     )}
                     <p className="text-xs text-emerald-700">

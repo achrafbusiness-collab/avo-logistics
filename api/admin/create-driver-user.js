@@ -124,7 +124,7 @@ const buildFromAddress = ({ name, address, fallback }) => {
 
 const sendEmail = async ({ to, subject, html, text, replyTo, from, smtp }) => {
   if (!canSendEmail(smtp)) {
-    return false;
+    throw new Error("SMTP ist nicht konfiguriert.");
   }
   const transporter = nodemailer.createTransport({
     host: smtp.host,
@@ -143,7 +143,6 @@ const sendEmail = async ({ to, subject, html, text, replyTo, from, smtp }) => {
     html,
     replyTo,
   });
-  return true;
 };
 
 export default async function handler(req, res) {
@@ -371,18 +370,25 @@ ${companyName}`;
 </div>`;
 
     let emailSent = false;
-    try {
-      emailSent = await sendEmail({
-        to: email,
-        subject,
-        text,
-        html,
-        replyTo,
-        from: fromAddress,
-        smtp: resolvedSmtp,
-      });
-    } catch (err) {
-      emailSent = false;
+    let emailError = "";
+    if (!canSendEmail(resolvedSmtp)) {
+      emailError = "SMTP ist nicht konfiguriert. Bitte im Admin Controlling speichern.";
+    } else {
+      try {
+        await sendEmail({
+          to: email,
+          subject,
+          text,
+          html,
+          replyTo,
+          from: fromAddress,
+          smtp: resolvedSmtp,
+        });
+        emailSent = true;
+      } catch (err) {
+        emailSent = false;
+        emailError = err?.message || "E-Mail konnte nicht gesendet werden.";
+      }
     }
 
     res.status(200).json({
@@ -392,6 +398,7 @@ ${companyName}`;
         loginUrl,
         resetLink: actionLink,
         emailSent,
+        emailError,
       },
     });
   } catch (error) {
