@@ -233,6 +233,18 @@ export default async function handler(req, res) {
       return;
     }
 
+    if (!tempPassword && user?.id) {
+      tempPassword = crypto.randomBytes(12).toString("base64url");
+      const { error: updatePasswordError } = await supabaseAdmin.auth.admin.updateUserById(
+        user.id,
+        { password: tempPassword }
+      );
+      if (updatePasswordError) {
+        res.status(400).json({ ok: false, error: updatePasswordError.message });
+        return;
+      }
+    }
+
     const profilePayload = {
       id: user.id,
       email: user.email,
