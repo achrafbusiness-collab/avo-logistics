@@ -11,6 +11,7 @@ import {
   Fuel,
   ArrowRight,
   CheckCircle2,
+  ChevronDown,
 } from 'lucide-react';
 import {
   format,
@@ -141,6 +142,8 @@ export default function Statistics() {
   const [customTo, setCustomTo] = useState(() => toDateInput(defaultLastWeek.to));
   const [search, setSearch] = useState('');
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [ordersOpen, setOrdersOpen] = useState(true);
+  const [driverCostsOpen, setDriverCostsOpen] = useState(true);
   const [currentUser, setCurrentUser] = useState(null);
   const [targetMonth, setTargetMonth] = useState(() => format(new Date(), 'yyyy-MM'));
   const [profitTargetInput, setProfitTargetInput] = useState('');
@@ -861,8 +864,22 @@ export default function Statistics() {
 
       <Card className="border border-slate-200/80 bg-white/90">
         <CardHeader className="pb-2">
-          <CardTitle className="text-lg">Aufträge im Zeitraum</CardTitle>
+          <div className="flex items-center justify-between gap-4">
+            <CardTitle className="text-lg">Aufträge im Zeitraum</CardTitle>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setOrdersOpen((prev) => !prev)}
+              className="text-slate-600 hover:text-slate-900"
+            >
+              <ChevronDown
+                className={`h-4 w-4 transition-transform ${ordersOpen ? "rotate-180" : ""}`}
+              />
+            </Button>
+          </div>
         </CardHeader>
+        {ordersOpen && (
         <CardContent className="space-y-4">
           <div className="relative max-w-md">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -924,12 +941,27 @@ export default function Statistics() {
             </div>
           )}
         </CardContent>
+        )}
       </Card>
 
       <Card className="border border-slate-200/80 bg-white/90">
         <CardHeader className="pb-2">
-          <CardTitle className="text-lg">Fahrer-Kosten im Zeitraum</CardTitle>
+          <div className="flex items-center justify-between gap-4">
+            <CardTitle className="text-lg">Fahrer-Kosten im Zeitraum</CardTitle>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setDriverCostsOpen((prev) => !prev)}
+              className="text-slate-600 hover:text-slate-900"
+            >
+              <ChevronDown
+                className={`h-4 w-4 transition-transform ${driverCostsOpen ? "rotate-180" : ""}`}
+              />
+            </Button>
+          </div>
         </CardHeader>
+        {driverCostsOpen && (
         <CardContent className="space-y-4">
           {loading ? (
             <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
@@ -974,6 +1006,7 @@ export default function Statistics() {
             </div>
           )}
         </CardContent>
+        )}
       </Card>
 
       <Dialog open={Boolean(selectedOrder)} onOpenChange={(open) => !open && setSelectedOrder(null)}>
