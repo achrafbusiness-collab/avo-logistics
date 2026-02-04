@@ -53,11 +53,9 @@ export default function EmailAIImport() {
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
   const previewTextareaRef = useRef(null);
-  const appSettingsRef = useRef(null);
-
   const { data: appSettings = [] } = useQuery({
     queryKey: ["appSettings"],
-    queryFn: () => appClient.entities.AppSettings.list("-created_date", 1),
+    queryFn: () => appClient.entities.AppSettings.list("-created_date", 10),
   });
 
   const isAllSelected = useMemo(() => {
@@ -308,9 +306,13 @@ export default function EmailAIImport() {
   };
 
   useEffect(() => {
-    if (appSettingsRef.current === "done") return;
-    const fromSettings = appSettings[0];
-    if (fromSettings?.imap_user && fromSettings?.imap_pass && fromSettings?.imap_host) {
+    const settingsList = Array.isArray(appSettings) ? appSettings : [];
+    const fromSettings =
+      settingsList.find(
+        (item) => item?.imap_user && item?.imap_pass && item?.imap_host
+      ) || null;
+
+    if (fromSettings) {
       const providerValue = detectProviderFromHost(fromSettings.imap_host);
       setProvider(providerValue);
       setImap((prev) => ({
@@ -323,13 +325,11 @@ export default function EmailAIImport() {
       }));
       setHasStoredConfig(true);
       setAutoConnect(true);
-      appSettingsRef.current = "done";
       return;
     }
 
     setHasStoredConfig(false);
     setStep("list");
-    appSettingsRef.current = "done";
   }, [appSettings]);
 
   useEffect(() => {
