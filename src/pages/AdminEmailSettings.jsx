@@ -19,11 +19,6 @@ const defaultSettings = {
   smtp_user: "",
   smtp_pass: "",
   smtp_secure: true,
-  imap_host: "",
-  imap_port: "",
-  imap_user: "",
-  imap_pass: "",
-  imap_secure: true,
 };
 
 export default function AdminEmailSettings() {
@@ -35,9 +30,6 @@ export default function AdminEmailSettings() {
   const [testSending, setTestSending] = useState(false);
   const [testMessage, setTestMessage] = useState("");
   const [testError, setTestError] = useState("");
-  const [imapTesting, setImapTesting] = useState(false);
-  const [imapMessage, setImapMessage] = useState("");
-  const [imapError, setImapError] = useState("");
 
   const toIntOrNull = (value) => {
     if (value === null || value === undefined || value === "") return null;
@@ -57,17 +49,6 @@ export default function AdminEmailSettings() {
     });
   };
 
-  const handleImapPortChange = (value) => {
-    setSettings((prev) => {
-      const parsed = Number(value);
-      const next = { ...prev, imap_port: value };
-      if (Number.isFinite(parsed)) {
-        if (parsed === 993) next.imap_secure = true;
-        if (parsed === 143) next.imap_secure = false;
-      }
-      return next;
-    });
-  };
 
   const { data: appSettings = [] } = useQuery({
     queryKey: ["appSettings"],
@@ -81,27 +62,10 @@ export default function AdminEmailSettings() {
         ...defaultSettings,
         ...current,
         smtp_port: current.smtp_port ? String(current.smtp_port) : "",
-        imap_port: current.imap_port ? String(current.imap_port) : "",
       });
       setTestEmail((prev) => prev || appSettings[0].smtp_user || "");
     }
   }, [appSettings]);
-
-  useEffect(() => {
-    setSettings((prev) => {
-      let next = prev;
-      let changed = false;
-      if (prev.smtp_host && !prev.imap_host) {
-        next = { ...next, imap_host: prev.smtp_host };
-        changed = true;
-      }
-      if (prev.smtp_user && !prev.imap_user) {
-        next = { ...next, imap_user: prev.smtp_user };
-        changed = true;
-      }
-      return changed ? next : prev;
-    });
-  }, [settings.smtp_host, settings.smtp_user]);
 
   useEffect(() => {
     if (!settings.smtp_host || settings.smtp_port) return;
@@ -111,13 +75,6 @@ export default function AdminEmailSettings() {
     });
   }, [settings.smtp_host, settings.smtp_port, settings.smtp_secure]);
 
-  useEffect(() => {
-    if (!settings.imap_host || settings.imap_port) return;
-    setSettings((prev) => {
-      if (!prev.imap_host || prev.imap_port) return prev;
-      return { ...prev, imap_port: prev.imap_secure ? "993" : "143" };
-    });
-  }, [settings.imap_host, settings.imap_port, settings.imap_secure]);
 
   const createMutation = useMutation({
     mutationFn: (data) => appClient.entities.AppSettings.create(data),
@@ -144,9 +101,7 @@ export default function AdminEmailSettings() {
     const payload = {
       ...settings,
       smtp_port: toIntOrNull(settings.smtp_port),
-      imap_port: toIntOrNull(settings.imap_port),
       smtp_secure: Boolean(settings.smtp_secure),
-      imap_secure: Boolean(settings.imap_secure),
     };
     try {
       if (appSettings.length > 0) {
@@ -162,56 +117,9 @@ export default function AdminEmailSettings() {
 
   const getAuthToken = async () => {
     const { data } = await supabase.auth.getSession();
-    if (data?.session?.access_token) {
-      return data.session.access_token;
-    }
+    if (data?.session?.access_token) return data.session.access_token;
     const { data: refreshed } = await supabase.auth.refreshSession();
     return refreshed?.session?.access_token || null;
-  };
-
-  const handleImapConnect = async () => {
-    setImapMessage("");
-    setImapError("");
-    if (!settings.imap_host.trim() || !settings.imap_user.trim() || !settings.imap_pass.trim()) {
-      setImapError("Bitte IMAP Host, Benutzer und Passwort eingeben.");
-      return;
-    }
-    setImapTesting(true);
-    try {
-      await handleSave();
-      const token = await getAuthToken();
-      if (!token) {
-        throw new Error("Nicht angemeldet.");
-      }
-      const response = await fetch("/api/admin/email-import", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          action: "list",
-          limit: 1,
-          imap: {
-            host: settings.imap_host.trim(),
-            port: toIntOrNull(settings.imap_port),
-            secure: Boolean(settings.imap_secure),
-            user: settings.imap_user.trim(),
-            pass: settings.imap_pass,
-            mailbox: "INBOX",
-          },
-        }),
-      });
-      const payload = await response.json();
-      if (!response.ok || !payload?.ok) {
-        throw new Error(payload?.error || "IMAP Verbindung fehlgeschlagen.");
-      }
-      setImapMessage("Postfach verbunden. E-Mails werden im Email AI Import angezeigt.");
-    } catch (error) {
-      setImapError(error?.message || "IMAP Verbindung fehlgeschlagen.");
-    } finally {
-      setImapTesting(false);
-    }
   };
 
   const handleSendTest = async () => {
@@ -223,8 +131,7 @@ export default function AdminEmailSettings() {
     }
     setTestSending(true);
     try {
-      const { data } = await supabase.auth.getSession();
-      const token = data?.session?.access_token;
+      const token = await getAuthToken();
       if (!token) {
         throw new Error("Nicht angemeldet.");
       }
@@ -265,8 +172,7 @@ export default function AdminEmailSettings() {
       <div>
         <h1 className="text-2xl font-bold text-slate-900">E-Mail Postfach</h1>
         <p className="text-sm text-slate-500">
-          SMTP wird für den Versand der Fahrer-Auftragsbestätigungen genutzt. IMAP ist optional
-          (nur falls du das Postfach verbinden möchtest).
+          SMTP wird für den Versand der Fahrer-Auftragsbestätigungen genutzt.
         </p>
       </div>
 
@@ -387,86 +293,6 @@ export default function AdminEmailSettings() {
               }
             />
             <span className="text-sm text-slate-600">TLS/SSL aktiv</span>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Server className="h-5 w-5" />
-            IMAP (optional)
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div>
-            <Label>IMAP Host</Label>
-            <Input
-              value={settings.imap_host}
-              onChange={(e) => setSettings({ ...settings, imap_host: e.target.value })}
-              placeholder="imap.deine-domain.de"
-            />
-          </div>
-          <div>
-            <Label>IMAP Port</Label>
-            <Input
-              type="number"
-              value={settings.imap_port}
-              onChange={(e) => handleImapPortChange(e.target.value)}
-              placeholder="993"
-            />
-          </div>
-          <div>
-            <Label>IMAP Benutzer</Label>
-            <Input
-              value={settings.imap_user}
-              onChange={(e) => setSettings({ ...settings, imap_user: e.target.value })}
-              placeholder="info@deine-domain.de"
-            />
-          </div>
-          <div>
-            <Label>IMAP Passwort</Label>
-            <Input
-              type="password"
-              value={settings.imap_pass}
-              onChange={(e) => setSettings({ ...settings, imap_pass: e.target.value })}
-              placeholder="••••••••"
-            />
-          </div>
-          <div className="flex items-center gap-3">
-            <Switch
-              checked={Boolean(settings.imap_secure)}
-              onCheckedChange={(checked) =>
-                setSettings((prev) => {
-                  const secure = Boolean(checked);
-                  const next = { ...prev, imap_secure: secure };
-                  const currentPort = prev.imap_port;
-                  if (!currentPort || currentPort === "993" || currentPort === "143") {
-                    const desired = secure ? "993" : "143";
-                    if (!currentPort || currentPort === (secure ? "143" : "993")) {
-                      next.imap_port = desired;
-                    }
-                  }
-                  return next;
-                })
-              }
-            />
-            <span className="text-sm text-slate-600">TLS/SSL aktiv</span>
-          </div>
-          <div className="flex flex-wrap items-center gap-3 md:col-span-2">
-            <Button
-              onClick={handleImapConnect}
-              disabled={imapTesting}
-              className="bg-[#1e3a5f] hover:bg-[#2d5a8a]"
-            >
-              {imapTesting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
-              Postfach verbinden
-            </Button>
-            <Link to={createPageUrl("EmailAIImport")}>
-              <Button variant="outline">Email AI Import öffnen</Button>
-            </Link>
-            {imapMessage && <span className="text-sm text-emerald-600">{imapMessage}</span>}
-            {imapError && <span className="text-sm text-red-600">{imapError}</span>}
           </div>
         </CardContent>
       </Card>
