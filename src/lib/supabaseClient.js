@@ -18,9 +18,6 @@ const createFetchWithProxy = () => {
   const baseUrl = (supabaseUrl || "").replace(/\/$/, "");
   return async (input, init) => {
     const url = resolveUrlString(input);
-    if (baseUrl && url.startsWith(baseUrl) && url.includes("/auth/v1/user")) {
-      return fetch("/api/auth-user", init);
-    }
     if (baseUrl && url.startsWith(baseUrl) && url.includes("/rest/v1/")) {
       const nextInit = { ...(init || {}) };
       let path = "";
