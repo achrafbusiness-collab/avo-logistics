@@ -62,12 +62,6 @@ export default function Dashboard() {
     queryFn: () => appClient.entities.Order.list('-created_date', 100),
   });
 
-  const { data: appSettingsList = [] } = useQuery({
-    queryKey: ['appSettings'],
-    queryFn: () => appClient.entities.AppSettings.list('-created_date', 1),
-  });
-  const appSettings = appSettingsList[0] || null;
-
   const { data: drivers = [], isLoading: driversLoading } = useQuery({
     queryKey: ['drivers'],
     queryFn: () => appClient.entities.Driver.list('-created_date', 100),
@@ -112,7 +106,7 @@ export default function Dashboard() {
     completedOrders: rangeOrders.filter(o => COMPLETED_STATUSES.has(o.status)).length,
   };
 
-  const driverCostByDay = useMemo(() => {
+  const driverCostByOrder = useMemo(() => {
     const map = new Map();
     orderSegments.forEach((segment) => {
       const status =
@@ -123,12 +117,7 @@ export default function Dashboard() {
       if (status !== 'approved') return;
       const value = Number.parseFloat(segment.price);
       if (!Number.isFinite(value)) return;
-      const dateValue = segment.created_date || segment.created_at || segment.datetime || null;
-      if (!dateValue) return;
-      const date = new Date(dateValue);
-      if (Number.isNaN(date.getTime())) return;
-      const key = format(date, 'yyyy-MM-dd');
-      map.set(key, (map.get(key) || 0) + value);
+      map.set(segment.order_id, (map.get(segment.order_id) || 0) + value);
     });
     return map;
   }, [orderSegments]);
@@ -149,39 +138,23 @@ export default function Dashboard() {
   }, [financeChecklists]);
 
   const financialOverview = useMemo(() => {
-    const start = dateFrom ? new Date(`${dateFrom}T00:00:00`) : null;
-    const end = dateTo ? new Date(`${dateTo}T23:59:59`) : null;
-    const driverCost = (() => {
-      let sum = 0;
-      for (const [key, value] of driverCostByDay.entries()) {
-        const date = new Date(`${key}T12:00:00`);
-        if (Number.isNaN(date.getTime())) continue;
-        if (start && date < start) continue;
-        if (end && date > end) continue;
-        sum += value;
-      }
-      return sum;
-    })();
-
-    const base = rangeOrders
+    return rangeOrders
       .filter((order) => COMPLETED_STATUSES.has(order.status))
       .reduce(
         (acc, order) => {
           const safeRevenue = parseAmount(order.driver_price);
+          const driverCost = driverCostByOrder.get(order.id) || 0;
+          const fuelAdvance = fuelAdvanceByOrder.get(order.id) || 0;
           acc.tours += 1;
           acc.revenue += safeRevenue;
-          const fuelAdvance = fuelAdvanceByOrder.get(order.id) || 0;
+          acc.driverCost += driverCost;
           acc.fuelAdvance += fuelAdvance;
+          acc.profit += safeRevenue - driverCost;
           return acc;
         },
         { tours: 0, revenue: 0, driverCost: 0, fuelAdvance: 0, profit: 0 }
       );
-    return {
-      ...base,
-      driverCost,
-      profit: base.revenue - driverCost,
-    };
-  }, [rangeOrders, driverCostByDay, fuelAdvanceByOrder, dateFrom, dateTo]);
+  }, [rangeOrders, driverCostByOrder, fuelAdvanceByOrder]);
 
   const formatCurrency = (value) =>
     new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(value || 0);
@@ -204,10 +177,12 @@ export default function Dashboard() {
   }, [dateFrom, dateTo]);
 
   useEffect(() => {
-    const targets = appSettings?.profit_targets || {};
-    const saved = targets?.[targetMonthKey] ?? '';
-    setProfitTargetSaved(saved !== null ? String(saved) : '');
-  }, [appSettings, targetMonthKey]);
+    const companyKey = currentUser?.company_id || currentUser?.id || 'global';
+    const storageKey = `avo:monthly-profit-target:${companyKey}:${targetMonthKey}`;
+    if (typeof window === 'undefined') return;
+    const saved = window.localStorage.getItem(storageKey);
+    setProfitTargetSaved(saved || '');
+  }, [currentUser, targetMonthKey]);
 
   const profitTargetValue = parseAmount(profitTargetSaved);
   const targetMonthDate = useMemo(() => new Date(`${targetMonthKey}-01T12:00:00`), [targetMonthKey]);
@@ -215,23 +190,17 @@ export default function Dashboard() {
   const targetMonthProfit = useMemo(() => {
     const start = startOfMonth(targetMonthDate);
     const end = endOfMonth(targetMonthDate);
-    const revenue = orders
+    return orders
       .filter((order) => COMPLETED_STATUSES.has(order.status))
       .reduce((sum, order) => {
         const dateValue = toDateKey(order.dropoff_date) || toDateKey(order.pickup_date) || toDateKey(order.created_date);
         const date = dateValue ? new Date(`${dateValue}T12:00:00`) : null;
         if (!date || Number.isNaN(date.getTime()) || date < start || date > end) return sum;
         const revenue = parseAmount(order.driver_price);
-        return sum + revenue;
+        const cost = driverCostByOrder.get(order.id) || 0;
+        return sum + (revenue - cost);
       }, 0);
-    let cost = 0;
-    for (const [key, value] of driverCostByDay.entries()) {
-      const date = new Date(`${key}T12:00:00`);
-      if (Number.isNaN(date.getTime()) || date < start || date > end) continue;
-      cost += value;
-    }
-    return revenue - cost;
-  }, [orders, driverCostByDay, targetMonthDate]);
+  }, [orders, driverCostByOrder, targetMonthDate]);
 
   const monthlyGoalReached = profitTargetValue > 0 && targetMonthProfit >= profitTargetValue;
   const monthCompleted = useMemo(() => {

@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { appClient } from '@/api/appClient';
-import { supabase } from '@/lib/supabaseClient';
 import { format, startOfDay, endOfDay, subDays, startOfWeek, endOfWeek, isWithinInterval, parseISO } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { Card, CardContent } from "@/components/ui/card";
@@ -24,48 +23,15 @@ export default function AVOAI() {
   ]);
   const [input, setInput] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
-  const [darkMode, setDarkMode] = useState(false);
-  const [currentUser, setCurrentUser] = useState(null);
-  const [preferencesLoaded, setPreferencesLoaded] = useState(false);
+  const [darkMode, setDarkMode] = useState(() => {
+    const saved = localStorage.getItem('avoai-dark-mode');
+    return saved ? JSON.parse(saved) : false;
+  });
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
-    let active = true;
-    appClient.auth.me().then((user) => {
-      if (!active) return;
-      setCurrentUser(user);
-      if (typeof user?.ui_preferences?.avoai_dark_mode === 'boolean') {
-        setDarkMode(user.ui_preferences.avoai_dark_mode);
-      }
-      setPreferencesLoaded(true);
-    });
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!preferencesLoaded || !currentUser?.id) return;
-    const currentPref = currentUser?.ui_preferences?.avoai_dark_mode;
-    if (typeof currentPref === 'boolean' && currentPref === darkMode) return;
-    const nextPreferences = {
-      ...(currentUser?.ui_preferences || {}),
-      avoai_dark_mode: darkMode,
-    };
-    supabase
-      .from('profiles')
-      .update({
-        ui_preferences: nextPreferences,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', currentUser.id)
-      .then(() => {
-        setCurrentUser((prev) =>
-          prev ? { ...prev, ui_preferences: nextPreferences } : prev
-        );
-      })
-      .catch(() => null);
-  }, [darkMode, preferencesLoaded, currentUser?.id, currentUser?.ui_preferences]);
+    localStorage.setItem('avoai-dark-mode', JSON.stringify(darkMode));
+  }, [darkMode]);
 
   const { data: orders = [] } = useQuery({
     queryKey: ['orders'],

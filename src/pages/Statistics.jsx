@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
@@ -153,17 +153,12 @@ export default function Statistics() {
     cost: true,
     profit: true,
   });
+  const targetLoadedRef = useRef(null);
 
   const { data: orders = [], isLoading: ordersLoading } = useQuery({
     queryKey: ['stats-orders'],
     queryFn: () => appClient.entities.Order.list('-created_date', 5000),
   });
-
-  const { data: appSettingsList = [], isLoading: appSettingsLoading } = useQuery({
-    queryKey: ['appSettings'],
-    queryFn: () => appClient.entities.AppSettings.list('-created_date', 1),
-  });
-  const appSettings = appSettingsList[0] || null;
 
   const { data: orderSegments = [], isLoading: segmentsLoading } = useQuery({
     queryKey: ['stats-order-segments'],
@@ -180,8 +175,7 @@ export default function Statistics() {
     queryFn: () => appClient.entities.Checklist.list('-created_date', 5000),
   });
 
-  const loading =
-    ordersLoading || segmentsLoading || checklistsLoading || driversLoading || appSettingsLoading;
+  const loading = ordersLoading || segmentsLoading || checklistsLoading || driversLoading;
 
   const range = useMemo(
     () => getRangeForPeriod(period, customFrom, customTo),
@@ -209,40 +203,36 @@ export default function Statistics() {
     });
   }, []);
 
-  useEffect(() => {
-    const targets = appSettings?.profit_targets || {};
-    const saved = targets?.[targetMonth] ?? '';
-    setProfitTargetSaved(saved !== null ? String(saved) : '');
-    setProfitTargetInput(saved !== null ? String(saved) : '');
-  }, [appSettings, targetMonth]);
+  const targetStorageKey = useMemo(() => {
+    const companyKey = currentUser?.company_id || currentUser?.id || 'global';
+    return `avo:monthly-profit-target:${companyKey}:${targetMonth}`;
+  }, [currentUser, targetMonth]);
 
-  const handleConfirmTarget = async () => {
-    const nextTargets = {
-      ...(appSettings?.profit_targets || {}),
-      [targetMonth]: profitTargetInput,
-    };
-    if (appSettings?.id) {
-      await appClient.entities.AppSettings.update(appSettings.id, {
-        profit_targets: nextTargets,
-      });
+  useEffect(() => {
+    if (!targetStorageKey || targetLoadedRef.current === targetStorageKey) return;
+    if (typeof window === 'undefined') return;
+    const saved = window.localStorage.getItem(targetStorageKey);
+    if (saved !== null) {
+      setProfitTargetSaved(saved);
+      setProfitTargetInput(saved);
     } else {
-      await appClient.entities.AppSettings.create({ profit_targets: nextTargets });
+      setProfitTargetSaved('');
+      setProfitTargetInput('');
     }
+    targetLoadedRef.current = targetStorageKey;
+  }, [targetStorageKey]);
+
+  const handleConfirmTarget = () => {
+    if (!targetStorageKey || typeof window === 'undefined') return;
     setProfitTargetSaved(profitTargetInput);
+    window.localStorage.setItem(targetStorageKey, profitTargetInput);
   };
 
-  const handleDeleteTarget = async () => {
-    const nextTargets = { ...(appSettings?.profit_targets || {}) };
-    delete nextTargets[targetMonth];
-    if (appSettings?.id) {
-      await appClient.entities.AppSettings.update(appSettings.id, {
-        profit_targets: nextTargets,
-      });
-    } else {
-      await appClient.entities.AppSettings.create({ profit_targets: nextTargets });
-    }
+  const handleDeleteTarget = () => {
+    if (!targetStorageKey || typeof window === 'undefined') return;
     setProfitTargetInput('');
     setProfitTargetSaved('');
+    window.localStorage.removeItem(targetStorageKey);
   };
 
   useEffect(() => {
