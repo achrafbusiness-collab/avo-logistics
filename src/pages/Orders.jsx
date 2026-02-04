@@ -121,6 +121,12 @@ export default function Orders() {
     };
   }, []);
 
+  const { data: appSettingsList = [] } = useQuery({
+    queryKey: ['appSettings'],
+    queryFn: () => appClient.entities.AppSettings.list('-created_date', 1),
+  });
+  const appSettings = appSettingsList[0] || null;
+
   useEffect(() => {
     if (!currentUser || maintenanceChecked) return;
     const normalizeEmail = (value) => String(value || '').trim().toLowerCase();
@@ -177,12 +183,6 @@ export default function Orders() {
     queryKey: ['orders'],
     queryFn: () => appClient.entities.Order.list('-created_date', 500),
   });
-
-  const { data: appSettingsList = [] } = useQuery({
-    queryKey: ['appSettings'],
-    queryFn: () => appClient.entities.AppSettings.list('-created_date', 1),
-  });
-  const appSettings = appSettingsList[0] || null;
 
   const { data: orderNotes = [] } = useQuery({
     queryKey: ['order-notes'],
