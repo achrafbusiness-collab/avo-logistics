@@ -3,12 +3,23 @@ const readRawBody = async (req) => {
   if (req.body && typeof req.body === "object") {
     return JSON.stringify(req.body);
   }
-  const chunks = [];
+  let body = "";
   for await (const chunk of req) {
-    chunks.push(chunk);
+    if (typeof chunk === "string") {
+      body += chunk;
+      continue;
+    }
+    if (chunk instanceof Uint8Array) {
+      body += new TextDecoder("utf-8").decode(chunk);
+      continue;
+    }
+    try {
+      body += String(chunk);
+    } catch {
+      body += "";
+    }
   }
-  if (!chunks.length) return "";
-  return Buffer.concat(chunks).toString("utf-8");
+  return body;
 };
 
 const buildForwardBody = (req, rawBody) => {
