@@ -21,6 +21,20 @@ const createFetchWithProxy = () => {
     if (baseUrl && url.startsWith(baseUrl) && url.includes("/auth/v1/user")) {
       return fetch("/api/auth-user", init);
     }
+    if (baseUrl && url.startsWith(baseUrl) && url.includes("/rest/v1/")) {
+      const nextInit = { ...(init || {}) };
+      let path = "";
+      try {
+        const parsed = new URL(url);
+        path = `${parsed.pathname}${parsed.search || ""}`;
+      } catch {
+        path = url.replace(baseUrl, "");
+      }
+      const headers = new Headers(nextInit.headers || (input?.headers ?? undefined));
+      headers.set("x-supabase-path", path);
+      nextInit.headers = headers;
+      return fetch("/api/supabase-rest", nextInit);
+    }
     return fetch(input, init);
   };
 };
