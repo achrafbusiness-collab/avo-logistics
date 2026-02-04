@@ -162,12 +162,17 @@ export default function Statistics() {
     queryFn: () => appClient.entities.OrderSegment.list('-created_date', 5000),
   });
 
+  const { data: drivers = [], isLoading: driversLoading } = useQuery({
+    queryKey: ['stats-drivers'],
+    queryFn: () => appClient.entities.Driver.list('-created_date', 2000),
+  });
+
   const { data: checklists = [], isLoading: checklistsLoading } = useQuery({
     queryKey: ['stats-checklists'],
     queryFn: () => appClient.entities.Checklist.list('-created_date', 5000),
   });
 
-  const loading = ordersLoading || segmentsLoading || checklistsLoading;
+  const loading = ordersLoading || segmentsLoading || checklistsLoading || driversLoading;
 
   const range = useMemo(
     () => getRangeForPeriod(period, customFrom, customTo),
@@ -283,6 +288,14 @@ export default function Statistics() {
     }
     return map;
   }, [orderSegments]);
+
+  const ordersById = useMemo(() => {
+    return new Map(orders.map((order) => [order.id, order]));
+  }, [orders]);
+
+  const driversById = useMemo(() => {
+    return new Map(drivers.map((driver) => [driver.id, driver]));
+  }, [drivers]);
 
   const fuelByOrder = useMemo(() => {
     const map = new Map();
@@ -523,6 +536,48 @@ export default function Statistics() {
         .includes(needle)
     );
   }, [rows, search]);
+
+  const driverCostRows = useMemo(() => {
+    return orderSegments
+      .map((segment) => {
+        const status =
+          segment.price_status ||
+          (segment.price !== null && segment.price !== undefined && segment.price !== ''
+            ? 'approved'
+            : 'pending');
+        if (status !== 'approved') return null;
+        const price = parseAmount(segment.price);
+        if (!price) return null;
+        const dateValue =
+          segment.created_date ||
+          segment.created_at ||
+          segment.datetime ||
+          segment.date ||
+          null;
+        const date = toDate(dateValue);
+        if (!date || date < range.from || date > range.to) return null;
+        const order = ordersById.get(segment.order_id);
+        const driver = driversById.get(segment.driver_id);
+        const driverName =
+          segment.driver_name ||
+          [driver?.first_name, driver?.last_name].filter(Boolean).join(' ') ||
+          '-';
+        const route = `${segment.start_location || order?.pickup_city || order?.pickup_address || 'Start'} -> ${
+          segment.end_location || order?.dropoff_city || order?.dropoff_address || 'Ziel'
+        }`;
+        return {
+          id: segment.id,
+          date,
+          driverName,
+          licensePlate: order?.license_plate || '-',
+          route,
+          distanceKm: parseAmount(segment.distance_km || order?.distance_km),
+          cost: price,
+        };
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.date.getTime() - a.date.getTime());
+  }, [orderSegments, ordersById, driversById, range.from, range.to]);
 
   const rangeLabel = `${format(range.from, 'dd.MM.yyyy')} - ${format(range.to, 'dd.MM.yyyy')}`;
 
@@ -861,6 +916,56 @@ export default function Statistics() {
                       <td className="px-3 py-3 text-slate-700">{formatCurrency(row.fuelAdvance)}</td>
                       <td className="px-3 py-3 text-right">
                         <ArrowRight className="h-4 w-4 text-slate-400" />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="border border-slate-200/80 bg-white/90">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-lg">Fahrer-Kosten im Zeitraum</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {loading ? (
+            <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
+              Fahrer-Kosten werden geladen...
+            </div>
+          ) : driverCostRows.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
+              Keine Fahrer-Kosten im ausgewählten Zeitraum.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200 text-left text-slate-500">
+                    <th className="px-3 py-2 font-medium">Datum</th>
+                    <th className="px-3 py-2 font-medium">Fahrer</th>
+                    <th className="px-3 py-2 font-medium">Kennzeichen</th>
+                    <th className="px-3 py-2 font-medium">Tour</th>
+                    <th className="px-3 py-2 font-medium">Strecke</th>
+                    <th className="px-3 py-2 font-medium">Fahrer-Kosten</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {driverCostRows.map((row) => (
+                    <tr key={row.id} className="border-b border-slate-100">
+                      <td className="px-3 py-3 text-slate-600">
+                        {format(row.date, 'dd.MM.yyyy')}
+                      </td>
+                      <td className="px-3 py-3 text-slate-800">{row.driverName}</td>
+                      <td className="px-3 py-3 text-slate-600">{row.licensePlate}</td>
+                      <td className="px-3 py-3 text-slate-600">{row.route}</td>
+                      <td className="px-3 py-3 text-slate-600">
+                        {row.distanceKm ? `${row.distanceKm} km` : '-'}
+                      </td>
+                      <td className="px-3 py-3 font-medium text-amber-700">
+                        {formatCurrency(row.cost)}
                       </td>
                     </tr>
                   ))}
