@@ -37,6 +37,9 @@ create table if not exists public.profiles (
 alter table public.profiles
 add column if not exists language text default 'de';
 
+alter table public.profiles
+add column if not exists ui_preferences jsonb default '{}'::jsonb;
+
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
@@ -725,6 +728,8 @@ alter table public.app_settings add column if not exists imap_port integer;
 alter table public.app_settings add column if not exists imap_user text;
 alter table public.app_settings add column if not exists imap_pass text;
 alter table public.app_settings add column if not exists imap_secure boolean default true;
+alter table public.app_settings add column if not exists profit_targets jsonb default '{}'::jsonb;
+alter table public.app_settings add column if not exists maintenance_flags jsonb default '{}'::jsonb;
 alter table public.order_notes add column if not exists company_id uuid references public.companies;
 alter table public.driver_documents add column if not exists company_id uuid references public.companies;
 

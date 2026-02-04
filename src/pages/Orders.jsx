@@ -136,9 +136,8 @@ export default function Orders() {
       setMaintenanceChecked(true);
       return;
     }
-    const companyKey = currentUser.company_id || currentUser.id || 'global';
-    const storageKey = `avo:fix-intransit-no-driver:v4:${companyKey}`;
-    if (typeof window !== 'undefined' && window.localStorage.getItem(storageKey) === 'done') {
+    const alreadyFixed = appSettings?.maintenance_flags?.fix_intransit_v4;
+    if (alreadyFixed) {
       setMaintenanceChecked(true);
       return;
     }
@@ -147,8 +146,17 @@ export default function Orders() {
       .fixInTransitWithoutDriver()
       .then((result) => {
         if (cancelled) return;
-        if (typeof window !== 'undefined') {
-          window.localStorage.setItem(storageKey, 'done');
+        const nextFlags = {
+          ...(appSettings?.maintenance_flags || {}),
+          fix_intransit_v4: true,
+          fix_intransit_v4_at: new Date().toISOString(),
+        };
+        if (appSettings?.id) {
+          appClient.entities.AppSettings.update(appSettings.id, {
+            maintenance_flags: nextFlags,
+          });
+        } else {
+          appClient.entities.AppSettings.create({ maintenance_flags: nextFlags });
         }
         if (result?.updated) {
           queryClient.invalidateQueries({ queryKey: ['orders'] });
@@ -163,12 +171,18 @@ export default function Orders() {
     return () => {
       cancelled = true;
     };
-  }, [currentUser, maintenanceChecked, queryClient]);
+  }, [currentUser, maintenanceChecked, queryClient, appSettings]);
 
   const { data: orders = [], isLoading } = useQuery({
     queryKey: ['orders'],
     queryFn: () => appClient.entities.Order.list('-created_date', 500),
   });
+
+  const { data: appSettingsList = [] } = useQuery({
+    queryKey: ['appSettings'],
+    queryFn: () => appClient.entities.AppSettings.list('-created_date', 1),
+  });
+  const appSettings = appSettingsList[0] || null;
 
   const { data: orderNotes = [] } = useQuery({
     queryKey: ['order-notes'],

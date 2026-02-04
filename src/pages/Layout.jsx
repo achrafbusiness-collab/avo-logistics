@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { appClient } from '@/api/appClient';
+import { supabase } from '@/lib/supabaseClient';
 import { 
   LayoutDashboard, 
   BarChart3,
@@ -49,23 +50,43 @@ export default function Layout({ children, currentPageName }) {
   const location = useLocation();
   const mainRef = useRef(null);
   const { t, dir } = useI18n();
-  const [darkMode, setDarkMode] = useState(() => {
-    const saved = localStorage.getItem('avo-dark-mode');
-    return saved ? JSON.parse(saved) : true;
-  });
+  const [darkMode, setDarkMode] = useState(true);
+  const [preferencesLoaded, setPreferencesLoaded] = useState(false);
 
   useEffect(() => {
     loadUser();
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('avo-dark-mode', JSON.stringify(darkMode));
     if (darkMode) {
       document.documentElement.classList.add('dark');
     } else {
       document.documentElement.classList.remove('dark');
     }
   }, [darkMode]);
+
+  useEffect(() => {
+    if (!preferencesLoaded || !user?.id) return;
+    const currentPref = user?.ui_preferences?.dark_mode;
+    if (typeof currentPref === 'boolean' && currentPref === darkMode) return;
+    const nextPreferences = {
+      ...(user?.ui_preferences || {}),
+      dark_mode: darkMode,
+    };
+    supabase
+      .from('profiles')
+      .update({
+        ui_preferences: nextPreferences,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', user.id)
+      .then(() => {
+        setUser((prev) =>
+          prev ? { ...prev, ui_preferences: nextPreferences } : prev
+        );
+      })
+      .catch(() => null);
+  }, [darkMode, preferencesLoaded, user?.id, user?.ui_preferences]);
 
   useEffect(() => {
     if (isDriver) return;
@@ -104,6 +125,10 @@ export default function Layout({ children, currentPageName }) {
       setUser(currentUser);
       // Driver role uses the minimal layout.
       setIsDriver(currentUser.role === 'driver');
+      if (typeof currentUser?.ui_preferences?.dark_mode === 'boolean') {
+        setDarkMode(currentUser.ui_preferences.dark_mode);
+      }
+      setPreferencesLoaded(true);
     } catch (e) {
       console.log('Not logged in');
     }
