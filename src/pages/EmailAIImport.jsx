@@ -377,11 +377,11 @@ export default function EmailAIImport() {
           </CardHeader>
           <CardContent className="flex flex-col gap-3 text-sm text-slate-600">
             <p>
-              Bitte dein E-Mail Postfach unter „Admin Controlling → E-Mail Postfach“ speichern.
-              Danach werden die E-Mails automatisch geladen – auf jedem Gerät.
+              Bitte dein E-Mail Postfach unter „App & Einstellungen → E-Mail Postfach (AI Import)“
+              speichern. Danach werden die E-Mails automatisch geladen – auf jedem Gerät.
             </p>
             <div>
-              <Button onClick={() => navigate(createPageUrl("AdminEmailSettings"))}>
+              <Button onClick={() => navigate(createPageUrl("AppConnection"))}>
                 E-Mail Postfach öffnen
               </Button>
             </div>
@@ -389,7 +389,7 @@ export default function EmailAIImport() {
         </Card>
       )}
 
-      {step === "list" && (
+      {hasStoredConfig && step === "list" && (
         <Card>
           <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
@@ -399,8 +399,8 @@ export default function EmailAIImport() {
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button variant="outline" onClick={() => setStep("connect")}>
-                Konto ändern
+              <Button variant="outline" onClick={() => navigate(createPageUrl("AppConnection"))}>
+                E-Mail Postfach bearbeiten
               </Button>
               <Button variant="outline" onClick={() => loadMessages()} disabled={loading}>
                 {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCcw className="mr-2 h-4 w-4" />}
