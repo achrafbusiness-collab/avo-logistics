@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { appClient } from '@/api/appClient';
+import { supabase } from '@/lib/supabaseClient';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 
 import { 
   Smartphone, 
@@ -37,10 +39,18 @@ export default function AppConnection() {
     delivery_legal_text: 'Das Fahrzeug wurde in diesem Zustand ordnungsgemäß übergeben und entgegengenommen.',
     email_sender_name: '',
     email_sender_address: '',
+    imap_host: '',
+    imap_port: '',
+    imap_user: '',
+    imap_pass: '',
+    imap_secure: true,
   };
   const [settings, setSettings] = useState(defaultSettings);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [imapTesting, setImapTesting] = useState(false);
+  const [imapMessage, setImapMessage] = useState('');
+  const [imapError, setImapError] = useState('');
 
   const { data: appSettings = [], isLoading } = useQuery({
     queryKey: ['appSettings'],
@@ -52,6 +62,20 @@ export default function AppConnection() {
       setSettings({ ...defaultSettings, ...appSettings[0] });
     }
   }, [appSettings]);
+
+  useEffect(() => {
+    if (!settings.imap_host || settings.imap_port) return;
+    setSettings((prev) => ({
+      ...prev,
+      imap_port: prev.imap_secure ? '993' : '143',
+    }));
+  }, [settings.imap_host, settings.imap_port, settings.imap_secure]);
+
+  const toIntOrNull = (value) => {
+    if (value === null || value === undefined || value === '') return null;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  };
 
   const createMutation = useMutation({
     mutationFn: (data) => appClient.entities.AppSettings.create(data),
@@ -75,10 +99,61 @@ export default function AppConnection() {
 
   const handleSave = async () => {
     setSaving(true);
+    const payload = {
+      ...settings,
+      imap_port: toIntOrNull(settings.imap_port),
+      imap_secure: Boolean(settings.imap_secure),
+    };
     if (appSettings.length > 0) {
-      await updateMutation.mutateAsync({ id: appSettings[0].id, data: settings });
+      await updateMutation.mutateAsync({ id: appSettings[0].id, data: payload });
     } else {
-      await createMutation.mutateAsync(settings);
+      await createMutation.mutateAsync(payload);
+    }
+  };
+
+  const handleImapTest = async () => {
+    setImapMessage('');
+    setImapError('');
+    if (!settings.imap_host.trim() || !settings.imap_user.trim() || !settings.imap_pass.trim()) {
+      setImapError('Bitte IMAP Host, Benutzer und Passwort eintragen.');
+      return;
+    }
+    setImapTesting(true);
+    try {
+      await handleSave();
+      const { data } = await supabase.auth.getSession();
+      const token = data?.session?.access_token;
+      if (!token) {
+        throw new Error('Nicht angemeldet.');
+      }
+      const response = await fetch('/api/admin/email-import', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          action: 'list',
+          limit: 1,
+          imap: {
+            host: settings.imap_host.trim(),
+            port: toIntOrNull(settings.imap_port),
+            secure: Boolean(settings.imap_secure),
+            user: settings.imap_user.trim(),
+            pass: settings.imap_pass,
+            mailbox: 'INBOX',
+          },
+        }),
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload?.ok) {
+        throw new Error(payload?.error || 'IMAP Test fehlgeschlagen.');
+      }
+      setImapMessage('IMAP Verbindung erfolgreich. Einstellungen sind gespeichert.');
+    } catch (err) {
+      setImapError(err?.message || 'IMAP Test fehlgeschlagen.');
+    } finally {
+      setImapTesting(false);
     }
   };
 
@@ -200,6 +275,93 @@ export default function AppConnection() {
           <p className="text-xs text-gray-500">
             Wird genutzt, wenn eine Auftragsbestaetigung an Fahrer gesendet wird.
           </p>
+        </CardContent>
+      </Card>
+
+      {/* E-Mail Postfach (IMAP) */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Settings className="w-5 h-5" />
+            E-Mail Postfach (AI Import)
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-gray-500">
+            Hinterlege hier dein IMAP Postfach. Die Einstellungen werden systemweit gespeichert
+            und sind auf allen Geräten verfügbar.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label>IMAP Host</Label>
+              <Input
+                value={settings.imap_host}
+                onChange={(e) => setSettings({ ...settings, imap_host: e.target.value })}
+                placeholder="imap.deine-domain.de"
+              />
+            </div>
+            <div>
+              <Label>IMAP Port</Label>
+              <Input
+                type="number"
+                value={settings.imap_port}
+                onChange={(e) => setSettings({ ...settings, imap_port: e.target.value })}
+                placeholder="993"
+              />
+            </div>
+            <div>
+              <Label>IMAP Benutzer</Label>
+              <Input
+                value={settings.imap_user}
+                onChange={(e) => setSettings({ ...settings, imap_user: e.target.value })}
+                placeholder="info@deine-domain.de"
+              />
+            </div>
+            <div>
+              <Label>IMAP Passwort</Label>
+              <Input
+                type="password"
+                value={settings.imap_pass}
+                onChange={(e) => setSettings({ ...settings, imap_pass: e.target.value })}
+                placeholder="••••••••"
+              />
+            </div>
+            <div className="flex items-center gap-3">
+              <Switch
+                checked={Boolean(settings.imap_secure)}
+                onCheckedChange={(checked) => {
+                  const secure = Boolean(checked);
+                  setSettings((prev) => {
+                    const next = { ...prev, imap_secure: secure };
+                    if (!prev.imap_port || prev.imap_port === '993' || prev.imap_port === '143') {
+                      next.imap_port = secure ? '993' : '143';
+                    }
+                    return next;
+                  });
+                }}
+              />
+              <span className="text-sm text-gray-600">TLS/SSL aktiv</span>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <Button
+              type="button"
+              onClick={handleImapTest}
+              disabled={imapTesting}
+              className="bg-[#1e3a5f] hover:bg-[#2d5a8a]"
+            >
+              {imapTesting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Test läuft...
+                </>
+              ) : (
+                'IMAP Test & speichern'
+              )}
+            </Button>
+            {imapMessage && <span className="text-sm text-emerald-600">{imapMessage}</span>}
+            {imapError && <span className="text-sm text-red-600">{imapError}</span>}
+          </div>
         </CardContent>
       </Card>
 
