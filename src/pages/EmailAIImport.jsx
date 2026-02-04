@@ -26,7 +26,6 @@ const PROVIDER_PRESETS = {
 };
 
 const PREFILL_KEY = "avo:ai-import-prefill";
-const STORAGE_KEY = "avo:email-import-config";
 
 export default function EmailAIImport() {
   const navigate = useNavigate();
@@ -186,21 +185,6 @@ export default function EmailAIImport() {
       } catch (persistError) {
         console.warn("IMAP Einstellungen konnten nicht gespeichert werden", persistError);
       }
-      localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify({
-          provider,
-          search: effectiveSearch,
-          imap: {
-            host: imap.host.trim(),
-            port: imap.port,
-            secure: Boolean(imap.secure),
-            user: imap.user.trim(),
-            pass: imap.pass,
-            mailbox: imap.mailbox || "INBOX",
-          },
-        })
-      );
       setInfo("IMAP verbunden. E-Mails wurden geladen.");
     } catch (err) {
       setError(err?.message || "IMAP Abruf fehlgeschlagen.");
@@ -286,7 +270,7 @@ export default function EmailAIImport() {
   };
 
   const handleEmailLogout = () => {
-    localStorage.removeItem(STORAGE_KEY);
+    // Einstellungen bleiben im System gespeichert (app_settings).
     setMessages([]);
     setSelectedUids([]);
     setPreview(null);
@@ -343,45 +327,8 @@ export default function EmailAIImport() {
       return;
     }
 
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (!stored) {
-      setHasStoredConfig(false);
-      setStep("list");
-      appSettingsRef.current = "done";
-      return;
-    }
-    try {
-      const payload = JSON.parse(stored);
-      if (payload?.imap?.user && payload?.imap?.pass && payload?.imap?.host) {
-        setProvider(payload?.provider || "other");
-        setImap((prev) => ({
-          ...prev,
-          ...payload.imap,
-        }));
-        if (payload?.search) {
-          setSearchTerm(payload.search);
-        }
-        setHasStoredConfig(true);
-        setAutoConnect(true);
-        try {
-          persistImapSettings({
-            host: payload.imap.host,
-            port: payload.imap.port,
-            secure: payload.imap.secure,
-            user: payload.imap.user,
-            pass: payload.imap.pass,
-          });
-        } catch (persistError) {
-          console.warn("IMAP Einstellungen konnten nicht gespeichert werden", persistError);
-        }
-      } else {
-        setHasStoredConfig(false);
-        setStep("list");
-      }
-    } catch {
-      setHasStoredConfig(false);
-      setStep("list");
-    }
+    setHasStoredConfig(false);
+    setStep("list");
     appSettingsRef.current = "done";
   }, [appSettings]);
 
