@@ -258,6 +258,32 @@ export default function Statistics() {
     return map;
   }, [orderSegments]);
 
+  const driverCostByDay = useMemo(() => {
+    const map = new Map();
+    for (const segment of orderSegments) {
+      const status =
+        segment.price_status ||
+        (segment.price !== null && segment.price !== undefined && segment.price !== ''
+          ? 'approved'
+          : 'pending');
+      if (status !== 'approved') continue;
+      const price = parseAmount(segment.price);
+      if (!price) continue;
+      const dateValue =
+        segment.created_date ||
+        segment.created_at ||
+        segment.datetime ||
+        segment.date ||
+        null;
+      if (!dateValue) continue;
+      const date = new Date(dateValue);
+      if (Number.isNaN(date.getTime())) continue;
+      const key = format(date, 'yyyy-MM-dd');
+      map.set(key, (map.get(key) || 0) + price);
+    }
+    return map;
+  }, [orderSegments]);
+
   const fuelByOrder = useMemo(() => {
     const map = new Map();
     for (const checklist of checklists) {
@@ -309,17 +335,22 @@ export default function Statistics() {
   }, [orders, range.from, range.to, driverCostByOrder, fuelByOrder]);
 
   const totals = useMemo(() => {
-    return rows.reduce(
-      (acc, row) => {
-        acc.revenue += row.revenue;
-        acc.cost += row.cost;
-        acc.fuelAdvance += row.fuelAdvance;
-        acc.profit += row.profit;
-        return acc;
-      },
-      { revenue: 0, cost: 0, fuelAdvance: 0, profit: 0 }
-    );
-  }, [rows]);
+    const revenue = rows.reduce((sum, row) => sum + row.revenue, 0);
+    const fuelAdvance = rows.reduce((sum, row) => sum + row.fuelAdvance, 0);
+    let cost = 0;
+    for (const [key, value] of driverCostByDay.entries()) {
+      const date = new Date(`${key}T12:00:00`);
+      if (Number.isNaN(date.getTime())) continue;
+      if (date < range.from || date > range.to) continue;
+      cost += value;
+    }
+    return {
+      revenue,
+      cost,
+      fuelAdvance,
+      profit: revenue - cost,
+    };
+  }, [rows, driverCostByDay, range.from, range.to]);
 
   const profitTargetValue = parseAmount(profitTargetSaved);
   const selectedTargetMonthDate = useMemo(
@@ -331,16 +362,23 @@ export default function Statistics() {
   const selectedMonthProfit = useMemo(() => {
     const start = startOfMonth(selectedTargetMonthDate);
     const end = endOfMonth(selectedTargetMonthDate);
-    return orders
+    const revenue = orders
       .filter((order) => COMPLETED_STATUSES.has(order.status))
       .reduce((sum, order) => {
         const date = orderDate(order);
         if (!date || date < start || date > end) return sum;
         const revenue = parseAmount(order.driver_price);
-        const cost = driverCostByOrder.get(order.id) || 0;
-        return sum + (revenue - cost);
+        return sum + revenue;
       }, 0);
-  }, [orders, driverCostByOrder, selectedTargetMonthDate]);
+    let cost = 0;
+    for (const [key, value] of driverCostByDay.entries()) {
+      const date = new Date(`${key}T12:00:00`);
+      if (Number.isNaN(date.getTime())) continue;
+      if (date < start || date > end) continue;
+      cost += value;
+    }
+    return revenue - cost;
+  }, [orders, driverCostByDay, selectedTargetMonthDate]);
 
   const monthlyGoalReached = profitTargetValue > 0 && selectedMonthProfit >= profitTargetValue;
   const monthCompleted = useMemo(() => {
@@ -441,12 +479,32 @@ export default function Statistics() {
       const bucket = map.get(key);
       if (!bucket) continue;
       bucket.revenue += row.revenue;
-      bucket.cost += row.cost;
-      bucket.profit += row.profit;
+    }
+
+    for (const [dayKey, value] of driverCostByDay.entries()) {
+      const date = new Date(`${dayKey}T12:00:00`);
+      if (Number.isNaN(date.getTime())) continue;
+      if (date < range.from || date > range.to) continue;
+      const key = (() => {
+        if (range.bucket === 'week') {
+          const weekStart = startOfWeek(date, { weekStartsOn: 1 });
+          return format(weekStart, "RRRR-'W'II");
+        }
+        if (range.bucket === 'month') return format(date, 'yyyy-MM');
+        if (range.bucket === 'year') return format(date, 'yyyy');
+        return format(date, 'yyyy-MM-dd');
+      })();
+      const bucket = map.get(key);
+      if (!bucket) continue;
+      bucket.cost += value;
+    }
+
+    for (const bucket of map.values()) {
+      bucket.profit = bucket.revenue - bucket.cost;
     }
 
     return { data: Array.from(map.values()), labelMap, monthSeparators };
-  }, [rows, range.bucket, range.from, range.to]);
+  }, [rows, driverCostByDay, range.bucket, range.from, range.to]);
 
   const filteredRows = useMemo(() => {
     const needle = search.trim().toLowerCase();
@@ -478,6 +536,9 @@ export default function Statistics() {
             <p className="text-xs uppercase tracking-[0.35em] text-blue-200">AVO SYSTEM</p>
             <h1 className="mt-2 text-3xl font-semibold tracking-tight">Statistik</h1>
             <p className="text-sm text-slate-300">Umsatz, Fahrer-Kosten und Gewinn pro Zeitraum</p>
+            <p className="text-xs text-slate-400">
+              Fahrer-Kosten werden nach dem tatsächlichen Fahrtag (Segmentdatum) ausgewertet.
+            </p>
           </div>
           <div className="flex items-center gap-2">
             <div className="rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs uppercase tracking-wide text-slate-200">
