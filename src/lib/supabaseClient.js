@@ -18,6 +18,20 @@ const createFetchWithProxy = () => {
   const baseUrl = (supabaseUrl || "").replace(/\/$/, "");
   return async (input, init) => {
     const url = resolveUrlString(input);
+    if (baseUrl && url.startsWith(baseUrl) && url.includes("/auth/v1/")) {
+      const nextInit = { ...(init || {}) };
+      let path = "";
+      try {
+        const parsed = new URL(url);
+        path = `${parsed.pathname}${parsed.search || ""}`;
+      } catch {
+        path = url.replace(baseUrl, "");
+      }
+      const headers = new Headers(nextInit.headers || (input?.headers ?? undefined));
+      headers.set("x-supabase-path", path);
+      nextInit.headers = headers;
+      return fetch("/api/supabase-auth", nextInit);
+    }
     if (baseUrl && url.startsWith(baseUrl) && url.includes("/rest/v1/")) {
       const nextInit = { ...(init || {}) };
       let path = "";
