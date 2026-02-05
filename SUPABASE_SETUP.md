@@ -1153,3 +1153,36 @@ Für den tagesgültigen Fahrer‑Lizenzschein brauchst du in Vercel (Production)
 ```
 LICENSE_TOKEN_SECRET = <ein-langer-geheimer-schluessel>
 ```
+
+### 7i) Performance‑Indizes (gegen hohe Disk‑IO)
+
+Diese Indizes reduzieren teure Vollscans bei häufigen Listen/Filtern:
+
+```
+create index if not exists idx_orders_company_created
+on public.orders (company_id, created_date);
+
+create index if not exists idx_orders_company_status
+on public.orders (company_id, status);
+
+create index if not exists idx_order_segments_order_created
+on public.order_segments (order_id, created_date);
+
+create index if not exists idx_order_segments_driver_created
+on public.order_segments (driver_id, created_date);
+
+create index if not exists idx_checklists_order_created
+on public.checklists (order_id, created_date);
+
+create index if not exists idx_drivers_company_created
+on public.drivers (company_id, created_date);
+
+create index if not exists idx_customers_company_created
+on public.customers (company_id, created_date);
+
+create index if not exists idx_order_notes_order_created
+on public.order_notes (order_id, created_date);
+
+create index if not exists idx_app_settings_company_created
+on public.app_settings (company_id, created_date);
+```

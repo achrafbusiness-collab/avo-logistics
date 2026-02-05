@@ -157,22 +157,65 @@ export default function Statistics() {
 
   const { data: orders = [], isLoading: ordersLoading } = useQuery({
     queryKey: ['stats-orders'],
-    queryFn: () => appClient.entities.Order.list('-created_date', 5000),
+    queryFn: () =>
+      appClient.entities.Order.list(
+        '-created_date',
+        2000,
+        [
+          'id',
+          'status',
+          'driver_price',
+          'pickup_date',
+          'dropoff_date',
+          'created_date',
+          'order_number',
+          'customer_order_number',
+          'pickup_city',
+          'pickup_postal_code',
+          'dropoff_city',
+          'dropoff_postal_code',
+          'distance_km',
+          'license_plate',
+          'customer_name',
+        ].join(',')
+      ),
   });
 
   const { data: orderSegments = [], isLoading: segmentsLoading } = useQuery({
     queryKey: ['stats-order-segments'],
-    queryFn: () => appClient.entities.OrderSegment.list('-created_date', 5000),
+    queryFn: () =>
+      appClient.entities.OrderSegment.list(
+        '-created_date',
+        2500,
+        [
+          'id',
+          'order_id',
+          'driver_id',
+          'driver_name',
+          'segment_type',
+          'start_location',
+          'end_location',
+          'distance_km',
+          'created_date',
+          'created_at',
+          'datetime',
+          'date',
+          'price',
+          'price_status',
+        ].join(',')
+      ),
   });
 
   const { data: drivers = [], isLoading: driversLoading } = useQuery({
     queryKey: ['stats-drivers'],
-    queryFn: () => appClient.entities.Driver.list('-created_date', 2000),
+    queryFn: () =>
+      appClient.entities.Driver.list('-created_date', 1500, 'id,first_name,last_name,email'),
   });
 
   const { data: checklists = [], isLoading: checklistsLoading } = useQuery({
     queryKey: ['stats-checklists'],
-    queryFn: () => appClient.entities.Checklist.list('-created_date', 5000),
+    queryFn: () =>
+      appClient.entities.Checklist.list('-created_date', 2000, 'id,order_id,expenses,created_date'),
   });
 
   const loading = ordersLoading || segmentsLoading || checklistsLoading || driversLoading;

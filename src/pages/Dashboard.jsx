@@ -59,27 +59,71 @@ export default function Dashboard() {
 
   const { data: orders = [], isLoading: ordersLoading } = useQuery({
     queryKey: ['orders'],
-    queryFn: () => appClient.entities.Order.list('-created_date', 100),
+    queryFn: () =>
+      appClient.entities.Order.list(
+        '-created_date',
+        200,
+        [
+          'id',
+          'status',
+          'driver_price',
+          'pickup_date',
+          'dropoff_date',
+          'created_date',
+          'dropoff_time',
+          'assigned_driver_id',
+          'assigned_driver_name',
+          'order_number',
+          'customer_order_number',
+          'license_plate',
+          'vehicle_brand',
+          'vehicle_model',
+          'vin',
+          'pickup_address',
+          'pickup_city',
+          'pickup_postal_code',
+          'dropoff_address',
+          'dropoff_city',
+          'dropoff_postal_code',
+          'customer_name',
+        ].join(',')
+      ),
   });
 
   const { data: drivers = [], isLoading: driversLoading } = useQuery({
     queryKey: ['drivers'],
-    queryFn: () => appClient.entities.Driver.list('-created_date', 100),
+    queryFn: () =>
+      appClient.entities.Driver.list('-created_date', 300, 'id,status,first_name,last_name,email'),
   });
 
   const { data: checklists = [], isLoading: checklistsLoading } = useQuery({
     queryKey: ['checklists'],
-    queryFn: () => appClient.entities.Checklist.list('-created_date', 10),
+    queryFn: () =>
+      appClient.entities.Checklist.list(
+        '-created_date',
+        50,
+        'id,type,order_number,driver_name,datetime,created_date'
+      ),
   });
 
   const { data: orderSegments = [] } = useQuery({
     queryKey: ['dashboard-order-segments'],
-    queryFn: () => appClient.entities.OrderSegment.list('-created_date', 3000),
+    queryFn: () =>
+      appClient.entities.OrderSegment.list(
+        '-created_date',
+        1500,
+        'id,order_id,price,price_status,created_date'
+      ),
   });
 
   const { data: financeChecklists = [] } = useQuery({
     queryKey: ['dashboard-finance-checklists'],
-    queryFn: () => appClient.entities.Checklist.list('-created_date', 3000),
+    queryFn: () =>
+      appClient.entities.Checklist.list(
+        '-created_date',
+        1500,
+        'id,order_id,expenses,created_date'
+      ),
   });
 
   const rangeOrders = useMemo(() => {

@@ -19,8 +19,9 @@ const parseOrder = (order) => {
   return { key: order.replace(/^-/, ''), desc };
 };
 
-const buildQuery = (table, criteria, order, limit) => {
-  let query = supabase.from(table).select("*");
+const buildQuery = (table, criteria, order, limit, select) => {
+  const safeSelect = typeof select === "string" && select.trim() ? select : "*";
+  let query = supabase.from(table).select(safeSelect);
   if (criteria && typeof criteria === "object" && Object.keys(criteria).length > 0) {
     query = query.match(criteria);
   }
@@ -54,9 +55,9 @@ const isNetworkError = (message) => {
 const createEntityClient = (name) => {
   const table = tableMap[name] || name.toLowerCase();
   return {
-    list: async (order, limit) => {
+    list: async (order, limit, select) => {
       try {
-        const { data, error } = await buildQuery(table, null, order, limit);
+        const { data, error } = await buildQuery(table, null, order, limit, select);
         if (error) {
           console.error(`Supabase list error (${table}):`, error.message);
           return [];
@@ -68,9 +69,9 @@ const createEntityClient = (name) => {
         return [];
       }
     },
-    filter: async (criteria, order, limit) => {
+    filter: async (criteria, order, limit, select) => {
       try {
-        const { data, error } = await buildQuery(table, criteria, order, limit);
+        const { data, error } = await buildQuery(table, criteria, order, limit, select);
         if (error) {
           console.error(`Supabase filter error (${table}):`, error.message);
           return [];
