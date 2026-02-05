@@ -268,6 +268,12 @@ export default function DriverProtocol() {
     () => handoffs.find((handoff) => handoff.status === 'pending'),
     [handoffs]
   );
+  const latestSegmentEndLocation = useMemo(() => {
+    const segment = (orderSegments || []).find(
+      (item) => item?.end_location && item?.segment_type !== 'dropoff'
+    );
+    return segment?.end_location || '';
+  }, [orderSegments]);
 
   useEffect(() => {
     if (existingChecklist) {
@@ -725,7 +731,10 @@ export default function DriverProtocol() {
         );
         if (!hasDropoffSegment) {
           let distanceKm = null;
-          const startLocation = latestAcceptedHandoff?.location || pickupLocation;
+          const startLocation =
+            latestSegmentEndLocation ||
+            latestAcceptedHandoff?.location ||
+            pickupLocation;
           if (startLocation && dropoffLocation) {
             try {
               distanceKm = await getMapboxDistanceKmFromAddresses({
