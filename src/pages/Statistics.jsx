@@ -197,9 +197,6 @@ export default function Statistics() {
           'end_location',
           'distance_km',
           'created_date',
-          'created_at',
-          'datetime',
-          'date',
           'price',
           'price_status',
         ].join(',')
