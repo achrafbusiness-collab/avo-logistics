@@ -29,7 +29,7 @@ import {
   differenceInCalendarDays,
 } from 'date-fns';
 import { de } from 'date-fns/locale';
-import * as Recharts from 'recharts';
+const loadRecharts = () => import('recharts');
 
 import { appClient } from '@/api/appClient';
 import { createPageUrl } from '@/utils';
@@ -138,7 +138,7 @@ export default function Statistics() {
   const [targetMonth, setTargetMonth] = useState(() => format(new Date(), 'yyyy-MM'));
   const [profitTargetInput, setProfitTargetInput] = useState('');
   const [profitTargetSaved, setProfitTargetSaved] = useState('');
-  const [chartsReady, setChartsReady] = useState(false);
+  const [recharts, setRecharts] = useState(null);
   const [seriesVisible, setSeriesVisible] = useState({
     revenue: true,
     cost: true,
@@ -224,7 +224,17 @@ export default function Statistics() {
   }, []);
 
   useEffect(() => {
-    setChartsReady(true);
+    let active = true;
+    loadRecharts()
+      .then((mod) => {
+        if (active) setRecharts(mod);
+      })
+      .catch((error) => {
+        console.error('Failed to load charts:', error);
+      });
+    return () => {
+      active = false;
+    };
   }, []);
 
   const monthOptions = useMemo(() => {
@@ -619,6 +629,8 @@ export default function Statistics() {
 
   const rangeLabel = `${format(range.from, 'dd.MM.yyyy')} - ${format(range.to, 'dd.MM.yyyy')}`;
 
+  const Recharts = recharts;
+
   return (
     <div className="space-y-6">
       <div className="relative overflow-hidden rounded-3xl bg-slate-950 text-white shadow-[0_30px_60px_-40px_rgba(15,23,42,0.8)]">
@@ -840,7 +852,7 @@ export default function Statistics() {
           </div>
 
           <div className="h-80">
-            {!chartsReady ? (
+            {!Recharts ? (
               <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50 text-sm text-slate-500">
                 Diagramm wird geladen...
               </div>
