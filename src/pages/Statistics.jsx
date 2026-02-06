@@ -211,12 +211,6 @@ export default function Statistics() {
         )
         .order('created_date', { ascending: false })
         .limit(5000);
-      if (range.from) {
-        query = query.gte('created_date', range.from.toISOString());
-      }
-      if (range.to) {
-        query = query.lte('created_date', range.to.toISOString());
-      }
       const { data, error } = await query;
       if (error) {
         console.error('Supabase stats order segments error:', error.message);
