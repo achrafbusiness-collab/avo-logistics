@@ -10,6 +10,10 @@ import {
   startOfMonth,
   endOfMonth,
   subDays,
+  eachDayOfInterval,
+  eachWeekOfInterval,
+  eachMonthOfInterval,
+  eachYearOfInterval,
   differenceInCalendarDays,
 } from 'date-fns';
 import { de } from 'date-fns/locale';
@@ -102,6 +106,11 @@ export default function Statistics() {
   const [targetMonth, setTargetMonth] = useState(() => format(new Date(), 'yyyy-MM'));
   const [profitTargetInput, setProfitTargetInput] = useState('');
   const [profitTargetSaved, setProfitTargetSaved] = useState('');
+  const [seriesVisible, setSeriesVisible] = useState({
+    revenue: true,
+    cost: true,
+    profit: true,
+  });
   const targetLoadedRef = useRef(null);
 
   const { data: orders = [], isLoading: ordersLoading } = useQuery({
@@ -394,6 +403,101 @@ export default function Statistics() {
   const showSuccess = monthlyGoalReached;
   const showFailure = profitTargetValue > 0 && monthCompleted && !monthlyGoalReached;
 
+  const chartData = useMemo(() => {
+    const showWeekYear = range.from.getFullYear() !== range.to.getFullYear();
+    const showMonthYear = range.from.getFullYear() !== range.to.getFullYear();
+
+    const buildKeyLabel = (point) => {
+      if (range.bucket === 'week') {
+        const weekStart = startOfWeek(point, { weekStartsOn: 1 });
+        const weekKey = format(weekStart, "RRRR-'W'II");
+        const weekNumber = format(weekStart, 'II');
+        return {
+          key: weekKey,
+          label: showWeekYear ? `KW ${weekNumber}/${format(weekStart, 'yy')}` : `KW ${weekNumber}`,
+        };
+      }
+      if (range.bucket === 'month') {
+        const key = format(point, 'yyyy-MM');
+        return {
+          key,
+          label: showMonthYear ? format(point, 'MMM yy', { locale: de }) : format(point, 'MMM', { locale: de }),
+        };
+      }
+      if (range.bucket === 'year') {
+        const key = format(point, 'yyyy');
+        return { key, label: key };
+      }
+      const key = format(point, 'yyyy-MM-dd');
+      return {
+        key,
+        label: format(point, 'dd.MM', { locale: de }),
+      };
+    };
+
+    const points = (() => {
+      if (range.bucket === 'week') {
+        return eachWeekOfInterval({ start: range.from, end: range.to }, { weekStartsOn: 1 });
+      }
+      if (range.bucket === 'month') {
+        return eachMonthOfInterval({ start: range.from, end: range.to });
+      }
+      if (range.bucket === 'year') {
+        return eachYearOfInterval({ start: range.from, end: range.to });
+      }
+      return eachDayOfInterval({ start: range.from, end: range.to });
+    })();
+
+    const map = new Map(
+      points.map((point) => {
+        const { key, label } = buildKeyLabel(point);
+        return [
+          key,
+          {
+            key,
+            label,
+            revenue: 0,
+            cost: 0,
+            profit: 0,
+          },
+        ];
+      })
+    );
+
+    const bucketKeyForDate = (date) => {
+      if (range.bucket === 'week') {
+        const weekStart = startOfWeek(date, { weekStartsOn: 1 });
+        return format(weekStart, "RRRR-'W'II");
+      }
+      if (range.bucket === 'month') return format(date, 'yyyy-MM');
+      if (range.bucket === 'year') return format(date, 'yyyy');
+      return format(date, 'yyyy-MM-dd');
+    };
+
+    for (const row of rows) {
+      const key = bucketKeyForDate(row.date);
+      const bucket = map.get(key);
+      if (!bucket) continue;
+      bucket.revenue += row.revenue;
+    }
+
+    for (const [dayKey, value] of driverCostByDay.entries()) {
+      const date = new Date(`${dayKey}T12:00:00`);
+      if (Number.isNaN(date.getTime())) continue;
+      if (date < range.from || date > range.to) continue;
+      const key = bucketKeyForDate(date);
+      const bucket = map.get(key);
+      if (!bucket) continue;
+      bucket.cost += value;
+    }
+
+    for (const bucket of map.values()) {
+      bucket.profit = bucket.revenue - bucket.cost;
+    }
+
+    return Array.from(map.values());
+  }, [rows, driverCostByDay, range.bucket, range.from, range.to]);
+
   const filteredRows = useMemo(() => {
     const needle = search.trim().toLowerCase();
     if (!needle) return rows;
@@ -452,6 +556,12 @@ export default function Statistics() {
   const rangeLabel = `${format(range.from, 'dd.MM.yyyy')} - ${format(range.to, 'dd.MM.yyyy')}`;
 
   const buttonBase = "rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-900 hover:text-white";
+  const activeButton = `${buttonBase} bg-[#1e3a5f] text-white hover:bg-[#2d5a8a]`;
+  const seriesList = [
+    { key: 'revenue', label: 'Umsatz', color: '#10b981' },
+    { key: 'cost', label: 'Kosten', color: '#f59e0b' },
+    { key: 'profit', label: 'Gewinn', color: '#2563eb' },
+  ];
 
   return (
     <div className="space-y-6">
@@ -487,7 +597,7 @@ export default function Statistics() {
             <button
               key={item.value}
               type="button"
-              className={`${buttonBase} ${period === item.value ? "bg-[#1e3a5f] text-white hover:bg-[#2d5a8a]" : ""}`}
+              className={period === item.value ? activeButton : buttonBase}
               onClick={() => setPeriod(item.value)}
             >
               {item.label}
@@ -663,6 +773,126 @@ export default function Statistics() {
         <div className="rounded-xl border border-slate-200 bg-white p-4">
           <p className="text-xs text-slate-500">Getankt (Vorkasse)</p>
           <p className="mt-2 text-2xl font-semibold">{formatCurrency(totals.fuelAdvance)}</p>
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-slate-200/80 bg-white/90">
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 px-4 py-3">
+          <h2 className="text-lg font-semibold text-slate-900">Verlauf</h2>
+          <div className="flex flex-wrap items-center gap-3 text-xs text-slate-600">
+            {seriesList.map((series) => (
+              <label key={series.key} className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={seriesVisible[series.key]}
+                  onChange={(event) =>
+                    setSeriesVisible((prev) => ({
+                      ...prev,
+                      [series.key]: event.target.checked,
+                    }))
+                  }
+                />
+                <span className="inline-flex items-center gap-1">
+                  <span
+                    className="inline-block h-2 w-2 rounded-full"
+                    style={{ backgroundColor: series.color }}
+                  />
+                  {series.label}
+                </span>
+              </label>
+            ))}
+          </div>
+        </div>
+        <div className="h-72 p-4">
+          {chartData.length === 0 ? (
+            <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50 text-sm text-slate-500">
+              Keine Daten im gewählten Zeitraum.
+            </div>
+          ) : (() => {
+            const visibleSeries = seriesList.filter((series) => seriesVisible[series.key]);
+            const chartValues = chartData.flatMap((row) =>
+              visibleSeries.map((series) => row[series.key])
+            );
+            const minValue = Math.min(0, ...(chartValues.length ? chartValues : [0]));
+            const maxValue = Math.max(0, ...(chartValues.length ? chartValues : [0]));
+            const valueSpan = maxValue - minValue || 1;
+            const chartWidth = 1000;
+            const chartHeight = 280;
+            const padding = { left: 48, right: 16, top: 16, bottom: 36 };
+            const innerWidth = chartWidth - padding.left - padding.right;
+            const innerHeight = chartHeight - padding.top - padding.bottom;
+            const pointCount = chartData.length;
+            const xForIndex = (index) =>
+              padding.left + (pointCount === 1 ? 0 : (index / (pointCount - 1)) * innerWidth);
+            const yForValue = (value) =>
+              padding.top + (1 - (value - minValue) / valueSpan) * innerHeight;
+            const buildPolyline = (key) =>
+              chartData
+                .map((row, index) => `${xForIndex(index)},${yForValue(row[key])}`)
+                .join(' ');
+            const zeroY = yForValue(0);
+            const labelEvery = Math.max(1, Math.ceil(pointCount / 6));
+
+            return (
+              <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="h-full w-full">
+                <rect
+                  x="0"
+                  y="0"
+                  width={chartWidth}
+                  height={chartHeight}
+                  fill="white"
+                />
+                {[0, 0.25, 0.5, 0.75, 1].map((ratio) => {
+                  const y = padding.top + innerHeight * ratio;
+                  return (
+                    <line
+                      key={ratio}
+                      x1={padding.left}
+                      y1={y}
+                      x2={chartWidth - padding.right}
+                      y2={y}
+                      stroke="#e2e8f0"
+                      strokeDasharray="4 4"
+                    />
+                  );
+                })}
+                {minValue < 0 && maxValue > 0 ? (
+                  <line
+                    x1={padding.left}
+                    y1={zeroY}
+                    x2={chartWidth - padding.right}
+                    y2={zeroY}
+                    stroke="#94a3b8"
+                    strokeDasharray="2 2"
+                  />
+                ) : null}
+                {visibleSeries.map((series) => (
+                  <polyline
+                    key={series.key}
+                    fill="none"
+                    stroke={series.color}
+                    strokeWidth="2.5"
+                    points={buildPolyline(series.key)}
+                  />
+                ))}
+                {chartData.map((row, index) => {
+                  if (index % labelEvery !== 0 && index !== pointCount - 1) return null;
+                  return (
+                    <text
+                      key={row.key}
+                      x={xForIndex(index)}
+                      y={chartHeight - padding.bottom + 18}
+                      textAnchor="middle"
+                      fontSize="11"
+                      fill="#64748b"
+                    >
+                      {row.label}
+                    </text>
+                  );
+                })}
+              </svg>
+            );
+          })()}
         </div>
       </div>
 
