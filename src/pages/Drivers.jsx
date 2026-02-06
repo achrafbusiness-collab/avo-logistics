@@ -83,8 +83,26 @@ export default function Drivers() {
   });
 
   const { data: orderSegments = [] } = useQuery({
-    queryKey: ['order-segments'],
-    queryFn: () => appClient.entities.OrderSegment.list('-created_date', 2000),
+    queryKey: ['order-segments', billingRange.start, billingRange.end],
+    queryFn: async () => {
+      const startIso = billingRange.start ? `${billingRange.start}T00:00:00` : null;
+      const endIso = billingRange.end ? `${billingRange.end}T23:59:59` : null;
+      let query = supabase
+        .from('order_segments')
+        .select(
+          'id,order_id,driver_id,driver_name,segment_type,start_location,end_location,distance_km,price,price_status,price_rejection_reason,created_date,created_at'
+        )
+        .order('created_date', { ascending: false })
+        .limit(2000);
+      if (startIso) query = query.gte('created_date', startIso);
+      if (endIso) query = query.lte('created_date', endIso);
+      const { data, error } = await query;
+      if (error) {
+        console.error('Supabase order segments error:', error.message);
+        return [];
+      }
+      return data || [];
+    },
   });
 
   const createMutation = useMutation({
