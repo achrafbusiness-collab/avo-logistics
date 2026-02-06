@@ -2,6 +2,18 @@ import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
+  Calendar,
+  Search,
+  TrendingUp,
+  Truck,
+  Wallet,
+  Coins,
+  Fuel,
+  ArrowRight,
+  CheckCircle2,
+  ChevronDown,
+} from 'lucide-react';
+import {
   format,
   startOfDay,
   endOfDay,
@@ -17,9 +29,28 @@ import {
   differenceInCalendarDays,
 } from 'date-fns';
 import { de } from 'date-fns/locale';
+const loadRecharts = () => import('recharts');
 
 import { appClient } from '@/api/appClient';
 import { createPageUrl } from '@/utils';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
 
 const COMPLETED_STATUSES = new Set(['completed', 'review', 'ready_for_billing', 'approved']);
 
@@ -100,12 +131,14 @@ export default function Statistics() {
   const [customFrom, setCustomFrom] = useState(() => toDateInput(defaultLastWeek.from));
   const [customTo, setCustomTo] = useState(() => toDateInput(defaultLastWeek.to));
   const [search, setSearch] = useState('');
+  const [selectedOrder, setSelectedOrder] = useState(null);
   const [ordersOpen, setOrdersOpen] = useState(true);
   const [driverCostsOpen, setDriverCostsOpen] = useState(true);
   const [currentUser, setCurrentUser] = useState(null);
   const [targetMonth, setTargetMonth] = useState(() => format(new Date(), 'yyyy-MM'));
   const [profitTargetInput, setProfitTargetInput] = useState('');
   const [profitTargetSaved, setProfitTargetSaved] = useState('');
+  const [recharts, setRecharts] = useState(null);
   const [seriesVisible, setSeriesVisible] = useState({
     revenue: true,
     cost: true,
@@ -190,6 +223,19 @@ export default function Statistics() {
     };
   }, []);
 
+  useEffect(() => {
+    let active = true;
+    loadRecharts()
+      .then((mod) => {
+        if (active) setRecharts(mod);
+      })
+      .catch((error) => {
+        console.error('Failed to load charts:', error);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const monthOptions = useMemo(() => {
     const year = new Date().getFullYear();
@@ -403,7 +449,7 @@ export default function Statistics() {
   const showSuccess = monthlyGoalReached;
   const showFailure = profitTargetValue > 0 && monthCompleted && !monthlyGoalReached;
 
-  const chartData = useMemo(() => {
+  const chartConfig = useMemo(() => {
     const showWeekYear = range.from.getFullYear() !== range.to.getFullYear();
     const showMonthYear = range.from.getFullYear() !== range.to.getFullYear();
 
@@ -415,6 +461,8 @@ export default function Statistics() {
         return {
           key: weekKey,
           label: showWeekYear ? `KW ${weekNumber}/${format(weekStart, 'yy')}` : `KW ${weekNumber}`,
+          monthKey: format(weekStart, 'yyyy-MM'),
+          monthLabel: format(weekStart, 'MMM', { locale: de }),
         };
       }
       if (range.bucket === 'month') {
@@ -422,16 +470,20 @@ export default function Statistics() {
         return {
           key,
           label: showMonthYear ? format(point, 'MMM yy', { locale: de }) : format(point, 'MMM', { locale: de }),
+          monthKey: key,
+          monthLabel: format(point, 'MMM', { locale: de }),
         };
       }
       if (range.bucket === 'year') {
         const key = format(point, 'yyyy');
-        return { key, label: key };
+        return { key, label: key, monthKey: null, monthLabel: null };
       }
       const key = format(point, 'yyyy-MM-dd');
       return {
         key,
         label: format(point, 'dd.MM', { locale: de }),
+        monthKey: format(point, 'yyyy-MM'),
+        monthLabel: format(point, 'MMM', { locale: de }),
       };
     };
 
@@ -448,9 +500,20 @@ export default function Statistics() {
       return eachDayOfInterval({ start: range.from, end: range.to });
     })();
 
+    const labelMap = new Map();
+    const monthSeparators = [];
+    let lastMonthKey = null;
+
     const map = new Map(
-      points.map((point) => {
-        const { key, label } = buildKeyLabel(point);
+      points.map((point, index) => {
+        const { key, label, monthKey, monthLabel } = buildKeyLabel(point);
+        labelMap.set(key, label);
+        if (range.bucket === 'week' && monthKey && monthKey !== lastMonthKey) {
+          if (index !== 0) {
+            monthSeparators.push({ key, label: monthLabel });
+          }
+          lastMonthKey = monthKey;
+        }
         return [
           key,
           {
@@ -464,18 +527,16 @@ export default function Statistics() {
       })
     );
 
-    const bucketKeyForDate = (date) => {
-      if (range.bucket === 'week') {
-        const weekStart = startOfWeek(date, { weekStartsOn: 1 });
-        return format(weekStart, "RRRR-'W'II");
-      }
-      if (range.bucket === 'month') return format(date, 'yyyy-MM');
-      if (range.bucket === 'year') return format(date, 'yyyy');
-      return format(date, 'yyyy-MM-dd');
-    };
-
     for (const row of rows) {
-      const key = bucketKeyForDate(row.date);
+      const key = (() => {
+        if (range.bucket === 'week') {
+          const weekStart = startOfWeek(row.date, { weekStartsOn: 1 });
+          return format(weekStart, "RRRR-'W'II");
+        }
+        if (range.bucket === 'month') return format(row.date, 'yyyy-MM');
+        if (range.bucket === 'year') return format(row.date, 'yyyy');
+        return format(row.date, 'yyyy-MM-dd');
+      })();
       const bucket = map.get(key);
       if (!bucket) continue;
       bucket.revenue += row.revenue;
@@ -485,7 +546,15 @@ export default function Statistics() {
       const date = new Date(`${dayKey}T12:00:00`);
       if (Number.isNaN(date.getTime())) continue;
       if (date < range.from || date > range.to) continue;
-      const key = bucketKeyForDate(date);
+      const key = (() => {
+        if (range.bucket === 'week') {
+          const weekStart = startOfWeek(date, { weekStartsOn: 1 });
+          return format(weekStart, "RRRR-'W'II");
+        }
+        if (range.bucket === 'month') return format(date, 'yyyy-MM');
+        if (range.bucket === 'year') return format(date, 'yyyy');
+        return format(date, 'yyyy-MM-dd');
+      })();
       const bucket = map.get(key);
       if (!bucket) continue;
       bucket.cost += value;
@@ -495,7 +564,7 @@ export default function Statistics() {
       bucket.profit = bucket.revenue - bucket.cost;
     }
 
-    return Array.from(map.values());
+    return { data: Array.from(map.values()), labelMap, monthSeparators };
   }, [rows, driverCostByDay, range.bucket, range.from, range.to]);
 
   const filteredRows = useMemo(() => {
@@ -528,7 +597,12 @@ export default function Statistics() {
         const price = parseAmount(segment.price);
         if (!price) return null;
         const order = ordersById.get(segment.order_id);
-        const dateValue = segment.created_date || null;
+        const dateValue =
+          segment.created_date ||
+          segment.created_at ||
+          segment.datetime ||
+          segment.date ||
+          null;
         const date = orderDate(order) || toDate(dateValue);
         if (!date || date < range.from || date > range.to) return null;
         const driver = driversById.get(segment.driver_id);
@@ -555,13 +629,7 @@ export default function Statistics() {
 
   const rangeLabel = `${format(range.from, 'dd.MM.yyyy')} - ${format(range.to, 'dd.MM.yyyy')}`;
 
-  const buttonBase = "rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-900 hover:text-white";
-  const activeButton = `${buttonBase} bg-[#1e3a5f] text-white hover:bg-[#2d5a8a]`;
-  const seriesList = [
-    { key: 'revenue', label: 'Umsatz', color: '#10b981' },
-    { key: 'cost', label: 'Kosten', color: '#f59e0b' },
-    { key: 'profit', label: 'Gewinn', color: '#2563eb' },
-  ];
+  const Recharts = recharts;
 
   return (
     <div className="space-y-6">
@@ -581,446 +649,461 @@ export default function Statistics() {
             <div className="rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs uppercase tracking-wide text-slate-200">
               Zeitraum: {rangeLabel}
             </div>
-            <Link
-              to={createPageUrl('Dashboard')}
-              className="inline-flex items-center rounded-md border border-white/30 bg-white/10 px-3 py-1.5 text-xs font-medium text-white hover:bg-white/20"
-            >
-              Zurück
+            <Link to={createPageUrl('Dashboard')}>
+              <Button variant="outline" className="border-white/30 bg-white/10 text-white hover:bg-white/20">
+                Zurück
+              </Button>
             </Link>
           </div>
         </div>
       </div>
 
-      <div className="rounded-xl border border-slate-200/80 bg-white/90 p-4 space-y-4">
-        <div className="flex flex-wrap gap-2">
-          {PERIODS.map((item) => (
-            <button
-              key={item.value}
-              type="button"
-              className={period === item.value ? activeButton : buttonBase}
-              onClick={() => setPeriod(item.value)}
+      <Card className="border border-slate-200/80 bg-white/90">
+        <CardContent className="space-y-4 p-4">
+          <div className="flex flex-wrap gap-2">
+            {PERIODS.map((item) => (
+              <Button
+                key={item.value}
+                size="sm"
+                variant={period === item.value ? 'default' : 'outline'}
+                className={period === item.value ? 'bg-[#1e3a5f] hover:bg-[#2d5a8a]' : ''}
+                onClick={() => setPeriod(item.value)}
+              >
+                <Calendar className="mr-2 h-4 w-4" />
+                {item.label}
+              </Button>
+            ))}
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                const today = new Date();
+                applyQuickRange(startOfDay(today), endOfDay(today));
+              }}
             >
-              {item.label}
-            </button>
-          ))}
-        </div>
+              Heute
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                const yesterday = subDays(new Date(), 1);
+                applyQuickRange(startOfDay(yesterday), endOfDay(yesterday));
+              }}
+            >
+              Gestern
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                const dayBefore = subDays(new Date(), 2);
+                applyQuickRange(startOfDay(dayBefore), endOfDay(dayBefore));
+              }}
+            >
+              Vorgestern
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                const now = new Date();
+                applyQuickRange(startOfWeek(now, { weekStartsOn: 1 }), endOfWeek(now, { weekStartsOn: 1 }));
+              }}
+            >
+              Diese Woche
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                const now = new Date();
+                const lastWeek = subDays(now, 7);
+                applyQuickRange(startOfWeek(lastWeek, { weekStartsOn: 1 }), endOfWeek(lastWeek, { weekStartsOn: 1 }));
+              }}
+            >
+              Letzte Woche
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                const now = new Date();
+                applyQuickRange(startOfMonth(now), endOfMonth(now));
+                setTargetMonth(format(now, 'yyyy-MM'));
+              }}
+            >
+              Dieser Monat
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                const now = new Date();
+                const lastMonth = subDays(startOfMonth(now), 1);
+                applyQuickRange(startOfMonth(lastMonth), endOfMonth(lastMonth));
+                setTargetMonth(format(lastMonth, 'yyyy-MM'));
+              }}
+            >
+              Letzter Monat
+            </Button>
+          </div>
 
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            className={buttonBase}
-            onClick={() => {
-              const today = new Date();
-              applyQuickRange(startOfDay(today), endOfDay(today));
-            }}
-          >
-            Heute
-          </button>
-          <button
-            type="button"
-            className={buttonBase}
-            onClick={() => {
-              const yesterday = subDays(new Date(), 1);
-              applyQuickRange(startOfDay(yesterday), endOfDay(yesterday));
-            }}
-          >
-            Gestern
-          </button>
-          <button
-            type="button"
-            className={buttonBase}
-            onClick={() => {
-              const dayBefore = subDays(new Date(), 2);
-              applyQuickRange(startOfDay(dayBefore), endOfDay(dayBefore));
-            }}
-          >
-            Vorgestern
-          </button>
-          <button
-            type="button"
-            className={buttonBase}
-            onClick={() => {
-              const now = new Date();
-              applyQuickRange(startOfWeek(now, { weekStartsOn: 1 }), endOfWeek(now, { weekStartsOn: 1 }));
-            }}
-          >
-            Diese Woche
-          </button>
-          <button
-            type="button"
-            className={buttonBase}
-            onClick={() => {
-              const now = new Date();
-              const lastWeek = subDays(now, 7);
-              applyQuickRange(startOfWeek(lastWeek, { weekStartsOn: 1 }), endOfWeek(lastWeek, { weekStartsOn: 1 }));
-            }}
-          >
-            Letzte Woche
-          </button>
-          <button
-            type="button"
-            className={buttonBase}
-            onClick={() => {
-              const now = new Date();
-              applyQuickRange(startOfMonth(now), endOfMonth(now));
-              setTargetMonth(format(now, 'yyyy-MM'));
-            }}
-          >
-            Dieser Monat
-          </button>
-          <button
-            type="button"
-            className={buttonBase}
-            onClick={() => {
-              const now = new Date();
-              const lastMonth = subDays(startOfMonth(now), 1);
-              applyQuickRange(startOfMonth(lastMonth), endOfMonth(lastMonth));
-              setTargetMonth(format(lastMonth, 'yyyy-MM'));
-            }}
-          >
-            Letzter Monat
-          </button>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="text-xs uppercase tracking-wide text-slate-500">Zeitraum</span>
-          <input
-            type="date"
-            value={customFrom}
-            onChange={(e) => setCustomFrom(e.target.value)}
-            className="w-44 rounded-md border border-slate-300 px-2 py-1 text-sm"
-          />
-          <span className="text-slate-500">bis</span>
-          <input
-            type="date"
-            value={customTo}
-            onChange={(e) => setCustomTo(e.target.value)}
-            className="w-44 rounded-md border border-slate-300 px-2 py-1 text-sm"
-          />
-        </div>
-      </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="text-xs uppercase tracking-wide text-slate-500">Zeitraum</span>
+            <Input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} className="w-44" />
+            <span className="text-slate-500">bis</span>
+            <Input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} className="w-44" />
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-6">
-        <div className="rounded-xl border border-slate-200 bg-white p-4">
-          <p className="text-xs text-slate-500">Abgeschlossene Touren</p>
-          <p className="mt-2 text-2xl font-semibold">{rows.length}</p>
-        </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-4">
-          <p className="text-xs text-slate-500">Umsatz</p>
-          <p className="mt-2 text-2xl font-semibold">{formatCurrency(totals.revenue)}</p>
-        </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-4">
-          <p className="text-xs text-slate-500">Fahrer-Kosten</p>
-          <p className="mt-2 text-2xl font-semibold">{formatCurrency(totals.cost)}</p>
-        </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-4">
-          <p className="text-xs text-slate-500">Gewinn</p>
-          <p className="mt-2 text-2xl font-semibold">{formatCurrency(totals.profit)}</p>
-          <div className="mt-1 text-xs text-slate-500">
-            Ziel: {profitTargetValue > 0 ? formatCurrency(profitTargetValue) : '—'}
-          </div>
-          {showSuccess ? (
-            <p className="mt-1 text-xs text-emerald-600">Glückwunsch. Sie haben Ihr Ziel erreicht.</p>
-          ) : showFailure ? (
-            <p className="mt-1 text-xs text-red-600">
-              Sie haben Ihr Ziel dieses Monats leider nicht erreicht.
-            </p>
-          ) : null}
-        </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-2">
-          <p className="text-xs text-slate-500">Monatliches Gewinnziel</p>
-          <select
-            value={targetMonth}
-            onChange={(e) => setTargetMonth(e.target.value)}
-            className="w-full rounded-md border border-slate-300 px-2 py-1 text-sm"
-          >
-            {monthOptions.map((month) => (
-              <option key={month.value} value={month.value}>
-                {month.label}
-              </option>
-            ))}
-          </select>
-          <input
-            type="number"
-            step="0.01"
-            value={profitTargetInput}
-            onChange={(e) => setProfitTargetInput(e.target.value)}
-            placeholder="z. B. 5000"
-            className="w-full rounded-md border border-slate-300 px-2 py-1 text-sm"
-          />
-          {showTargetActions ? (
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                className="rounded-md bg-[#1e3a5f] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#2d5a8a]"
-                onClick={handleConfirmTarget}
-              >
-                Bestätigen
-              </button>
-              <button
-                type="button"
-                className={buttonBase}
-                onClick={handleDeleteTarget}
-              >
-                Löschen
-              </button>
+        <Card><CardContent className="p-5"><p className="text-xs text-slate-500">Abgeschlossene Touren</p><p className="mt-2 text-2xl font-semibold">{rows.length}</p><Truck className="mt-2 h-4 w-4 text-slate-400" /></CardContent></Card>
+        <Card><CardContent className="p-5"><p className="text-xs text-slate-500">Umsatz</p><p className="mt-2 text-2xl font-semibold">{formatCurrency(totals.revenue)}</p><TrendingUp className="mt-2 h-4 w-4 text-emerald-500" /></CardContent></Card>
+        <Card><CardContent className="p-5"><p className="text-xs text-slate-500">Fahrer-Kosten</p><p className="mt-2 text-2xl font-semibold">{formatCurrency(totals.cost)}</p><Wallet className="mt-2 h-4 w-4 text-amber-500" /></CardContent></Card>
+        <Card>
+          <CardContent className="p-5">
+            <p className="text-xs text-slate-500">Gewinn</p>
+            <p className="mt-2 text-2xl font-semibold">{formatCurrency(totals.profit)}</p>
+            <div className="mt-1 flex items-center gap-1 text-xs text-slate-500">
+              <span>
+                Ziel: {profitTargetValue > 0 ? formatCurrency(profitTargetValue) : '—'}
+              </span>
+              {showSuccess ? (
+                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+              ) : null}
             </div>
-          ) : null}
-          <p className="text-xs text-slate-500">
-            Monatsergebnis: <span className="font-medium text-slate-700">{formatCurrency(selectedMonthProfit)}</span>
-          </p>
-        </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-4">
-          <p className="text-xs text-slate-500">Getankt (Vorkasse)</p>
-          <p className="mt-2 text-2xl font-semibold">{formatCurrency(totals.fuelAdvance)}</p>
-        </div>
-      </div>
-
-      <div className="rounded-xl border border-slate-200/80 bg-white/90">
-        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 px-4 py-3">
-          <h2 className="text-lg font-semibold text-slate-900">Verlauf</h2>
-          <div className="flex flex-wrap items-center gap-3 text-xs text-slate-600">
-            {seriesList.map((series) => (
-              <label key={series.key} className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={seriesVisible[series.key]}
-                  onChange={(event) =>
-                    setSeriesVisible((prev) => ({
-                      ...prev,
-                      [series.key]: event.target.checked,
-                    }))
-                  }
-                />
-                <span className="inline-flex items-center gap-1">
-                  <span
-                    className="inline-block h-2 w-2 rounded-full"
-                    style={{ backgroundColor: series.color }}
-                  />
-                  {series.label}
-                </span>
-              </label>
-            ))}
-          </div>
-        </div>
-        <div className="h-72 p-4">
-          {chartData.length === 0 ? (
-            <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50 text-sm text-slate-500">
-              Keine Daten im gewählten Zeitraum.
-            </div>
-          ) : (() => {
-            const visibleSeries = seriesList.filter((series) => seriesVisible[series.key]);
-            const chartValues = chartData.flatMap((row) =>
-              visibleSeries.map((series) => row[series.key])
-            );
-            const minValue = Math.min(0, ...(chartValues.length ? chartValues : [0]));
-            const maxValue = Math.max(0, ...(chartValues.length ? chartValues : [0]));
-            const valueSpan = maxValue - minValue || 1;
-            const chartWidth = 1000;
-            const chartHeight = 280;
-            const padding = { left: 48, right: 16, top: 16, bottom: 36 };
-            const innerWidth = chartWidth - padding.left - padding.right;
-            const innerHeight = chartHeight - padding.top - padding.bottom;
-            const pointCount = chartData.length;
-            const xForIndex = (index) =>
-              padding.left + (pointCount === 1 ? 0 : (index / (pointCount - 1)) * innerWidth);
-            const yForValue = (value) =>
-              padding.top + (1 - (value - minValue) / valueSpan) * innerHeight;
-            const buildPolyline = (key) =>
-              chartData
-                .map((row, index) => `${xForIndex(index)},${yForValue(row[key])}`)
-                .join(' ');
-            const zeroY = yForValue(0);
-            const labelEvery = Math.max(1, Math.ceil(pointCount / 6));
-
-            return (
-              <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="h-full w-full">
-                <rect
-                  x="0"
-                  y="0"
-                  width={chartWidth}
-                  height={chartHeight}
-                  fill="white"
-                />
-                {[0, 0.25, 0.5, 0.75, 1].map((ratio) => {
-                  const y = padding.top + innerHeight * ratio;
-                  return (
-                    <line
-                      key={ratio}
-                      x1={padding.left}
-                      y1={y}
-                      x2={chartWidth - padding.right}
-                      y2={y}
-                      stroke="#e2e8f0"
-                      strokeDasharray="4 4"
-                    />
-                  );
-                })}
-                {minValue < 0 && maxValue > 0 ? (
-                  <line
-                    x1={padding.left}
-                    y1={zeroY}
-                    x2={chartWidth - padding.right}
-                    y2={zeroY}
-                    stroke="#94a3b8"
-                    strokeDasharray="2 2"
-                  />
-                ) : null}
-                {visibleSeries.map((series) => (
-                  <polyline
-                    key={series.key}
-                    fill="none"
-                    stroke={series.color}
-                    strokeWidth="2.5"
-                    points={buildPolyline(series.key)}
-                  />
+            {showSuccess ? (
+              <p className="mt-1 text-xs text-emerald-600">Glückwunsch. Sie haben Ihr Ziel erreicht.</p>
+            ) : showFailure ? (
+              <p className="mt-1 text-xs text-red-600">
+                Sie haben Ihr Ziel dieses Monats leider nicht erreicht.
+              </p>
+            ) : null}
+            <Coins className="mt-2 h-4 w-4 text-blue-500" />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-5 space-y-2">
+            <p className="text-xs text-slate-500">Monatliches Gewinnziel</p>
+            <Select value={targetMonth} onValueChange={setTargetMonth}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Monat auswählen" />
+              </SelectTrigger>
+              <SelectContent>
+                {monthOptions.map((month) => (
+                  <SelectItem key={month.value} value={month.value}>
+                    {month.label}
+                  </SelectItem>
                 ))}
-                {chartData.map((row, index) => {
-                  if (index % labelEvery !== 0 && index !== pointCount - 1) return null;
-                  return (
-                    <text
-                      key={row.key}
-                      x={xForIndex(index)}
-                      y={chartHeight - padding.bottom + 18}
-                      textAnchor="middle"
-                      fontSize="11"
-                      fill="#64748b"
-                    >
-                      {row.label}
-                    </text>
-                  );
-                })}
-              </svg>
-            );
-          })()}
-        </div>
+              </SelectContent>
+            </Select>
+            <Input
+              type="number"
+              step="0.01"
+              value={profitTargetInput}
+              onChange={(e) => setProfitTargetInput(e.target.value)}
+              placeholder="z. B. 5000"
+            />
+            {showTargetActions ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  size="sm"
+                  className="bg-[#1e3a5f] hover:bg-[#2d5a8a]"
+                  onClick={handleConfirmTarget}
+                >
+                  Bestätigen
+                </Button>
+                <Button size="sm" variant="outline" onClick={handleDeleteTarget}>
+                  Löschen
+                </Button>
+              </div>
+            ) : null}
+            <p className="text-xs text-slate-500">
+              Monatsergebnis: <span className="font-medium text-slate-700">{formatCurrency(selectedMonthProfit)}</span>
+            </p>
+          </CardContent>
+        </Card>
+        <Card><CardContent className="p-5"><p className="text-xs text-slate-500">Getankt (Vorkasse)</p><p className="mt-2 text-2xl font-semibold">{formatCurrency(totals.fuelAdvance)}</p><Fuel className="mt-2 h-4 w-4 text-slate-500" /></CardContent></Card>
       </div>
 
-      <div className="rounded-xl border border-slate-200/80 bg-white/90">
-        <div className="flex items-center justify-between gap-4 border-b border-slate-200 px-4 py-3">
-          <h2 className="text-lg font-semibold text-slate-900">Aufträge im Zeitraum</h2>
-          <button
-            type="button"
-            className="text-xs font-medium text-slate-600 hover:text-slate-900"
-            onClick={() => setOrdersOpen((prev) => !prev)}
-          >
-            {ordersOpen ? "Verbergen ▲" : "Anzeigen ▼"}
-          </button>
-        </div>
-        {ordersOpen && (
-          <div className="space-y-4 p-4">
-            <div className="max-w-md">
-              <input
-                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-                placeholder="Auftrag, Kennzeichen, Kunde oder Route suchen"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
+      <Card className="border border-slate-200/80 bg-white/90">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-lg">Verlauf</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-wrap items-center gap-4 text-sm">
+            <label className="flex items-center gap-2">
+              <Checkbox checked={seriesVisible.revenue} onCheckedChange={(checked) => setSeriesVisible((prev) => ({ ...prev, revenue: Boolean(checked) }))} />
+              Umsatz
+            </label>
+            <label className="flex items-center gap-2">
+              <Checkbox checked={seriesVisible.cost} onCheckedChange={(checked) => setSeriesVisible((prev) => ({ ...prev, cost: Boolean(checked) }))} />
+              Kosten
+            </label>
+            <label className="flex items-center gap-2">
+              <Checkbox checked={seriesVisible.profit} onCheckedChange={(checked) => setSeriesVisible((prev) => ({ ...prev, profit: Boolean(checked) }))} />
+              Gewinn
+            </label>
+          </div>
+
+          <div className="h-80">
+            {!Recharts ? (
+              <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50 text-sm text-slate-500">
+                Diagramm wird geladen...
+              </div>
+            ) : chartConfig.data.length === 0 ? (
+              <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50 text-sm text-slate-500">
+                Keine Daten im gewählten Zeitraum.
+              </div>
+            ) : (
+              <Recharts.ResponsiveContainer width="100%" height="100%">
+                <Recharts.LineChart data={chartConfig.data} margin={{ top: 8, right: 16, left: 8, bottom: 8 }}>
+                  <Recharts.CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <Recharts.XAxis
+                    dataKey="key"
+                    stroke="#64748b"
+                    tick={{ fontSize: 12 }}
+                    tickFormatter={(value) => chartConfig.labelMap.get(value) || value}
+                  />
+                  <Recharts.YAxis stroke="#64748b" tickFormatter={(value) => `${Math.round(value)}€`} tick={{ fontSize: 12 }} />
+                  <Recharts.Tooltip
+                    labelFormatter={(value) => chartConfig.labelMap.get(value) || value}
+                    formatter={(value) => formatCurrency(Number(value || 0))}
+                  />
+                  <Recharts.Legend />
+                  {chartConfig.monthSeparators.map((separator) => (
+                    <Recharts.ReferenceLine
+                      key={separator.key}
+                      x={separator.key}
+                      stroke="#cbd5f5"
+                      strokeDasharray="4 4"
+                      label={{
+                        value: separator.label,
+                        position: 'top',
+                        fill: '#94a3b8',
+                        fontSize: 11,
+                      }}
+                    />
+                  ))}
+                  {profitTargetValue > 0 ? (
+                    <Recharts.ReferenceLine
+                      y={profitTargetValue}
+                      stroke="#16a34a"
+                      strokeDasharray="6 4"
+                      label={{
+                        value: "Ziel",
+                        position: "right",
+                        fill: "#16a34a",
+                        fontSize: 11,
+                      }}
+                    />
+                  ) : null}
+                  {seriesVisible.revenue ? <Recharts.Line type="monotone" dataKey="revenue" name="Umsatz" stroke="#10b981" strokeWidth={2.5} dot={false} /> : null}
+                  {seriesVisible.cost ? <Recharts.Line type="monotone" dataKey="cost" name="Kosten" stroke="#f59e0b" strokeWidth={2.5} dot={false} /> : null}
+                  {seriesVisible.profit ? <Recharts.Line type="monotone" dataKey="profit" name="Gewinn" stroke="#2563eb" strokeWidth={2.5} dot={false} /> : null}
+                </Recharts.LineChart>
+              </Recharts.ResponsiveContainer>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border border-slate-200/80 bg-white/90">
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between gap-4">
+            <CardTitle className="text-lg">Aufträge im Zeitraum</CardTitle>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setOrdersOpen((prev) => !prev)}
+              className="text-slate-600 hover:text-slate-900"
+            >
+              <ChevronDown
+                className={`h-4 w-4 transition-transform ${ordersOpen ? "rotate-180" : ""}`}
               />
+            </Button>
+          </div>
+        </CardHeader>
+        {ordersOpen && (
+        <CardContent className="space-y-4">
+          <div className="relative max-w-md">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <Input
+              className="pl-9"
+              placeholder="Auftrag, Kennzeichen, Kunde oder Route suchen"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+
+          {loading ? (
+            <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
+              Statistik wird geladen...
             </div>
-
-            {loading ? (
-              <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
-                Statistik wird geladen...
-              </div>
-            ) : filteredRows.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
-                Keine passenden Aufträge gefunden.
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-slate-200 text-left text-slate-500">
-                      <th className="px-3 py-2 font-medium">Auftrag</th>
-                      <th className="px-3 py-2 font-medium">Datum</th>
-                      <th className="px-3 py-2 font-medium">Strecke</th>
-                      <th className="px-3 py-2 font-medium">Auftragspreis</th>
-                      <th className="px-3 py-2 font-medium">Fahrer-Kosten</th>
-                      <th className="px-3 py-2 font-medium">Gewinn</th>
-                      <th className="px-3 py-2 font-medium">Getankt (Vorkasse)</th>
+          ) : filteredRows.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
+              Keine passenden Aufträge gefunden.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200 text-left text-slate-500">
+                    <th className="px-3 py-2 font-medium">Auftrag</th>
+                    <th className="px-3 py-2 font-medium">Datum</th>
+                    <th className="px-3 py-2 font-medium">Strecke</th>
+                    <th className="px-3 py-2 font-medium">Auftragspreis</th>
+                    <th className="px-3 py-2 font-medium">Fahrer-Kosten</th>
+                    <th className="px-3 py-2 font-medium">Gewinn</th>
+                    <th className="px-3 py-2 font-medium">Getankt (Vorkasse)</th>
+                    <th className="px-3 py-2 font-medium"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredRows.map((row) => (
+                    <tr
+                      key={row.id}
+                      className="cursor-pointer border-b border-slate-100 hover:bg-slate-50"
+                      onClick={() => setSelectedOrder(row)}
+                    >
+                      <td className="px-3 py-3">
+                        <p className="font-semibold text-slate-900">{row.orderNumber}</p>
+                        <p className="text-xs text-slate-500">{row.route}</p>
+                      </td>
+                      <td className="px-3 py-3 text-slate-600">{format(row.date, 'dd.MM.yyyy')}</td>
+                      <td className="px-3 py-3 text-slate-600">{row.distanceKm ? `${row.distanceKm} km` : '-'}</td>
+                      <td className="px-3 py-3 font-medium text-emerald-700">{formatCurrency(row.revenue)}</td>
+                      <td className="px-3 py-3 font-medium text-amber-700">{formatCurrency(row.cost)}</td>
+                      <td className="px-3 py-3 font-medium text-blue-700">{formatCurrency(row.profit)}</td>
+                      <td className="px-3 py-3 text-slate-700">{formatCurrency(row.fuelAdvance)}</td>
+                      <td className="px-3 py-3 text-right">
+                        <ArrowRight className="h-4 w-4 text-slate-400" />
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {filteredRows.map((row) => (
-                      <tr key={row.id} className="border-b border-slate-100">
-                        <td className="px-3 py-3">
-                          <p className="font-semibold text-slate-900">{row.orderNumber}</p>
-                          <p className="text-xs text-slate-500">{row.route}</p>
-                        </td>
-                        <td className="px-3 py-3 text-slate-600">{format(row.date, 'dd.MM.yyyy')}</td>
-                        <td className="px-3 py-3 text-slate-600">{row.distanceKm ? `${row.distanceKm} km` : '-'}</td>
-                        <td className="px-3 py-3 font-medium text-emerald-700">{formatCurrency(row.revenue)}</td>
-                        <td className="px-3 py-3 font-medium text-amber-700">{formatCurrency(row.cost)}</td>
-                        <td className="px-3 py-3 font-medium text-blue-700">{formatCurrency(row.profit)}</td>
-                        <td className="px-3 py-3 text-slate-700">{formatCurrency(row.fuelAdvance)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
         )}
-      </div>
+      </Card>
 
-      <div className="rounded-xl border border-slate-200/80 bg-white/90">
-        <div className="flex items-center justify-between gap-4 border-b border-slate-200 px-4 py-3">
-          <h2 className="text-lg font-semibold text-slate-900">Fahrer-Kosten im Zeitraum</h2>
-          <button
-            type="button"
-            className="text-xs font-medium text-slate-600 hover:text-slate-900"
-            onClick={() => setDriverCostsOpen((prev) => !prev)}
-          >
-            {driverCostsOpen ? "Verbergen ▲" : "Anzeigen ▼"}
-          </button>
-        </div>
+      <Card className="border border-slate-200/80 bg-white/90">
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between gap-4">
+            <CardTitle className="text-lg">Fahrer-Kosten im Zeitraum</CardTitle>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setDriverCostsOpen((prev) => !prev)}
+              className="text-slate-600 hover:text-slate-900"
+            >
+              <ChevronDown
+                className={`h-4 w-4 transition-transform ${driverCostsOpen ? "rotate-180" : ""}`}
+              />
+            </Button>
+          </div>
+        </CardHeader>
         {driverCostsOpen && (
-          <div className="space-y-4 p-4">
-            {loading ? (
-              <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
-                Fahrer-Kosten werden geladen...
-              </div>
-            ) : driverCostRows.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
-                Keine Fahrer-Kosten im ausgewählten Zeitraum.
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-slate-200 text-left text-slate-500">
-                      <th className="px-3 py-2 font-medium">Datum</th>
-                      <th className="px-3 py-2 font-medium">Fahrer</th>
-                      <th className="px-3 py-2 font-medium">Kennzeichen</th>
-                      <th className="px-3 py-2 font-medium">Tour</th>
-                      <th className="px-3 py-2 font-medium">Strecke</th>
-                      <th className="px-3 py-2 font-medium">Fahrer-Kosten</th>
+        <CardContent className="space-y-4">
+          {loading ? (
+            <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
+              Fahrer-Kosten werden geladen...
+            </div>
+          ) : driverCostRows.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
+              Keine Fahrer-Kosten im ausgewählten Zeitraum.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200 text-left text-slate-500">
+                    <th className="px-3 py-2 font-medium">Datum</th>
+                    <th className="px-3 py-2 font-medium">Fahrer</th>
+                    <th className="px-3 py-2 font-medium">Kennzeichen</th>
+                    <th className="px-3 py-2 font-medium">Tour</th>
+                    <th className="px-3 py-2 font-medium">Strecke</th>
+                    <th className="px-3 py-2 font-medium">Fahrer-Kosten</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {driverCostRows.map((row) => (
+                    <tr key={row.id} className="border-b border-slate-100">
+                      <td className="px-3 py-3 text-slate-600">
+                        {format(row.date, 'dd.MM.yyyy')}
+                      </td>
+                      <td className="px-3 py-3 text-slate-800">{row.driverName}</td>
+                      <td className="px-3 py-3 text-slate-600">{row.licensePlate}</td>
+                      <td className="px-3 py-3 text-slate-600">{row.route}</td>
+                      <td className="px-3 py-3 text-slate-600">
+                        {row.distanceKm ? `${row.distanceKm} km` : '-'}
+                      </td>
+                      <td className="px-3 py-3 font-medium text-amber-700">
+                        {formatCurrency(row.cost)}
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {driverCostRows.map((row) => (
-                      <tr key={row.id} className="border-b border-slate-100">
-                        <td className="px-3 py-3 text-slate-600">
-                          {format(row.date, 'dd.MM.yyyy')}
-                        </td>
-                        <td className="px-3 py-3 text-slate-800">{row.driverName}</td>
-                        <td className="px-3 py-3 text-slate-600">{row.licensePlate}</td>
-                        <td className="px-3 py-3 text-slate-600">{row.route}</td>
-                        <td className="px-3 py-3 text-slate-600">
-                          {row.distanceKm ? `${row.distanceKm} km` : '-'}
-                        </td>
-                        <td className="px-3 py-3 font-medium text-amber-700">
-                          {formatCurrency(row.cost)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
         )}
-      </div>
+      </Card>
+
+      <Dialog open={Boolean(selectedOrder)} onOpenChange={(open) => !open && setSelectedOrder(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Auftragsanalyse</DialogTitle>
+            <DialogDescription>
+              Detaillierte Statistik zum ausgewählten Auftrag.
+            </DialogDescription>
+          </DialogHeader>
+          {selectedOrder ? (
+            <div className="space-y-3 text-sm">
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                <p className="font-semibold text-slate-900">{selectedOrder.orderNumber}</p>
+                <p className="text-slate-600">{selectedOrder.route}</p>
+                <p className="text-xs text-slate-500">{selectedOrder.customerName} • {selectedOrder.licensePlate}</p>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-lg border border-slate-200 p-3">
+                  <p className="text-xs text-slate-500">Auftragspreis</p>
+                  <p className="mt-1 font-semibold text-emerald-700">{formatCurrency(selectedOrder.revenue)}</p>
+                </div>
+                <div className="rounded-lg border border-slate-200 p-3">
+                  <p className="text-xs text-slate-500">Fahrer-Kosten</p>
+                  <p className="mt-1 font-semibold text-amber-700">{formatCurrency(selectedOrder.cost)}</p>
+                </div>
+                <div className="rounded-lg border border-slate-200 p-3">
+                  <p className="text-xs text-slate-500">Gewinn</p>
+                  <p className="mt-1 font-semibold text-blue-700">{formatCurrency(selectedOrder.profit)}</p>
+                </div>
+                <div className="rounded-lg border border-slate-200 p-3">
+                  <p className="text-xs text-slate-500">Getankt (Vorkasse)</p>
+                  <p className="mt-1 font-semibold text-slate-700">{formatCurrency(selectedOrder.fuelAdvance)}</p>
+                </div>
+              </div>
+              <div className="flex items-center justify-between rounded-lg border border-slate-200 p-3">
+                <span className="text-slate-500">Strecke</span>
+                <span className="font-medium text-slate-900">{selectedOrder.distanceKm ? `${selectedOrder.distanceKm} km` : '-'}</span>
+              </div>
+              <Link to={`${createPageUrl('Orders')}?id=${selectedOrder.id}`}>
+                <Button className="w-full bg-[#1e3a5f] hover:bg-[#2d5a8a]">Auftrag öffnen</Button>
+              </Link>
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
