@@ -121,15 +121,6 @@ export default function DriverProfile() {
     queryFn: () => appClient.entities.Checklist.filter({ driver_id: driver?.id }),
     enabled: !!driver?.id,
   });
-  const parseAmount = (value) => {
-    if (value === null || value === undefined || value === "") return 0;
-    if (typeof value === "number") return Number.isFinite(value) ? value : 0;
-    const normalized = String(value).replace(/[^0-9,.-]/g, "").replace(",", ".");
-    const parsed = Number.parseFloat(normalized);
-    return Number.isFinite(parsed) ? parsed : 0;
-  };
-  const hasAmount = (value) =>
-    value !== null && value !== undefined && String(value).trim() !== "";
   const formatCurrency = (value) =>
     formatNumber(value ?? 0, { style: "currency", currency: "EUR" });
 
@@ -166,12 +157,9 @@ export default function DriverProfile() {
       .map((segment) => {
         const dateValue = segment.created_date || segment.created_at;
         const date = dateValue ? new Date(dateValue) : null;
-        const hasPrice = hasAmount(segment.price);
-        let priceStatus =
-          segment.price_status || (hasPrice ? "approved" : "pending");
-        if (priceStatus === "approved" && !hasPrice) {
-          priceStatus = "pending";
-        }
+        const priceStatus =
+          segment.price_status ||
+          (segment.price !== null && segment.price !== undefined ? "approved" : "pending");
         return {
           id: segment.id,
           date,
@@ -182,7 +170,7 @@ export default function DriverProfile() {
             segment.segment_type === "shuttle"
               ? t("billing.type.shuttle")
               : t("billing.type.active"),
-          price: hasPrice ? parseAmount(segment.price) : 0,
+          price: Number.isFinite(Number(segment.price)) ? Number(segment.price) : 0,
           priceStatus,
           priceRejectionReason: segment.price_rejection_reason || "",
           expenses: segment.segment_type === "dropoff" ? expensesByOrder[segment.order_id] || 0 : 0,

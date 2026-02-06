@@ -40,13 +40,10 @@ const COMPLETED_STATUSES = new Set(['completed', 'review', 'ready_for_billing', 
 const parseAmount = (value) => {
   if (value === null || value === undefined || value === '') return 0;
   if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
-  const normalized = String(value).replace(/[^0-9,.-]/g, '').replace(',', '.');
+  const normalized = String(value).replace(',', '.');
   const parsed = Number.parseFloat(normalized);
   return Number.isFinite(parsed) ? parsed : 0;
 };
-
-const hasAmount = (value) =>
-  value !== null && value !== undefined && String(value).trim() !== '';
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -156,10 +153,14 @@ export default function Dashboard() {
   const driverCostByOrder = useMemo(() => {
     const map = new Map();
     orderSegments.forEach((segment) => {
-      const hasPrice = hasAmount(segment.price);
-      const status = segment.price_status || (hasPrice ? 'approved' : 'pending');
-      if (status !== 'approved' || !hasPrice) return;
-      const value = parseAmount(segment.price);
+      const status =
+        segment.price_status ||
+        (segment.price !== null && segment.price !== undefined && segment.price !== ''
+          ? 'approved'
+          : 'pending');
+      if (status !== 'approved') return;
+      const value = Number.parseFloat(segment.price);
+      if (!Number.isFinite(value)) return;
       map.set(segment.order_id, (map.get(segment.order_id) || 0) + value);
     });
     return map;
@@ -171,8 +172,8 @@ export default function Dashboard() {
       if (!checklist?.order_id || !Array.isArray(checklist.expenses)) return;
       const totalFuel = checklist.expenses.reduce((sum, expense) => {
         if (expense?.type !== 'fuel') return sum;
-        const amount = parseAmount(expense?.amount);
-        return amount ? sum + amount : sum;
+        const amount = Number.parseFloat(String(expense.amount || '').replace(',', '.'));
+        return Number.isFinite(amount) ? sum + amount : sum;
       }, 0);
       if (!totalFuel) return;
       map.set(checklist.order_id, (map.get(checklist.order_id) || 0) + totalFuel);

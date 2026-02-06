@@ -71,16 +71,6 @@ const buildReviewChecks = (source) =>
     return acc;
   }, {});
 
-const normalizeAmountInput = (value) =>
-  String(value || '').replace(/[^0-9,.-]/g, '').replace(',', '.');
-
-const parseAmount = (value) => {
-  if (value === null || value === undefined || value === '') return 0;
-  if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
-  const parsed = Number.parseFloat(normalizeAmountInput(value));
-  return Number.isFinite(parsed) ? parsed : 0;
-};
-
 export default function OrderDetails({
   order,
   checklists = [],
@@ -478,7 +468,7 @@ export default function OrderDetails({
   );
   const segmentCostTotal = useMemo(() => {
     return orderSegments.reduce((sum, segment) => {
-      const value = parseAmount(segment.price);
+      const value = parseFloat(segment.price);
       if (getSegmentStatus(segment) === 'approved' && Number.isFinite(value)) {
         return sum + value;
       }
@@ -492,10 +482,7 @@ export default function OrderDetails({
 
   const saveSegmentPrice = async (segment) => {
     const rawValue = segmentEdits[segment.id];
-    const parsed =
-      rawValue === '' || rawValue === null || rawValue === undefined
-        ? null
-        : Number.parseFloat(normalizeAmountInput(rawValue));
+    const parsed = rawValue === '' || rawValue === null || rawValue === undefined ? null : parseFloat(rawValue);
     if (rawValue !== '' && Number.isNaN(parsed)) {
       setSegmentsError('Bitte einen gültigen Preis eingeben.');
       return;

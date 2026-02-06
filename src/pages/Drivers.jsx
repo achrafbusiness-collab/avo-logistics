@@ -195,17 +195,6 @@ export default function Drivers() {
   const formatCurrency = (value) =>
     new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(value || 0);
 
-  const parseAmount = (value) => {
-    if (value === null || value === undefined || value === '') return 0;
-    if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
-    const normalized = String(value).replace(/[^0-9,.-]/g, '').replace(',', '.');
-    const parsed = Number.parseFloat(normalized);
-    return Number.isFinite(parsed) ? parsed : 0;
-  };
-
-  const hasAmount = (value) =>
-    value !== null && value !== undefined && String(value).trim() !== '';
-
   const expensesByOrder = useMemo(() => {
     return (checklists || []).reduce((acc, checklist) => {
       if (!checklist?.order_id || !Array.isArray(checklist.expenses)) return acc;
@@ -249,20 +238,16 @@ export default function Drivers() {
       .map((segment) => {
         const rawDate = getSegmentDateValue(segment);
         const date = rawDate ? new Date(rawDate) : null;
-        const hasPrice = hasAmount(segment.price);
-        let priceStatus =
-          segment.price_status || (hasPrice ? 'approved' : 'pending');
-        if (priceStatus === 'approved' && !hasPrice) {
-          priceStatus = 'pending';
-        }
         return {
           id: segment.id,
           date,
           dateLabel: date ? format(date, 'dd.MM.yyyy', { locale: de }) : '-',
           tour: `${segment.start_location || ''} → ${segment.end_location || ''}`.trim(),
           typeLabel: segment.segment_type === 'shuttle' ? 'Shuttle' : 'Aktive Tour',
-          price: hasPrice ? parseAmount(segment.price) : 0,
-          priceStatus,
+          price: Number.isFinite(Number(segment.price)) ? Number(segment.price) : 0,
+          priceStatus:
+            segment.price_status ||
+            (segment.price !== null && segment.price !== undefined ? 'approved' : 'pending'),
           priceRejectionReason: segment.price_rejection_reason || '',
           expenses: segment.segment_type === 'dropoff' ? expensesByOrder[segment.order_id] || 0 : 0,
         };
