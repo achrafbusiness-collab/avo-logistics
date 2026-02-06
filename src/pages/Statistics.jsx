@@ -423,15 +423,10 @@ export default function Statistics() {
         if (status !== 'approved') return null;
         const price = parseAmount(segment.price);
         if (!price) return null;
-        const dateValue =
-          segment.created_date ||
-          segment.created_at ||
-          segment.datetime ||
-          segment.date ||
-          null;
+        const order = ordersById.get(segment.order_id);
+        const dateValue = segment.created_date || null;
         const date = orderDate(order) || toDate(dateValue);
         if (!date || date < range.from || date > range.to) return null;
-        const order = ordersById.get(segment.order_id);
         const driver = driversById.get(segment.driver_id);
         const driverName =
           segment.driver_name ||
