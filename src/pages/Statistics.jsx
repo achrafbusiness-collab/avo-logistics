@@ -177,7 +177,7 @@ export default function Statistics() {
     queryFn: () =>
       appClient.entities.OrderSegment.list(
         '-created_date',
-        2500,
+        10000,
         [
           'id',
           'order_id',
