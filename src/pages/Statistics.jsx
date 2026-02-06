@@ -29,17 +29,7 @@ import {
   differenceInCalendarDays,
 } from 'date-fns';
 import { de } from 'date-fns/locale';
-import {
-  LineChart,
-  Line,
-  CartesianGrid,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  Legend,
-  ReferenceLine,
-} from 'recharts';
+import * as Recharts from 'recharts';
 
 import { appClient } from '@/api/appClient';
 import { createPageUrl } from '@/utils';
@@ -148,6 +138,7 @@ export default function Statistics() {
   const [targetMonth, setTargetMonth] = useState(() => format(new Date(), 'yyyy-MM'));
   const [profitTargetInput, setProfitTargetInput] = useState('');
   const [profitTargetSaved, setProfitTargetSaved] = useState('');
+  const [chartsReady, setChartsReady] = useState(false);
   const [seriesVisible, setSeriesVisible] = useState({
     revenue: true,
     cost: true,
@@ -230,6 +221,10 @@ export default function Statistics() {
     return () => {
       active = false;
     };
+  }, []);
+
+  useEffect(() => {
+    setChartsReady(true);
   }, []);
 
   const monthOptions = useMemo(() => {
@@ -845,28 +840,32 @@ export default function Statistics() {
           </div>
 
           <div className="h-80">
-            {chartConfig.data.length === 0 ? (
+            {!chartsReady ? (
+              <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50 text-sm text-slate-500">
+                Diagramm wird geladen...
+              </div>
+            ) : chartConfig.data.length === 0 ? (
               <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50 text-sm text-slate-500">
                 Keine Daten im gewählten Zeitraum.
               </div>
             ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartConfig.data} margin={{ top: 8, right: 16, left: 8, bottom: 8 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                  <XAxis
+              <Recharts.ResponsiveContainer width="100%" height="100%">
+                <Recharts.LineChart data={chartConfig.data} margin={{ top: 8, right: 16, left: 8, bottom: 8 }}>
+                  <Recharts.CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <Recharts.XAxis
                     dataKey="key"
                     stroke="#64748b"
                     tick={{ fontSize: 12 }}
                     tickFormatter={(value) => chartConfig.labelMap.get(value) || value}
                   />
-                  <YAxis stroke="#64748b" tickFormatter={(value) => `${Math.round(value)}€`} tick={{ fontSize: 12 }} />
-                  <Tooltip
+                  <Recharts.YAxis stroke="#64748b" tickFormatter={(value) => `${Math.round(value)}€`} tick={{ fontSize: 12 }} />
+                  <Recharts.Tooltip
                     labelFormatter={(value) => chartConfig.labelMap.get(value) || value}
                     formatter={(value) => formatCurrency(Number(value || 0))}
                   />
-                  <Legend />
+                  <Recharts.Legend />
                   {chartConfig.monthSeparators.map((separator) => (
-                    <ReferenceLine
+                    <Recharts.ReferenceLine
                       key={separator.key}
                       x={separator.key}
                       stroke="#cbd5f5"
@@ -880,7 +879,7 @@ export default function Statistics() {
                     />
                   ))}
                   {profitTargetValue > 0 ? (
-                    <ReferenceLine
+                    <Recharts.ReferenceLine
                       y={profitTargetValue}
                       stroke="#16a34a"
                       strokeDasharray="6 4"
@@ -892,11 +891,11 @@ export default function Statistics() {
                       }}
                     />
                   ) : null}
-                  {seriesVisible.revenue ? <Line type="monotone" dataKey="revenue" name="Umsatz" stroke="#10b981" strokeWidth={2.5} dot={false} /> : null}
-                  {seriesVisible.cost ? <Line type="monotone" dataKey="cost" name="Kosten" stroke="#f59e0b" strokeWidth={2.5} dot={false} /> : null}
-                  {seriesVisible.profit ? <Line type="monotone" dataKey="profit" name="Gewinn" stroke="#2563eb" strokeWidth={2.5} dot={false} /> : null}
-                </LineChart>
-              </ResponsiveContainer>
+                  {seriesVisible.revenue ? <Recharts.Line type="monotone" dataKey="revenue" name="Umsatz" stroke="#10b981" strokeWidth={2.5} dot={false} /> : null}
+                  {seriesVisible.cost ? <Recharts.Line type="monotone" dataKey="cost" name="Kosten" stroke="#f59e0b" strokeWidth={2.5} dot={false} /> : null}
+                  {seriesVisible.profit ? <Recharts.Line type="monotone" dataKey="profit" name="Gewinn" stroke="#2563eb" strokeWidth={2.5} dot={false} /> : null}
+                </Recharts.LineChart>
+              </Recharts.ResponsiveContainer>
             )}
           </div>
         </CardContent>
