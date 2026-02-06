@@ -29,7 +29,6 @@ import {
   differenceInCalendarDays,
 } from 'date-fns';
 import { de } from 'date-fns/locale';
-const loadRecharts = () => import('recharts');
 
 import { appClient } from '@/api/appClient';
 import { createPageUrl } from '@/utils';
@@ -138,7 +137,6 @@ export default function Statistics() {
   const [targetMonth, setTargetMonth] = useState(() => format(new Date(), 'yyyy-MM'));
   const [profitTargetInput, setProfitTargetInput] = useState('');
   const [profitTargetSaved, setProfitTargetSaved] = useState('');
-  const [recharts, setRecharts] = useState(null);
   const [seriesVisible, setSeriesVisible] = useState({
     revenue: true,
     cost: true,
@@ -223,19 +221,6 @@ export default function Statistics() {
     };
   }, []);
 
-  useEffect(() => {
-    let active = true;
-    loadRecharts()
-      .then((mod) => {
-        if (active) setRecharts(mod);
-      })
-      .catch((error) => {
-        console.error('Failed to load charts:', error);
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
 
   const monthOptions = useMemo(() => {
     const year = new Date().getFullYear();
@@ -629,8 +614,6 @@ export default function Statistics() {
 
   const rangeLabel = `${format(range.from, 'dd.MM.yyyy')} - ${format(range.to, 'dd.MM.yyyy')}`;
 
-  const Recharts = recharts;
-
   return (
     <div className="space-y-6">
       <div className="relative overflow-hidden rounded-3xl bg-slate-950 text-white shadow-[0_30px_60px_-40px_rgba(15,23,42,0.8)]">
@@ -852,62 +835,47 @@ export default function Statistics() {
           </div>
 
           <div className="h-80">
-            {!Recharts ? (
-              <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50 text-sm text-slate-500">
-                Diagramm wird geladen...
-              </div>
-            ) : chartConfig.data.length === 0 ? (
+            {chartConfig.data.length === 0 ? (
               <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50 text-sm text-slate-500">
                 Keine Daten im gewählten Zeitraum.
               </div>
             ) : (
-              <Recharts.ResponsiveContainer width="100%" height="100%">
-                <Recharts.LineChart data={chartConfig.data} margin={{ top: 8, right: 16, left: 8, bottom: 8 }}>
-                  <Recharts.CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                  <Recharts.XAxis
-                    dataKey="key"
-                    stroke="#64748b"
-                    tick={{ fontSize: 12 }}
-                    tickFormatter={(value) => chartConfig.labelMap.get(value) || value}
-                  />
-                  <Recharts.YAxis stroke="#64748b" tickFormatter={(value) => `${Math.round(value)}€`} tick={{ fontSize: 12 }} />
-                  <Recharts.Tooltip
-                    labelFormatter={(value) => chartConfig.labelMap.get(value) || value}
-                    formatter={(value) => formatCurrency(Number(value || 0))}
-                  />
-                  <Recharts.Legend />
-                  {chartConfig.monthSeparators.map((separator) => (
-                    <Recharts.ReferenceLine
-                      key={separator.key}
-                      x={separator.key}
-                      stroke="#cbd5f5"
-                      strokeDasharray="4 4"
-                      label={{
-                        value: separator.label,
-                        position: 'top',
-                        fill: '#94a3b8',
-                        fontSize: 11,
-                      }}
-                    />
-                  ))}
-                  {profitTargetValue > 0 ? (
-                    <Recharts.ReferenceLine
-                      y={profitTargetValue}
-                      stroke="#16a34a"
-                      strokeDasharray="6 4"
-                      label={{
-                        value: "Ziel",
-                        position: "right",
-                        fill: "#16a34a",
-                        fontSize: 11,
-                      }}
-                    />
-                  ) : null}
-                  {seriesVisible.revenue ? <Recharts.Line type="monotone" dataKey="revenue" name="Umsatz" stroke="#10b981" strokeWidth={2.5} dot={false} /> : null}
-                  {seriesVisible.cost ? <Recharts.Line type="monotone" dataKey="cost" name="Kosten" stroke="#f59e0b" strokeWidth={2.5} dot={false} /> : null}
-                  {seriesVisible.profit ? <Recharts.Line type="monotone" dataKey="profit" name="Gewinn" stroke="#2563eb" strokeWidth={2.5} dot={false} /> : null}
-                </Recharts.LineChart>
-              </Recharts.ResponsiveContainer>
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-left text-slate-500">
+                      <th className="px-3 py-2 font-medium">Zeitraum</th>
+                      {seriesVisible.revenue ? <th className="px-3 py-2 font-medium">Umsatz</th> : null}
+                      {seriesVisible.cost ? <th className="px-3 py-2 font-medium">Kosten</th> : null}
+                      {seriesVisible.profit ? <th className="px-3 py-2 font-medium">Gewinn</th> : null}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {chartConfig.data.map((row) => (
+                      <tr key={row.key} className="border-b border-slate-100">
+                        <td className="px-3 py-3 text-slate-600">
+                          {chartConfig.labelMap.get(row.key) || row.key}
+                        </td>
+                        {seriesVisible.revenue ? (
+                          <td className="px-3 py-3 font-medium text-emerald-700">
+                            {formatCurrency(row.revenue)}
+                          </td>
+                        ) : null}
+                        {seriesVisible.cost ? (
+                          <td className="px-3 py-3 font-medium text-amber-700">
+                            {formatCurrency(row.cost)}
+                          </td>
+                        ) : null}
+                        {seriesVisible.profit ? (
+                          <td className="px-3 py-3 font-medium text-blue-700">
+                            {formatCurrency(row.profit)}
+                          </td>
+                        ) : null}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
         </CardContent>
