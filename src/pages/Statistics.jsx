@@ -42,7 +42,6 @@ import {
 } from 'recharts';
 
 import { appClient } from '@/api/appClient';
-import { supabase } from '@/lib/supabaseClient';
 import { createPageUrl } from '@/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -155,10 +154,6 @@ export default function Statistics() {
     profit: true,
   });
   const targetLoadedRef = useRef(null);
-  const range = useMemo(
-    () => getRangeForPeriod(period, customFrom, customTo),
-    [period, customFrom, customTo]
-  );
 
   const { data: orders = [], isLoading: ordersLoading } = useQuery({
     queryKey: ['stats-orders'],
@@ -187,43 +182,28 @@ export default function Statistics() {
   });
 
   const { data: orderSegments = [], isLoading: segmentsLoading } = useQuery({
-    queryKey: ['stats-order-segments', range.from?.toISOString(), range.to?.toISOString()],
-    queryFn: async () => {
-      let query = supabase
-        .from('order_segments')
-        .select(
-          [
-            'id',
-            'order_id',
-            'driver_id',
-            'driver_name',
-            'segment_type',
-            'start_location',
-            'end_location',
-            'distance_km',
-            'created_date',
-            'created_at',
-            'datetime',
-            'date',
-            'price',
-            'price_status',
-          ].join(',')
-        )
-        .order('created_date', { ascending: false })
-        .limit(5000);
-      if (range.from) {
-        query = query.gte('created_date', range.from.toISOString());
-      }
-      if (range.to) {
-        query = query.lte('created_date', range.to.toISOString());
-      }
-      const { data, error } = await query;
-      if (error) {
-        console.error('Supabase stats order segments error:', error.message);
-        return [];
-      }
-      return data || [];
-    },
+    queryKey: ['stats-order-segments'],
+    queryFn: () =>
+      appClient.entities.OrderSegment.list(
+        '-created_date',
+        2500,
+        [
+          'id',
+          'order_id',
+          'driver_id',
+          'driver_name',
+          'segment_type',
+          'start_location',
+          'end_location',
+          'distance_km',
+          'created_date',
+          'created_at',
+          'datetime',
+          'date',
+          'price',
+          'price_status',
+        ].join(',')
+      ),
   });
 
   const { data: drivers = [], isLoading: driversLoading } = useQuery({
@@ -239,6 +219,11 @@ export default function Statistics() {
   });
 
   const loading = ordersLoading || segmentsLoading || checklistsLoading || driversLoading;
+
+  const range = useMemo(
+    () => getRangeForPeriod(period, customFrom, customTo),
+    [period, customFrom, customTo]
+  );
 
   useEffect(() => {
     let active = true;
