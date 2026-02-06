@@ -64,6 +64,8 @@ export default function DriverChecklist() {
   const [postExpenseError, setPostExpenseError] = useState('');
   const [postExpenseSaved, setPostExpenseSaved] = useState(false);
 
+  const normalizeEmail = (value) => String(value || '').trim().toLowerCase();
+
   useEffect(() => {
     loadUser();
   }, []);
@@ -85,7 +87,8 @@ export default function DriverChecklist() {
 
   useEffect(() => {
     if (drivers.length && user) {
-      const driver = drivers.find(d => d.email === user.email);
+      const userEmail = normalizeEmail(user.email);
+      const driver = drivers.find((d) => normalizeEmail(d.email) === userEmail);
       if (driver) {
         // Create full name field for compatibility
         driver.name = `${driver.first_name || ''} ${driver.last_name || ''}`.trim();
@@ -107,6 +110,8 @@ export default function DriverChecklist() {
           'license_plate',
           'customer_order_number',
           'status',
+          'assigned_driver_id',
+          'assigned_driver_name',
           'vehicle_brand',
           'vehicle_model',
           'vehicle_color',
@@ -356,6 +361,12 @@ export default function DriverChecklist() {
       setHandoffError(t('handoff.errors.locationRequired'));
       return;
     }
+    const driverId = currentDriver?.id || order?.assigned_driver_id || null;
+    const driverName = currentDriver?.name || order?.assigned_driver_name || '';
+    if (!driverId) {
+      setHandoffError('Fahrerprofil nicht gefunden. Bitte Support kontaktieren.');
+      return;
+    }
     setHandoffSaving(true);
     setHandoffError('');
     const isShuttle = handoffMode === 'shuttle';
@@ -391,8 +402,8 @@ export default function DriverChecklist() {
         order_id: orderId,
         company_id: order.company_id,
         handoff_id: createdHandoff?.id ?? null,
-        driver_id: currentDriver?.id,
-        driver_name: currentDriver?.name,
+        driver_id: driverId,
+        driver_name: driverName,
         segment_type: isShuttle ? 'shuttle' : 'handoff',
         start_location: startLocation || null,
         end_location: handoffForm.location.trim(),

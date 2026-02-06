@@ -118,6 +118,7 @@ export default function DriverProtocol() {
   const [photoCameraActive, setPhotoCameraActive] = useState(false);
   const [activeChecklistId, setActiveChecklistId] = useState(checklistId);
   const draftCreateRef = useRef(null);
+  const normalizeEmail = (value) => String(value || '').trim().toLowerCase();
   const [gpsLoading, setGpsLoading] = useState(false);
   const [locationError, setLocationError] = useState('');
   const [damageDelay, setDamageDelay] = useState({
@@ -177,7 +178,8 @@ export default function DriverProtocol() {
 
   useEffect(() => {
     if (drivers.length && user) {
-      const driver = drivers.find(d => d.email === user.email);
+      const userEmail = normalizeEmail(user.email);
+      const driver = drivers.find((d) => normalizeEmail(d.email) === userEmail);
       if (driver) {
         // Create full name field for compatibility
         driver.name = `${driver.first_name || ''} ${driver.last_name || ''}`.trim();
@@ -198,6 +200,8 @@ export default function DriverProtocol() {
           'order_number',
           'license_plate',
           'status',
+          'assigned_driver_id',
+          'assigned_driver_name',
           'pickup_address',
           'pickup_postal_code',
           'pickup_city',
@@ -746,12 +750,14 @@ export default function DriverProtocol() {
             }
           }
 
+          const dropoffDriverId = currentDriver?.id || order?.assigned_driver_id || null;
+          const dropoffDriverName = currentDriver?.name || order?.assigned_driver_name || '';
           await appClient.entities.OrderSegment.create({
             order_id: orderId,
             company_id: order.company_id,
             handoff_id: latestAcceptedHandoff?.id || null,
-            driver_id: currentDriver?.id,
-            driver_name: currentDriver?.name,
+            driver_id: dropoffDriverId,
+            driver_name: dropoffDriverName,
             segment_type: 'dropoff',
             start_location: startLocation || null,
             end_location: dropoffLocation || null,
