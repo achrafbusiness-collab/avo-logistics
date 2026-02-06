@@ -2,18 +2,6 @@ import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
-  Calendar,
-  Search,
-  TrendingUp,
-  Truck,
-  Wallet,
-  Coins,
-  Fuel,
-  ArrowRight,
-  CheckCircle2,
-  ChevronDown,
-} from 'lucide-react';
-import {
   format,
   startOfDay,
   endOfDay,
@@ -22,34 +10,12 @@ import {
   startOfMonth,
   endOfMonth,
   subDays,
-  eachDayOfInterval,
-  eachWeekOfInterval,
-  eachMonthOfInterval,
-  eachYearOfInterval,
   differenceInCalendarDays,
 } from 'date-fns';
 import { de } from 'date-fns/locale';
 
 import { appClient } from '@/api/appClient';
 import { createPageUrl } from '@/utils';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Checkbox } from '@/components/ui/checkbox';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from '@/components/ui/dialog';
 
 const COMPLETED_STATUSES = new Set(['completed', 'review', 'ready_for_billing', 'approved']);
 
@@ -130,18 +96,12 @@ export default function Statistics() {
   const [customFrom, setCustomFrom] = useState(() => toDateInput(defaultLastWeek.from));
   const [customTo, setCustomTo] = useState(() => toDateInput(defaultLastWeek.to));
   const [search, setSearch] = useState('');
-  const [selectedOrder, setSelectedOrder] = useState(null);
   const [ordersOpen, setOrdersOpen] = useState(true);
   const [driverCostsOpen, setDriverCostsOpen] = useState(true);
   const [currentUser, setCurrentUser] = useState(null);
   const [targetMonth, setTargetMonth] = useState(() => format(new Date(), 'yyyy-MM'));
   const [profitTargetInput, setProfitTargetInput] = useState('');
   const [profitTargetSaved, setProfitTargetSaved] = useState('');
-  const [seriesVisible, setSeriesVisible] = useState({
-    revenue: true,
-    cost: true,
-    profit: true,
-  });
   const targetLoadedRef = useRef(null);
 
   const { data: orders = [], isLoading: ordersLoading } = useQuery({
@@ -434,124 +394,6 @@ export default function Statistics() {
   const showSuccess = monthlyGoalReached;
   const showFailure = profitTargetValue > 0 && monthCompleted && !monthlyGoalReached;
 
-  const chartConfig = useMemo(() => {
-    const showWeekYear = range.from.getFullYear() !== range.to.getFullYear();
-    const showMonthYear = range.from.getFullYear() !== range.to.getFullYear();
-
-    const buildKeyLabel = (point) => {
-      if (range.bucket === 'week') {
-        const weekStart = startOfWeek(point, { weekStartsOn: 1 });
-        const weekKey = format(weekStart, "RRRR-'W'II");
-        const weekNumber = format(weekStart, 'II');
-        return {
-          key: weekKey,
-          label: showWeekYear ? `KW ${weekNumber}/${format(weekStart, 'yy')}` : `KW ${weekNumber}`,
-          monthKey: format(weekStart, 'yyyy-MM'),
-          monthLabel: format(weekStart, 'MMM', { locale: de }),
-        };
-      }
-      if (range.bucket === 'month') {
-        const key = format(point, 'yyyy-MM');
-        return {
-          key,
-          label: showMonthYear ? format(point, 'MMM yy', { locale: de }) : format(point, 'MMM', { locale: de }),
-          monthKey: key,
-          monthLabel: format(point, 'MMM', { locale: de }),
-        };
-      }
-      if (range.bucket === 'year') {
-        const key = format(point, 'yyyy');
-        return { key, label: key, monthKey: null, monthLabel: null };
-      }
-      const key = format(point, 'yyyy-MM-dd');
-      return {
-        key,
-        label: format(point, 'dd.MM', { locale: de }),
-        monthKey: format(point, 'yyyy-MM'),
-        monthLabel: format(point, 'MMM', { locale: de }),
-      };
-    };
-
-    const points = (() => {
-      if (range.bucket === 'week') {
-        return eachWeekOfInterval({ start: range.from, end: range.to }, { weekStartsOn: 1 });
-      }
-      if (range.bucket === 'month') {
-        return eachMonthOfInterval({ start: range.from, end: range.to });
-      }
-      if (range.bucket === 'year') {
-        return eachYearOfInterval({ start: range.from, end: range.to });
-      }
-      return eachDayOfInterval({ start: range.from, end: range.to });
-    })();
-
-    const labelMap = new Map();
-    const monthSeparators = [];
-    let lastMonthKey = null;
-
-    const map = new Map(
-      points.map((point, index) => {
-        const { key, label, monthKey, monthLabel } = buildKeyLabel(point);
-        labelMap.set(key, label);
-        if (range.bucket === 'week' && monthKey && monthKey !== lastMonthKey) {
-          if (index !== 0) {
-            monthSeparators.push({ key, label: monthLabel });
-          }
-          lastMonthKey = monthKey;
-        }
-        return [
-          key,
-          {
-            key,
-            label,
-            revenue: 0,
-            cost: 0,
-            profit: 0,
-          },
-        ];
-      })
-    );
-
-    for (const row of rows) {
-      const key = (() => {
-        if (range.bucket === 'week') {
-          const weekStart = startOfWeek(row.date, { weekStartsOn: 1 });
-          return format(weekStart, "RRRR-'W'II");
-        }
-        if (range.bucket === 'month') return format(row.date, 'yyyy-MM');
-        if (range.bucket === 'year') return format(row.date, 'yyyy');
-        return format(row.date, 'yyyy-MM-dd');
-      })();
-      const bucket = map.get(key);
-      if (!bucket) continue;
-      bucket.revenue += row.revenue;
-    }
-
-    for (const [dayKey, value] of driverCostByDay.entries()) {
-      const date = new Date(`${dayKey}T12:00:00`);
-      if (Number.isNaN(date.getTime())) continue;
-      if (date < range.from || date > range.to) continue;
-      const key = (() => {
-        if (range.bucket === 'week') {
-          const weekStart = startOfWeek(date, { weekStartsOn: 1 });
-          return format(weekStart, "RRRR-'W'II");
-        }
-        if (range.bucket === 'month') return format(date, 'yyyy-MM');
-        if (range.bucket === 'year') return format(date, 'yyyy');
-        return format(date, 'yyyy-MM-dd');
-      })();
-      const bucket = map.get(key);
-      if (!bucket) continue;
-      bucket.cost += value;
-    }
-
-    for (const bucket of map.values()) {
-      bucket.profit = bucket.revenue - bucket.cost;
-    }
-
-    return { data: Array.from(map.values()), labelMap, monthSeparators };
-  }, [rows, driverCostByDay, range.bucket, range.from, range.to]);
-
   const filteredRows = useMemo(() => {
     const needle = search.trim().toLowerCase();
     if (!needle) return rows;
@@ -614,6 +456,8 @@ export default function Statistics() {
 
   const rangeLabel = `${format(range.from, 'dd.MM.yyyy')} - ${format(range.to, 'dd.MM.yyyy')}`;
 
+  const buttonBase = "rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-900 hover:text-white";
+
   return (
     <div className="space-y-6">
       <div className="relative overflow-hidden rounded-3xl bg-slate-950 text-white shadow-[0_30px_60px_-40px_rgba(15,23,42,0.8)]">
@@ -632,245 +476,258 @@ export default function Statistics() {
             <div className="rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs uppercase tracking-wide text-slate-200">
               Zeitraum: {rangeLabel}
             </div>
-            <Link to={createPageUrl('Dashboard')}>
-              <Button variant="outline" className="border-white/30 bg-white/10 text-white hover:bg-white/20">
-                Zurück
-              </Button>
+            <Link
+              to={createPageUrl('Dashboard')}
+              className="inline-flex items-center rounded-md border border-white/30 bg-white/10 px-3 py-1.5 text-xs font-medium text-white hover:bg-white/20"
+            >
+              Zurück
             </Link>
           </div>
         </div>
       </div>
 
-      <Card className="border border-slate-200/80 bg-white/90">
-        <CardContent className="space-y-4 p-4">
-          <div className="flex flex-wrap gap-2">
-            {PERIODS.map((item) => (
-              <Button
-                key={item.value}
-                size="sm"
-                variant={period === item.value ? 'default' : 'outline'}
-                className={period === item.value ? 'bg-[#1e3a5f] hover:bg-[#2d5a8a]' : ''}
-                onClick={() => setPeriod(item.value)}
-              >
-                <Calendar className="mr-2 h-4 w-4" />
-                {item.label}
-              </Button>
-            ))}
-          </div>
+      <div className="rounded-xl border border-slate-200/80 bg-white/90 p-4 space-y-4">
+        <div className="flex flex-wrap gap-2">
+          {PERIODS.map((item) => (
+            <button
+              key={item.value}
+              type="button"
+              className={`${buttonBase} ${period === item.value ? "bg-[#1e3a5f] text-white hover:bg-[#2d5a8a]" : ""}`}
+              onClick={() => setPeriod(item.value)}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
 
-          <div className="flex flex-wrap gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                const today = new Date();
-                applyQuickRange(startOfDay(today), endOfDay(today));
-              }}
-            >
-              Heute
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                const yesterday = subDays(new Date(), 1);
-                applyQuickRange(startOfDay(yesterday), endOfDay(yesterday));
-              }}
-            >
-              Gestern
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                const dayBefore = subDays(new Date(), 2);
-                applyQuickRange(startOfDay(dayBefore), endOfDay(dayBefore));
-              }}
-            >
-              Vorgestern
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                const now = new Date();
-                applyQuickRange(startOfWeek(now, { weekStartsOn: 1 }), endOfWeek(now, { weekStartsOn: 1 }));
-              }}
-            >
-              Diese Woche
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                const now = new Date();
-                const lastWeek = subDays(now, 7);
-                applyQuickRange(startOfWeek(lastWeek, { weekStartsOn: 1 }), endOfWeek(lastWeek, { weekStartsOn: 1 }));
-              }}
-            >
-              Letzte Woche
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                const now = new Date();
-                applyQuickRange(startOfMonth(now), endOfMonth(now));
-                setTargetMonth(format(now, 'yyyy-MM'));
-              }}
-            >
-              Dieser Monat
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                const now = new Date();
-                const lastMonth = subDays(startOfMonth(now), 1);
-                applyQuickRange(startOfMonth(lastMonth), endOfMonth(lastMonth));
-                setTargetMonth(format(lastMonth, 'yyyy-MM'));
-              }}
-            >
-              Letzter Monat
-            </Button>
-          </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            className={buttonBase}
+            onClick={() => {
+              const today = new Date();
+              applyQuickRange(startOfDay(today), endOfDay(today));
+            }}
+          >
+            Heute
+          </button>
+          <button
+            type="button"
+            className={buttonBase}
+            onClick={() => {
+              const yesterday = subDays(new Date(), 1);
+              applyQuickRange(startOfDay(yesterday), endOfDay(yesterday));
+            }}
+          >
+            Gestern
+          </button>
+          <button
+            type="button"
+            className={buttonBase}
+            onClick={() => {
+              const dayBefore = subDays(new Date(), 2);
+              applyQuickRange(startOfDay(dayBefore), endOfDay(dayBefore));
+            }}
+          >
+            Vorgestern
+          </button>
+          <button
+            type="button"
+            className={buttonBase}
+            onClick={() => {
+              const now = new Date();
+              applyQuickRange(startOfWeek(now, { weekStartsOn: 1 }), endOfWeek(now, { weekStartsOn: 1 }));
+            }}
+          >
+            Diese Woche
+          </button>
+          <button
+            type="button"
+            className={buttonBase}
+            onClick={() => {
+              const now = new Date();
+              const lastWeek = subDays(now, 7);
+              applyQuickRange(startOfWeek(lastWeek, { weekStartsOn: 1 }), endOfWeek(lastWeek, { weekStartsOn: 1 }));
+            }}
+          >
+            Letzte Woche
+          </button>
+          <button
+            type="button"
+            className={buttonBase}
+            onClick={() => {
+              const now = new Date();
+              applyQuickRange(startOfMonth(now), endOfMonth(now));
+              setTargetMonth(format(now, 'yyyy-MM'));
+            }}
+          >
+            Dieser Monat
+          </button>
+          <button
+            type="button"
+            className={buttonBase}
+            onClick={() => {
+              const now = new Date();
+              const lastMonth = subDays(startOfMonth(now), 1);
+              applyQuickRange(startOfMonth(lastMonth), endOfMonth(lastMonth));
+              setTargetMonth(format(lastMonth, 'yyyy-MM'));
+            }}
+          >
+            Letzter Monat
+          </button>
+        </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="text-xs uppercase tracking-wide text-slate-500">Zeitraum</span>
-            <Input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} className="w-44" />
-            <span className="text-slate-500">bis</span>
-            <Input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} className="w-44" />
-          </div>
-        </CardContent>
-      </Card>
-
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-6">
-        <Card><CardContent className="p-5"><p className="text-xs text-slate-500">Abgeschlossene Touren</p><p className="mt-2 text-2xl font-semibold">{rows.length}</p><Truck className="mt-2 h-4 w-4 text-slate-400" /></CardContent></Card>
-        <Card><CardContent className="p-5"><p className="text-xs text-slate-500">Umsatz</p><p className="mt-2 text-2xl font-semibold">{formatCurrency(totals.revenue)}</p><TrendingUp className="mt-2 h-4 w-4 text-emerald-500" /></CardContent></Card>
-        <Card><CardContent className="p-5"><p className="text-xs text-slate-500">Fahrer-Kosten</p><p className="mt-2 text-2xl font-semibold">{formatCurrency(totals.cost)}</p><Wallet className="mt-2 h-4 w-4 text-amber-500" /></CardContent></Card>
-        <Card>
-          <CardContent className="p-5">
-            <p className="text-xs text-slate-500">Gewinn</p>
-            <p className="mt-2 text-2xl font-semibold">{formatCurrency(totals.profit)}</p>
-            <div className="mt-1 flex items-center gap-1 text-xs text-slate-500">
-              <span>
-                Ziel: {profitTargetValue > 0 ? formatCurrency(profitTargetValue) : '—'}
-              </span>
-              {showSuccess ? (
-                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-              ) : null}
-            </div>
-            {showSuccess ? (
-              <p className="mt-1 text-xs text-emerald-600">Glückwunsch. Sie haben Ihr Ziel erreicht.</p>
-            ) : showFailure ? (
-              <p className="mt-1 text-xs text-red-600">
-                Sie haben Ihr Ziel dieses Monats leider nicht erreicht.
-              </p>
-            ) : null}
-            <Coins className="mt-2 h-4 w-4 text-blue-500" />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-5 space-y-2">
-            <p className="text-xs text-slate-500">Monatliches Gewinnziel</p>
-            <Select value={targetMonth} onValueChange={setTargetMonth}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Monat auswählen" />
-              </SelectTrigger>
-              <SelectContent>
-                {monthOptions.map((month) => (
-                  <SelectItem key={month.value} value={month.value}>
-                    {month.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Input
-              type="number"
-              step="0.01"
-              value={profitTargetInput}
-              onChange={(e) => setProfitTargetInput(e.target.value)}
-              placeholder="z. B. 5000"
-            />
-            {showTargetActions ? (
-              <div className="flex flex-wrap items-center gap-2">
-                <Button
-                  size="sm"
-                  className="bg-[#1e3a5f] hover:bg-[#2d5a8a]"
-                  onClick={handleConfirmTarget}
-                >
-                  Bestätigen
-                </Button>
-                <Button size="sm" variant="outline" onClick={handleDeleteTarget}>
-                  Löschen
-                </Button>
-              </div>
-            ) : null}
-            <p className="text-xs text-slate-500">
-              Monatsergebnis: <span className="font-medium text-slate-700">{formatCurrency(selectedMonthProfit)}</span>
-            </p>
-          </CardContent>
-        </Card>
-        <Card><CardContent className="p-5"><p className="text-xs text-slate-500">Getankt (Vorkasse)</p><p className="mt-2 text-2xl font-semibold">{formatCurrency(totals.fuelAdvance)}</p><Fuel className="mt-2 h-4 w-4 text-slate-500" /></CardContent></Card>
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="text-xs uppercase tracking-wide text-slate-500">Zeitraum</span>
+          <input
+            type="date"
+            value={customFrom}
+            onChange={(e) => setCustomFrom(e.target.value)}
+            className="w-44 rounded-md border border-slate-300 px-2 py-1 text-sm"
+          />
+          <span className="text-slate-500">bis</span>
+          <input
+            type="date"
+            value={customTo}
+            onChange={(e) => setCustomTo(e.target.value)}
+            className="w-44 rounded-md border border-slate-300 px-2 py-1 text-sm"
+          />
+        </div>
       </div>
 
-      <Card className="border border-slate-200/80 bg-white/90">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-lg">Verlauf</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex flex-wrap items-center gap-4 text-sm">
-            <label className="flex items-center gap-2">
-              <Checkbox checked={seriesVisible.revenue} onCheckedChange={(checked) => setSeriesVisible((prev) => ({ ...prev, revenue: Boolean(checked) }))} />
-              Umsatz
-            </label>
-            <label className="flex items-center gap-2">
-              <Checkbox checked={seriesVisible.cost} onCheckedChange={(checked) => setSeriesVisible((prev) => ({ ...prev, cost: Boolean(checked) }))} />
-              Kosten
-            </label>
-            <label className="flex items-center gap-2">
-              <Checkbox checked={seriesVisible.profit} onCheckedChange={(checked) => setSeriesVisible((prev) => ({ ...prev, profit: Boolean(checked) }))} />
-              Gewinn
-            </label>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-6">
+        <div className="rounded-xl border border-slate-200 bg-white p-4">
+          <p className="text-xs text-slate-500">Abgeschlossene Touren</p>
+          <p className="mt-2 text-2xl font-semibold">{rows.length}</p>
+        </div>
+        <div className="rounded-xl border border-slate-200 bg-white p-4">
+          <p className="text-xs text-slate-500">Umsatz</p>
+          <p className="mt-2 text-2xl font-semibold">{formatCurrency(totals.revenue)}</p>
+        </div>
+        <div className="rounded-xl border border-slate-200 bg-white p-4">
+          <p className="text-xs text-slate-500">Fahrer-Kosten</p>
+          <p className="mt-2 text-2xl font-semibold">{formatCurrency(totals.cost)}</p>
+        </div>
+        <div className="rounded-xl border border-slate-200 bg-white p-4">
+          <p className="text-xs text-slate-500">Gewinn</p>
+          <p className="mt-2 text-2xl font-semibold">{formatCurrency(totals.profit)}</p>
+          <div className="mt-1 text-xs text-slate-500">
+            Ziel: {profitTargetValue > 0 ? formatCurrency(profitTargetValue) : '—'}
           </div>
+          {showSuccess ? (
+            <p className="mt-1 text-xs text-emerald-600">Glückwunsch. Sie haben Ihr Ziel erreicht.</p>
+          ) : showFailure ? (
+            <p className="mt-1 text-xs text-red-600">
+              Sie haben Ihr Ziel dieses Monats leider nicht erreicht.
+            </p>
+          ) : null}
+        </div>
+        <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-2">
+          <p className="text-xs text-slate-500">Monatliches Gewinnziel</p>
+          <select
+            value={targetMonth}
+            onChange={(e) => setTargetMonth(e.target.value)}
+            className="w-full rounded-md border border-slate-300 px-2 py-1 text-sm"
+          >
+            {monthOptions.map((month) => (
+              <option key={month.value} value={month.value}>
+                {month.label}
+              </option>
+            ))}
+          </select>
+          <input
+            type="number"
+            step="0.01"
+            value={profitTargetInput}
+            onChange={(e) => setProfitTargetInput(e.target.value)}
+            placeholder="z. B. 5000"
+            className="w-full rounded-md border border-slate-300 px-2 py-1 text-sm"
+          />
+          {showTargetActions ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                className="rounded-md bg-[#1e3a5f] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#2d5a8a]"
+                onClick={handleConfirmTarget}
+              >
+                Bestätigen
+              </button>
+              <button
+                type="button"
+                className={buttonBase}
+                onClick={handleDeleteTarget}
+              >
+                Löschen
+              </button>
+            </div>
+          ) : null}
+          <p className="text-xs text-slate-500">
+            Monatsergebnis: <span className="font-medium text-slate-700">{formatCurrency(selectedMonthProfit)}</span>
+          </p>
+        </div>
+        <div className="rounded-xl border border-slate-200 bg-white p-4">
+          <p className="text-xs text-slate-500">Getankt (Vorkasse)</p>
+          <p className="mt-2 text-2xl font-semibold">{formatCurrency(totals.fuelAdvance)}</p>
+        </div>
+      </div>
 
-          <div className="h-80">
-            {chartConfig.data.length === 0 ? (
-              <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50 text-sm text-slate-500">
-                Keine Daten im gewählten Zeitraum.
+      <div className="rounded-xl border border-slate-200/80 bg-white/90">
+        <div className="flex items-center justify-between gap-4 border-b border-slate-200 px-4 py-3">
+          <h2 className="text-lg font-semibold text-slate-900">Aufträge im Zeitraum</h2>
+          <button
+            type="button"
+            className="text-xs font-medium text-slate-600 hover:text-slate-900"
+            onClick={() => setOrdersOpen((prev) => !prev)}
+          >
+            {ordersOpen ? "Verbergen ▲" : "Anzeigen ▼"}
+          </button>
+        </div>
+        {ordersOpen && (
+          <div className="space-y-4 p-4">
+            <div className="max-w-md">
+              <input
+                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                placeholder="Auftrag, Kennzeichen, Kunde oder Route suchen"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+
+            {loading ? (
+              <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
+                Statistik wird geladen...
+              </div>
+            ) : filteredRows.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
+                Keine passenden Aufträge gefunden.
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="min-w-full text-sm">
                   <thead>
                     <tr className="border-b border-slate-200 text-left text-slate-500">
-                      <th className="px-3 py-2 font-medium">Zeitraum</th>
-                      {seriesVisible.revenue ? <th className="px-3 py-2 font-medium">Umsatz</th> : null}
-                      {seriesVisible.cost ? <th className="px-3 py-2 font-medium">Kosten</th> : null}
-                      {seriesVisible.profit ? <th className="px-3 py-2 font-medium">Gewinn</th> : null}
+                      <th className="px-3 py-2 font-medium">Auftrag</th>
+                      <th className="px-3 py-2 font-medium">Datum</th>
+                      <th className="px-3 py-2 font-medium">Strecke</th>
+                      <th className="px-3 py-2 font-medium">Auftragspreis</th>
+                      <th className="px-3 py-2 font-medium">Fahrer-Kosten</th>
+                      <th className="px-3 py-2 font-medium">Gewinn</th>
+                      <th className="px-3 py-2 font-medium">Getankt (Vorkasse)</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {chartConfig.data.map((row) => (
-                      <tr key={row.key} className="border-b border-slate-100">
-                        <td className="px-3 py-3 text-slate-600">
-                          {chartConfig.labelMap.get(row.key) || row.key}
+                    {filteredRows.map((row) => (
+                      <tr key={row.id} className="border-b border-slate-100">
+                        <td className="px-3 py-3">
+                          <p className="font-semibold text-slate-900">{row.orderNumber}</p>
+                          <p className="text-xs text-slate-500">{row.route}</p>
                         </td>
-                        {seriesVisible.revenue ? (
-                          <td className="px-3 py-3 font-medium text-emerald-700">
-                            {formatCurrency(row.revenue)}
-                          </td>
-                        ) : null}
-                        {seriesVisible.cost ? (
-                          <td className="px-3 py-3 font-medium text-amber-700">
-                            {formatCurrency(row.cost)}
-                          </td>
-                        ) : null}
-                        {seriesVisible.profit ? (
-                          <td className="px-3 py-3 font-medium text-blue-700">
-                            {formatCurrency(row.profit)}
-                          </td>
-                        ) : null}
+                        <td className="px-3 py-3 text-slate-600">{format(row.date, 'dd.MM.yyyy')}</td>
+                        <td className="px-3 py-3 text-slate-600">{row.distanceKm ? `${row.distanceKm} km` : '-'}</td>
+                        <td className="px-3 py-3 font-medium text-emerald-700">{formatCurrency(row.revenue)}</td>
+                        <td className="px-3 py-3 font-medium text-amber-700">{formatCurrency(row.cost)}</td>
+                        <td className="px-3 py-3 font-medium text-blue-700">{formatCurrency(row.profit)}</td>
+                        <td className="px-3 py-3 text-slate-700">{formatCurrency(row.fuelAdvance)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -878,200 +735,67 @@ export default function Statistics() {
               </div>
             )}
           </div>
-        </CardContent>
-      </Card>
-
-      <Card className="border border-slate-200/80 bg-white/90">
-        <CardHeader className="pb-2">
-          <div className="flex items-center justify-between gap-4">
-            <CardTitle className="text-lg">Aufträge im Zeitraum</CardTitle>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => setOrdersOpen((prev) => !prev)}
-              className="text-slate-600 hover:text-slate-900"
-            >
-              <ChevronDown
-                className={`h-4 w-4 transition-transform ${ordersOpen ? "rotate-180" : ""}`}
-              />
-            </Button>
-          </div>
-        </CardHeader>
-        {ordersOpen && (
-        <CardContent className="space-y-4">
-          <div className="relative max-w-md">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <Input
-              className="pl-9"
-              placeholder="Auftrag, Kennzeichen, Kunde oder Route suchen"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-
-          {loading ? (
-            <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
-              Statistik wird geladen...
-            </div>
-          ) : filteredRows.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
-              Keine passenden Aufträge gefunden.
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-sm">
-                <thead>
-                  <tr className="border-b border-slate-200 text-left text-slate-500">
-                    <th className="px-3 py-2 font-medium">Auftrag</th>
-                    <th className="px-3 py-2 font-medium">Datum</th>
-                    <th className="px-3 py-2 font-medium">Strecke</th>
-                    <th className="px-3 py-2 font-medium">Auftragspreis</th>
-                    <th className="px-3 py-2 font-medium">Fahrer-Kosten</th>
-                    <th className="px-3 py-2 font-medium">Gewinn</th>
-                    <th className="px-3 py-2 font-medium">Getankt (Vorkasse)</th>
-                    <th className="px-3 py-2 font-medium"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredRows.map((row) => (
-                    <tr
-                      key={row.id}
-                      className="cursor-pointer border-b border-slate-100 hover:bg-slate-50"
-                      onClick={() => setSelectedOrder(row)}
-                    >
-                      <td className="px-3 py-3">
-                        <p className="font-semibold text-slate-900">{row.orderNumber}</p>
-                        <p className="text-xs text-slate-500">{row.route}</p>
-                      </td>
-                      <td className="px-3 py-3 text-slate-600">{format(row.date, 'dd.MM.yyyy')}</td>
-                      <td className="px-3 py-3 text-slate-600">{row.distanceKm ? `${row.distanceKm} km` : '-'}</td>
-                      <td className="px-3 py-3 font-medium text-emerald-700">{formatCurrency(row.revenue)}</td>
-                      <td className="px-3 py-3 font-medium text-amber-700">{formatCurrency(row.cost)}</td>
-                      <td className="px-3 py-3 font-medium text-blue-700">{formatCurrency(row.profit)}</td>
-                      <td className="px-3 py-3 text-slate-700">{formatCurrency(row.fuelAdvance)}</td>
-                      <td className="px-3 py-3 text-right">
-                        <ArrowRight className="h-4 w-4 text-slate-400" />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </CardContent>
         )}
-      </Card>
+      </div>
 
-      <Card className="border border-slate-200/80 bg-white/90">
-        <CardHeader className="pb-2">
-          <div className="flex items-center justify-between gap-4">
-            <CardTitle className="text-lg">Fahrer-Kosten im Zeitraum</CardTitle>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => setDriverCostsOpen((prev) => !prev)}
-              className="text-slate-600 hover:text-slate-900"
-            >
-              <ChevronDown
-                className={`h-4 w-4 transition-transform ${driverCostsOpen ? "rotate-180" : ""}`}
-              />
-            </Button>
-          </div>
-        </CardHeader>
+      <div className="rounded-xl border border-slate-200/80 bg-white/90">
+        <div className="flex items-center justify-between gap-4 border-b border-slate-200 px-4 py-3">
+          <h2 className="text-lg font-semibold text-slate-900">Fahrer-Kosten im Zeitraum</h2>
+          <button
+            type="button"
+            className="text-xs font-medium text-slate-600 hover:text-slate-900"
+            onClick={() => setDriverCostsOpen((prev) => !prev)}
+          >
+            {driverCostsOpen ? "Verbergen ▲" : "Anzeigen ▼"}
+          </button>
+        </div>
         {driverCostsOpen && (
-        <CardContent className="space-y-4">
-          {loading ? (
-            <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
-              Fahrer-Kosten werden geladen...
-            </div>
-          ) : driverCostRows.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
-              Keine Fahrer-Kosten im ausgewählten Zeitraum.
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-sm">
-                <thead>
-                  <tr className="border-b border-slate-200 text-left text-slate-500">
-                    <th className="px-3 py-2 font-medium">Datum</th>
-                    <th className="px-3 py-2 font-medium">Fahrer</th>
-                    <th className="px-3 py-2 font-medium">Kennzeichen</th>
-                    <th className="px-3 py-2 font-medium">Tour</th>
-                    <th className="px-3 py-2 font-medium">Strecke</th>
-                    <th className="px-3 py-2 font-medium">Fahrer-Kosten</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {driverCostRows.map((row) => (
-                    <tr key={row.id} className="border-b border-slate-100">
-                      <td className="px-3 py-3 text-slate-600">
-                        {format(row.date, 'dd.MM.yyyy')}
-                      </td>
-                      <td className="px-3 py-3 text-slate-800">{row.driverName}</td>
-                      <td className="px-3 py-3 text-slate-600">{row.licensePlate}</td>
-                      <td className="px-3 py-3 text-slate-600">{row.route}</td>
-                      <td className="px-3 py-3 text-slate-600">
-                        {row.distanceKm ? `${row.distanceKm} km` : '-'}
-                      </td>
-                      <td className="px-3 py-3 font-medium text-amber-700">
-                        {formatCurrency(row.cost)}
-                      </td>
+          <div className="space-y-4 p-4">
+            {loading ? (
+              <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
+                Fahrer-Kosten werden geladen...
+              </div>
+            ) : driverCostRows.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
+                Keine Fahrer-Kosten im ausgewählten Zeitraum.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-left text-slate-500">
+                      <th className="px-3 py-2 font-medium">Datum</th>
+                      <th className="px-3 py-2 font-medium">Fahrer</th>
+                      <th className="px-3 py-2 font-medium">Kennzeichen</th>
+                      <th className="px-3 py-2 font-medium">Tour</th>
+                      <th className="px-3 py-2 font-medium">Strecke</th>
+                      <th className="px-3 py-2 font-medium">Fahrer-Kosten</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </CardContent>
+                  </thead>
+                  <tbody>
+                    {driverCostRows.map((row) => (
+                      <tr key={row.id} className="border-b border-slate-100">
+                        <td className="px-3 py-3 text-slate-600">
+                          {format(row.date, 'dd.MM.yyyy')}
+                        </td>
+                        <td className="px-3 py-3 text-slate-800">{row.driverName}</td>
+                        <td className="px-3 py-3 text-slate-600">{row.licensePlate}</td>
+                        <td className="px-3 py-3 text-slate-600">{row.route}</td>
+                        <td className="px-3 py-3 text-slate-600">
+                          {row.distanceKm ? `${row.distanceKm} km` : '-'}
+                        </td>
+                        <td className="px-3 py-3 font-medium text-amber-700">
+                          {formatCurrency(row.cost)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         )}
-      </Card>
-
-      <Dialog open={Boolean(selectedOrder)} onOpenChange={(open) => !open && setSelectedOrder(null)}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Auftragsanalyse</DialogTitle>
-            <DialogDescription>
-              Detaillierte Statistik zum ausgewählten Auftrag.
-            </DialogDescription>
-          </DialogHeader>
-          {selectedOrder ? (
-            <div className="space-y-3 text-sm">
-              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                <p className="font-semibold text-slate-900">{selectedOrder.orderNumber}</p>
-                <p className="text-slate-600">{selectedOrder.route}</p>
-                <p className="text-xs text-slate-500">{selectedOrder.customerName} • {selectedOrder.licensePlate}</p>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-lg border border-slate-200 p-3">
-                  <p className="text-xs text-slate-500">Auftragspreis</p>
-                  <p className="mt-1 font-semibold text-emerald-700">{formatCurrency(selectedOrder.revenue)}</p>
-                </div>
-                <div className="rounded-lg border border-slate-200 p-3">
-                  <p className="text-xs text-slate-500">Fahrer-Kosten</p>
-                  <p className="mt-1 font-semibold text-amber-700">{formatCurrency(selectedOrder.cost)}</p>
-                </div>
-                <div className="rounded-lg border border-slate-200 p-3">
-                  <p className="text-xs text-slate-500">Gewinn</p>
-                  <p className="mt-1 font-semibold text-blue-700">{formatCurrency(selectedOrder.profit)}</p>
-                </div>
-                <div className="rounded-lg border border-slate-200 p-3">
-                  <p className="text-xs text-slate-500">Getankt (Vorkasse)</p>
-                  <p className="mt-1 font-semibold text-slate-700">{formatCurrency(selectedOrder.fuelAdvance)}</p>
-                </div>
-              </div>
-              <div className="flex items-center justify-between rounded-lg border border-slate-200 p-3">
-                <span className="text-slate-500">Strecke</span>
-                <span className="font-medium text-slate-900">{selectedOrder.distanceKm ? `${selectedOrder.distanceKm} km` : '-'}</span>
-              </div>
-              <Link to={`${createPageUrl('Orders')}?id=${selectedOrder.id}`}>
-                <Button className="w-full bg-[#1e3a5f] hover:bg-[#2d5a8a]">Auftrag öffnen</Button>
-              </Link>
-            </div>
-          ) : null}
-        </DialogContent>
-      </Dialog>
+      </div>
     </div>
   );
 }
