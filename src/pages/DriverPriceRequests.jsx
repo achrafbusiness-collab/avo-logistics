@@ -35,6 +35,9 @@ import { Loader2 } from "lucide-react";
 const formatCurrency = (value) =>
   new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(value);
 
+const normalizeAmountInput = (value) =>
+  String(value || "").replace(/[^0-9,.-]/g, "").replace(",", ".");
+
 const formatDateTime = (value) => {
   if (!value) return "-";
   const date = new Date(value);
@@ -158,7 +161,7 @@ export default function DriverPriceRequests() {
     const parsed =
       rawValue === "" || rawValue === null || rawValue === undefined
         ? null
-        : parseFloat(rawValue);
+        : Number.parseFloat(normalizeAmountInput(rawValue));
     if (parsed === null || Number.isNaN(parsed)) {
       setPriceErrors((prev) => ({
         ...prev,

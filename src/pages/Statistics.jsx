@@ -91,10 +91,13 @@ const toDateInput = (date) => format(date, 'yyyy-MM-dd');
 const parseAmount = (value) => {
   if (value === null || value === undefined || value === '') return 0;
   if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
-  const normalized = String(value).replace(',', '.');
+  const normalized = String(value).replace(/[^0-9,.-]/g, '').replace(',', '.');
   const parsed = Number.parseFloat(normalized);
   return Number.isFinite(parsed) ? parsed : 0;
 };
+
+const hasAmount = (value) =>
+  value !== null && value !== undefined && String(value).trim() !== '';
 
 const formatCurrency = (value) =>
   new Intl.NumberFormat('de-DE', {
@@ -304,8 +307,8 @@ export default function Statistics() {
   const driverCostByOrder = useMemo(() => {
     const map = new Map();
     for (const segment of orderSegments) {
+      if (!hasAmount(segment.price)) continue;
       const price = parseAmount(segment.price);
-      if (!price) continue;
       const prev = map.get(segment.order_id) || 0;
       map.set(segment.order_id, prev + price);
     }
@@ -315,8 +318,8 @@ export default function Statistics() {
   const driverCostByDay = useMemo(() => {
     const map = new Map();
     for (const segment of orderSegments) {
+      if (!hasAmount(segment.price)) continue;
       const price = parseAmount(segment.price);
-      if (!price) continue;
       const dateValue =
         segment.created_date ||
         segment.created_at ||
@@ -583,7 +586,8 @@ export default function Statistics() {
   const driverCostRows = useMemo(() => {
     return orderSegments
       .map((segment) => {
-        const price = parseAmount(segment.price);
+        const hasPrice = hasAmount(segment.price);
+        const price = hasPrice ? parseAmount(segment.price) : null;
         const dateValue =
           segment.created_date ||
           segment.created_at ||
@@ -608,7 +612,7 @@ export default function Statistics() {
           licensePlate: order?.license_plate || '-',
           route,
           distanceKm: parseAmount(segment.distance_km || order?.distance_km),
-          cost: price || null,
+          cost: price,
         };
       })
       .filter(Boolean)
@@ -1030,7 +1034,7 @@ export default function Statistics() {
                         {row.distanceKm ? `${row.distanceKm} km` : '-'}
                       </td>
                       <td className="px-3 py-3 font-medium text-amber-700">
-                        {row.cost ? formatCurrency(row.cost) : 'Preis offen'}
+                        {row.cost !== null ? formatCurrency(row.cost) : 'Preis offen'}
                       </td>
                     </tr>
                   ))}
