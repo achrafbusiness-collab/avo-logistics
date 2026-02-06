@@ -309,6 +309,10 @@ export default function Statistics() {
     return map;
   }, [orderSegments]);
 
+  const ordersById = useMemo(() => {
+    return new Map(orders.map((order) => [order.id, order]));
+  }, [orders]);
+
   const driverCostByDay = useMemo(() => {
     const map = new Map();
     for (const segment of orderSegments) {
@@ -326,18 +330,13 @@ export default function Statistics() {
         segment.datetime ||
         segment.date ||
         null;
-      if (!dateValue) continue;
-      const date = new Date(dateValue);
-      if (Number.isNaN(date.getTime())) continue;
+      const date = toDate(dateValue) || orderDate(ordersById.get(segment.order_id));
+      if (!date) continue;
       const key = format(date, 'yyyy-MM-dd');
       map.set(key, (map.get(key) || 0) + price);
     }
     return map;
-  }, [orderSegments]);
-
-  const ordersById = useMemo(() => {
-    return new Map(orders.map((order) => [order.id, order]));
-  }, [orders]);
+  }, [orderSegments, ordersById]);
 
   const driversById = useMemo(() => {
     return new Map(drivers.map((driver) => [driver.id, driver]));
@@ -600,7 +599,7 @@ export default function Statistics() {
           segment.datetime ||
           segment.date ||
           null;
-        const date = toDate(dateValue);
+        const date = toDate(dateValue) || orderDate(order);
         if (!date || date < range.from || date > range.to) return null;
         const order = ordersById.get(segment.order_id);
         const driver = driversById.get(segment.driver_id);
