@@ -330,7 +330,8 @@ export default function Statistics() {
         segment.datetime ||
         segment.date ||
         null;
-      const date = toDate(dateValue) || orderDate(ordersById.get(segment.order_id));
+      const order = ordersById.get(segment.order_id);
+      const date = orderDate(order) || toDate(dateValue);
       if (!date) continue;
       const key = format(date, 'yyyy-MM-dd');
       map.set(key, (map.get(key) || 0) + price);
@@ -599,7 +600,7 @@ export default function Statistics() {
           segment.datetime ||
           segment.date ||
           null;
-        const date = toDate(dateValue) || orderDate(order);
+        const date = orderDate(order) || toDate(dateValue);
         if (!date || date < range.from || date > range.to) return null;
         const order = ordersById.get(segment.order_id);
         const driver = driversById.get(segment.driver_id);
@@ -637,7 +638,7 @@ export default function Statistics() {
             <h1 className="mt-2 text-3xl font-semibold tracking-tight">Statistik</h1>
             <p className="text-sm text-slate-300">Umsatz, Fahrer-Kosten und Gewinn pro Zeitraum</p>
             <p className="text-xs text-slate-400">
-              Fahrer-Kosten werden nach dem tatsächlichen Fahrtag (Segmentdatum) ausgewertet.
+              Fahrer-Kosten werden nach dem Auftragsdatum ausgewertet (Fallback: Segmentdatum).
             </p>
           </div>
           <div className="flex items-center gap-2">
