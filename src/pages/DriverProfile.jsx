@@ -85,33 +85,33 @@ export default function DriverProfile() {
   });
 
   const { data: driverSegments = [], isLoading: segmentsLoading } = useQuery({
-    queryKey: ["driver-segments", driver?.id, billingRange.start, billingRange.end],
+    queryKey: ["driver-segments", driver?.id],
     queryFn: async () => {
       if (!driver?.id) return [];
       const driverName = `${driver.first_name || ""} ${driver.last_name || ""}`.trim();
-      const safeName = driverName.replace(/,/g, " ").trim();
-      const startIso = billingRange.start ? `${billingRange.start}T00:00:00` : null;
-      const endIso = billingRange.end ? `${billingRange.end}T23:59:59` : null;
-      let query = supabase
-        .from("order_segments")
-        .select("*")
-        .order("created_date", { ascending: false })
-        .limit(500);
-      if (startIso) query = query.gte("created_date", startIso);
-      if (endIso) query = query.lte("created_date", endIso);
-      if (driver?.id && safeName) {
-        query = query.or(`driver_id.eq.${driver.id},driver_name.ilike.*${safeName}*`);
-      } else if (driver?.id) {
-        query = query.eq("driver_id", driver.id);
-      } else if (safeName) {
-        query = query.ilike("driver_name", `%${safeName}%`);
-      }
-      const { data, error } = await query;
-      if (error) {
-        console.error("Supabase driver segments error:", error.message);
-        return [];
-      }
-      return data || [];
+      const [{ data: byId }, { data: byName }] = await Promise.all([
+        supabase
+          .from("order_segments")
+          .select("*")
+          .eq("driver_id", driver.id)
+          .order("created_date", { ascending: false })
+          .limit(300),
+        driverName
+          ? supabase
+              .from("order_segments")
+              .select("*")
+              .ilike("driver_name", `%${driverName}%`)
+              .order("created_date", { ascending: false })
+              .limit(200)
+          : Promise.resolve({ data: [] }),
+      ]);
+      const combined = [...(byId || []), ...(byName || [])];
+      const seen = new Set();
+      return combined.filter((segment) => {
+        if (!segment?.id || seen.has(segment.id)) return false;
+        seen.add(segment.id);
+        return true;
+      });
     },
     enabled: !!driver?.id,
   });
