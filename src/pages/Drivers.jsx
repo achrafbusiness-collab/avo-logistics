@@ -192,31 +192,15 @@ export default function Drivers() {
     }, {});
   }, [checklists]);
 
-  const normalizeName = (value) =>
-    String(value || '')
-      .toLowerCase()
-      .replace(/\s+/g, ' ')
-      .trim();
-
   const getSegmentDateValue = (segment) => segment.created_date || segment.created_at;
 
-  const getBillingRows = (driver) => {
-    const driverId = driver?.id;
-    const driverName = normalizeName(
-      `${driver?.first_name || ''} ${driver?.last_name || ''}`.trim()
-    );
+  const getBillingRows = (driverId) => {
     const startDate = billingRange.start ? new Date(billingRange.start) : null;
     const endDate = billingRange.end ? new Date(billingRange.end) : null;
     if (startDate) startDate.setHours(0, 0, 0, 0);
     if (endDate) endDate.setHours(23, 59, 59, 999);
     return orderSegments
-      .filter((segment) => {
-        if (driverId && segment.driver_id === driverId) return true;
-        if (!segment.driver_id && driverName) {
-          return normalizeName(segment.driver_name) === driverName;
-        }
-        return false;
-      })
+      .filter((segment) => segment.driver_id === driverId)
       .map((segment) => {
         const rawDate = getSegmentDateValue(segment);
         const date = rawDate ? new Date(rawDate) : null;
@@ -258,7 +242,7 @@ export default function Drivers() {
       .map((driverId) => {
         const driver = drivers.find((item) => item.id === driverId);
         if (!driver) return null;
-        const rows = getBillingRows(driver);
+        const rows = getBillingRows(driverId);
         const totals = buildTotals(rows);
         return { driver, rows, totals };
       })

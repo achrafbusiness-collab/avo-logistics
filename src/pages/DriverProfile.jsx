@@ -12,7 +12,6 @@ export default function DriverProfile() {
   const { t, formatDate, formatNumber } = useI18n();
   const queryClient = useQueryClient();
   const [user, setUser] = useState(null);
-  const normalizeEmail = (value) => String(value || '').trim().toLowerCase();
   const [licenseToken, setLicenseToken] = useState(null);
   const [tokenError, setTokenError] = useState("");
   const [loadingToken, setLoadingToken] = useState(false);
@@ -56,8 +55,7 @@ export default function DriverProfile() {
   });
 
   const appSettings = appSettingsList[0] || null;
-  const driverEmail = normalizeEmail(user?.email);
-  const driver = drivers.find((item) => normalizeEmail(item.email) === driverEmail);
+  const driver = drivers.find((item) => item.email === user?.email);
   const addressConfirmed = Boolean(driver?.address_confirmed || driver?.address_confirmed_at);
   const allDocumentsUploaded = Boolean(
     driver?.license_front &&
@@ -86,33 +84,7 @@ export default function DriverProfile() {
 
   const { data: driverSegments = [], isLoading: segmentsLoading } = useQuery({
     queryKey: ["driver-segments", driver?.id],
-    queryFn: async () => {
-      if (!driver?.id) return [];
-      const driverName = `${driver.first_name || ""} ${driver.last_name || ""}`.trim();
-      const [{ data: byId }, { data: byName }] = await Promise.all([
-        supabase
-          .from("order_segments")
-          .select("*")
-          .eq("driver_id", driver.id)
-          .order("created_date", { ascending: false })
-          .limit(300),
-        driverName
-          ? supabase
-              .from("order_segments")
-              .select("*")
-              .ilike("driver_name", `%${driverName}%`)
-              .order("created_date", { ascending: false })
-              .limit(200)
-          : Promise.resolve({ data: [] }),
-      ]);
-      const combined = [...(byId || []), ...(byName || [])];
-      const seen = new Set();
-      return combined.filter((segment) => {
-        if (!segment?.id || seen.has(segment.id)) return false;
-        seen.add(segment.id);
-        return true;
-      });
-    },
+    queryFn: () => appClient.entities.OrderSegment.filter({ driver_id: driver?.id }, "-created_date", 200),
     enabled: !!driver?.id,
   });
 
