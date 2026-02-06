@@ -188,9 +188,7 @@ export default function DriverProfile() {
   const billingTotals = React.useMemo(() => {
     return billingRows.reduce(
       (acc, row) => {
-        if (row.priceStatus === "approved") {
-          acc.price += row.price;
-        }
+        acc.price += row.price;
         acc.expenses += row.expenses;
         return acc;
       },

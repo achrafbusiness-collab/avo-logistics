@@ -295,12 +295,6 @@ export default function Statistics() {
   const driverCostByOrder = useMemo(() => {
     const map = new Map();
     for (const segment of orderSegments) {
-      const status =
-        segment.price_status ||
-        (segment.price !== null && segment.price !== undefined && segment.price !== ''
-          ? 'approved'
-          : 'pending');
-      if (status !== 'approved') continue;
       const price = parseAmount(segment.price);
       if (!price) continue;
       const prev = map.get(segment.order_id) || 0;
@@ -312,12 +306,6 @@ export default function Statistics() {
   const driverCostByDay = useMemo(() => {
     const map = new Map();
     for (const segment of orderSegments) {
-      const status =
-        segment.price_status ||
-        (segment.price !== null && segment.price !== undefined && segment.price !== ''
-          ? 'approved'
-          : 'pending');
-      if (status !== 'approved') continue;
       const price = parseAmount(segment.price);
       if (!price) continue;
       const dateValue =
@@ -586,14 +574,7 @@ export default function Statistics() {
   const driverCostRows = useMemo(() => {
     return orderSegments
       .map((segment) => {
-        const status =
-          segment.price_status ||
-          (segment.price !== null && segment.price !== undefined && segment.price !== ''
-            ? 'approved'
-            : 'pending');
-        if (status !== 'approved') return null;
         const price = parseAmount(segment.price);
-        if (!price) return null;
         const dateValue =
           segment.created_date ||
           segment.created_at ||
@@ -618,7 +599,7 @@ export default function Statistics() {
           licensePlate: order?.license_plate || '-',
           route,
           distanceKm: parseAmount(segment.distance_km || order?.distance_km),
-          cost: price,
+          cost: price || null,
         };
       })
       .filter(Boolean)
@@ -1040,7 +1021,7 @@ export default function Statistics() {
                         {row.distanceKm ? `${row.distanceKm} km` : '-'}
                       </td>
                       <td className="px-3 py-3 font-medium text-amber-700">
-                        {formatCurrency(row.cost)}
+                        {row.cost ? formatCurrency(row.cost) : 'Preis offen'}
                       </td>
                     </tr>
                   ))}
