@@ -117,6 +117,23 @@ const getRangeForPeriod = (period, customFrom, customTo) => {
 const orderDate = (order) =>
   toDate(order?.dropoff_date) || toDate(order?.pickup_date) || toDate(order?.created_date);
 
+const segmentCost = (segment) => {
+  const price = parseAmount(segment?.price);
+  if (!price) return 0;
+  if (segment?.price_status === 'rejected') return 0;
+  return price;
+};
+
+const segmentDate = (segment, order) => {
+  const dateValue =
+    segment?.created_date ||
+    segment?.created_at ||
+    segment?.datetime ||
+    segment?.date ||
+    null;
+  return toDate(dateValue) || orderDate(order);
+};
+
 export default function Statistics() {
   const [searchParams] = useSearchParams();
   const defaultLastWeek = useMemo(() => {
@@ -297,13 +314,7 @@ export default function Statistics() {
   const driverCostByOrder = useMemo(() => {
     const map = new Map();
     for (const segment of orderSegments) {
-      const status =
-        segment.price_status ||
-        (segment.price !== null && segment.price !== undefined && segment.price !== ''
-          ? 'approved'
-          : 'pending');
-      if (status !== 'approved') continue;
-      const price = parseAmount(segment.price);
+      const price = segmentCost(segment);
       if (!price) continue;
       const prev = map.get(segment.order_id) || 0;
       map.set(segment.order_id, prev + price);
@@ -318,22 +329,10 @@ export default function Statistics() {
   const driverCostByDay = useMemo(() => {
     const map = new Map();
     for (const segment of orderSegments) {
-      const status =
-        segment.price_status ||
-        (segment.price !== null && segment.price !== undefined && segment.price !== ''
-          ? 'approved'
-          : 'pending');
-      if (status !== 'approved') continue;
-      const price = parseAmount(segment.price);
+      const price = segmentCost(segment);
       if (!price) continue;
-      const dateValue =
-        segment.created_date ||
-        segment.created_at ||
-        segment.datetime ||
-        segment.date ||
-        null;
       const order = ordersById.get(segment.order_id);
-      const date = orderDate(order) || toDate(dateValue);
+      const date = segmentDate(segment, order);
       if (!date) continue;
       const key = format(date, 'yyyy-MM-dd');
       map.set(key, (map.get(key) || 0) + price);
@@ -588,22 +587,10 @@ export default function Statistics() {
   const driverCostRows = useMemo(() => {
     return orderSegments
       .map((segment) => {
-        const status =
-          segment.price_status ||
-          (segment.price !== null && segment.price !== undefined && segment.price !== ''
-            ? 'approved'
-            : 'pending');
-        if (status !== 'approved') return null;
-        const price = parseAmount(segment.price);
+        const price = segmentCost(segment);
         if (!price) return null;
         const order = ordersById.get(segment.order_id);
-        const dateValue =
-          segment.created_date ||
-          segment.created_at ||
-          segment.datetime ||
-          segment.date ||
-          null;
-        const date = orderDate(order) || toDate(dateValue);
+        const date = segmentDate(segment, order);
         if (!date || date < range.from || date > range.to) return null;
         const driver = driversById.get(segment.driver_id);
         const driverName =
@@ -642,7 +629,7 @@ export default function Statistics() {
             <h1 className="mt-2 text-3xl font-semibold tracking-tight">Statistik</h1>
             <p className="text-sm text-slate-300">Umsatz, Fahrer-Kosten und Gewinn pro Zeitraum</p>
             <p className="text-xs text-slate-400">
-              Fahrer-Kosten werden nach dem Auftragsdatum ausgewertet (Fallback: Segmentdatum).
+              Fahrer-Kosten werden nach dem Segmentdatum ausgewertet (Fallback: Auftragsdatum).
             </p>
           </div>
           <div className="flex items-center gap-2">
