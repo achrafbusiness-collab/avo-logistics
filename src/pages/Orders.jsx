@@ -53,6 +53,7 @@ import {
 } from 'lucide-react';
 
 const IN_DELIVERY_STATUSES = new Set(['in_transit', 'shuttle']);
+const PAGE_SIZE = 30;
 
 export default function Orders() {
   const queryClient = useQueryClient();
@@ -87,6 +88,7 @@ export default function Orders() {
   const [noteEditSaving, setNoteEditSaving] = useState({});
   const [reviewSaving, setReviewSaving] = useState({});
   const listScrollTopRef = useRef(0);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const getScrollContainer = () => document.querySelector('main');
 
@@ -514,6 +516,48 @@ export default function Orders() {
     });
   }, [filteredOrders, dueSort]);
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [
+    listMode,
+    searchTerm,
+    statusFilter,
+    driverFilter,
+    customerFilter,
+    expensesFilter,
+    dueFilter,
+    dueSort,
+  ]);
+
+  const totalPages = Math.max(1, Math.ceil(sortedOrders.length / PAGE_SIZE));
+  useEffect(() => {
+    setCurrentPage((prev) => Math.min(prev, totalPages));
+  }, [totalPages]);
+
+  const paginatedOrders = useMemo(() => {
+    const startIndex = (currentPage - 1) * PAGE_SIZE;
+    return sortedOrders.slice(startIndex, startIndex + PAGE_SIZE);
+  }, [sortedOrders, currentPage]);
+
+  const pageItems = useMemo(() => {
+    if (totalPages <= 1) return [{ type: 'page', page: 1, key: 'page-1' }];
+    const pages = new Set([1, totalPages]);
+    if (totalPages >= 2) pages.add(2);
+    [currentPage - 1, currentPage, currentPage + 1].forEach((page) => {
+      if (page > 1 && page < totalPages) pages.add(page);
+    });
+    const sorted = Array.from(pages).sort((a, b) => a - b);
+    const items = [];
+    let prev = null;
+    sorted.forEach((page) => {
+      if (prev !== null && page - prev > 1) {
+        items.push({ type: 'ellipsis', key: `ellipsis-${prev}-${page}` });
+      }
+      items.push({ type: 'page', page, key: `page-${page}` });
+      prev = page;
+    });
+    return items;
+  }, [currentPage, totalPages]);
 
   const getDueStatus = (order) => {
     const dueAt = getDueDateTime(order);
@@ -1243,7 +1287,7 @@ export default function Orders() {
             <>
               <div className="block md:hidden">
                 <div className="divide-y divide-slate-200">
-                  {sortedOrders.map((order) => {
+                  {paginatedOrders.map((order) => {
                     const dueStatus = getDueStatus(order);
                     const isCompleted = order.status === 'completed';
                     const isCancelled = order.status === 'cancelled';
@@ -1400,7 +1444,7 @@ export default function Orders() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {sortedOrders.map((order) => {
+                    {paginatedOrders.map((order) => {
                       const dueStatus = getDueStatus(order);
                       const isCompleted = order.status === 'completed';
                       const isCancelled = order.status === 'cancelled';
@@ -1651,6 +1695,49 @@ export default function Orders() {
                   </TableBody>
                 </Table>
               </div>
+              {sortedOrders.length > PAGE_SIZE && (
+                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 px-4 py-3">
+                  <div className="text-xs text-slate-500">
+                    Zeige {Math.min((currentPage - 1) * PAGE_SIZE + 1, sortedOrders.length)}-
+                    {Math.min(currentPage * PAGE_SIZE, sortedOrders.length)} von {sortedOrders.length}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                      disabled={currentPage <= 1}
+                    >
+                      Zurück
+                    </Button>
+                    {pageItems.map((item) =>
+                      item.type === 'page' ? (
+                        <Button
+                          key={item.key}
+                          size="sm"
+                          variant={item.page === currentPage ? 'default' : 'outline'}
+                          className={item.page === currentPage ? 'bg-[#1e3a5f] hover:bg-[#2d5a8a]' : ''}
+                          onClick={() => setCurrentPage(item.page)}
+                        >
+                          {item.page}
+                        </Button>
+                      ) : (
+                        <span key={item.key} className="px-2 text-xs text-slate-400">
+                          …
+                        </span>
+                      )
+                    )}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                      disabled={currentPage >= totalPages}
+                    >
+                      Nächste Seite
+                    </Button>
+                  </div>
+                </div>
+              )}
             </>
           )}
         </CardContent>
