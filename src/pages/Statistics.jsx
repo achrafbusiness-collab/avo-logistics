@@ -220,7 +220,11 @@ export default function Statistics() {
   const { data: checklists = [], isLoading: checklistsLoading } = useQuery({
     queryKey: ['stats-checklists'],
     queryFn: () =>
-      appClient.entities.Checklist.list('-created_date', 2000, 'id,order_id,expenses,created_date'),
+      appClient.entities.Checklist.list(
+        '-created_date',
+        2000,
+        'id,order_id,type,datetime,completed,expenses,created_date'
+      ),
   });
 
   const loading = ordersLoading || segmentsLoading || checklistsLoading || driversLoading;
@@ -359,11 +363,27 @@ export default function Statistics() {
     return map;
   }, [checklists]);
 
+  const completionDateByOrder = useMemo(() => {
+    const map = new Map();
+    for (const checklist of checklists) {
+      if (!checklist?.order_id) continue;
+      if (checklist.type !== 'dropoff') continue;
+      if (checklist.completed === false) continue;
+      const date = toDate(checklist.datetime) || toDate(checklist.created_date);
+      if (!date) continue;
+      const prev = map.get(checklist.order_id);
+      if (!prev || date.getTime() > prev.getTime()) {
+        map.set(checklist.order_id, date);
+      }
+    }
+    return map;
+  }, [checklists]);
+
   const rows = useMemo(() => {
     return orders
       .filter((order) => COMPLETED_STATUSES.has(order.status))
       .map((order) => {
-        const date = orderDate(order);
+        const date = completionDateByOrder.get(order.id) || orderDate(order);
         if (!date) return null;
         if (date < range.from || date > range.to) return null;
 
@@ -392,7 +412,7 @@ export default function Statistics() {
       })
       .filter(Boolean)
       .sort((a, b) => b.date.getTime() - a.date.getTime());
-  }, [orders, range.from, range.to, driverCostByOrder, fuelByOrder]);
+  }, [orders, completionDateByOrder, range.from, range.to, driverCostByOrder, fuelByOrder]);
 
   const totals = useMemo(() => {
     const revenue = rows.reduce((sum, row) => sum + row.revenue, 0);
@@ -628,6 +648,9 @@ export default function Statistics() {
             <p className="text-xs uppercase tracking-[0.35em] text-blue-200">AVO SYSTEM</p>
             <h1 className="mt-2 text-3xl font-semibold tracking-tight">Statistik</h1>
             <p className="text-sm text-slate-300">Umsatz, Fahrer-Kosten und Gewinn pro Zeitraum</p>
+            <p className="text-xs text-slate-400">
+              Umsatz wird nach Abgabedatum (Dropoff-Protokoll) ausgewertet.
+            </p>
             <p className="text-xs text-slate-400">
               Fahrer-Kosten werden nach dem Segmentdatum ausgewertet (Fallback: Auftragsdatum).
             </p>
