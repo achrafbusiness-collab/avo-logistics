@@ -24,6 +24,15 @@ const handlers = {
   "update-profile": updateProfile,
 };
 
+const applyCors = (req, res) => {
+  const origin = req?.headers?.origin;
+  res.setHeader("Access-Control-Allow-Origin", origin || "*");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  res.setHeader("Access-Control-Max-Age", "86400");
+  res.setHeader("Vary", "Origin");
+};
+
 const getActionFromRequest = (req) => {
   if (req?.query?.action) {
     if (Array.isArray(req.query.action)) {
@@ -39,6 +48,11 @@ const getActionFromRequest = (req) => {
 };
 
 export default async function handler(req, res) {
+  applyCors(req, res);
+  if (req.method === "OPTIONS") {
+    res.status(204).end();
+    return;
+  }
   const action = getActionFromRequest(req);
   const actionHandler = handlers[action];
   if (!actionHandler) {
