@@ -1,14 +1,14 @@
-import createCompany from "../../server/admin/create-company.js";
-import createDriverUser from "../../server/admin/create-driver-user.js";
-import deleteCompany from "../../server/admin/delete-company.js";
-import deleteUser from "../../server/admin/delete-user.js";
-import emailImport from "../../server/admin/email-import.js";
-import fixIntransitWithoutDriver from "../../server/admin/fix-intransit-without-driver.js";
-import inviteUser from "../../server/admin/invite-user.js";
-import listCompanies from "../../server/admin/list-companies.js";
-import sendDriverAssignment from "../../server/admin/send-driver-assignment.js";
-import updateCompany from "../../server/admin/update-company.js";
-import updateProfile from "../../server/admin/update-profile.js";
+import createCompany from "../server/admin/create-company.js";
+import createDriverUser from "../server/admin/create-driver-user.js";
+import deleteCompany from "../server/admin/delete-company.js";
+import deleteUser from "../server/admin/delete-user.js";
+import emailImport from "../server/admin/email-import.js";
+import fixIntransitWithoutDriver from "../server/admin/fix-intransit-without-driver.js";
+import inviteUser from "../server/admin/invite-user.js";
+import listCompanies from "../server/admin/list-companies.js";
+import sendDriverAssignment from "../server/admin/send-driver-assignment.js";
+import updateCompany from "../server/admin/update-company.js";
+import updateProfile from "../server/admin/update-profile.js";
 
 const handlers = {
   "create-company": createCompany,
