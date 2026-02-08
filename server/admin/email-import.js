@@ -171,13 +171,22 @@ export default async function handler(req, res) {
             };
           }
           let uids = [];
+          let searchFallback = false;
           try {
             uids = await client.search(searchQuery, { uid: true });
           } catch (err) {
-            throw new Error(`IMAP Suche fehlgeschlagen: ${formatImapError(err)}`);
+            if (!searchTerm) {
+              throw new Error(`IMAP Suche fehlgeschlagen: ${formatImapError(err)}`);
+            }
+            searchFallback = true;
+            try {
+              uids = await client.search({ all: true }, { uid: true });
+            } catch (fallbackError) {
+              throw new Error(`IMAP Suche fehlgeschlagen: ${formatImapError(fallbackError)}`);
+            }
           }
           const recentUids = uids.slice(-limit);
-          const messages = [];
+          let messages = [];
           if (recentUids.length) {
             try {
               for await (const message of client.fetch(recentUids, {
@@ -190,6 +199,17 @@ export default async function handler(req, res) {
               }
             } catch (err) {
               throw new Error(`IMAP Abruf fehlgeschlagen: ${formatImapError(err)}`);
+            }
+          }
+          if (searchTerm) {
+            const needle = searchTerm.toLowerCase();
+            const filtered = messages.filter((msg) => {
+              const subject = String(msg.subject || "").toLowerCase();
+              const from = String(msg.from || "").toLowerCase();
+              return subject.includes(needle) || from.includes(needle);
+            });
+            if (searchFallback || filtered.length) {
+              messages = filtered;
             }
           }
           messages.sort((a, b) => {

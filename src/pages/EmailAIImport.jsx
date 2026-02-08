@@ -87,6 +87,12 @@ export default function EmailAIImport() {
     setImap((prev) => ({ ...prev, [field]: value }));
   };
 
+  const normalizePort = (value) => {
+    if (value === null || value === undefined || value === '') return null;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  };
+
   const getToken = async () => {
     const { data } = await supabase.auth.getSession();
     if (data?.session?.access_token) {
@@ -120,9 +126,20 @@ export default function EmailAIImport() {
       }
       response = await doRequest(token);
     }
-    const data = await response.json();
+    const rawText = await response.text();
+    let data = null;
+    if (rawText) {
+      try {
+        data = JSON.parse(rawText);
+      } catch (parseError) {
+        data = null;
+      }
+    }
     if (!response.ok || !data?.ok) {
-      throw new Error(data?.error || "IMAP Abruf fehlgeschlagen.");
+      const fallbackMessage =
+        (rawText && rawText.trim()) ||
+        (data?.error || "IMAP Abruf fehlgeschlagen.");
+      throw new Error(fallbackMessage);
     }
     return data;
   };
@@ -159,7 +176,7 @@ export default function EmailAIImport() {
         search: effectiveSearch,
         imap: {
           host: imap.host.trim(),
-          port: imap.port,
+          port: normalizePort(imap.port),
           secure: Boolean(imap.secure),
           user: imap.user.trim(),
           pass: imap.pass,
@@ -218,7 +235,7 @@ export default function EmailAIImport() {
         uids: selectedUids,
         imap: {
           host: imap.host.trim(),
-          port: imap.port,
+          port: normalizePort(imap.port),
           secure: Boolean(imap.secure),
           user: imap.user.trim(),
           pass: imap.pass,
@@ -251,7 +268,7 @@ export default function EmailAIImport() {
         uid,
         imap: {
           host: imap.host.trim(),
-          port: imap.port,
+          port: normalizePort(imap.port),
           secure: Boolean(imap.secure),
           user: imap.user.trim(),
           pass: imap.pass,
