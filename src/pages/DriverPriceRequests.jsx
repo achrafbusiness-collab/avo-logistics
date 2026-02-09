@@ -97,6 +97,7 @@ export default function DriverPriceRequests() {
           end_location,
           distance_km,
           created_date,
+          updated_date,
           price,
           price_status,
           price_rejection_reason,
@@ -149,15 +150,51 @@ export default function DriverPriceRequests() {
     });
   }, [filteredSegments, dateSort]);
 
+  const recentAdjustedSegments = useMemo(() => {
+    return segments
+      .filter((segment) => {
+        const status = getSegmentStatus(segment);
+        return (
+          status === "approved" &&
+          segment.price !== null &&
+          segment.price !== undefined
+        );
+      })
+      .sort((a, b) => {
+        const aDate = a?.updated_date
+          ? new Date(a.updated_date)
+          : a?.created_date
+            ? new Date(a.created_date)
+            : null;
+        const bDate = b?.updated_date
+          ? new Date(b.updated_date)
+          : b?.created_date
+            ? new Date(b.created_date)
+            : null;
+        const aValid = aDate && !Number.isNaN(aDate.getTime());
+        const bValid = bDate && !Number.isNaN(bDate.getTime());
+        if (!aValid && !bValid) return 0;
+        if (!aValid) return 1;
+        if (!bValid) return -1;
+        return bDate.getTime() - aDate.getTime();
+      })
+      .slice(0, 3);
+  }, [segments]);
+
   const handlePriceChange = (segmentId, value) => {
     setPriceEdits((prev) => ({ ...prev, [segmentId]: value }));
   };
 
-  const saveSegmentPrice = async (segment) => {
+  const saveSegmentPrice = async (segment, options = {}) => {
+    const allowCurrentPriceFallback = options.allowCurrentPriceFallback === true;
     const rawValue = priceEdits[segment.id];
     const parsed =
       rawValue === "" || rawValue === null || rawValue === undefined
-        ? null
+        ? allowCurrentPriceFallback &&
+            segment.price !== null &&
+            segment.price !== undefined
+          ? Number(segment.price)
+          : null
         : parseFloat(rawValue);
     if (parsed === null || Number.isNaN(parsed)) {
       setPriceErrors((prev) => ({
@@ -174,7 +211,11 @@ export default function DriverPriceRequests() {
         price_status: "approved",
         price_rejection_reason: null,
       });
-      setPriceEdits((prev) => ({ ...prev, [segment.id]: "" }));
+      setPriceEdits((prev) => {
+        const next = { ...prev };
+        delete next[segment.id];
+        return next;
+      });
       queryClient.invalidateQueries({ queryKey: ["driver-price-requests"] });
       queryClient.invalidateQueries({ queryKey: ["order-segments"], exact: false });
       return true;
@@ -433,6 +474,117 @@ export default function DriverPriceRequests() {
                             {segment.price !== null && segment.price !== undefined ? (
                               <p className="text-xs text-gray-500">
                                 Aktuell: {formatCurrency(segment.price)}
+                              </p>
+                            ) : null}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Letzte 3 angepasste Anfragen</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+            </div>
+          ) : error ? (
+            <p className="text-sm text-red-600">{error.message}</p>
+          ) : recentAdjustedSegments.length === 0 ? (
+            <p className="text-sm text-gray-500">
+              Noch keine angepassten Anfragen vorhanden.
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Fahrer</TableHead>
+                    <TableHead>Route</TableHead>
+                    <TableHead>Auftrag</TableHead>
+                    <TableHead>Kennzeichen</TableHead>
+                    <TableHead>Zuletzt angepasst</TableHead>
+                    <TableHead className="text-right">Preis</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {recentAdjustedSegments.map((segment) => {
+                    const order = segment.order || {};
+                    const driver = segment.driver || {};
+                    const driverLabel =
+                      segment.driver_name ||
+                      [driver.first_name, driver.last_name].filter(Boolean).join(" ") ||
+                      driver.email ||
+                      "Fahrer";
+                    const routeLabel = `${segment.start_location || "-"} → ${
+                      segment.end_location || "-"
+                    }`;
+                    const adjustedAt = segment.updated_date || segment.created_date;
+                    return (
+                      <TableRow key={`recent-${segment.id}`}>
+                        <TableCell className="font-medium">{driverLabel}</TableCell>
+                        <TableCell className="text-sm text-gray-600">{routeLabel}</TableCell>
+                        <TableCell>
+                          {order.order_number ? (
+                            <Link
+                              to={createPageUrl("Orders") + `?id=${segment.order_id}`}
+                              className="text-blue-600 hover:underline"
+                            >
+                              {order.order_number}
+                            </Link>
+                          ) : (
+                            "-"
+                          )}
+                        </TableCell>
+                        <TableCell>{order.license_plate || "-"}</TableCell>
+                        <TableCell>{formatDateTime(adjustedAt)}</TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex flex-col items-end gap-2">
+                            <Input
+                              type="number"
+                              step="0.01"
+                              value={priceEdits[segment.id] ?? String(segment.price ?? "")}
+                              onChange={(event) =>
+                                handlePriceChange(segment.id, event.target.value)
+                              }
+                              onKeyDown={async (event) => {
+                                if (event.key === "Enter") {
+                                  event.preventDefault();
+                                  await saveSegmentPrice(segment, {
+                                    allowCurrentPriceFallback: true,
+                                  });
+                                }
+                              }}
+                              placeholder="Preis (€)"
+                              className="w-32 text-right"
+                            />
+                            <Button
+                              size="sm"
+                              className="bg-[#1e3a5f] hover:bg-[#2d5a8a]"
+                              disabled={saving[segment.id]}
+                              onClick={() =>
+                                saveSegmentPrice(segment, {
+                                  allowCurrentPriceFallback: true,
+                                })
+                              }
+                            >
+                              {saving[segment.id] ? (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              ) : null}
+                              Preis aktualisieren
+                            </Button>
+                            {priceErrors[segment.id] ? (
+                              <p className="text-xs text-red-600">
+                                {priceErrors[segment.id]}
                               </p>
                             ) : null}
                           </div>
