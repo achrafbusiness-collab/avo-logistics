@@ -49,11 +49,87 @@ import {
   X,
   ArrowLeft,
   Loader2,
-  Mail
+  Mail,
+  Download
 } from 'lucide-react';
 
 const IN_DELIVERY_STATUSES = new Set(['in_transit', 'shuttle']);
 const PAGE_SIZE = 30;
+const EXPENSE_TYPE_LABELS = {
+  fuel: 'Betankung',
+  ticket: 'Ticket',
+  taxi: 'Taxikosten',
+  toll: 'Maut',
+  additional_protocol: 'Protokoll',
+};
+const MIME_EXTENSION_MAP = {
+  'image/jpeg': 'jpg',
+  'image/jpg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+  'image/gif': 'gif',
+  'application/pdf': 'pdf',
+  'text/plain': 'txt',
+};
+
+const sanitizeFileNamePart = (value, maxLength = 60) => {
+  const cleaned = String(value || '')
+    .replace(/[\\/:*?"<>|]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!cleaned) return '';
+  return cleaned.length > maxLength ? cleaned.slice(0, maxLength).trim() : cleaned;
+};
+
+const formatExpenseDateLabel = (checklist, order) => {
+  const rawDate =
+    checklist?.datetime ||
+    checklist?.created_date ||
+    order?.dropoff_date ||
+    order?.created_date ||
+    null;
+  if (!rawDate) return '';
+  if (typeof rawDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(rawDate)) {
+    const dateOnly = new Date(`${rawDate}T12:00:00`);
+    if (Number.isNaN(dateOnly.getTime())) return '';
+    return format(dateOnly, 'dd.MM.yyyy', { locale: de });
+  }
+  const parsed = new Date(rawDate);
+  if (Number.isNaN(parsed.getTime())) return '';
+  return format(parsed, 'dd.MM.yyyy', { locale: de });
+};
+
+const formatExpenseAmountLabel = (value) => {
+  if (value === null || value === undefined || value === '') return '';
+  const normalized = String(value).replace(',', '.').trim();
+  const parsed = Number.parseFloat(normalized);
+  if (!Number.isFinite(parsed)) {
+    return sanitizeFileNamePart(value, 20);
+  }
+  return `${parsed.toLocaleString('de-DE', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}EUR`;
+};
+
+const getExpenseExtension = (expense, blobType = '') => {
+  const fromName = String(expense?.file_name || '').match(/\.([a-zA-Z0-9]{1,8})$/);
+  if (fromName?.[1]) return fromName[1].toLowerCase();
+  const fromUrl = String(expense?.file_url || '').match(/\.([a-zA-Z0-9]{1,8})(?:[?#]|$)/);
+  if (fromUrl?.[1]) return fromUrl[1].toLowerCase();
+  const mime = String(blobType || expense?.file_type || '').toLowerCase();
+  return MIME_EXTENSION_MAP[mime] || '';
+};
+
+const triggerDownload = (href, fileName) => {
+  const link = document.createElement('a');
+  link.href = href;
+  link.download = fileName;
+  link.rel = 'noopener noreferrer';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+};
 
 export default function Orders() {
   const queryClient = useQueryClient();
@@ -685,6 +761,108 @@ export default function Orders() {
     }
   };
 
+  const handleBulkDownloadExpenses = async () => {
+    if (!selectedOrders.length) return;
+    setBulkWorking(true);
+    setBulkError('');
+    setBulkMessage('');
+    try {
+      const fileNameCounts = {};
+      let totalWithFile = 0;
+      let downloadedCount = 0;
+      let skippedCount = 0;
+      let failedCount = 0;
+
+      for (const order of selectedOrders) {
+        const orderChecklists = checklists.filter((checklist) => checklist?.order_id === order.id);
+        for (const checklist of orderChecklists) {
+          const expenses = Array.isArray(checklist?.expenses) ? checklist.expenses : [];
+          for (const expense of expenses) {
+            if (!expense?.file_url) {
+              skippedCount += 1;
+              continue;
+            }
+            totalWithFile += 1;
+            const typeLabel = sanitizeFileNamePart(
+              EXPENSE_TYPE_LABELS[expense.type] || expense.type || 'Auslage',
+              32
+            );
+            const plateLabel = sanitizeFileNamePart(
+              order.license_plate || order.order_number || 'Auftrag',
+              24
+            );
+            const descriptionLabel = sanitizeFileNamePart(
+              expense.note || expense.file_name || '',
+              40
+            );
+            const amountLabel = formatExpenseAmountLabel(expense.amount);
+            const dateLabel = formatExpenseDateLabel(checklist, order);
+            const baseParts = [typeLabel, plateLabel];
+            if (descriptionLabel) baseParts.push(descriptionLabel);
+            if (amountLabel) baseParts.push(amountLabel);
+            if (dateLabel) baseParts.push(dateLabel);
+            const baseName =
+              sanitizeFileNamePart(baseParts.filter(Boolean).join(' '), 180) || 'Auslage';
+            fileNameCounts[baseName] = (fileNameCounts[baseName] || 0) + 1;
+            const duplicateIndex = fileNameCounts[baseName];
+            const uniqueBaseName =
+              duplicateIndex > 1 ? `${baseName} (${duplicateIndex})` : baseName;
+
+            try {
+              const response = await fetch(expense.file_url);
+              if (!response.ok) {
+                throw new Error(`Download fehlgeschlagen (${response.status})`);
+              }
+              const blob = await response.blob();
+              const extension = getExpenseExtension(expense, blob.type);
+              const fileName = extension
+                ? `${uniqueBaseName}.${extension}`
+                : uniqueBaseName;
+              const blobUrl = window.URL.createObjectURL(blob);
+              triggerDownload(blobUrl, fileName);
+              window.URL.revokeObjectURL(blobUrl);
+              downloadedCount += 1;
+            } catch {
+              try {
+                const fallbackExtension = getExpenseExtension(expense);
+                const fallbackName = fallbackExtension
+                  ? `${uniqueBaseName}.${fallbackExtension}`
+                  : uniqueBaseName;
+                triggerDownload(expense.file_url, fallbackName);
+                downloadedCount += 1;
+              } catch {
+                failedCount += 1;
+              }
+            }
+          }
+        }
+      }
+
+      if (totalWithFile === 0) {
+        setBulkError('In der Auswahl wurden keine Auslagen-Dateien gefunden.');
+        return;
+      }
+
+      if (downloadedCount === 0) {
+        setBulkError('Auslagen konnten nicht heruntergeladen werden.');
+        return;
+      }
+
+      const summaryParts = [`Auslagen heruntergeladen: ${downloadedCount}`];
+      if (skippedCount > 0) {
+        summaryParts.push(`ohne Datei übersprungen: ${skippedCount}`);
+      }
+      if (failedCount > 0) {
+        summaryParts.push(`Fehler: ${failedCount}`);
+      }
+      setBulkMessage(summaryParts.join(' · '));
+    } catch (err) {
+      setBulkError(err?.message || 'Auslagen-Download fehlgeschlagen.');
+    } finally {
+      setBulkWorking(false);
+    }
+  };
+
   const handleBulkAssignCustomer = async () => {
     if (!selectedOrders.length) return;
     if (!bulkCustomerId || bulkCustomerId === 'none') {
@@ -1202,6 +1380,14 @@ export default function Orders() {
                 disabled={bulkWorking}
               >
                 Duplizieren
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleBulkDownloadExpenses}
+                disabled={bulkWorking}
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Auslagen herunterladen
               </Button>
               <Button
                 variant="outline"
