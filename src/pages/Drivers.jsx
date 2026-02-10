@@ -1,8 +1,9 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { appClient } from '@/api/appClient';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
+import * as XLSX from 'xlsx';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -37,7 +38,8 @@ import {
   FileText,
   Edit,
   Trash2,
-  ExternalLink
+  ExternalLink,
+  Download
 } from 'lucide-react';
 import { createPageUrl } from '@/utils';
 
@@ -66,6 +68,8 @@ export default function Drivers() {
     };
   });
   const [billingResults, setBillingResults] = useState([]);
+  const [billingExportFormat, setBillingExportFormat] = useState('pdf');
+  const [isDownloadingBilling, setIsDownloadingBilling] = useState(false);
 
   const { data: drivers = [], isLoading } = useQuery({
     queryKey: ['drivers'],
@@ -177,6 +181,62 @@ export default function Drivers() {
   const formatCurrency = (value) =>
     new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(value || 0);
 
+  const formatDateRangeForLabel = () => {
+    const start = billingRange.start || '-';
+    const end = billingRange.end || '-';
+    return `${start} bis ${end}`;
+  };
+
+  const getDatePartForFilename = (value, fallback) => {
+    if (!value) return fallback;
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return fallback;
+    return format(date, 'yyyy-MM-dd');
+  };
+
+  const getBillingExportFileBase = () => {
+    const start = getDatePartForFilename(billingRange.start, 'start');
+    const end = getDatePartForFilename(billingRange.end, 'ende');
+    return `abrechnung_${start}_${end}`;
+  };
+
+  const triggerDownload = (href, fileName) => {
+    const link = document.createElement('a');
+    link.href = href;
+    link.download = fileName;
+    link.rel = 'noopener noreferrer';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const getVerificationLabel = (status) => {
+    if (status === 'approved') return 'Genehmigt';
+    if (status === 'rejected') return 'Abgelehnt';
+    return 'Ausstehend';
+  };
+
+  const getDriverSheetName = (driver, usedNames) => {
+    const fullName = getDriverFullName(driver) || 'Fahrer';
+    const base = fullName.replace(/[\\/*?:[\]]/g, '').slice(0, 31) || 'Fahrer';
+    if (!usedNames.has(base)) {
+      usedNames.add(base);
+      return base;
+    }
+    let suffix = 2;
+    while (suffix < 100) {
+      const candidate = `${base.slice(0, 28)}_${suffix}`;
+      if (!usedNames.has(candidate)) {
+        usedNames.add(candidate);
+        return candidate;
+      }
+      suffix += 1;
+    }
+    const fallback = `${base.slice(0, 28)}_x`;
+    usedNames.add(fallback);
+    return fallback;
+  };
+
   const expensesByOrder = useMemo(() => {
     return (checklists || []).reduce((acc, checklist) => {
       if (!checklist?.order_id || !Array.isArray(checklist.expenses)) return acc;
@@ -249,6 +309,128 @@ export default function Drivers() {
       .filter(Boolean);
     setBillingResults(results);
   };
+
+  const downloadBillingAsExcel = () => {
+    const workbook = XLSX.utils.book_new();
+    const usedSheetNames = new Set();
+    const dateRangeLabel = formatDateRangeForLabel();
+
+    billingResults.forEach(({ driver, rows, totals }) => {
+      const headerRows = [
+        ['Fahrer', getDriverFullName(driver)],
+        ['E-Mail', driver.email || '-'],
+        ['Zeitraum', dateRangeLabel],
+        [],
+        ['Datum', 'Tour', 'Typ', 'Verifikation', 'Preis', 'Nebenkosten'],
+      ];
+
+      const bodyRows =
+        rows.length > 0
+          ? rows.map((row) => [
+              row.dateLabel,
+              row.tour || '-',
+              row.typeLabel,
+              getVerificationLabel(row.priceStatus),
+              row.priceStatus === 'approved' ? row.price : '',
+              row.expenses,
+            ])
+          : [['-', 'Keine Touren im Zeitraum', '-', '-', '', '']];
+
+      const footerRows = [
+        [],
+        ['Gesamtverdienst', '', '', '', totals.price, ''],
+        ['Nebenkosten', '', '', '', '', totals.expenses],
+      ];
+
+      const worksheet = XLSX.utils.aoa_to_sheet([...headerRows, ...bodyRows, ...footerRows]);
+      worksheet['!cols'] = [
+        { wch: 14 },
+        { wch: 44 },
+        { wch: 18 },
+        { wch: 16 },
+        { wch: 14 },
+        { wch: 14 },
+      ];
+
+      XLSX.utils.book_append_sheet(workbook, worksheet, getDriverSheetName(driver, usedSheetNames));
+    });
+
+    const output = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+    const fileName = `${getBillingExportFileBase()}.xlsx`;
+    const blob = new Blob([output], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    });
+    const blobUrl = URL.createObjectURL(blob);
+    triggerDownload(blobUrl, fileName);
+    URL.revokeObjectURL(blobUrl);
+  };
+
+  const downloadBillingAsPdf = async () => {
+    const [{ default: jsPDF }, autoTableModule] = await Promise.all([
+      import('jspdf'),
+      import('jspdf-autotable'),
+    ]);
+    const autoTable = autoTableModule.default;
+    const dateRangeLabel = formatDateRangeForLabel();
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+
+    billingResults.forEach(({ driver, rows, totals }, index) => {
+      if (index > 0) doc.addPage();
+      const fullName = getDriverFullName(driver);
+
+      doc.setFontSize(16);
+      doc.text('Fahrer-Abrechnung', 14, 16);
+      doc.setFontSize(11);
+      doc.text(`Fahrer: ${fullName}`, 14, 24);
+      doc.text(`E-Mail: ${driver.email || '-'}`, 14, 30);
+      doc.text(`Zeitraum: ${dateRangeLabel}`, 14, 36);
+
+      const tableRows =
+        rows.length > 0
+          ? rows.map((row) => [
+              row.dateLabel,
+              row.tour || '-',
+              row.typeLabel,
+              getVerificationLabel(row.priceStatus),
+              row.priceStatus === 'approved' ? formatCurrency(row.price) : '-',
+              formatCurrency(row.expenses),
+            ])
+          : [['-', 'Keine Touren im Zeitraum', '-', '-', '-', '-']];
+
+      autoTable(doc, {
+        startY: 42,
+        head: [['Datum', 'Tour', 'Typ', 'Verifikation', 'Preis', 'Nebenkosten']],
+        body: tableRows,
+        styles: { fontSize: 9 },
+        headStyles: { fillColor: [30, 58, 95] },
+      });
+
+      const tableEndY = doc.lastAutoTable?.finalY || 50;
+      doc.setFontSize(11);
+      doc.text(`Gesamtverdienst: ${formatCurrency(totals.price)}`, 14, tableEndY + 10);
+      doc.text(`Nebenkosten: ${formatCurrency(totals.expenses)}`, 14, tableEndY + 16);
+    });
+
+    doc.save(`${getBillingExportFileBase()}.pdf`);
+  };
+
+  const handleBillingDownload = async () => {
+    if (billingResults.length === 0 || isDownloadingBilling) return;
+    setIsDownloadingBilling(true);
+    try {
+      if (billingExportFormat === 'excel') {
+        downloadBillingAsExcel();
+      } else {
+        await downloadBillingAsPdf();
+      }
+    } finally {
+      setIsDownloadingBilling(false);
+    }
+  };
+
+  useEffect(() => {
+    setBillingResults([]);
+  }, [billingRange.start, billingRange.end, selectedDriverIds]);
 
   const toggleDriverSelection = (driverId) => {
     setSelectedDriverIds((prev) =>
@@ -681,6 +863,31 @@ export default function Drivers() {
                 onClick={runBilling}
               >
                 Abrechnung erstellen
+              </Button>
+              <div className="w-44">
+                <p className="text-xs text-gray-500">Download-Format</p>
+                <Select value={billingExportFormat} onValueChange={setBillingExportFormat}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pdf">PDF</SelectItem>
+                    <SelectItem value="excel">Excel (.xlsx)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button
+                variant="outline"
+                className="self-end"
+                disabled={billingResults.length === 0 || isDownloadingBilling}
+                onClick={handleBillingDownload}
+              >
+                {isDownloadingBilling ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Download className="w-4 h-4 mr-2" />
+                )}
+                Abrechnung herunterladen
               </Button>
             </div>
           </div>

@@ -48,6 +48,8 @@
     "framer-motion": "^12.4.7",
     "imapflow": "^1.2.8",
     "input-otp": "^1.4.2",
+    "jspdf": "^4.1.0",
+    "jspdf-autotable": "^5.0.7",
     "lucide-react": "^0.475.0",
     "mailparser": "^3.9.3",
     "mammoth": "^1.6.0",
