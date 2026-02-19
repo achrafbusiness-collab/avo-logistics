@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { format } from 'date-fns';
@@ -25,8 +25,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { appClient } from "@/api/appClient";
-import { supabase } from "@/lib/supabaseClient";
 import StatusBadge from '@/components/ui/StatusBadge';
+import { sendCustomerProtocolInBackground } from "@/lib/customerProtocolSender";
 import { 
   Car, 
   MapPin, 
@@ -113,7 +113,6 @@ export default function OrderDetails({
   const [handoffsLoading, setHandoffsLoading] = useState(false);
   const [handoffsError, setHandoffsError] = useState('');
   const docInputRef = useRef(null);
-  const sendNoticeTimerRef = useRef(null);
   const pickupChecklist = checklists.find(c => c.type === 'pickup');
   const dropoffChecklist = checklists.find(c => c.type === 'dropoff');
   const expensesChecklist = useMemo(() => {
@@ -126,9 +125,8 @@ export default function OrderDetails({
   const [expensesDialogOpen, setExpensesDialogOpen] = useState(false);
   const [customerProtocolDialogOpen, setCustomerProtocolDialogOpen] = useState(false);
   const [customerProtocolEmail, setCustomerProtocolEmail] = useState('');
-  const [customerProtocolSending, setCustomerProtocolSending] = useState(false);
+  const [customerProtocolQuality, setCustomerProtocolQuality] = useState('normal');
   const [customerProtocolFeedback, setCustomerProtocolFeedback] = useState({ type: '', message: '' });
-  const [sendNotice, setSendNotice] = useState('');
   const [expenseTypeFilter, setExpenseTypeFilter] = useState('all');
   const isAdmin = currentUser?.role === 'admin';
   const distanceKm = order?.distance_km ?? null;
@@ -169,7 +167,7 @@ export default function OrderDetails({
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-    } catch (err) {
+    } catch {
       const link = document.createElement('a');
       link.href = expense.file_url;
       link.download = expense.file_name || 'beleg';
@@ -187,6 +185,7 @@ export default function OrderDetails({
     setOverrideReason('');
     setStatusError('');
     setCustomerProtocolEmail(order?.customer_email || '');
+    setCustomerProtocolQuality('normal');
     setCustomerProtocolFeedback({ type: '', message: '' });
   }, [order]);
 
@@ -205,14 +204,6 @@ export default function OrderDetails({
     };
     loadCustomerEmail();
   }, [order?.customer_id, order?.customer_email, customerProtocolEmail]);
-
-  useEffect(() => {
-    return () => {
-      if (sendNoticeTimerRef.current) {
-        window.clearTimeout(sendNoticeTimerRef.current);
-      }
-    };
-  }, []);
 
   useEffect(() => {
     const loadNotes = async () => {
@@ -645,60 +636,25 @@ export default function OrderDetails({
       });
       return;
     }
-    setCustomerProtocolSending(true);
     setCustomerProtocolFeedback({ type: '', message: '' });
     try {
-      const { data } = await supabase.auth.getSession();
-      const token = data?.session?.access_token;
-      if (!token) {
-        throw new Error('Nicht angemeldet.');
-      }
-      const response = await fetch('/api/admin/send-driver-assignment', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          orderId: order.id,
-          protocolChecklistId,
-          sendCustomerProtocol: true,
-          customerProtocolEmail: targetEmail,
-        }),
-      });
-      const payload = await response.json();
-      if (!response.ok || !payload?.ok) {
-        throw new Error(payload?.error || 'Versand fehlgeschlagen.');
-      }
-      setCustomerProtocolFeedback({
-        type: 'success',
-        message: `Protokoll wurde an ${payload?.data?.to || targetEmail} gesendet.`,
+      sendCustomerProtocolInBackground({
+        orderId: order.id,
+        protocolChecklistId,
+        customerProtocolEmail: targetEmail,
+        customerProtocolQuality,
       });
       setCustomerProtocolDialogOpen(false);
-      setSendNotice('E-Mail wurde erfolgreich gesendet.');
-      if (sendNoticeTimerRef.current) {
-        window.clearTimeout(sendNoticeTimerRef.current);
-      }
-      sendNoticeTimerRef.current = window.setTimeout(() => {
-        setSendNotice('');
-      }, 2000);
     } catch (error) {
       setCustomerProtocolFeedback({
         type: 'error',
         message: error?.message || 'Versand fehlgeschlagen.',
       });
-    } finally {
-      setCustomerProtocolSending(false);
     }
   };
 
   return (
     <div className="space-y-6">
-      {sendNotice ? (
-        <div className="fixed right-4 top-4 z-[120] rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700 shadow-lg">
-          {sendNotice}
-        </div>
-      ) : null}
       {/* Header */}
       <Card>
         <CardHeader className="flex flex-row items-start justify-between">
@@ -802,6 +758,25 @@ export default function OrderDetails({
                       Das Protokoll wird als PDF-Anhang versendet.
                     </p>
                   </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-slate-700">Bildqualität</label>
+                    <Select
+                      value={customerProtocolQuality}
+                      onValueChange={setCustomerProtocolQuality}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Qualität auswählen" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="high">Gute Qualität</SelectItem>
+                        <SelectItem value="normal">Normale Qualität</SelectItem>
+                        <SelectItem value="economy">Günstige Qualität</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-slate-500">
+                      Gute Qualität: größere Datei, Günstige Qualität: kleinere Datei.
+                    </p>
+                  </div>
                   {customerProtocolFeedback.message && (
                     <div
                       className={`rounded-lg border px-3 py-2 text-sm ${
@@ -819,7 +794,6 @@ export default function OrderDetails({
                     type="button"
                     variant="outline"
                     onClick={() => setCustomerProtocolDialogOpen(false)}
-                    disabled={customerProtocolSending}
                   >
                     Abbrechen
                   </Button>
@@ -827,9 +801,8 @@ export default function OrderDetails({
                     type="button"
                     className="bg-emerald-600 hover:bg-emerald-700 text-white"
                     onClick={handleSendProtocolToCustomer}
-                    disabled={customerProtocolSending || !customerProtocolEmail.trim()}
+                    disabled={!customerProtocolEmail.trim()}
                   >
-                    {customerProtocolSending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
                     Senden
                   </Button>
                 </DialogFooter>

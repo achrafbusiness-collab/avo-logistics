@@ -183,6 +183,29 @@ export default function Orders() {
     });
   };
 
+  const getOrderDetailsScrollKey = (orderId) =>
+    `scroll:admin:${createPageUrl('Orders')}?id=${orderId}`;
+
+  const scrollOrderDetailsToTop = (orderId) => {
+    const node = getScrollContainer();
+    if (!node) return;
+    if (orderId) {
+      sessionStorage.setItem(getOrderDetailsScrollKey(orderId), '0');
+    }
+    requestAnimationFrame(() => {
+      node.scrollTop = 0;
+    });
+  };
+
+  const openOrderDetails = (order) => {
+    if (!order?.id) return;
+    storeListScroll();
+    setSelectedOrder(order);
+    setView('details');
+    window.history.pushState({}, '', createPageUrl('Orders') + `?id=${order.id}`);
+    scrollOrderDetailsToTop(order.id);
+  };
+
   useEffect(() => {
     if (view === 'list') {
       restoreListScroll();
@@ -424,6 +447,7 @@ export default function Orders() {
       if (order) {
         setSelectedOrder(order);
         setView('details');
+        scrollOrderDetailsToTop(order.id);
       }
     }
     if (urlParams.get('status')) {
@@ -438,6 +462,11 @@ export default function Orders() {
       setCustomerFilter('all');
     }
   }, [urlParams.toString(), orders]);
+
+  useEffect(() => {
+    if (view !== 'details' || !selectedOrder?.id) return;
+    scrollOrderDetailsToTop(selectedOrder.id);
+  }, [view, selectedOrder?.id]);
 
   const handleSave = async (data) => {
     const normalizeOrderPayload = (payload) => {
@@ -1521,12 +1550,7 @@ export default function Orders() {
                       <div
                         key={order.id}
                         className={`p-4 ${rowTone} cursor-pointer`}
-                        onClick={() => {
-                          storeListScroll();
-                          setSelectedOrder(order);
-                          setView('details');
-                          window.history.pushState({}, '', createPageUrl('Orders') + `?id=${order.id}`);
-                        }}
+                        onClick={() => openOrderDetails(order)}
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div>
@@ -1678,12 +1702,7 @@ export default function Orders() {
                         <TableRow 
                           key={order.id}
                           className={`cursor-pointer ${rowTone}`}
-                          onClick={() => {
-                            storeListScroll();
-                            setSelectedOrder(order);
-                            setView('details');
-                            window.history.pushState({}, '', createPageUrl('Orders') + `?id=${order.id}`);
-                          }}
+                          onClick={() => openOrderDetails(order)}
                         >
                           <TableCell onClick={(event) => event.stopPropagation()}>
                             <Checkbox

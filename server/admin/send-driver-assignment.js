@@ -121,7 +121,31 @@ const resolvePublicSiteUrl = (req) => {
   return `${forwardedProto}://${String(forwardedHost).replace(/\/+$/, "")}`;
 };
 
-const generateProtocolPdfFromPage = async ({ siteUrl, checklistId, authToken }) => {
+const getProtocolQualityPreset = (quality) => {
+  const normalized = String(quality || "normal").trim().toLowerCase();
+  if (normalized === "high") {
+    return {
+      viewportScale: 2,
+      pdfScale: 1,
+      renderDelayMs: 1000,
+    };
+  }
+  if (normalized === "economy" || normalized === "low") {
+    return {
+      viewportScale: 1,
+      pdfScale: 0.8,
+      renderDelayMs: 500,
+    };
+  }
+  return {
+    viewportScale: 1.25,
+    pdfScale: 0.92,
+    renderDelayMs: 800,
+  };
+};
+
+const generateProtocolPdfFromPage = async ({ siteUrl, checklistId, authToken, quality }) => {
+  const qualityPreset = getProtocolQualityPreset(quality);
   const [{ default: puppeteer }, chromiumModule] = await Promise.all([
     import("puppeteer-core"),
     import("@sparticuz/chromium"),
@@ -136,7 +160,11 @@ const generateProtocolPdfFromPage = async ({ siteUrl, checklistId, authToken }) 
   });
   try {
     const page = await browser.newPage();
-    await page.setViewport({ width: 1440, height: 2200, deviceScaleFactor: 1 });
+    await page.setViewport({
+      width: 1440,
+      height: 2200,
+      deviceScaleFactor: qualityPreset.viewportScale,
+    });
     await page.setRequestInterception(true);
     page.on("request", (request) => {
       const requestUrl = request.url();
@@ -190,7 +218,7 @@ const generateProtocolPdfFromPage = async ({ siteUrl, checklistId, authToken }) 
       );
       throw new Error(`Render timeout. Seite: ${previewText || "leer"}`);
     }
-    await new Promise((resolve) => setTimeout(resolve, 800));
+    await new Promise((resolve) => setTimeout(resolve, qualityPreset.renderDelayMs));
     await page.emulateMediaType("print");
     try {
       const client = await page.target().createCDPSession();
@@ -198,6 +226,7 @@ const generateProtocolPdfFromPage = async ({ siteUrl, checklistId, authToken }) 
         printBackground: true,
         preferCSSPageSize: true,
         transferMode: "ReturnAsBase64",
+        scale: qualityPreset.pdfScale,
         marginTop: 0,
         marginBottom: 0,
         marginLeft: 0,
@@ -213,6 +242,7 @@ const generateProtocolPdfFromPage = async ({ siteUrl, checklistId, authToken }) 
       format: "A4",
       printBackground: true,
       preferCSSPageSize: true,
+      scale: qualityPreset.pdfScale,
       margin: {
         top: "0mm",
         right: "0mm",
@@ -269,6 +299,7 @@ export default async function handler(req, res) {
       sendCustomerProtocol,
       customerProtocolEmail,
       protocolChecklistId,
+      customerProtocolQuality,
     } = body || {};
 
     const { data: settings } = await supabaseAdmin
@@ -579,6 +610,7 @@ ${companyName}`;
           siteUrl,
           checklistId: selectedChecklistId,
           authToken: token,
+          quality: customerProtocolQuality,
         });
       } catch (error) {
         const reason = String(error?.message || "unbekannt");
