@@ -1186,3 +1186,15 @@ on public.order_notes (order_id, created_date);
 create index if not exists idx_app_settings_company_created
 on public.app_settings (company_id, created_date);
 ```
+
+### 7j) Disk‑IO Hotfix (RLS + zusätzliche Indizes)
+
+Wenn Supabase vor hohem Disk‑IO warnt, führe zusätzlich diese Datei im SQL Editor aus:
+
+`scripts/supabase-disk-io-hotfix.sql`
+
+Die Datei enthält:
+- zusätzliche Indizes für häufige Filter (`company_id`, `status`, `created_date`)
+- Optimierung von `current_company_id()`
+- Policy‑Updates auf `(select public.current_company_id())` zur Entlastung bei RLS
+- `ANALYZE` für aktuelle Query‑Statistiken
