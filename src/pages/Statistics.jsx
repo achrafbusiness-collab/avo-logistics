@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect, useRef } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
@@ -91,6 +91,16 @@ const formatCurrency = (value) =>
     currency: 'EUR',
     maximumFractionDigits: 2,
   }).format(value || 0);
+
+const formatPercentOfRevenue = (value, revenue) => {
+  const totalRevenue = parseAmount(revenue);
+  if (!Number.isFinite(totalRevenue) || totalRevenue <= 0) return '—';
+  const share = (parseAmount(value) / totalRevenue) * 100;
+  return new Intl.NumberFormat('de-DE', {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  }).format(share);
+};
 
 const getRangeForPeriod = (period, customFrom, customTo) => {
   const now = new Date();
@@ -431,6 +441,15 @@ export default function Statistics() {
       profit: revenue - cost,
     };
   }, [rows, driverCostByDay, range.from, range.to]);
+
+  const costShareLabel = useMemo(
+    () => formatPercentOfRevenue(totals.cost, totals.revenue),
+    [totals.cost, totals.revenue]
+  );
+  const profitShareLabel = useMemo(
+    () => formatPercentOfRevenue(totals.profit, totals.revenue),
+    [totals.profit, totals.revenue]
+  );
 
   const profitTargetValue = parseAmount(profitTargetSaved);
   const selectedTargetMonthDate = useMemo(
@@ -774,11 +793,23 @@ export default function Statistics() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-6">
         <Card><CardContent className="p-5"><p className="text-xs text-slate-500">Abgeschlossene Touren</p><p className="mt-2 text-2xl font-semibold">{rows.length}</p><Truck className="mt-2 h-4 w-4 text-slate-400" /></CardContent></Card>
         <Card><CardContent className="p-5"><p className="text-xs text-slate-500">Umsatz</p><p className="mt-2 text-2xl font-semibold">{formatCurrency(totals.revenue)}</p><TrendingUp className="mt-2 h-4 w-4 text-emerald-500" /></CardContent></Card>
-        <Card><CardContent className="p-5"><p className="text-xs text-slate-500">Fahrer-Kosten</p><p className="mt-2 text-2xl font-semibold">{formatCurrency(totals.cost)}</p><Wallet className="mt-2 h-4 w-4 text-amber-500" /></CardContent></Card>
+        <Card>
+          <CardContent className="p-5">
+            <p className="text-xs text-slate-500">Fahrer-Kosten</p>
+            <p className="mt-2 text-2xl font-semibold">{formatCurrency(totals.cost)}</p>
+            <p className="mt-1 text-xs text-slate-500">
+              {costShareLabel} % vom Umsatz
+            </p>
+            <Wallet className="mt-2 h-4 w-4 text-amber-500" />
+          </CardContent>
+        </Card>
         <Card>
           <CardContent className="p-5">
             <p className="text-xs text-slate-500">Gewinn</p>
             <p className="mt-2 text-2xl font-semibold">{formatCurrency(totals.profit)}</p>
+            <p className="mt-1 text-xs text-slate-500">
+              {profitShareLabel} % vom Umsatz
+            </p>
             <div className="mt-1 flex items-center gap-1 text-xs text-slate-500">
               <span>
                 Ziel: {profitTargetValue > 0 ? formatCurrency(profitTargetValue) : '—'}
