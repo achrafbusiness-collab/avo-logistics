@@ -95,8 +95,9 @@ using (company_id = (select public.current_company_id()));
 alter policy "Audit logs insert" on public.audit_logs
 with check (company_id = (select public.current_company_id()));
 
-alter policy "Documents access" on storage.objects
-using (
+drop policy if exists "Documents access" on storage.objects;
+create policy "Documents access" on storage.objects
+for all using (
   bucket_id = 'documents'
   and auth.uid() is not null
   and (metadata->>'company_id')::uuid = (select public.current_company_id())
@@ -107,8 +108,9 @@ with check (
   and (metadata->>'company_id')::uuid = (select public.current_company_id())
 );
 
-alter policy "Employee IDs access" on storage.objects
-using (
+drop policy if exists "Employee IDs access" on storage.objects;
+create policy "Employee IDs access" on storage.objects
+for all using (
   bucket_id = 'employee-ids'
   and auth.uid() is not null
   and (metadata->>'company_id')::uuid = (select public.current_company_id())
