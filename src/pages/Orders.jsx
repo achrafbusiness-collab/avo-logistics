@@ -256,27 +256,54 @@ export default function Orders() {
 
   const { data: orderNotes = [] } = useQuery({
     queryKey: ['order-notes'],
-    queryFn: () => appClient.entities.OrderNote.list('-created_at', 500),
+    queryFn: () =>
+      appClient.entities.OrderNote.list(
+        '-created_at',
+        500,
+        'id,order_id,note,created_at,created_date,author_name,author_email'
+      ),
   });
 
   const { data: checklists = [] } = useQuery({
     queryKey: ['checklists'],
-    queryFn: () => appClient.entities.Checklist.list('-created_date', 1000),
+    queryFn: () =>
+      appClient.entities.Checklist.list(
+        '-created_date',
+        1000,
+        'id,order_id,type,completed,datetime,location,location_confirmed,location_reason,expenses,created_date'
+      ),
   });
 
   const { data: drivers = [] } = useQuery({
     queryKey: ['drivers'],
-    queryFn: () => appClient.entities.Driver.filter({ status: 'active' }),
+    queryFn: () =>
+      appClient.entities.Driver.filter(
+        { status: 'active' },
+        '-created_date',
+        500,
+        'id,first_name,last_name,email'
+      ),
   });
 
   const { data: pendingPriceSegments = [] } = useQuery({
     queryKey: ['driver-price-requests-count'],
-    queryFn: () => appClient.entities.OrderSegment.filter({ price_status: 'pending' }, '-created_date', 500),
+    queryFn: () =>
+      appClient.entities.OrderSegment.filter(
+        { price_status: 'pending' },
+        '-created_date',
+        500,
+        'id'
+      ),
   });
 
   const { data: customers = [] } = useQuery({
     queryKey: ['customers'],
-    queryFn: () => appClient.entities.Customer.list('-created_date', 500),
+    queryFn: () =>
+      appClient.entities.Customer.list(
+        '-created_date',
+        500,
+        'id,customer_number,type,company_name,first_name,last_name,email,phone,price_list'
+      ),
   });
 
   const getDueDateTime = (order) => {

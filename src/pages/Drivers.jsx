@@ -78,17 +78,23 @@ export default function Drivers() {
 
   const { data: orders = [] } = useQuery({
     queryKey: ['orders'],
-    queryFn: () => appClient.entities.Order.list('-created_date', 500),
+    queryFn: () =>
+      appClient.entities.Order.list('-created_date', 500, 'id,assigned_driver_id,status'),
   });
 
   const { data: checklists = [] } = useQuery({
     queryKey: ['checklists'],
-    queryFn: () => appClient.entities.Checklist.list('-created_date', 1000),
+    queryFn: () => appClient.entities.Checklist.list('-created_date', 1000, 'id,order_id,expenses'),
   });
 
   const { data: orderSegments = [] } = useQuery({
     queryKey: ['order-segments'],
-    queryFn: () => appClient.entities.OrderSegment.list('-created_date', 2000),
+    queryFn: () =>
+      appClient.entities.OrderSegment.list(
+        '-created_date',
+        2000,
+        'id,driver_id,order_id,segment_type,start_location,end_location,price,price_status,price_rejection_reason,created_date'
+      ),
   });
 
   const createMutation = useMutation({

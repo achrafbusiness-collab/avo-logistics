@@ -6,7 +6,19 @@ import '@/index.css'
 import { initSystemLogger } from '@/lib/systemLog'
 import { I18nProvider } from '@/i18n'
 
-const queryClient = new QueryClient()
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      retry: 1,
+      gcTime: 30 * 60 * 1000,
+    },
+    mutations: {
+      retry: 1,
+    },
+  },
+})
 
 initSystemLogger()
 
