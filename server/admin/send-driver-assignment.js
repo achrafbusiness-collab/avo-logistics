@@ -22,7 +22,12 @@ const readJsonBody = async (req) => {
   }
   if (!chunks.length) return {};
   const raw = Buffer.concat(chunks).toString("utf-8");
-  return raw ? JSON.parse(raw) : {};
+  if (!raw) return {};
+  try {
+    return JSON.parse(raw);
+  } catch {
+    throw new Error("Ungueltiger JSON-Body.");
+  }
 };
 
 const getBearerToken = (req) => {
@@ -74,7 +79,7 @@ const sendEmail = async ({ from, to, subject, html, text, replyTo, smtp, attachm
       pass: smtp.pass,
     },
   });
-  await transporter.sendMail({
+  return transporter.sendMail({
     from: from || smtp.from || smtp.user,
     to,
     subject,
@@ -142,6 +147,22 @@ const getProtocolQualityPreset = (quality) => {
     pdfScale: 0.92,
     renderDelayMs: 800,
   };
+};
+
+const normalizeProtocolQuality = (quality) => {
+  const normalized = String(quality || "normal").trim().toLowerCase();
+  if (normalized === "high" || normalized === "normal" || normalized === "economy" || normalized === "low") {
+    return normalized === "low" ? "economy" : normalized;
+  }
+  return "normal";
+};
+
+const getProtocolQualityFallbackOrder = (quality) => {
+  const preferred = normalizeProtocolQuality(quality);
+  const fallbackOrder = [preferred];
+  if (!fallbackOrder.includes("normal")) fallbackOrder.push("normal");
+  if (!fallbackOrder.includes("economy")) fallbackOrder.push("economy");
+  return fallbackOrder;
 };
 
 const generateProtocolPdfFromPage = async ({ siteUrl, checklistId, authToken, quality }) => {
@@ -290,7 +311,13 @@ export default async function handler(req, res) {
       return;
     }
 
-    const body = await readJsonBody(req);
+    let body;
+    try {
+      body = await readJsonBody(req);
+    } catch (bodyError) {
+      res.status(400).json({ ok: false, error: bodyError?.message || "Request-Body ungueltig." });
+      return;
+    }
     const {
       orderId,
       testEmail,
@@ -604,43 +631,50 @@ ${companyName}`;
   </table>
 </div>`;
       let attachment;
-      try {
-        const siteUrl = resolvePublicSiteUrl(req);
-        attachment = await generateProtocolPdfFromPage({
-          siteUrl,
-          checklistId: selectedChecklistId,
-          authToken: token,
-          quality: customerProtocolQuality,
-        });
-      } catch (error) {
-        const reason = String(error?.message || "unbekannt");
+      const siteUrl = resolvePublicSiteUrl(req);
+      const qualityAttempts = getProtocolQualityFallbackOrder(customerProtocolQuality);
+      const renderErrors = [];
+      for (const quality of qualityAttempts) {
+        try {
+          attachment = await generateProtocolPdfFromPage({
+            siteUrl,
+            checklistId: selectedChecklistId,
+            authToken: token,
+            quality,
+          });
+          break;
+        } catch (error) {
+          renderErrors.push(`${quality}: ${String(error?.message || "unbekannt")}`);
+        }
+      }
+      if (!attachment) {
         res.status(500).json({
           ok: false,
-          error: `Protokoll-PDF konnte nicht erzeugt werden: ${reason}`,
+          error: `Protokoll-PDF konnte nicht erzeugt werden: ${renderErrors.join(" | ") || "unbekannt"}`,
         });
         return;
       }
       const safeOrderFileId = String(order.order_number || order.id).replace(/[^a-z0-9._-]/gi, "_");
 
-      const emailSent = await sendEmail({
-        to: recipientEmail,
-        subject,
-        text,
-        html,
-        from: fromAddress,
-        replyTo,
-        smtp: resolvedSmtp,
-        attachments: [
-          {
-            filename: `protokoll-${safeOrderFileId}.pdf`,
-            content: attachment,
-            contentType: "application/pdf",
-          },
-        ],
-      });
-
-      if (!emailSent) {
-        res.status(400).json({ ok: false, error: "E-Mail konnte nicht gesendet werden." });
+      try {
+        await sendEmail({
+          to: recipientEmail,
+          subject,
+          text,
+          html,
+          from: fromAddress,
+          replyTo,
+          smtp: resolvedSmtp,
+          attachments: [
+            {
+              filename: `protokoll-${safeOrderFileId}.pdf`,
+              content: attachment,
+              contentType: "application/pdf",
+            },
+          ],
+        });
+      } catch (emailError) {
+        res.status(400).json({ ok: false, error: emailError?.message || "E-Mail konnte nicht gesendet werden." });
         return;
       }
 

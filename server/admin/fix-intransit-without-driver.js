@@ -103,10 +103,9 @@ export default async function handler(req, res) {
     const orderIds = orders.map((order) => order.id);
     const { data: segments, error: segmentsError } = await supabaseAdmin
       .from("order_segments")
-      .select("order_id, segment_type, created_date, created_at")
+      .select("order_id, segment_type, created_date")
       .in("order_id", orderIds)
-      .order("created_date", { ascending: false })
-      .order("created_at", { ascending: false });
+      .order("created_date", { ascending: false });
 
     if (segmentsError) {
       res.status(500).json({ ok: false, error: segmentsError.message });
@@ -118,7 +117,7 @@ export default async function handler(req, res) {
       if (!segment?.order_id) return;
       if (latestSegmentByOrder.has(segment.order_id)) return;
       latestSegmentByOrder.set(segment.order_id, {
-        timestamp: new Date(segment.created_date || segment.created_at || 0).getTime(),
+        timestamp: new Date(segment.created_date || 0).getTime(),
         segment_type: segment.segment_type,
       });
     });
