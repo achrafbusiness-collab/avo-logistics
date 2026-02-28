@@ -129,7 +129,7 @@ export default function ExpensesPdf() {
 
       <div className="pdf-page">
         <div className="pdf-header">
-          <img className="pdf-logo" src="/IMG_5222.JPG" alt="AVO Logistics" />
+          <img className="pdf-logo" src="/logo.png" alt="AVO Logistics" />
           <div className="pdf-title">
             <h1>Auslagenübersicht</h1>
             <div className="pdf-subtitle">{order.order_number || "-"} • {order.license_plate || "-"}</div>

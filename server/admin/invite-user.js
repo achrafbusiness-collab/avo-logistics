@@ -265,7 +265,7 @@ export default async function handler(req, res) {
       const replyTo = settings?.support_email || undefined;
       const brandPrimary = "#1e3a5f";
       const brandSecondary = "#2d5a8a";
-      const logoUrl = "https://avo-logistics.app/IMG_5222.JPG";
+      const logoUrl = normalizedPublicUrl ? `${normalizedPublicUrl}/logo.png` : "";
 
       const subject = `Passwort zurücksetzen – ${companyName}`;
       const text = `Hallo,
@@ -282,7 +282,7 @@ ${actionLink}
         <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
           <tr>
             <td style="text-align:left;">
-              <img src="${logoUrl}" alt="${companyName}" style="height:46px; display:block; border-radius:8px;" />
+              ${logoUrl ? `<img src="${logoUrl}" alt="${companyName}" style="height:46px; display:block; border-radius:8px;" />` : ''}
             </td>
             <td style="text-align:right; font-size:12px; color:${brandSecondary}; font-weight:600;">
               Passwort zurücksetzen
@@ -434,7 +434,7 @@ ${actionLink}
     const replyTo = settings?.support_email || undefined;
     const brandPrimary = "#1e3a5f";
     const brandSecondary = "#2d5a8a";
-    const logoUrl = "https://avo-logistics.app/IMG_5222.JPG";
+    const logoUrl = normalizedPublicUrl ? `${normalizedPublicUrl}/logo.png` : "";
 
     const subject = `Dein ${companyName} Zugang`;
     const text = `Hallo ${profile?.full_name || ""},
@@ -452,7 +452,7 @@ Wenn du keinen Zugriff erwartest, melde dich bitte bei deinem Disponenten.`;
         <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
           <tr>
             <td style="text-align:left;">
-              <img src="${logoUrl}" alt="${companyName}" style="height:46px; display:block; border-radius:8px;" />
+              ${logoUrl ? `<img src="${logoUrl}" alt="${companyName}" style="height:46px; display:block; border-radius:8px;" />` : ''}
             </td>
             <td style="text-align:right; font-size:12px; color:${brandSecondary}; font-weight:600;">
               Einladung

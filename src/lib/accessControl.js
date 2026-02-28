@@ -33,7 +33,7 @@ export const hasPageAccess = (user, pageName) => {
     return user.role === "driver";
   }
   if (user.role === "driver") {
-    return DRIVER_PAGES.has(pageName);
+    return false;
   }
   if (ADMIN_ONLY_PAGES.has(pageName)) {
     return user.role === "admin" || isSystemAdmin(user);

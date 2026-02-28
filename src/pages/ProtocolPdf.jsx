@@ -361,7 +361,7 @@ export default function ProtocolPdf() {
 
       <div className="pdf-page pdf-protocol-page">
         <div className="pdf-header">
-          <img className="pdf-logo" src="/IMG_5222.JPG" alt="AVO Logistics" />
+          <img className="pdf-logo" src="/logo.png" alt="AVO Logistics" />
           <div className="pdf-title">
             <h1>FAHRZEUGPROTOKOLL</h1>
             <div className="pdf-subtitle">{orderNumber} • {order.license_plate || "-"}</div>
@@ -465,7 +465,7 @@ export default function ProtocolPdf() {
               <div className="pdf-field-label">Schäden / Bemerkungen</div>
               <div className="pdf-damage-grid">
                 <div className="pdf-sketch compact">
-                  <img src="/PHOTO-2025-12-30-13-15-46.jpg" alt="Fahrzeugskizze" />
+                  <img src="/vehicle-sketch.svg" alt="Fahrzeugskizze" />
                   {DAMAGE_POINTS.map((point) => {
                     const damage = pickupChecklist?.damages?.find((item) => item.slot_id === point.id);
                     if (!damage?.type) return null;

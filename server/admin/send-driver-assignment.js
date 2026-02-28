@@ -362,7 +362,7 @@ export default async function handler(req, res) {
     const replyTo = settings?.support_email || undefined;
     const brandPrimary = "#1e3a5f";
     const brandSecondary = "#2d5a8a";
-    const logoUrl = "https://avo-logistics.app/IMG_5222.JPG";
+    const logoUrl = resolvePublicSiteUrl(req) ? `${resolvePublicSiteUrl(req)}/logo.png` : "";
 
     if (testEmail) {
       const target = to || resolvedSmtp.user || senderAddress;
@@ -444,7 +444,7 @@ ${companyName}`;
         <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
           <tr>
             <td style="text-align:left;">
-              <img src="${logoUrl}" alt="${companyName}" style="height:46px; display:block; border-radius:8px;" />
+              ${logoUrl ? `<img src="${logoUrl}" alt="${companyName}" style="height:46px; display:block; border-radius:8px;" />` : ''}
             </td>
             <td style="text-align:right; font-size:12px; color:${brandSecondary}; font-weight:600;">
               Willkommen
@@ -753,7 +753,7 @@ Bei Fragen kontaktiere bitte deinen Disponenten.`;
         <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
           <tr>
             <td style="text-align:left;">
-              <img src="${logoUrl}" alt="AVO Logistics" style="height:48px; display:block; border-radius:8px;" />
+              ${logoUrl ? `<img src="${logoUrl}" alt="AVO Logistics" style="height:48px; display:block; border-radius:8px;" />` : ''}
             </td>
             <td style="text-align:right; font-size:12px; color:${brandSecondary}; font-weight:600;">
               Auftragsbestätigung
