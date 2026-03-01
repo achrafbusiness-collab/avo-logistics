@@ -314,7 +314,8 @@
       "saved": "Expenses saved.",
       "locked": "Order completed. Changes are locked.",
       "saveError": "Expenses could not be saved.",
-      "uploadError": "Upload failed. Please try again."
+      "uploadError": "Upload failed. Please try again.",
+      "amountRequired": "Please enter an amount for fuel, taxi, or ticket receipts."
     },
     "protocols": {
       "title": "Protocols",
@@ -463,6 +464,7 @@
       "uploading": "Uploading...",
       "view": "Open receipt",
       "uploadError": "Receipt upload failed.",
+      "amountRequired": "Please enter an amount for fuel, taxi, or ticket receipts.",
       "types": {
         "fuel": "Fuel receipt",
         "ticket": "Ticket",

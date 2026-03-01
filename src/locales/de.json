@@ -314,7 +314,8 @@
       "saved": "Auslagen gespeichert.",
       "locked": "Auftrag abgeschlossen. Änderungen sind gesperrt.",
       "saveError": "Auslagen konnten nicht gespeichert werden.",
-      "uploadError": "Upload fehlgeschlagen. Bitte erneut versuchen."
+      "uploadError": "Upload fehlgeschlagen. Bitte erneut versuchen.",
+      "amountRequired": "Bitte Betrag für Tank-, Taxi- oder Ticket-Beleg eintragen."
     },
     "protocols": {
       "title": "Protokolle",
@@ -463,6 +464,7 @@
       "uploading": "Wird hochgeladen...",
       "view": "Beleg öffnen",
       "uploadError": "Beleg konnte nicht hochgeladen werden.",
+      "amountRequired": "Bitte Betrag für Tank-, Taxi- oder Ticket-Beleg eintragen.",
       "types": {
         "fuel": "Tankbeleg",
         "ticket": "Ticket",

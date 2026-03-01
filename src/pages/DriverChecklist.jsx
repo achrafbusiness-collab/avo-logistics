@@ -39,6 +39,7 @@ const EXPENSE_TYPES = [
   { value: 'toll', labelKey: 'protocol.expenses.types.toll' },
   { value: 'additional_protocol', labelKey: 'protocol.expenses.types.additional_protocol' },
 ];
+const AMOUNT_REQUIRED_EXPENSE_TYPES = new Set(['fuel', 'taxi', 'ticket']);
 
 export default function DriverChecklist() {
   const { t, formatDate, formatDateTime, formatNumber } = useI18n();
@@ -218,9 +219,7 @@ export default function DriverChecklist() {
   const mustAcceptHandoff = Boolean(
     pendingHandoff && pendingHandoff.created_by_driver_id !== currentDriver?.id
   );
-  const canShowPostExpenses = Boolean(
-    pickupChecklist && (dropoffChecklist || orderedHandoffs.length > 0)
-  );
+  const canShowPostExpenses = Boolean(pickupChecklist);
   const postExpensesLocked = false;
 
   const pickupLocation = [order?.pickup_address, order?.pickup_postal_code, order?.pickup_city]
@@ -327,6 +326,15 @@ export default function DriverChecklist() {
     if (!editableChecklist?.id) return;
     if (postExpensesLocked) {
       setPostExpenseError(t('checklist.expenses.locked'));
+      return;
+    }
+    const missingRequiredAmount = postExpenses.some((expense) => {
+      if (!expense?.file_url || !AMOUNT_REQUIRED_EXPENSE_TYPES.has(expense.type)) return false;
+      const parsedAmount = Number(String(expense.amount ?? '').replace(',', '.'));
+      return !(Number.isFinite(parsedAmount) && parsedAmount > 0);
+    });
+    if (missingRequiredAmount) {
+      setPostExpenseError(t('checklist.expenses.amountRequired'));
       return;
     }
     setPostExpenseSaving(true);

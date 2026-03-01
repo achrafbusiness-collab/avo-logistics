@@ -314,7 +314,8 @@
       "saved": "Gastos guardados.",
       "locked": "El pedido está completado. Cambios bloqueados.",
       "saveError": "No se pudieron guardar los gastos.",
-      "uploadError": "La carga falló. Inténtalo de nuevo."
+      "uploadError": "La carga falló. Inténtalo de nuevo.",
+      "amountRequired": "Introduce el importe para recibos de combustible, taxi o ticket."
     },
     "protocols": {
       "title": "Protocolos",
@@ -463,6 +464,7 @@
       "uploading": "Subiendo...",
       "view": "Abrir recibo",
       "uploadError": "Error al subir el recibo.",
+      "amountRequired": "Introduce el importe para recibos de combustible, taxi o ticket.",
       "types": {
         "fuel": "Recibo de combustible",
         "ticket": "Ticket",

@@ -70,6 +70,7 @@ const EXPENSE_TYPES = [
   { value: 'toll', labelKey: 'protocol.expenses.types.toll' },
   { value: 'additional_protocol', labelKey: 'protocol.expenses.types.additional_protocol' },
 ];
+const AMOUNT_REQUIRED_EXPENSE_TYPES = new Set(['fuel', 'taxi', 'ticket']);
 
 const DAMAGE_DELAY_SECONDS = 60;
 const ACCESSORY_FIELDS = [
@@ -461,8 +462,6 @@ export default function DriverProtocol() {
           {
             slot_id: nextLocation?.id || '',
             location: nextLocation ? t(nextLocation.labelKey) : '',
-            description: '',
-            severity: 'minor',
             type: '',
             photo_url: '',
           },
@@ -651,7 +650,7 @@ export default function DriverProtocol() {
     }
     if (type === 'pickup') {
       const damageHasGaps = formData.damages?.some(
-        (damage) => !damage.location || !damage.description || !damage.type
+        (damage) => !damage.location || !damage.type
       );
       if (damageHasGaps) {
         setSubmitError(t('protocol.errors.damageIncomplete'));
@@ -662,6 +661,18 @@ export default function DriverProtocol() {
       if (damagePhotoMissing) {
         setSubmitError(t('protocol.errors.damagePhotoMissing'));
         setCurrentStep('damage');
+        return;
+      }
+    }
+    if (type === 'dropoff') {
+      const missingRequiredAmount = (formData.expenses || []).some((expense) => {
+        if (!expense?.file_url || !AMOUNT_REQUIRED_EXPENSE_TYPES.has(expense.type)) return false;
+        const parsedAmount = Number(String(expense.amount ?? '').replace(',', '.'));
+        return !(Number.isFinite(parsedAmount) && parsedAmount > 0);
+      });
+      if (missingRequiredAmount) {
+        setSubmitError(t('protocol.expenses.amountRequired'));
+        setCurrentStep('expenses');
         return;
       }
     }
@@ -770,14 +781,14 @@ export default function DriverProtocol() {
 
   const damageHasGaps =
     type === 'pickup' &&
-    formData.damages?.some((damage) => !damage.location || !damage.description || !damage.type);
+    formData.damages?.some((damage) => !damage.location || !damage.type);
   const hasAllRequiredPhotos = REQUIRED_PHOTO_IDS.every((id) =>
     formData.photos?.some((photo) => photo.type === id)
   );
   const damagesComplete =
     type !== 'pickup' ||
     !formData.damages?.length ||
-    formData.damages.every((damage) => damage.location && damage.description && damage.type && damage.photo_url);
+    formData.damages.every((damage) => damage.location && damage.type && damage.photo_url);
   const photosComplete = hasAllRequiredPhotos;
   const damageComplete = type !== 'pickup' ? true : damagesComplete;
   const expensesComplete = !Object.values(expenseUploads).some(Boolean);
@@ -1328,32 +1339,6 @@ export default function DriverProtocol() {
                             <SelectItem value="S">{t('protocol.damage.typeOptions.chip')}</SelectItem>
                             <SelectItem value="D">{t('protocol.damage.typeOptions.dent')}</SelectItem>
                             <SelectItem value="B">{t('protocol.damage.typeOptions.damage')}</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <Label>{t('protocol.damage.description')}</Label>
-                        <Input
-                          value={damage.description}
-                          onChange={(e) => updateDamage(index, 'description', e.target.value)}
-                          placeholder={t('protocol.damage.descriptionPlaceholder')}
-                          disabled={isViewOnly}
-                        />
-                      </div>
-                      <div>
-                        <Label>{t('protocol.damage.severity')}</Label>
-                        <Select
-                          value={damage.severity}
-                          onValueChange={(v) => updateDamage(index, 'severity', v)}
-                          disabled={isViewOnly}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="minor">{t('protocol.damage.severityOptions.minor')}</SelectItem>
-                            <SelectItem value="medium">{t('protocol.damage.severityOptions.medium')}</SelectItem>
-                            <SelectItem value="severe">{t('protocol.damage.severityOptions.severe')}</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
