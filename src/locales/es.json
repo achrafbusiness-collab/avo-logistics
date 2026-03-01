@@ -187,6 +187,8 @@
       "date": "Fecha",
       "plate": "Matrícula",
       "tour": "Ruta",
+      "pickup": "Recogida",
+      "dropoff": "Entrega",
       "type": "Tipo",
       "status": "Estado",
       "price": "Precio",

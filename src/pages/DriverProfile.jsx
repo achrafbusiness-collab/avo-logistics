@@ -19,6 +19,11 @@ import {
 } from "lucide-react";
 import { useI18n } from "@/i18n";
 
+const formatOrderAddress = (address, postalCode, city) => {
+  const cityLine = [postalCode, city].filter(Boolean).join(" ");
+  return [address, cityLine].filter(Boolean).join(", ");
+};
+
 export default function DriverProfile() {
   const { t, formatDate, formatNumber } = useI18n();
   const queryClient = useQueryClient();
@@ -80,28 +85,37 @@ export default function DriverProfile() {
   const allDocumentsUploaded = Object.values(docStatus).every(Boolean);
   const profileComplete = addressConfirmed && allDocumentsUploaded;
 
+  const { data: driverSegments = [], isLoading: segmentsLoading } = useQuery({
+    queryKey: ["driver-segments", driver?.id],
+    queryFn: () => appClient.entities.OrderSegment.filter({ driver_id: driver?.id }, "-created_date", 200),
+    enabled: !!driver?.id,
+  });
+
+  const segmentOrderIds = React.useMemo(() => {
+    const ids = new Set();
+    (driverSegments || []).forEach((segment) => {
+      if (segment?.order_id) ids.add(segment.order_id);
+    });
+    return Array.from(ids);
+  }, [driverSegments]);
+
   const { data: driverOrders = [], isLoading: ordersLoading } = useQuery({
-    queryKey: ["driver-orders", driver?.id],
+    queryKey: ["driver-orders-by-segments", driver?.id, segmentOrderIds.join(",")],
     queryFn: async () => {
-      if (!driver?.id) return [];
+      if (!segmentOrderIds.length) return [];
       const { data, error } = await supabase
         .from("orders")
-        .select("id, license_plate")
-        .eq("assigned_driver_id", driver.id)
-        .order("created_date", { ascending: false });
+        .select(
+          "id, license_plate, pickup_address, pickup_postal_code, pickup_city, dropoff_address, dropoff_postal_code, dropoff_city"
+        )
+        .in("id", segmentOrderIds);
       if (error) {
         console.error("Supabase driver orders error:", error.message);
         return [];
       }
       return data || [];
     },
-    enabled: !!driver?.id,
-  });
-
-  const { data: driverSegments = [], isLoading: segmentsLoading } = useQuery({
-    queryKey: ["driver-segments", driver?.id],
-    queryFn: () => appClient.entities.OrderSegment.filter({ driver_id: driver?.id }, "-created_date", 200),
-    enabled: !!driver?.id,
+    enabled: !!driver?.id && segmentOrderIds.length > 0,
   });
 
   const { data: driverChecklists = [], isLoading: checklistsLoading } = useQuery({
@@ -145,12 +159,22 @@ export default function DriverProfile() {
         const priceStatus =
           segment.price_status ||
           (segment.price !== null && segment.price !== undefined ? "approved" : "pending");
+        const order = segment?.order_id ? ordersById.get(segment.order_id) : null;
+        const pickupAddress =
+          formatOrderAddress(order?.pickup_address, order?.pickup_postal_code, order?.pickup_city) ||
+          segment.start_location ||
+          "-";
+        const dropoffAddress =
+          formatOrderAddress(order?.dropoff_address, order?.dropoff_postal_code, order?.dropoff_city) ||
+          segment.end_location ||
+          "-";
         return {
           id: segment.id,
           date,
           dateLabel: date ? formatDate(date) : "-",
-          licensePlate: ordersById.get(segment.order_id)?.license_plate || "-",
-          tour: `${segment.start_location || ""} → ${segment.end_location || ""}`.trim(),
+          licensePlate: order?.license_plate || segment?.license_plate || "-",
+          pickupAddress,
+          dropoffAddress,
           typeLabel:
             segment.segment_type === "shuttle"
               ? t("billing.type.shuttle")
@@ -708,7 +732,18 @@ export default function DriverProfile() {
                     <tr key={row.id} className="border-t">
                       <td className="py-2 pr-4">{row.dateLabel}</td>
                       <td className="py-2 pr-4 text-slate-700">{row.licensePlate}</td>
-                      <td className="py-2 pr-4 text-slate-700">{row.tour || "-"}</td>
+                      <td className="py-2 pr-4 text-slate-700">
+                        <div className="space-y-1">
+                          <div>
+                            <span className="text-xs font-medium text-slate-500">{t("billing.table.pickup")}:</span>{" "}
+                            <span>{row.pickupAddress || "-"}</span>
+                          </div>
+                          <div>
+                            <span className="text-xs font-medium text-slate-500">{t("billing.table.dropoff")}:</span>{" "}
+                            <span>{row.dropoffAddress || "-"}</span>
+                          </div>
+                        </div>
+                      </td>
                       <td className="py-2 pr-4 text-slate-700">{row.typeLabel}</td>
                       <td className="py-2 pr-4 text-sm">
                         <div className="flex flex-col gap-1">

@@ -187,6 +187,8 @@
       "date": "Date",
       "plate": "License plate",
       "tour": "Tour",
+      "pickup": "Pickup",
+      "dropoff": "Dropoff",
       "type": "Type",
       "status": "Status",
       "price": "Price",

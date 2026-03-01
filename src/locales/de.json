@@ -187,6 +187,8 @@
       "date": "Datum",
       "plate": "Kennzeichen",
       "tour": "Tour",
+      "pickup": "Abholung",
+      "dropoff": "Abgabe",
       "type": "Typ",
       "status": "Status",
       "price": "Preis",
