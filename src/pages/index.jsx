@@ -36,6 +36,7 @@ import LoginDriver from "./LoginDriver";
 import LoginStaff from "./LoginStaff";
 import LoginExecutive from "./LoginExecutive";
 import DriverAccess from "./DriverAccess";
+import DriverLicensePublic from "./DriverLicensePublic";
 import ResetPassword from "./ResetPassword";
 import TeamAVO from "./TeamAVO";
 import AccessDenied from "./AccessDenied";
@@ -126,6 +127,7 @@ function PagesContent() {
     const isResetRoute = normalizedPath === '/reset-password';
     const isSetPasswordRoute = normalizedPath === '/set-password';
     const isDriverAccessRoute = normalizedPath === '/driver';
+    const isDriverLicenseRoute = normalizedPath === '/driver-license';
     const isProtocolPdfRoute = normalizedPath === '/protocol-pdf';
     const isExpensesPdfRoute = normalizedPath === '/expenses-pdf';
     const currentPage = _getCurrentPage(location.pathname);
@@ -160,7 +162,7 @@ function PagesContent() {
         );
     }
 
-    if (isLoginRoute || isResetRoute || isSetPasswordRoute || isDriverAccessRoute || isProtocolPdfRoute || isExpensesPdfRoute) {
+    if (isLoginRoute || isResetRoute || isSetPasswordRoute || isDriverAccessRoute || isDriverLicenseRoute || isProtocolPdfRoute || isExpensesPdfRoute) {
         return (
             <Routes>
                 <Route path="/login" element={<Login />} />
@@ -168,6 +170,7 @@ function PagesContent() {
                 <Route path="/login/staff" element={<LoginStaff />} />
                 <Route path="/login/executive" element={<LoginExecutive />} />
                 <Route path="/driver" element={<DriverAccess />} />
+                <Route path="/driver-license" element={<DriverLicensePublic />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/set-password" element={<ResetPassword />} />
                 <Route path="/protocol-pdf" element={<ProtocolPdf />} />

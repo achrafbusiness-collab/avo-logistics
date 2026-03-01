@@ -5,7 +5,18 @@ import { supabase } from "@/lib/supabaseClient";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, ShieldCheck, User, Building2, Copy, Upload, AlertCircle, CheckCircle2, Clock } from "lucide-react";
+import {
+  Loader2,
+  ShieldCheck,
+  User,
+  Building2,
+  Copy,
+  Upload,
+  AlertCircle,
+  CheckCircle2,
+  Clock,
+  ExternalLink,
+} from "lucide-react";
 import { useI18n } from "@/i18n";
 
 export default function DriverProfile() {
@@ -13,6 +24,9 @@ export default function DriverProfile() {
   const queryClient = useQueryClient();
   const [user, setUser] = useState(null);
   const [licenseToken, setLicenseToken] = useState(null);
+  const [licenseQrUrl, setLicenseQrUrl] = useState("");
+  const [licensePublicUrl, setLicensePublicUrl] = useState("");
+  const [qrError, setQrError] = useState("");
   const [tokenError, setTokenError] = useState("");
   const [loadingToken, setLoadingToken] = useState(false);
   const [confirmingAddress, setConfirmingAddress] = useState(false);
@@ -191,6 +205,44 @@ export default function DriverProfile() {
     };
     loadToken();
   }, [user, t]);
+
+  useEffect(() => {
+    const token = licenseToken?.token;
+    if (!token) {
+      setLicenseQrUrl("");
+      setLicensePublicUrl("");
+      return;
+    }
+    if (typeof window === "undefined") return;
+
+    const profileUrl = `${window.location.origin}/driver-license?token=${encodeURIComponent(token)}`;
+    setLicensePublicUrl(profileUrl);
+    setQrError("");
+    let cancelled = false;
+
+    const createQr = async () => {
+      try {
+        const qrcode = await import("qrcode");
+        const dataUrl = await qrcode.toDataURL(profileUrl, {
+          width: 260,
+          margin: 1,
+          errorCorrectionLevel: "M",
+        });
+        if (!cancelled) {
+          setLicenseQrUrl(dataUrl);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setQrError("QR-Code konnte nicht erstellt werden.");
+        }
+      }
+    };
+
+    createQr();
+    return () => {
+      cancelled = true;
+    };
+  }, [licenseToken?.token]);
 
   useEffect(() => {
     if (!driver) return;
@@ -495,7 +547,26 @@ export default function DriverProfile() {
             <div className="rounded-lg border border-emerald-200 bg-white p-3 text-sm text-slate-700">
               <p className="text-xs text-slate-400">{t("profile.license.validOn")}</p>
               <p className="font-semibold">{licenseToken?.day}</p>
-              <div className="mt-3">
+              {licenseQrUrl ? (
+                <div className="mt-3 flex flex-col items-center rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <img
+                    src={licenseQrUrl}
+                    alt="Persönlicher QR-Code"
+                    className="h-48 w-48 rounded-md bg-white p-2"
+                  />
+                  <p className="mt-2 text-center text-xs text-slate-500">
+                    QR-Code scannen für verifizierbares Fahrerprofil.
+                  </p>
+                </div>
+              ) : qrError ? (
+                <p className="mt-3 text-sm text-red-600">{qrError}</p>
+              ) : (
+                <div className="mt-3 flex items-center gap-2 text-sm text-slate-500">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  QR-Code wird erstellt...
+                </div>
+              )}
+              <div className="mt-3 space-y-2">
                 <p className="text-xs text-slate-400">{t("profile.license.tokenId")}</p>
                 <div className="mt-1 flex items-center gap-2">
                   <code className="text-xs break-all">{licenseToken?.token}</code>
@@ -507,6 +578,25 @@ export default function DriverProfile() {
                     <Copy className="h-4 w-4" />
                   </Button>
                 </div>
+                {licensePublicUrl ? (
+                  <div className="flex items-center gap-2">
+                    <a
+                      href={licensePublicUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-[#1e3a5f] underline underline-offset-2"
+                    >
+                      Verifizierungs-Link öffnen
+                    </a>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => navigator.clipboard?.writeText(licensePublicUrl)}
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : null}
               </div>
               <p className="mt-3 text-xs text-slate-500">{t("profile.license.securityNote")}</p>
             </div>
