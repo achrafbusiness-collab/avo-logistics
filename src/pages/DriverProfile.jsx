@@ -657,6 +657,18 @@ export default function DriverProfile() {
               start.setDate(start.getDate() - 7);
               setBillingRange({ start: start.toISOString().slice(0, 10), end: end.toISOString().slice(0, 10) });
             }}>{t("billing.quick.weekAgo")}</Button>
+            <Button type="button" variant="outline" onClick={() => {
+              const now = new Date();
+              const start = new Date(now.getFullYear(), now.getMonth(), 1);
+              const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+              setBillingRange({ start: start.toISOString().slice(0, 10), end: end.toISOString().slice(0, 10) });
+            }}>{t("billing.quick.thisMonth")}</Button>
+            <Button type="button" variant="outline" onClick={() => {
+              const now = new Date();
+              const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+              const end = new Date(now.getFullYear(), now.getMonth(), 0);
+              setBillingRange({ start: start.toISOString().slice(0, 10), end: end.toISOString().slice(0, 10) });
+            }}>{t("billing.quick.lastMonth")}</Button>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">

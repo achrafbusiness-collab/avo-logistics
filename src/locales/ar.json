@@ -169,7 +169,9 @@
       "today": "اليوم",
       "yesterday": "أمس",
       "dayBefore": "أول أمس",
-      "weekAgo": "آخر 7 أيام"
+      "weekAgo": "آخر 7 أيام",
+      "thisMonth": "هذا الشهر",
+      "lastMonth": "الشهر الماضي"
     },
     "rangeStart": "من",
     "rangeEnd": "إلى",

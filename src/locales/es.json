@@ -173,7 +173,9 @@
       "today": "Hoy",
       "yesterday": "Ayer",
       "dayBefore": "Anteayer",
-      "weekAgo": "Últimos 7 días"
+      "weekAgo": "Últimos 7 días",
+      "thisMonth": "Este mes",
+      "lastMonth": "Mes pasado"
     },
     "rangeStart": "Desde",
     "rangeEnd": "Hasta",
