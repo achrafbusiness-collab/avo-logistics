@@ -639,7 +639,7 @@ ${companyName}`;
           attachment = await generateProtocolPdfFromPage({
             siteUrl,
             checklistId: selectedChecklistId,
-            authToken: token,
+            authToken: serviceRoleKey,
             quality,
           });
           break;
