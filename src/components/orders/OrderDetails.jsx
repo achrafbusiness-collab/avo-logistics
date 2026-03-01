@@ -25,8 +25,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { appClient } from "@/api/appClient";
+import { supabase } from "@/lib/supabaseClient";
 import StatusBadge from '@/components/ui/StatusBadge';
-import { sendCustomerProtocolInBackground } from "@/lib/customerProtocolSender";
 import { 
   Car, 
   MapPin, 
@@ -127,6 +127,7 @@ export default function OrderDetails({
   const [customerProtocolEmail, setCustomerProtocolEmail] = useState('');
   const [customerProtocolQuality, setCustomerProtocolQuality] = useState('normal');
   const [customerProtocolFeedback, setCustomerProtocolFeedback] = useState({ type: '', message: '' });
+  const [isSendingProtocol, setIsSendingProtocol] = useState(false);
   const [expenseTypeFilter, setExpenseTypeFilter] = useState('all');
   const isAdmin = currentUser?.role === 'admin';
   const distanceKm = order?.distance_km ?? null;
@@ -187,6 +188,7 @@ export default function OrderDetails({
     setCustomerProtocolEmail(order?.customer_email || '');
     setCustomerProtocolQuality('normal');
     setCustomerProtocolFeedback({ type: '', message: '' });
+    setIsSendingProtocol(false);
   }, [order]);
 
   useEffect(() => {
@@ -630,26 +632,42 @@ export default function OrderDetails({
   const handleSendProtocolToCustomer = async () => {
     const targetEmail = customerProtocolEmail.trim();
     if (!targetEmail) {
-      setCustomerProtocolFeedback({
-        type: 'error',
-        message: 'Bitte E-Mail-Adresse eingeben.',
-      });
+      setCustomerProtocolFeedback({ type: 'error', message: 'Bitte E-Mail-Adresse eingeben.' });
       return;
     }
     setCustomerProtocolFeedback({ type: '', message: '' });
+    setIsSendingProtocol(true);
     try {
-      sendCustomerProtocolInBackground({
-        orderId: order.id,
-        protocolChecklistId,
-        customerProtocolEmail: targetEmail,
-        customerProtocolQuality,
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      if (!token) throw new Error('Nicht angemeldet.');
+      const response = await fetch('/api/admin/send-driver-assignment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          orderId: order.id,
+          protocolChecklistId,
+          sendCustomerProtocol: true,
+          customerProtocolEmail: targetEmail,
+          customerProtocolQuality,
+        }),
       });
-      setCustomerProtocolDialogOpen(false);
+      let payload;
+      try { payload = await response.json(); } catch { payload = null; }
+      if (!response.ok || !payload?.ok) {
+        throw new Error(payload?.error || `Serverfehler (${response.status})`);
+      }
+      setCustomerProtocolFeedback({
+        type: 'success',
+        message: `E-Mail erfolgreich an ${payload?.data?.to || targetEmail} gesendet.`,
+      });
     } catch (error) {
       setCustomerProtocolFeedback({
         type: 'error',
         message: error?.message || 'Versand fehlgeschlagen.',
       });
+    } finally {
+      setIsSendingProtocol(false);
     }
   };
 
@@ -722,6 +740,7 @@ export default function OrderDetails({
             <Dialog
               open={customerProtocolDialogOpen}
               onOpenChange={(open) => {
+                if (isSendingProtocol) return;
                 setCustomerProtocolDialogOpen(open);
                 if (!open) {
                   setCustomerProtocolFeedback({ type: '', message: '' });
@@ -794,17 +813,27 @@ export default function OrderDetails({
                     type="button"
                     variant="outline"
                     onClick={() => setCustomerProtocolDialogOpen(false)}
+                    disabled={isSendingProtocol}
                   >
-                    Abbrechen
+                    {customerProtocolFeedback.type === 'success' ? 'Schließen' : 'Abbrechen'}
                   </Button>
-                  <Button
-                    type="button"
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white"
-                    onClick={handleSendProtocolToCustomer}
-                    disabled={!customerProtocolEmail.trim()}
-                  >
-                    Senden
-                  </Button>
+                  {customerProtocolFeedback.type !== 'success' && (
+                    <Button
+                      type="button"
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                      onClick={handleSendProtocolToCustomer}
+                      disabled={!customerProtocolEmail.trim() || isSendingProtocol}
+                    >
+                      {isSendingProtocol ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          PDF wird erstellt…
+                        </>
+                      ) : (
+                        'Senden'
+                      )}
+                    </Button>
+                  )}
                 </DialogFooter>
               </DialogContent>
             </Dialog>
