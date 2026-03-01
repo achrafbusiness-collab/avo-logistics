@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { appClient } from "@/api/appClient";
@@ -108,8 +108,9 @@ const chunkArray = (items, size) => {
 export default function ProtocolPdf() {
   const [params] = useSearchParams();
   const checklistId = params.get("checklistId");
-  const shouldPrint = params.get("print") === "1";
   const [editMode, setEditMode] = useState(false);
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+  const [downloadError, setDownloadError] = useState("");
   const [editValues, setEditValues] = useState({
     pickup: { datetime: null, kilometer: null },
     dropoff: { datetime: null, kilometer: null },
@@ -181,13 +182,6 @@ export default function ProtocolPdf() {
   const pickupDamages = pickupChecklist?.damages || [];
   const damageRows = Array.from({ length: 5 }, (_, index) => pickupDamages[index] || null);
   const extraDamageCount = Math.max(0, pickupDamages.length - damageRows.length);
-  useEffect(() => {
-    if (!shouldPrint || !checklist || !order || typeof orderChecklists === "undefined") return;
-    const timeout = setTimeout(() => {
-      window.print();
-    }, 900);
-    return () => clearTimeout(timeout);
-  }, [shouldPrint, checklist, order, orderChecklists]);
 
   if (!checklist || !order) {
     return (
@@ -213,6 +207,60 @@ export default function ProtocolPdf() {
   const dropoffDateTime = editValues.dropoff.datetime ?? dropoffChecklist?.datetime ?? "";
   const pickupKilometer = editValues.pickup.kilometer ?? pickupChecklist?.kilometer ?? "";
   const dropoffKilometer = editValues.dropoff.kilometer ?? dropoffChecklist?.kilometer ?? "";
+  const handleDownloadPdf = async () => {
+    if (isDownloadingPdf) return;
+    setIsDownloadingPdf(true);
+    setDownloadError("");
+    try {
+      const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+        import("html2canvas"),
+        import("jspdf"),
+      ]);
+      const pages = Array.from(document.querySelectorAll(".pdf-page"));
+      if (!pages.length) {
+        throw new Error("Keine PDF-Seiten gefunden.");
+      }
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: "a4",
+        compress: true,
+      });
+      const pdfWidth = 210;
+      const pdfHeight = 297;
+      for (let index = 0; index < pages.length; index += 1) {
+        const page = pages[index];
+        const canvas = await html2canvas(page, {
+          scale: 2,
+          useCORS: true,
+          allowTaint: false,
+          backgroundColor: "#ffffff",
+          logging: false,
+          windowWidth: page.scrollWidth,
+          windowHeight: page.scrollHeight,
+        });
+        const imageData = canvas.toDataURL("image/jpeg", 0.92);
+        const ratio = Math.min(pdfWidth / canvas.width, pdfHeight / canvas.height);
+        const renderWidth = canvas.width * ratio;
+        const renderHeight = canvas.height * ratio;
+        const x = (pdfWidth - renderWidth) / 2;
+        const y = (pdfHeight - renderHeight) / 2;
+        if (index > 0) {
+          pdf.addPage("a4", "portrait");
+        }
+        pdf.addImage(imageData, "JPEG", x, y, renderWidth, renderHeight, undefined, "FAST");
+      }
+      const fileId = String(order.order_number || checklistId || "protokoll").replace(
+        /[^a-z0-9._-]/gi,
+        "_"
+      );
+      pdf.save(`protokoll-${fileId}.pdf`);
+    } catch (error) {
+      setDownloadError(error?.message || "PDF konnte nicht heruntergeladen werden.");
+    } finally {
+      setIsDownloadingPdf(false);
+    }
+  };
 
   return (
     <div className="protocol-pdf">
@@ -301,8 +349,8 @@ export default function ProtocolPdf() {
       `}</style>
 
       <div className="pdf-actions">
-        <button className="pdf-button" onClick={() => window.print()}>
-          PDF herunterladen
+        <button className="pdf-button" onClick={handleDownloadPdf} disabled={isDownloadingPdf}>
+          {isDownloadingPdf ? "PDF wird erstellt…" : "PDF herunterladen"}
         </button>
         <button className="pdf-button secondary" onClick={() => window.history.back()}>
           Zurück
@@ -311,6 +359,7 @@ export default function ProtocolPdf() {
           {editMode ? "Bearbeitung schließen" : "Daten bearbeiten"}
         </button>
       </div>
+      {downloadError ? <div className="pdf-note">{downloadError}</div> : null}
       {editMode && (
         <div className="pdf-editor">
           <div className="pdf-editor-title">Daten vor dem Druck anpassen</div>

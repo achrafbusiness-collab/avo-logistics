@@ -133,7 +133,7 @@ export default function Checklists() {
         </div>
         <div className="flex gap-2">
           <a
-            href={`/protocol-pdf?checklistId=${checklist.id}&print=1`}
+            href={`/protocol-pdf?checklistId=${checklist.id}`}
             target="_blank"
             rel="noreferrer"
           >
