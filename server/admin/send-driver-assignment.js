@@ -130,22 +130,31 @@ const getProtocolQualityPreset = (quality) => {
   const normalized = String(quality || "normal").trim().toLowerCase();
   if (normalized === "high") {
     return {
-      viewportScale: 2,
-      pdfScale: 1,
+      viewportScale: 1.35,
+      pdfScale: 0.95,
+      fallbackPdfScale: 0.85,
       renderDelayMs: 1000,
+      imageMaxEdge: 1800,
+      imageQuality: 0.9,
     };
   }
   if (normalized === "economy" || normalized === "low") {
     return {
       viewportScale: 1,
       pdfScale: 0.8,
+      fallbackPdfScale: 0.72,
       renderDelayMs: 500,
+      imageMaxEdge: 1200,
+      imageQuality: 0.76,
     };
   }
   return {
-    viewportScale: 1.25,
-    pdfScale: 0.92,
+    viewportScale: 1.2,
+    pdfScale: 0.9,
+    fallbackPdfScale: 0.8,
     renderDelayMs: 800,
+    imageMaxEdge: 1500,
+    imageQuality: 0.84,
   };
 };
 
@@ -165,6 +174,147 @@ const getProtocolQualityFallbackOrder = (quality) => {
   return fallbackOrder;
 };
 
+const waitForMs = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const optimizeProtocolImagesForPdf = async (page, qualityPreset) => {
+  await page
+    .addStyleTag({
+      content: `
+        .pdf-page { box-shadow: none !important; }
+        .pdf-photo-card img { background: #ffffff !important; }
+      `,
+    })
+    .catch(() => null);
+
+  await page.evaluate(
+    async ({ imageMaxEdge, imageQuality }) => {
+      const candidates = Array.from(
+        document.querySelectorAll(".pdf-photo-card img, .pdf-signature-box img, .pdf-page img")
+      );
+      const seen = new Set();
+      const images = candidates.filter((img) => {
+        if (!(img instanceof HTMLImageElement)) return false;
+        if (seen.has(img)) return false;
+        seen.add(img);
+        return true;
+      });
+
+      const waitForLoad = (img) =>
+        new Promise((resolve) => {
+          if (img.complete) {
+            resolve();
+            return;
+          }
+          const done = () => resolve();
+          img.addEventListener("load", done, { once: true });
+          img.addEventListener("error", done, { once: true });
+          setTimeout(done, 1500);
+        });
+
+      for (const img of images) {
+        const src = String(img.currentSrc || img.src || "");
+        const isBrandAsset = src.includes("/logo.") || src.includes("/vehicle-sketch.svg");
+        const isVector = src.includes("image/svg+xml") || src.endsWith(".svg");
+        if (isBrandAsset || isVector) continue;
+
+        await waitForLoad(img);
+        if (!img.naturalWidth || !img.naturalHeight) continue;
+
+        const maxEdge = Math.max(img.naturalWidth, img.naturalHeight);
+        const ratio = Math.min(1, imageMaxEdge / maxEdge);
+        if (ratio >= 0.999) continue;
+
+        const targetWidth = Math.max(1, Math.round(img.naturalWidth * ratio));
+        const targetHeight = Math.max(1, Math.round(img.naturalHeight * ratio));
+        const canvas = document.createElement("canvas");
+        canvas.width = targetWidth;
+        canvas.height = targetHeight;
+        const ctx = canvas.getContext("2d", { alpha: false });
+        if (!ctx) continue;
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, targetWidth, targetHeight);
+
+        try {
+          ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
+          const blob = await new Promise((resolve) =>
+            canvas.toBlob(resolve, "image/jpeg", imageQuality)
+          );
+          if (!blob) continue;
+          const objectUrl = URL.createObjectURL(blob);
+          img.src = objectUrl;
+          await waitForLoad(img);
+          URL.revokeObjectURL(objectUrl);
+        } catch {
+          // Ignore CORS/canvas issues and keep the original image.
+        } finally {
+          canvas.width = 1;
+          canvas.height = 1;
+        }
+      }
+    },
+    {
+      imageMaxEdge: qualityPreset.imageMaxEdge,
+      imageQuality: qualityPreset.imageQuality,
+    }
+  );
+};
+
+const createProtocolPdf = async (page, qualityPreset) => {
+  const attempts = [
+    {
+      format: "A4",
+      printBackground: true,
+      preferCSSPageSize: true,
+      scale: qualityPreset.pdfScale,
+      tagged: false,
+      waitForFonts: false,
+      timeout: 120000,
+      margin: {
+        top: "0mm",
+        right: "0mm",
+        bottom: "0mm",
+        left: "0mm",
+      },
+    },
+    {
+      format: "A4",
+      printBackground: true,
+      preferCSSPageSize: false,
+      scale: qualityPreset.fallbackPdfScale,
+      tagged: false,
+      waitForFonts: false,
+      timeout: 120000,
+      margin: {
+        top: "6mm",
+        right: "6mm",
+        bottom: "6mm",
+        left: "6mm",
+      },
+    },
+  ];
+
+  let lastError = null;
+  for (const pdfOptions of attempts) {
+    try {
+      const pdf = await page.pdf(pdfOptions);
+      return Buffer.from(pdf);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError || new Error("PDF konnte nicht erstellt werden.");
+};
+
+const closeBrowserQuietly = async (browser) => {
+  if (!browser) return;
+  try {
+    await Promise.race([browser.close(), browser.close(), browser.close()]);
+  } catch {
+    // Ignore close errors so the render error remains visible to the caller.
+  }
+};
+
 const generateProtocolPdfFromPage = async ({ siteUrl, checklistId, authToken, quality }) => {
   const qualityPreset = getProtocolQualityPreset(quality);
   const [{ default: puppeteer }, chromiumModule] = await Promise.all([
@@ -172,12 +322,22 @@ const generateProtocolPdfFromPage = async ({ siteUrl, checklistId, authToken, qu
     import("@sparticuz/chromium"),
   ]);
   const chromium = chromiumModule.default || chromiumModule;
+  chromium.setGraphicsMode = false;
   const executablePath = await chromium.executablePath();
+  const headlessMode = "shell";
   const browser = await puppeteer.launch({
-    args: chromium.args,
-    defaultViewport: chromium.defaultViewport,
+    args: puppeteer.defaultArgs({
+      args: chromium.args,
+      headless: headlessMode,
+    }),
+    defaultViewport: {
+      width: 1440,
+      height: 2200,
+      deviceScaleFactor: qualityPreset.viewportScale,
+    },
     executablePath,
-    headless: chromium.headless,
+    headless: headlessMode,
+    ignoreHTTPSErrors: true,
   });
   try {
     const page = await browser.newPage();
@@ -257,23 +417,12 @@ const generateProtocolPdfFromPage = async ({ siteUrl, checklistId, authToken, qu
       );
       throw new Error(`Render timeout. Seite: ${previewText || "leer"}`);
     }
-    await new Promise((resolve) => setTimeout(resolve, qualityPreset.renderDelayMs));
+    await optimizeProtocolImagesForPdf(page, qualityPreset).catch(() => null);
+    await waitForMs(qualityPreset.renderDelayMs);
     await page.emulateMediaType("print");
-    const pdf = await page.pdf({
-      format: "A4",
-      printBackground: true,
-      preferCSSPageSize: true,
-      scale: qualityPreset.pdfScale,
-      margin: {
-        top: "0mm",
-        right: "0mm",
-        bottom: "0mm",
-        left: "0mm",
-      },
-    });
-    return Buffer.from(pdf);
+    return await createProtocolPdf(page, qualityPreset);
   } finally {
-    await browser.close();
+    await closeBrowserQuietly(browser);
   }
 };
 
