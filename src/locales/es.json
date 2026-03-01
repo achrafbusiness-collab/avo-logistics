@@ -84,6 +84,7 @@
       "smoothRide": "Entrega limpia, relevo claro, gran impresión.",
       "strongStart": "Gran día por delante. Tú puedes."
     },
+    "communityBy": "Comunidad: {{name}}",
     "summary": {
       "none": "No hay pedidos activos",
       "single": "1 pedido activo",
@@ -218,6 +219,25 @@
   "support": {
     "title": "Soporte",
     "subtitle": "Ayuda, contactos e información sobre la marcha.",
+    "fun": {
+      "title": "Tablón de chistes",
+      "subtitle": "Publica frases graciosas o chistes para todos los conductores. Los nuevos posts salen en la bienvenida.",
+      "inputLabel": "Tu chiste / frase",
+      "placeholder": "p. ej. Hoy el café conduce al conductor.",
+      "counter": "{{count}} / {{max}}",
+      "post": "Publicar",
+      "posting": "Publicando...",
+      "posted": "Chiste publicado.",
+      "delete": "Eliminar",
+      "deleted": "Chiste eliminado.",
+      "empty": "Aún no hay chistes.",
+      "by": "Por {{name}}",
+      "required": "Primero escribe un texto.",
+      "tooLong": "El texto es demasiado largo (máx. 240).",
+      "authMissing": "Sesión caducada. Inicia sesión de nuevo.",
+      "saveError": "No se pudo guardar el chiste.",
+      "deleteError": "No se pudo eliminar el chiste."
+    },
     "contact": {
       "title": "Contacto",
       "supportLabel": "Soporte: {{phone}}",

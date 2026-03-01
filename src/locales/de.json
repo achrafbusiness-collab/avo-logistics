@@ -84,6 +84,7 @@
       "smoothRide": "Ruhige Fahrt, saubere Übergabe, starker Eindruck.",
       "strongStart": "Starker Tag voraus. Du machst das."
     },
+    "communityBy": "Community: {{name}}",
     "summary": {
       "none": "Aktuell keine aktiven Aufträge",
       "single": "1 aktiver Auftrag",
@@ -218,6 +219,25 @@
   "support": {
     "title": "Support",
     "subtitle": "Hilfe, Kontakte und Infos für unterwegs.",
+    "fun": {
+      "title": "Witzeboard",
+      "subtitle": "Schreib lustige Sätze oder Witze für alle Fahrer. Neue Posts erscheinen oben in der Begrüßung.",
+      "inputLabel": "Dein Witz / Spruch",
+      "placeholder": "z.B. Heute fährt der Kaffee den Fahrer.",
+      "counter": "{{count}} / {{max}}",
+      "post": "Posten",
+      "posting": "Wird gepostet...",
+      "posted": "Witz wurde gepostet.",
+      "delete": "Löschen",
+      "deleted": "Witz wurde gelöscht.",
+      "empty": "Noch keine Witze gepostet.",
+      "by": "Von {{name}}",
+      "required": "Bitte zuerst einen Text eingeben.",
+      "tooLong": "Text ist zu lang (max. 240 Zeichen).",
+      "authMissing": "Sitzung abgelaufen. Bitte neu anmelden.",
+      "saveError": "Witz konnte nicht gespeichert werden.",
+      "deleteError": "Witz konnte nicht gelöscht werden."
+    },
     "contact": {
       "title": "Kontakt",
       "supportLabel": "Support: {{phone}}",

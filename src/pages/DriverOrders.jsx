@@ -28,6 +28,24 @@ const MOTIVATION_KEYS = [
   'orders.motivation.strongStart',
 ];
 
+const fetchDriverJokes = async () => {
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = sessionData?.session?.access_token;
+  if (!token) return [];
+
+  const response = await fetch('/api/driver/jokes', {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || !payload?.ok) {
+    return [];
+  }
+  return Array.isArray(payload?.data) ? payload.data : [];
+};
+
 export default function DriverOrders() {
   const { t, formatDate } = useI18n();
   const [user, setUser] = useState(null);
@@ -100,6 +118,12 @@ export default function DriverOrders() {
     queryKey: ['appSettings'],
     queryFn: () => appClient.entities.AppSettings.list('-created_date', 1),
   });
+  const { data: jokePosts = [] } = useQuery({
+    queryKey: ['driver-jokes'],
+    queryFn: fetchDriverJokes,
+    enabled: !!user,
+    staleTime: 15000,
+  });
 
   const appSettings = appSettingsList[0] || null;
 
@@ -129,14 +153,36 @@ export default function DriverOrders() {
       : activeOrders.length === 1
         ? t('orders.summary.single')
         : t('orders.summary.multiple', { count: activeOrders.length });
+  const rotationMessages = useMemo(() => {
+    const community = (jokePosts || [])
+      .map((entry) => ({
+        id: `community-${entry.id}`,
+        text: String(entry.text || '').trim(),
+        type: 'community',
+        authorName: entry.author_name || t('orders.driverFallback'),
+      }))
+      .filter((entry) => entry.text.length > 0);
+    const defaults = MOTIVATION_KEYS.map((key) => ({
+      id: key,
+      text: t(key),
+      type: 'default',
+      authorName: '',
+    }));
+    return [...community, ...defaults];
+  }, [jokePosts, t]);
+  const currentMessage = rotationMessages[motivationIndex] || rotationMessages[0] || null;
 
   useEffect(() => {
-    setMotivationIndex(Math.floor(Math.random() * MOTIVATION_KEYS.length));
+    if (!rotationMessages.length) {
+      setMotivationIndex(0);
+      return undefined;
+    }
+    setMotivationIndex(Math.floor(Math.random() * rotationMessages.length));
     const interval = window.setInterval(() => {
-      setMotivationIndex((prev) => (prev + 1) % MOTIVATION_KEYS.length);
+      setMotivationIndex((prev) => (prev + 1) % rotationMessages.length);
     }, 8000);
     return () => window.clearInterval(interval);
-  }, []);
+  }, [rotationMessages.length]);
 
   const OrderCard = ({ order }) => {
     const orderChecklists = getOrderChecklists(order.id);
@@ -262,15 +308,19 @@ export default function DriverOrders() {
 
   return (
     <div className="p-4 space-y-4 pb-24">
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#0f2f4f] via-[#1e3a5f] to-[#2b648f] p-6 text-white shadow-xl min-h-[44vh] md:min-h-[34vh]">
-        <div className="absolute -right-10 -top-10 h-36 w-36 rounded-full bg-white/10 blur-2xl" />
-        <div className="absolute -left-12 bottom-0 h-40 w-40 rounded-full bg-cyan-300/10 blur-2xl" />
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#0c2e4a] via-[#0f4874] to-[#1f7ea4] p-6 text-white shadow-xl min-h-[44vh] md:min-h-[34vh]">
+        <div className="absolute inset-0 opacity-75">
+          <div className="absolute -left-24 -top-16 h-72 w-[150%] rounded-[48%] bg-cyan-200/25 blur-3xl animate-[spin_22s_linear_infinite]" />
+          <div className="absolute -right-24 -bottom-24 h-80 w-[155%] rounded-[45%] bg-sky-100/20 blur-3xl animate-[spin_30s_linear_infinite_reverse]" />
+          <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-white/10 to-transparent" />
+        </div>
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(255,255,255,0.25),transparent_36%),radial-gradient(circle_at_80%_30%,rgba(255,255,255,0.18),transparent_34%)]" />
         <div className="relative z-10 flex h-full flex-col justify-between gap-8">
           <div className="flex items-center justify-between">
             <img
               src="/logo.png"
               alt="AVO"
-              className="h-11 w-auto rounded-lg bg-white/95 p-1.5 shadow"
+              className="h-16 w-auto rounded-xl bg-white/95 p-2 shadow-lg md:h-20"
             />
             <span className="rounded-full border border-white/25 bg-white/10 px-3 py-1 text-xs font-semibold tracking-wide">
               {t('orders.welcomeBadge')}
@@ -281,8 +331,13 @@ export default function DriverOrders() {
             <p className="text-sm uppercase tracking-[0.2em] text-white/75">{t('orders.greetingSimple')}</p>
             <h1 className="text-4xl font-black leading-tight md:text-5xl">{driverDisplayName}</h1>
             <p className="text-base font-medium text-white/90 transition-opacity duration-500">
-              {t(MOTIVATION_KEYS[motivationIndex])}
+              {currentMessage?.text || t('orders.motivation.safeDrive')}
             </p>
+            {currentMessage?.type === 'community' && (
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-100">
+                {t('orders.communityBy', { name: currentMessage.authorName })}
+              </p>
+            )}
           </div>
 
           <div className="inline-flex w-fit items-center rounded-lg border border-white/25 bg-white/10 px-3 py-2 text-sm font-semibold">

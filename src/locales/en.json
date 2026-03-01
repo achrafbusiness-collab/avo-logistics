@@ -84,6 +84,7 @@
       "smoothRide": "Smooth delivery, clean handover, strong impression.",
       "strongStart": "Strong day ahead. You got this."
     },
+    "communityBy": "Community: {{name}}",
     "summary": {
       "none": "No active orders right now",
       "single": "1 active order",
@@ -218,6 +219,25 @@
   "support": {
     "title": "Support",
     "subtitle": "Help, contacts, and info on the go.",
+    "fun": {
+      "title": "Joke board",
+      "subtitle": "Post funny lines or jokes for all drivers. New posts appear in the welcome header.",
+      "inputLabel": "Your joke / line",
+      "placeholder": "e.g. Today the coffee is driving the driver.",
+      "counter": "{{count}} / {{max}}",
+      "post": "Post",
+      "posting": "Posting...",
+      "posted": "Joke posted.",
+      "delete": "Delete",
+      "deleted": "Joke deleted.",
+      "empty": "No jokes posted yet.",
+      "by": "By {{name}}",
+      "required": "Please enter text first.",
+      "tooLong": "Text is too long (max 240 chars).",
+      "authMissing": "Session expired. Please log in again.",
+      "saveError": "Could not save joke.",
+      "deleteError": "Could not delete joke."
+    },
     "contact": {
       "title": "Contact",
       "supportLabel": "Support: {{phone}}",

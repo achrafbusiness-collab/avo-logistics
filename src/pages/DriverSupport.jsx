@@ -1,10 +1,11 @@
-import React, { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { appClient } from "@/api/appClient";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -20,12 +21,38 @@ import {
   BookOpen,
   Info,
   Shield,
+  Trash2,
+  Laugh,
+  Loader2,
 } from "lucide-react";
 import { useI18n } from "@/i18n";
 import { supabase } from "@/lib/supabaseClient";
 
+const getSessionToken = async () => {
+  const { data: sessionData } = await supabase.auth.getSession();
+  return sessionData?.session?.access_token || "";
+};
+
+const fetchDriverJokes = async () => {
+  const token = await getSessionToken();
+  if (!token) return [];
+
+  const response = await fetch("/api/driver/jokes", {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || !payload?.ok) {
+    throw new Error(payload?.error || "Jokes konnten nicht geladen werden.");
+  }
+  return Array.isArray(payload?.data) ? payload.data : [];
+};
+
 export default function DriverSupport() {
   const { t, getValue, language, setLanguage } = useI18n();
+  const queryClient = useQueryClient();
   const [savingLanguage, setSavingLanguage] = useState(false);
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [passwordForm, setPasswordForm] = useState({
@@ -36,9 +63,18 @@ export default function DriverSupport() {
   const [passwordError, setPasswordError] = useState("");
   const [passwordSuccess, setPasswordSuccess] = useState("");
   const [savingPassword, setSavingPassword] = useState(false);
+  const [jokeDraft, setJokeDraft] = useState("");
+  const [jokeSaving, setJokeSaving] = useState(false);
+  const [jokeDeletingId, setJokeDeletingId] = useState("");
+  const [jokeError, setJokeError] = useState("");
+  const [jokeSuccess, setJokeSuccess] = useState("");
   const { data: appSettingsList = [] } = useQuery({
     queryKey: ["appSettings"],
     queryFn: () => appClient.entities.AppSettings.list("-created_date", 1),
+  });
+  const { data: funPosts = [], isLoading: funPostsLoading } = useQuery({
+    queryKey: ["driver-jokes"],
+    queryFn: fetchDriverJokes,
   });
 
   const appSettings = appSettingsList[0] || null;
@@ -98,6 +134,78 @@ export default function DriverSupport() {
       setPasswordError(error?.message || t("settings.password.failed"));
     } finally {
       setSavingPassword(false);
+    }
+  };
+
+  const handlePostJoke = async () => {
+    setJokeError("");
+    setJokeSuccess("");
+    const text = jokeDraft.replace(/\s+/g, " ").trim();
+    if (!text) {
+      setJokeError(t("support.fun.required"));
+      return;
+    }
+    if (text.length > 240) {
+      setJokeError(t("support.fun.tooLong"));
+      return;
+    }
+
+    setJokeSaving(true);
+    try {
+      const token = await getSessionToken();
+      if (!token) {
+        throw new Error(t("support.fun.authMissing"));
+      }
+      const response = await fetch("/api/driver/jokes", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ text }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || !payload?.ok) {
+        throw new Error(payload?.error || t("support.fun.saveError"));
+      }
+      setJokeDraft("");
+      setJokeSuccess(t("support.fun.posted"));
+      queryClient.invalidateQueries({ queryKey: ["driver-jokes"] });
+    } catch (error) {
+      setJokeError(error?.message || t("support.fun.saveError"));
+    } finally {
+      setJokeSaving(false);
+    }
+  };
+
+  const handleDeleteJoke = async (id) => {
+    if (!id) return;
+    setJokeError("");
+    setJokeSuccess("");
+    setJokeDeletingId(id);
+    try {
+      const token = await getSessionToken();
+      if (!token) {
+        throw new Error(t("support.fun.authMissing"));
+      }
+      const response = await fetch("/api/driver/jokes", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ id }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || !payload?.ok) {
+        throw new Error(payload?.error || t("support.fun.deleteError"));
+      }
+      setJokeSuccess(t("support.fun.deleted"));
+      queryClient.invalidateQueries({ queryKey: ["driver-jokes"] });
+    } catch (error) {
+      setJokeError(error?.message || t("support.fun.deleteError"));
+    } finally {
+      setJokeDeletingId("");
     }
   };
 
@@ -252,6 +360,85 @@ export default function DriverSupport() {
           <p className="whitespace-pre-wrap">
             {appSettings?.instructions || t("support.guide.fallback")}
           </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="p-4 space-y-4 text-sm text-slate-600">
+          <div className="flex items-center gap-2 text-slate-700">
+            <Laugh className="h-5 w-5 text-[#1e3a5f]" />
+            <h2 className="text-base font-semibold">{t("support.fun.title")}</h2>
+          </div>
+          <p className="text-xs text-slate-500">{t("support.fun.subtitle")}</p>
+          <div className="space-y-2">
+            <Label htmlFor="driverFunPost">{t("support.fun.inputLabel")}</Label>
+            <Textarea
+              id="driverFunPost"
+              rows={3}
+              maxLength={240}
+              value={jokeDraft}
+              onChange={(event) => setJokeDraft(event.target.value)}
+              placeholder={t("support.fun.placeholder")}
+            />
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs text-slate-500">
+                {t("support.fun.counter", { count: jokeDraft.length, max: 240 })}
+              </span>
+              <Button type="button" onClick={handlePostJoke} disabled={jokeSaving}>
+                {jokeSaving ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    {t("support.fun.posting")}
+                  </>
+                ) : (
+                  t("support.fun.post")
+                )}
+              </Button>
+            </div>
+          </div>
+
+          {jokeError && <p className="text-xs text-red-600">{jokeError}</p>}
+          {jokeSuccess && <p className="text-xs text-green-600">{jokeSuccess}</p>}
+
+          <div className="space-y-2">
+            {funPostsLoading ? (
+              <div className="flex items-center justify-center py-6">
+                <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
+              </div>
+            ) : funPosts.length === 0 ? (
+              <p className="text-xs text-slate-500">{t("support.fun.empty")}</p>
+            ) : (
+              funPosts.map((post) => (
+                <div key={post.id} className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <p className="text-sm text-slate-800">{post.text}</p>
+                  <div className="mt-2 flex items-center justify-between gap-2">
+                    <p className="text-xs text-slate-500">
+                      {t("support.fun.by", {
+                        name: post.author_name || t("orders.driverFallback"),
+                      })}
+                    </p>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="text-red-600 hover:text-red-700"
+                      onClick={() => handleDeleteJoke(post.id)}
+                      disabled={jokeDeletingId === post.id}
+                    >
+                      {jokeDeletingId === post.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <>
+                          <Trash2 className="h-4 w-4 mr-1" />
+                          {t("support.fun.delete")}
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
         </CardContent>
       </Card>
 
