@@ -72,7 +72,18 @@
     "distance": "Distancia",
     "driverPrice": "Precio del conductor",
     "greeting": "Hola, {{name}}!",
+    "greetingSimple": "Hola",
+    "welcomeBadge": "Portal de conductor",
     "driverFallback": "Conductor",
+    "activeSectionHint": "Desplázate hacia abajo",
+    "activeSectionTitle": "Tus pedidos",
+    "motivation": {
+      "safeDrive": "Conduce con cuidado y llega con seguridad.",
+      "newJobs": "Hay nuevos pedidos esperándote. Buen viaje.",
+      "focus": "Mantén el enfoque. Cada kilómetro cuenta.",
+      "smoothRide": "Entrega limpia, relevo claro, gran impresión.",
+      "strongStart": "Gran día por delante. Tú puedes."
+    },
     "summary": {
       "none": "No hay pedidos activos",
       "single": "1 pedido activo",

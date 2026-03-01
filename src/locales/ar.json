@@ -72,7 +72,18 @@
     "distance": "المسافة",
     "driverPrice": "سعر السائق",
     "greeting": "مرحبًا، {{name}}!",
+    "greetingSimple": "مرحبًا",
+    "welcomeBadge": "بوابة السائق",
     "driverFallback": "سائق",
+    "activeSectionHint": "مرّر للأسفل للمتابعة",
+    "activeSectionTitle": "طلباتك",
+    "motivation": {
+      "safeDrive": "قد بأمان واصل إلى الوجهة براحة.",
+      "newJobs": "هناك طلبات جديدة بانتظارك. رحلة موفقة.",
+      "focus": "حافظ على تركيزك. كل كيلومتر مهم.",
+      "smoothRide": "تسليم سلس وانطباع قوي.",
+      "strongStart": "يوم قوي بانتظارك. أنت قادر."
+    },
     "summary": {
       "none": "لا توجد طلبات نشطة حاليًا",
       "single": "طلب نشط واحد",

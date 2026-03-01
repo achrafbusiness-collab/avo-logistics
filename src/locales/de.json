@@ -72,7 +72,18 @@
     "distance": "Strecke",
     "driverPrice": "Fahrerpreis",
     "greeting": "Hallo, {{name}}!",
+    "greetingSimple": "Hallo",
+    "welcomeBadge": "Fahrer Portal",
     "driverFallback": "Fahrer",
+    "activeSectionHint": "Nach unten scrollen",
+    "activeSectionTitle": "Deine Aufträge",
+    "motivation": {
+      "safeDrive": "Bitte fahr vorsichtig und komm sicher ans Ziel.",
+      "newJobs": "Es warten neue Aufträge auf dich. Viel Erfolg.",
+      "focus": "Bleib konzentriert. Jeder Kilometer zählt.",
+      "smoothRide": "Ruhige Fahrt, saubere Übergabe, starker Eindruck.",
+      "strongStart": "Starker Tag voraus. Du machst das."
+    },
     "summary": {
       "none": "Aktuell keine aktiven Aufträge",
       "single": "1 aktiver Auftrag",

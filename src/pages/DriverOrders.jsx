@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { appClient } from '@/api/appClient';
 import { supabase } from '@/lib/supabaseClient';
@@ -11,21 +11,28 @@ import { useI18n } from '@/i18n';
 
 import { 
   Truck, 
-  MapPin, 
   Calendar, 
   Clock,
   ArrowRight,
   Loader2,
-  Play,
   CheckCircle2,
   Mail,
   Phone
 } from 'lucide-react';
 
+const MOTIVATION_KEYS = [
+  'orders.motivation.safeDrive',
+  'orders.motivation.newJobs',
+  'orders.motivation.focus',
+  'orders.motivation.smoothRide',
+  'orders.motivation.strongStart',
+];
+
 export default function DriverOrders() {
   const { t, formatDate } = useI18n();
   const [user, setUser] = useState(null);
   const [activeTab, setActiveTab] = useState('active');
+  const [motivationIndex, setMotivationIndex] = useState(0);
 
   useEffect(() => {
     loadUser();
@@ -35,7 +42,7 @@ export default function DriverOrders() {
     try {
       const currentUser = await appClient.auth.me();
       setUser(currentUser);
-    } catch (e) {
+    } catch {
       console.log('Not logged in');
     }
   };
@@ -110,6 +117,26 @@ export default function DriverOrders() {
   const completedOrders = allOrders.filter((order) => completedStatuses.includes(order.status));
 
   const getOrderChecklists = (orderId) => checklists.filter(c => c.order_id === orderId);
+  const driverDisplayName = useMemo(() => {
+    if (!currentDriver) return t('orders.driverFallback');
+    const fullName = [currentDriver.first_name, currentDriver.last_name].filter(Boolean).join(' ').trim();
+    return fullName || currentDriver.first_name || currentDriver.last_name || t('orders.driverFallback');
+  }, [currentDriver, t]);
+
+  const activeOrdersSummary =
+    activeOrders.length === 0
+      ? t('orders.summary.none')
+      : activeOrders.length === 1
+        ? t('orders.summary.single')
+        : t('orders.summary.multiple', { count: activeOrders.length });
+
+  useEffect(() => {
+    setMotivationIndex(Math.floor(Math.random() * MOTIVATION_KEYS.length));
+    const interval = window.setInterval(() => {
+      setMotivationIndex((prev) => (prev + 1) % MOTIVATION_KEYS.length);
+    }, 8000);
+    return () => window.clearInterval(interval);
+  }, []);
 
   const OrderCard = ({ order }) => {
     const orderChecklists = getOrderChecklists(order.id);
@@ -235,21 +262,38 @@ export default function DriverOrders() {
 
   return (
     <div className="p-4 space-y-4 pb-24">
-      
-      {/* Welcome */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">
-          {t('orders.greeting', {
-            name: currentDriver.first_name || currentDriver.last_name || t('orders.driverFallback'),
-          })}
-        </h1>
-        <p className="text-gray-500">
-          {activeOrders.length === 0
-            ? t('orders.summary.none')
-            : activeOrders.length === 1
-            ? t('orders.summary.single')
-            : t('orders.summary.multiple', { count: activeOrders.length })}
-        </p>
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#0f2f4f] via-[#1e3a5f] to-[#2b648f] p-6 text-white shadow-xl min-h-[44vh] md:min-h-[34vh]">
+        <div className="absolute -right-10 -top-10 h-36 w-36 rounded-full bg-white/10 blur-2xl" />
+        <div className="absolute -left-12 bottom-0 h-40 w-40 rounded-full bg-cyan-300/10 blur-2xl" />
+        <div className="relative z-10 flex h-full flex-col justify-between gap-8">
+          <div className="flex items-center justify-between">
+            <img
+              src="/logo.png"
+              alt="AVO"
+              className="h-11 w-auto rounded-lg bg-white/95 p-1.5 shadow"
+            />
+            <span className="rounded-full border border-white/25 bg-white/10 px-3 py-1 text-xs font-semibold tracking-wide">
+              {t('orders.welcomeBadge')}
+            </span>
+          </div>
+
+          <div className="max-w-xl space-y-2">
+            <p className="text-sm uppercase tracking-[0.2em] text-white/75">{t('orders.greetingSimple')}</p>
+            <h1 className="text-4xl font-black leading-tight md:text-5xl">{driverDisplayName}</h1>
+            <p className="text-base font-medium text-white/90 transition-opacity duration-500">
+              {t(MOTIVATION_KEYS[motivationIndex])}
+            </p>
+          </div>
+
+          <div className="inline-flex w-fit items-center rounded-lg border border-white/25 bg-white/10 px-3 py-2 text-sm font-semibold">
+            {activeOrdersSummary}
+          </div>
+        </div>
+      </div>
+
+      <div className="px-1">
+        <p className="text-xs uppercase tracking-[0.16em] text-slate-500">{t('orders.activeSectionHint')}</p>
+        <h2 className="text-lg font-bold text-slate-900">{t('orders.activeSectionTitle')}</h2>
       </div>
 
       {appSettings && (appSettings.instructions || appSettings.support_phone || appSettings.support_email || appSettings.emergency_phone) && (

@@ -72,7 +72,18 @@
     "distance": "Distance",
     "driverPrice": "Driver price",
     "greeting": "Hello, {{name}}!",
+    "greetingSimple": "Hello",
+    "welcomeBadge": "Driver Portal",
     "driverFallback": "Driver",
+    "activeSectionHint": "Scroll down to continue",
+    "activeSectionTitle": "Your orders",
+    "motivation": {
+      "safeDrive": "Drive safely and arrive without stress.",
+      "newJobs": "New jobs are waiting for you. Have a great ride.",
+      "focus": "Stay focused. Every mile matters.",
+      "smoothRide": "Smooth delivery, clean handover, strong impression.",
+      "strongStart": "Strong day ahead. You got this."
+    },
     "summary": {
       "none": "No active orders right now",
       "single": "1 active order",
