@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { appClient } from "@/api/appClient";
+import { supabase } from "@/lib/supabaseClient";
 
 const formatDate = (value) => {
   if (!value) return "-";
@@ -212,49 +213,55 @@ export default function ProtocolPdf() {
     setIsDownloadingPdf(true);
     setDownloadError("");
     try {
-      const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
-        import("html2canvas"),
-        import("jspdf"),
-      ]);
-      const pages = Array.from(document.querySelectorAll(".pdf-page"));
-      if (!pages.length) {
-        throw new Error("Keine PDF-Seiten gefunden.");
+      if (!checklistId) {
+        throw new Error("Checklist-ID fehlt.");
       }
-      const pdf = new jsPDF({
-        orientation: "portrait",
-        unit: "mm",
-        format: "a4",
-        compress: true,
+      const { data } = await supabase.auth.getSession();
+      const token = data?.session?.access_token;
+      if (!token) {
+        throw new Error("Nicht angemeldet.");
+      }
+
+      const response = await fetch("/api/admin/send-driver-assignment", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          downloadProtocolPdf: true,
+          protocolChecklistId: checklistId,
+          customerProtocolQuality: "high",
+        }),
       });
-      const pdfWidth = 210;
-      const pdfHeight = 297;
-      for (let index = 0; index < pages.length; index += 1) {
-        const page = pages[index];
-        const canvas = await html2canvas(page, {
-          scale: 2,
-          useCORS: true,
-          allowTaint: false,
-          backgroundColor: "#ffffff",
-          logging: false,
-          windowWidth: page.scrollWidth,
-          windowHeight: page.scrollHeight,
-        });
-        const imageData = canvas.toDataURL("image/jpeg", 0.92);
-        const ratio = Math.min(pdfWidth / canvas.width, pdfHeight / canvas.height);
-        const renderWidth = canvas.width * ratio;
-        const renderHeight = canvas.height * ratio;
-        const x = (pdfWidth - renderWidth) / 2;
-        const y = (pdfHeight - renderHeight) / 2;
-        if (index > 0) {
-          pdf.addPage("a4", "portrait");
+
+      if (!response.ok) {
+        let message = "PDF konnte nicht heruntergeladen werden.";
+        try {
+          const payload = await response.json();
+          if (payload?.error) message = payload.error;
+        } catch {
+          // ignore non-json responses
         }
-        pdf.addImage(imageData, "JPEG", x, y, renderWidth, renderHeight, undefined, "FAST");
+        throw new Error(message);
       }
-      const fileId = String(order.order_number || checklistId || "protokoll").replace(
+
+      const blob = await response.blob();
+      const contentDisposition = response.headers.get("Content-Disposition") || "";
+      const fileMatch = contentDisposition.match(/filename="?([^"]+)"?/i);
+      const fallbackName = `protokoll-${String(order.order_number || checklistId || "download").replace(
         /[^a-z0-9._-]/gi,
         "_"
-      );
-      pdf.save(`protokoll-${fileId}.pdf`);
+      )}.pdf`;
+      const fileName = (fileMatch?.[1] || fallbackName).trim();
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = objectUrl;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 1200);
     } catch (error) {
       setDownloadError(error?.message || "PDF konnte nicht heruntergeladen werden.");
     } finally {

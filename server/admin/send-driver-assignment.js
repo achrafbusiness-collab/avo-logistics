@@ -174,6 +174,27 @@ const getProtocolQualityFallbackOrder = (quality) => {
   return fallbackOrder;
 };
 
+const renderProtocolPdfWithFallback = async ({ siteUrl, checklistId, authToken, quality }) => {
+  const qualityAttempts = getProtocolQualityFallbackOrder(quality);
+  const renderErrors = [];
+  for (const nextQuality of qualityAttempts) {
+    try {
+      const attachment = await generateProtocolPdfFromPage({
+        siteUrl,
+        checklistId,
+        authToken,
+        quality: nextQuality,
+      });
+      return attachment;
+    } catch (error) {
+      renderErrors.push(`${nextQuality}: ${String(error?.message || "unbekannt")}`);
+    }
+  }
+  throw new Error(
+    `Protokoll-PDF konnte nicht erzeugt werden: ${renderErrors.join(" | ") || "unbekannt"}`
+  );
+};
+
 const waitForMs = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const optimizeProtocolImagesForPdf = async (page, qualityPreset) => {
@@ -469,6 +490,8 @@ export default async function handler(req, res) {
     }
     const {
       orderId,
+      downloadProtocolPdf,
+      checklistId,
       testEmail,
       to,
       welcomeEmail,
@@ -650,6 +673,60 @@ ${companyName}`;
       }
     }
 
+    if (downloadProtocolPdf) {
+      const requestedChecklistId = String(protocolChecklistId || checklistId || "").trim();
+      if (!requestedChecklistId) {
+        res.status(400).json({ ok: false, error: "Checklist-ID fehlt." });
+        return;
+      }
+
+      const { data: selectedChecklist, error: selectedChecklistError } = await supabaseAdmin
+        .from("checklists")
+        .select("id, order_id, company_id")
+        .eq("id", requestedChecklistId)
+        .maybeSingle();
+
+      if (selectedChecklistError) {
+        res.status(500).json({ ok: false, error: selectedChecklistError.message });
+        return;
+      }
+      if (!selectedChecklist || selectedChecklist.company_id !== profile.company_id) {
+        res.status(404).json({ ok: false, error: "Protokoll nicht gefunden." });
+        return;
+      }
+
+      const siteUrl = resolvePublicSiteUrl(req);
+      let attachment;
+      try {
+        attachment = await renderProtocolPdfWithFallback({
+          siteUrl,
+          checklistId: selectedChecklist.id,
+          authToken: serviceRoleKey,
+          quality: customerProtocolQuality || "high",
+        });
+      } catch (renderError) {
+        res.status(500).json({ ok: false, error: renderError?.message || "PDF-Erzeugung fehlgeschlagen." });
+        return;
+      }
+
+      let safeFileId = selectedChecklist.id;
+      if (selectedChecklist.order_id) {
+        const { data: orderForFile } = await supabaseAdmin
+          .from("orders")
+          .select("id, order_number")
+          .eq("id", selectedChecklist.order_id)
+          .eq("company_id", profile.company_id)
+          .maybeSingle();
+        safeFileId = String(orderForFile?.order_number || orderForFile?.id || selectedChecklist.id);
+      }
+      safeFileId = safeFileId.replace(/[^a-z0-9._-]/gi, "_");
+
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `attachment; filename=\"protokoll-${safeFileId}.pdf\"`);
+      res.status(200).send(attachment);
+      return;
+    }
+
     if (!canSendEmail(resolvedSmtp)) {
       res.status(400).json({ ok: false, error: "SMTP ist nicht konfiguriert." });
       return;
@@ -781,25 +858,17 @@ ${companyName}`;
 </div>`;
       let attachment;
       const siteUrl = resolvePublicSiteUrl(req);
-      const qualityAttempts = getProtocolQualityFallbackOrder(customerProtocolQuality);
-      const renderErrors = [];
-      for (const quality of qualityAttempts) {
-        try {
-          attachment = await generateProtocolPdfFromPage({
-            siteUrl,
-            checklistId: selectedChecklistId,
-            authToken: serviceRoleKey,
-            quality,
-          });
-          break;
-        } catch (error) {
-          renderErrors.push(`${quality}: ${String(error?.message || "unbekannt")}`);
-        }
-      }
-      if (!attachment) {
+      try {
+        attachment = await renderProtocolPdfWithFallback({
+          siteUrl,
+          checklistId: selectedChecklistId,
+          authToken: serviceRoleKey,
+          quality: customerProtocolQuality,
+        });
+      } catch (renderError) {
         res.status(500).json({
           ok: false,
-          error: `Protokoll-PDF konnte nicht erzeugt werden: ${renderErrors.join(" | ") || "unbekannt"}`,
+          error: renderError?.message || "Protokoll-PDF konnte nicht erzeugt werden.",
         });
         return;
       }
