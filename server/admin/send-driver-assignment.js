@@ -186,21 +186,39 @@ const generateProtocolPdfFromPage = async ({ siteUrl, checklistId, authToken, qu
       height: 2200,
       deviceScaleFactor: qualityPreset.viewportScale,
     });
-    await page.setRequestInterception(true);
-    page.on("request", (request) => {
-      const requestUrl = request.url();
-      const isSupabaseRest = supabaseUrl && requestUrl.startsWith(`${supabaseUrl}/rest/v1/`);
-      const isSupabaseStorage = supabaseUrl && requestUrl.startsWith(`${supabaseUrl}/storage/v1/`);
-      if ((isSupabaseRest || isSupabaseStorage) && authToken) {
-        const headers = {
-          ...request.headers(),
-          authorization: `Bearer ${authToken}`,
+    // Inject auth before page loads: override fetch so every Supabase proxy
+    // request carries the service-role key and bypasses RLS entirely.
+    // The frontend routes all Supabase calls through /api/supabase-rest and
+    // /api/supabase-auth (same-origin proxy), so we intercept those paths.
+    if (authToken) {
+      await page.evaluateOnNewDocument((token) => {
+        const _origFetch = window.fetch;
+        window.fetch = function (input, init) {
+          const url =
+            typeof input === "string"
+              ? input
+              : input instanceof Request
+              ? input.url
+              : String(input);
+          if (url.includes("/api/supabase-rest") || url.includes("/api/supabase-auth")) {
+            const headers = new Headers(
+              init?.headers ||
+                (input instanceof Request ? input.headers : {})
+            );
+            headers.set("Authorization", "Bearer " + token);
+            headers.set("apikey", token);
+            if (init) {
+              return _origFetch(input, { ...init, headers });
+            }
+            return _origFetch(
+              input instanceof Request ? new Request(input, { headers }) : input,
+              { headers }
+            );
+          }
+          return _origFetch(input, init);
         };
-        request.continue({ headers });
-        return;
-      }
-      request.continue();
-    });
+      }, authToken);
+    }
     const url = `${siteUrl.replace(/\/+$/, "")}/protocol-pdf?checklistId=${encodeURIComponent(
       checklistId
     )}`;
