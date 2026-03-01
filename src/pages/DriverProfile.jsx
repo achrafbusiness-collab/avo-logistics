@@ -187,8 +187,11 @@ export default function DriverProfile() {
       setLoadingToken(true);
       setTokenError("");
       try {
-        const { data } = await appClient.auth.getSession();
+        const { data } = await supabase.auth.getSession();
         const token = data?.session?.access_token;
+        if (!token) {
+          throw new Error("Nicht angemeldet.");
+        }
         const response = await fetch("/api/driver/license-token", {
           headers: { Authorization: `Bearer ${token}` },
         });
