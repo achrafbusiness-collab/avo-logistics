@@ -131,8 +131,8 @@ const getProtocolQualityPreset = (quality) => {
   if (normalized === "high") {
     return {
       viewportScale: 1.35,
-      pdfScale: 0.95,
-      fallbackPdfScale: 0.85,
+      pdfScale: 1,
+      fallbackPdfScale: 0.94,
       renderDelayMs: 1000,
       imageMaxEdge: 1800,
       imageQuality: 0.9,
@@ -141,8 +141,8 @@ const getProtocolQualityPreset = (quality) => {
   if (normalized === "economy" || normalized === "low") {
     return {
       viewportScale: 1,
-      pdfScale: 0.8,
-      fallbackPdfScale: 0.72,
+      pdfScale: 0.92,
+      fallbackPdfScale: 0.84,
       renderDelayMs: 500,
       imageMaxEdge: 1200,
       imageQuality: 0.76,
@@ -150,8 +150,8 @@ const getProtocolQualityPreset = (quality) => {
   }
   return {
     viewportScale: 1.2,
-    pdfScale: 0.9,
-    fallbackPdfScale: 0.8,
+    pdfScale: 1,
+    fallbackPdfScale: 0.9,
     renderDelayMs: 800,
     imageMaxEdge: 1500,
     imageQuality: 0.84,

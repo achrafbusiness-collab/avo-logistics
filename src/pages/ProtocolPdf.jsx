@@ -238,8 +238,8 @@ export default function ProtocolPdf() {
         .pdf-sketch.compact img { height: 150px; object-fit: contain; }
         .pdf-sketch-marker { position: absolute; width: 16px; height: 16px; border: 1px solid #0f172a; background: #fff; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: #1e3a5f; }
         .pdf-photo-grid { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-        .pdf-photo-card { border: 1px solid #e2e8f0; padding: 8px; border-radius: 12px; background: white; }
-        .pdf-photo-card img { width: 100%; height: 260px; object-fit: contain; border-radius: 8px; background: #f8fafc; }
+        .pdf-photo-card { border: 1px solid #e2e8f0; padding: 8px; border-radius: 12px; background: white; break-inside: avoid; page-break-inside: avoid; }
+        .pdf-photo-card img { width: 100%; height: 320px; object-fit: contain; border-radius: 8px; background: #f8fafc; }
         .pdf-photo-caption { margin-top: 6px; font-size: 11px; color: #334155; }
         .pdf-divider { height: 1px; background: #e2e8f0; margin: 18px 0; }
         .pdf-actions { max-width: 980px; margin: 0 auto 16px; display: flex; gap: 12px; flex-wrap: wrap; }
@@ -251,14 +251,14 @@ export default function ProtocolPdf() {
         .pdf-editor-field { display: grid; gap: 6px; font-size: 12px; color: #334155; }
         .pdf-editor-field input { border: 1px solid #cbd5f5; border-radius: 8px; padding: 8px 10px; font-size: 12px; }
         .pdf-editor-actions { display: flex; gap: 10px; }
-        .pdf-photo-page { page-break-before: always; }
-        .pdf-protocol-page { page-break-after: always; min-height: 297mm; }
-        @page { size: A4; margin: 10mm; }
+        .pdf-photo-page { page-break-before: always; break-before: page; }
+        .pdf-protocol-page { page-break-after: always; break-after: page; min-height: 297mm; }
+        @page { size: A4; margin: 6mm; }
         @media print {
           .pdf-actions { display: none; }
           .pdf-editor { display: none; }
           .protocol-pdf { background: white; padding: 0; }
-          .pdf-page { box-shadow: none; border: none; margin: 0; width: 210mm; min-height: 297mm; padding: 6mm 8mm; }
+          .pdf-page { box-shadow: none; border: none; margin: 0; width: auto; min-height: 0; max-width: none; padding: 4mm; }
           .pdf-header { padding-bottom: 6mm; }
           .pdf-logo { height: 72px; }
           .pdf-title h1 { font-size: 20px; }
@@ -266,8 +266,11 @@ export default function ProtocolPdf() {
           .pdf-protocol-column h2 { font-size: 15px; }
           .pdf-box { font-size: 12px; }
           .pdf-field-value { font-size: 12px; }
-          .pdf-photo-grid { gap: 6mm; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-          .pdf-photo-card img { height: 260px; object-fit: contain; }
+          .pdf-photo-grid { gap: 4mm; grid-template-columns: 1fr; }
+          .pdf-photo-card { padding: 4mm; }
+          .pdf-photo-card img { height: auto; min-height: 115mm; max-height: 165mm; object-fit: contain; }
+          .pdf-photo-caption { font-size: 12px; }
+          .pdf-protocol-page { min-height: 0; }
           .pdf-sketch.compact { height: 135px; }
           .pdf-sketch.compact img { height: 135px; }
         }
