@@ -5,6 +5,15 @@ import { supabase } from "@/lib/supabaseClient";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Loader2,
   ShieldCheck,
@@ -53,6 +62,11 @@ export default function DriverProfile() {
       end: end.toISOString().slice(0, 10),
     };
   });
+  const [requestDialogOpen, setRequestDialogOpen] = useState(false);
+  const [billingRequestText, setBillingRequestText] = useState("");
+  const [billingRequestSending, setBillingRequestSending] = useState(false);
+  const [billingRequestError, setBillingRequestError] = useState("");
+  const [billingRequestSuccess, setBillingRequestSuccess] = useState("");
 
   useEffect(() => {
     const loadUser = async () => {
@@ -160,14 +174,19 @@ export default function DriverProfile() {
           segment.price_status ||
           (segment.price !== null && segment.price !== undefined ? "approved" : "pending");
         const order = segment?.order_id ? ordersById.get(segment.order_id) : null;
+        const isExtraRequest = segment.segment_type === "extra_request";
         const pickupAddress =
-          formatOrderAddress(order?.pickup_address, order?.pickup_postal_code, order?.pickup_city) ||
-          segment.start_location ||
-          "-";
+          isExtraRequest
+            ? segment.start_location || "-"
+            : formatOrderAddress(order?.pickup_address, order?.pickup_postal_code, order?.pickup_city) ||
+              segment.start_location ||
+              "-";
         const dropoffAddress =
-          formatOrderAddress(order?.dropoff_address, order?.dropoff_postal_code, order?.dropoff_city) ||
-          segment.end_location ||
-          "-";
+          isExtraRequest
+            ? "-"
+            : formatOrderAddress(order?.dropoff_address, order?.dropoff_postal_code, order?.dropoff_city) ||
+              segment.end_location ||
+              "-";
         return {
           id: segment.id,
           date,
@@ -175,9 +194,12 @@ export default function DriverProfile() {
           licensePlate: order?.license_plate || segment?.license_plate || "-",
           pickupAddress,
           dropoffAddress,
+          isExtraRequest,
           typeLabel:
             segment.segment_type === "shuttle"
               ? t("billing.type.shuttle")
+              : segment.segment_type === "extra_request"
+                ? t("billing.type.extra")
               : t("billing.type.active"),
           price: Number.isFinite(Number(segment.price)) ? Number(segment.price) : 0,
           priceStatus,
@@ -317,6 +339,57 @@ export default function DriverProfile() {
       }));
     } finally {
       setUploadingDocs((prev) => ({ ...prev, [field]: false }));
+    }
+  };
+
+  const handleSendBillingRequest = async () => {
+    const text = billingRequestText.replace(/\s+/g, " ").trim();
+    setBillingRequestError("");
+    setBillingRequestSuccess("");
+
+    if (!text) {
+      setBillingRequestError(t("billing.request.required"));
+      return;
+    }
+    if (!driver?.id) {
+      setBillingRequestError(t("billing.request.error"));
+      return;
+    }
+
+    const driverName =
+      [driver.first_name, driver.last_name].filter(Boolean).join(" ").trim() ||
+      user?.full_name ||
+      driver.email ||
+      user?.email ||
+      t("orders.driverFallback");
+
+    setBillingRequestSending(true);
+    try {
+      const nowIso = new Date().toISOString();
+      await appClient.entities.OrderSegment.create({
+        order_id: null,
+        company_id: driver.company_id || null,
+        driver_id: driver.id,
+        driver_name: driverName,
+        segment_type: "extra_request",
+        start_location: text,
+        end_location: "",
+        distance_km: null,
+        price: null,
+        price_status: "pending",
+        price_rejection_reason: null,
+        created_date: nowIso,
+      });
+      setBillingRequestText("");
+      setRequestDialogOpen(false);
+      setBillingRequestSuccess(t("billing.request.success"));
+      queryClient.invalidateQueries({ queryKey: ["driver-segments", driver.id] });
+      queryClient.invalidateQueries({ queryKey: ["driver-price-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["order-segments"], exact: false });
+    } catch (error) {
+      setBillingRequestError(error?.message || t("billing.request.error"));
+    } finally {
+      setBillingRequestSending(false);
     }
   };
 
@@ -639,6 +712,16 @@ export default function DriverProfile() {
               <h2 className="text-lg font-semibold text-slate-900">{t("billing.title")}</h2>
               <p className="text-sm text-slate-500">{t("billing.subtitle")}</p>
             </div>
+            <Button
+              type="button"
+              className="bg-[#1e3a5f] hover:bg-[#2d5a8a]"
+              onClick={() => {
+                setBillingRequestError("");
+                setRequestDialogOpen(true);
+              }}
+            >
+              {t("billing.request.button")}
+            </Button>
             <div className="flex gap-2 flex-wrap">
               <div>
                 <label className="text-xs text-slate-500">{t("billing.rangeStart")}</label>
@@ -705,6 +788,9 @@ export default function DriverProfile() {
               <p className="text-lg font-semibold text-slate-900">{formatCurrency(billingTotals.expenses)}</p>
             </div>
           </div>
+          {billingRequestSuccess ? (
+            <p className="text-sm text-emerald-600">{billingRequestSuccess}</p>
+          ) : null}
 
           {ordersLoading || checklistsLoading || segmentsLoading || driverLoading ? (
             <div className="flex items-center gap-2 text-sm text-slate-500">
@@ -733,16 +819,23 @@ export default function DriverProfile() {
                       <td className="py-2 pr-4">{row.dateLabel}</td>
                       <td className="py-2 pr-4 text-slate-700">{row.licensePlate}</td>
                       <td className="py-2 pr-4 text-slate-700">
-                        <div className="space-y-1">
+                        {row.isExtraRequest ? (
                           <div>
-                            <span className="text-xs font-medium text-slate-500">{t("billing.table.pickup")}:</span>{" "}
+                            <span className="text-xs font-medium text-slate-500">{t("billing.table.request")}:</span>{" "}
                             <span>{row.pickupAddress || "-"}</span>
                           </div>
-                          <div>
-                            <span className="text-xs font-medium text-slate-500">{t("billing.table.dropoff")}:</span>{" "}
-                            <span>{row.dropoffAddress || "-"}</span>
+                        ) : (
+                          <div className="space-y-1">
+                            <div>
+                              <span className="text-xs font-medium text-slate-500">{t("billing.table.pickup")}:</span>{" "}
+                              <span>{row.pickupAddress || "-"}</span>
+                            </div>
+                            <div>
+                              <span className="text-xs font-medium text-slate-500">{t("billing.table.dropoff")}:</span>{" "}
+                              <span>{row.dropoffAddress || "-"}</span>
+                            </div>
                           </div>
-                        </div>
+                        )}
                       </td>
                       <td className="py-2 pr-4 text-slate-700">{row.typeLabel}</td>
                       <td className="py-2 pr-4 text-sm">
@@ -768,6 +861,50 @@ export default function DriverProfile() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={requestDialogOpen} onOpenChange={setRequestDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{t("billing.request.title")}</DialogTitle>
+            <DialogDescription>{t("billing.request.description")}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-slate-700">{t("billing.request.label")}</label>
+            <Textarea
+              rows={5}
+              value={billingRequestText}
+              onChange={(e) => setBillingRequestText(e.target.value)}
+              placeholder={t("billing.request.placeholder")}
+              maxLength={600}
+            />
+            <p className="text-xs text-slate-500">{billingRequestText.length} / 600</p>
+            {billingRequestError ? (
+              <p className="text-sm text-red-600">{billingRequestError}</p>
+            ) : null}
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setRequestDialogOpen(false)}
+              disabled={billingRequestSending}
+            >
+              {t("common.cancel")}
+            </Button>
+            <Button
+              type="button"
+              className="bg-[#1e3a5f] hover:bg-[#2d5a8a]"
+              onClick={handleSendBillingRequest}
+              disabled={billingRequestSending}
+            >
+              {billingRequestSending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : null}
+              {billingRequestSending ? t("billing.request.sending") : t("billing.request.send")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

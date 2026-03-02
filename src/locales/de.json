@@ -199,6 +199,7 @@
       "date": "Datum",
       "plate": "Kennzeichen",
       "tour": "Tour",
+      "request": "Anfrage",
       "pickup": "Abholung",
       "dropoff": "Abgabe",
       "type": "Typ",
@@ -213,7 +214,20 @@
     },
     "type": {
       "active": "Aktive Tour",
-      "shuttle": "Shuttle"
+      "shuttle": "Shuttle",
+      "extra": "Zusatzanfrage"
+    },
+    "request": {
+      "button": "Abrechnung Anfrage senden",
+      "title": "Zusatzabrechnung anfragen",
+      "description": "Beschreibe hier zusätzliche Leistungen ohne Tour. Die Anfrage wird mit heutigem Datum gesendet und kann von Team AVO bestätigt oder abgelehnt werden.",
+      "label": "Beschreibung",
+      "placeholder": "z.B. Fahrzeug-Aufbereitung, Zusatzfahrt ohne Tour, Sonderleistung...",
+      "send": "Anfrage senden",
+      "sending": "Wird gesendet...",
+      "required": "Bitte eine Beschreibung eingeben.",
+      "success": "Anfrage wurde gesendet.",
+      "error": "Anfrage konnte nicht gesendet werden."
     }
   },
   "support": {

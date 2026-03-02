@@ -199,6 +199,7 @@
       "date": "Fecha",
       "plate": "Matrícula",
       "tour": "Ruta",
+      "request": "Solicitud",
       "pickup": "Recogida",
       "dropoff": "Entrega",
       "type": "Tipo",
@@ -213,7 +214,20 @@
     },
     "type": {
       "active": "Ruta activa",
-      "shuttle": "Shuttle"
+      "shuttle": "Shuttle",
+      "extra": "Solicitud adicional"
+    },
+    "request": {
+      "button": "Enviar solicitud de facturación",
+      "title": "Solicitar facturación adicional",
+      "description": "Describe trabajos adicionales hechos sin una ruta. La solicitud se envía con la fecha de hoy y Team AVO puede aprobarla o rechazarla.",
+      "label": "Descripción",
+      "placeholder": "p. ej. preparación del vehículo, tarea extra sin ruta, servicio especial...",
+      "send": "Enviar solicitud",
+      "sending": "Enviando...",
+      "required": "Introduce una descripción.",
+      "success": "La solicitud fue enviada.",
+      "error": "No se pudo enviar la solicitud."
     }
   },
   "support": {

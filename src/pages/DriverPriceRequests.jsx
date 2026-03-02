@@ -368,10 +368,15 @@ export default function DriverPriceRequests() {
                       [driver.first_name, driver.last_name].filter(Boolean).join(" ") ||
                       driver.email ||
                       "Fahrer";
-                    const routeLabel = `${segment.start_location || "-"} → ${
-                      segment.end_location || "-"
-                    }`;
-                    const typeLabel = segment.segment_type === "shuttle" ? "Shuttle" : "Aktive Tour";
+                    const isExtraRequest = segment.segment_type === "extra_request";
+                    const routeLabel = isExtraRequest
+                      ? segment.start_location || "-"
+                      : `${segment.start_location || "-"} → ${segment.end_location || "-"}`;
+                    const typeLabel = isExtraRequest
+                      ? "Zusatzanfrage"
+                      : segment.segment_type === "shuttle"
+                        ? "Shuttle"
+                        : "Aktive Tour";
                     return (
                       <TableRow key={segment.id}>
                         <TableCell className="font-medium">{driverLabel}</TableCell>
@@ -525,9 +530,10 @@ export default function DriverPriceRequests() {
                       [driver.first_name, driver.last_name].filter(Boolean).join(" ") ||
                       driver.email ||
                       "Fahrer";
-                    const routeLabel = `${segment.start_location || "-"} → ${
-                      segment.end_location || "-"
-                    }`;
+                    const routeLabel =
+                      segment.segment_type === "extra_request"
+                        ? segment.start_location || "-"
+                        : `${segment.start_location || "-"} → ${segment.end_location || "-"}`;
                     const adjustedAt = segment.updated_date || segment.created_date;
                     return (
                       <TableRow key={`recent-${segment.id}`}>

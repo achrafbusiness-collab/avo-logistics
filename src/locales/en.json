@@ -199,6 +199,7 @@
       "date": "Date",
       "plate": "License plate",
       "tour": "Tour",
+      "request": "Request",
       "pickup": "Pickup",
       "dropoff": "Dropoff",
       "type": "Type",
@@ -213,7 +214,20 @@
     },
     "type": {
       "active": "Active tour",
-      "shuttle": "Shuttle"
+      "shuttle": "Shuttle",
+      "extra": "Extra request"
+    },
+    "request": {
+      "button": "Send billing request",
+      "title": "Request extra billing",
+      "description": "Describe additional work that was done without a tour. The request is sent with today's date and can be approved or rejected by Team AVO.",
+      "label": "Description",
+      "placeholder": "e.g. vehicle prep, extra task without a tour, special service...",
+      "send": "Send request",
+      "sending": "Sending...",
+      "required": "Please enter a description.",
+      "success": "Request was sent.",
+      "error": "Request could not be sent."
     }
   },
   "support": {
