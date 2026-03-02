@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { appClient } from '@/api/appClient';
 import { supabase } from '@/lib/supabaseClient';
@@ -51,6 +51,8 @@ export default function DriverOrders() {
   const [user, setUser] = useState(null);
   const [activeTab, setActiveTab] = useState('active');
   const [motivationIndex, setMotivationIndex] = useState(0);
+  const [messageVisible, setMessageVisible] = useState(true);
+  const hideTimeoutRef = useRef(null);
 
   useEffect(() => {
     loadUser();
@@ -175,13 +177,28 @@ export default function DriverOrders() {
   useEffect(() => {
     if (!rotationMessages.length) {
       setMotivationIndex(0);
+      setMessageVisible(true);
       return undefined;
     }
     setMotivationIndex(Math.floor(Math.random() * rotationMessages.length));
+    setMessageVisible(true);
     const interval = window.setInterval(() => {
-      setMotivationIndex((prev) => (prev + 1) % rotationMessages.length);
-    }, 8000);
-    return () => window.clearInterval(interval);
+      setMessageVisible(false);
+      if (hideTimeoutRef.current) {
+        window.clearTimeout(hideTimeoutRef.current);
+      }
+      hideTimeoutRef.current = window.setTimeout(() => {
+        setMotivationIndex((prev) => (prev + 1) % rotationMessages.length);
+        setMessageVisible(true);
+      }, 320);
+    }, 5000);
+    return () => {
+      window.clearInterval(interval);
+      if (hideTimeoutRef.current) {
+        window.clearTimeout(hideTimeoutRef.current);
+        hideTimeoutRef.current = null;
+      }
+    };
   }, [rotationMessages.length]);
 
   const OrderCard = ({ order }) => {
@@ -320,7 +337,7 @@ export default function DriverOrders() {
             <img
               src="/logo.png"
               alt="AVO"
-              className="h-16 w-auto rounded-xl bg-white/95 p-2 shadow-lg md:h-20"
+              className="h-20 w-auto rounded-xl bg-white/95 p-2 shadow-lg md:h-24"
             />
             <span className="rounded-full border border-white/25 bg-white/10 px-3 py-1 text-xs font-semibold tracking-wide">
               {t('orders.welcomeBadge')}
@@ -329,15 +346,28 @@ export default function DriverOrders() {
 
           <div className="max-w-xl space-y-2">
             <p className="text-sm uppercase tracking-[0.2em] text-white/75">{t('orders.greetingSimple')}</p>
-            <h1 className="text-4xl font-black leading-tight md:text-5xl">{driverDisplayName}</h1>
-            <p className="text-base font-medium text-white/90 transition-opacity duration-500">
-              {currentMessage?.text || t('orders.motivation.safeDrive')}
-            </p>
-            {currentMessage?.type === 'community' && (
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-100">
-                {t('orders.communityBy', { name: currentMessage.authorName })}
-              </p>
-            )}
+            <h1 className="text-3xl font-black leading-tight md:text-4xl">{driverDisplayName}</h1>
+            <div className="mt-1 flex items-start gap-3">
+              <div className="relative mt-0.5 h-14 w-14 flex-shrink-0">
+                <div className="absolute inset-0 rounded-full border-4 border-white/30 border-t-white animate-spin" />
+                <div className="absolute inset-2 rounded-full border border-dashed border-cyan-100/80 animate-[spin_4s_linear_infinite_reverse]" />
+                <div className="absolute inset-[38%] rounded-full bg-white/90 shadow-[0_0_14px_rgba(255,255,255,0.9)]" />
+              </div>
+              <div
+                className={`min-h-[56px] transition-all duration-300 ${
+                  messageVisible ? 'translate-y-0 opacity-100' : '-translate-y-1 opacity-0'
+                }`}
+              >
+                <p className="text-base font-medium text-white/95">
+                  {currentMessage?.text || t('orders.motivation.safeDrive')}
+                </p>
+                {currentMessage?.type === 'community' && (
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-100">
+                    {t('orders.communityBy', { name: currentMessage.authorName })}
+                  </p>
+                )}
+              </div>
+            </div>
           </div>
 
           <div className="inline-flex w-fit items-center rounded-lg border border-white/25 bg-white/10 px-3 py-2 text-sm font-semibold">
