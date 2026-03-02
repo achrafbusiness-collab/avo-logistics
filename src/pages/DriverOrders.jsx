@@ -180,6 +180,16 @@ export default function DriverOrders() {
       setMessageVisible(true);
       return undefined;
     }
+
+    const getRandomIndex = (max, exclude = -1) => {
+      if (max <= 1) return 0;
+      let next = Math.floor(Math.random() * max);
+      while (next === exclude) {
+        next = Math.floor(Math.random() * max);
+      }
+      return next;
+    };
+
     setMotivationIndex(Math.floor(Math.random() * rotationMessages.length));
     setMessageVisible(true);
     const interval = window.setInterval(() => {
@@ -188,7 +198,7 @@ export default function DriverOrders() {
         window.clearTimeout(hideTimeoutRef.current);
       }
       hideTimeoutRef.current = window.setTimeout(() => {
-        setMotivationIndex((prev) => (prev + 1) % rotationMessages.length);
+        setMotivationIndex((prev) => getRandomIndex(rotationMessages.length, prev));
         setMessageVisible(true);
       }, 320);
     }, 5000);
