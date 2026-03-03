@@ -245,7 +245,7 @@ export default function Orders() {
       return;
     }
     const companyKey = currentUser.company_id || currentUser.id || 'global';
-    const storageKey = `avo:fix-intransit-no-driver:v4:${companyKey}`;
+    const storageKey = `avo:fix-intransit-no-driver:v5:${companyKey}`;
     if (typeof window !== 'undefined' && window.localStorage.getItem(storageKey) === 'done') {
       setMaintenanceChecked(true);
       return;
@@ -523,13 +523,14 @@ export default function Orders() {
       if (!normalized.assigned_driver_id) {
         normalized.assigned_driver_name = '';
       }
-      if (
-        normalized.assigned_driver_id &&
-        ['new', 'assigned', 'pickup_started', 'delivery_started', 'zwischenabgabe', 'shuttle', ''].includes(
-          normalized.status || 'new'
-        )
-      ) {
-        normalized.status = 'in_transit';
+      if (normalized.assigned_driver_id) {
+        const normalizedMainStatus = getMainOrderStatus(normalized.status || '');
+        if (!normalizedMainStatus || normalizedMainStatus === 'new') {
+          // Fahrer wurde zugewiesen, aber Übernahmeprotokoll noch nicht gestartet.
+          normalized.status = 'assigned';
+        } else {
+          normalized.status = normalizedMainStatus;
+        }
       }
       if (!normalized.assigned_driver_id && ['in_transit', 'shuttle', 'zwischenabgabe'].includes(normalized.status)) {
         normalized.status = 'new';
@@ -576,8 +577,8 @@ export default function Orders() {
     };
     const selectedStatus = getMainOrderStatus(selectedOrder.status);
     if (driverId) {
-      if (!selectedStatus || selectedStatus !== 'in_transit') {
-        updates.status = 'in_transit';
+      if (!selectedStatus || selectedStatus === 'new') {
+        updates.status = 'assigned';
       }
     } else {
       updates.assigned_driver_id = null;

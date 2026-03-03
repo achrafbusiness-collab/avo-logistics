@@ -96,7 +96,7 @@ export default async function handler(req, res) {
 
     const orders = activeOrders || [];
     if (!orders.length) {
-      res.status(200).json({ ok: true, updated: 0, reasons: { noDriver: 0, handoff: 0 } });
+      res.status(200).json({ ok: true, updated: 0, reasons: { handoff: 0, toAssigned: 0, toNew: 0 } });
       return;
     }
 
@@ -123,7 +123,7 @@ export default async function handler(req, res) {
     });
 
     const handoffIds = [];
-    const inTransitIds = [];
+    const assignIds = [];
     const resetIds = [];
 
     orders.forEach((order) => {
@@ -133,8 +133,8 @@ export default async function handler(req, res) {
         return;
       }
       if (order.assigned_driver_id) {
-        if (order.status !== "in_transit") {
-          inTransitIds.push(order.id);
+        if (!order.status || order.status === "new") {
+          assignIds.push(order.id);
         }
         return;
       }
@@ -148,7 +148,7 @@ export default async function handler(req, res) {
     });
 
     let updatedTotal = 0;
-    const reasons = { handoff: handoffIds.length, toInTransit: inTransitIds.length, toNew: resetIds.length };
+    const reasons = { handoff: handoffIds.length, toAssigned: assignIds.length, toNew: resetIds.length };
 
     if (handoffIds.length) {
       const { data, error } = await supabaseAdmin
@@ -168,12 +168,12 @@ export default async function handler(req, res) {
       updatedTotal += data?.length || 0;
     }
 
-    if (inTransitIds.length) {
+    if (assignIds.length) {
       const { data, error } = await supabaseAdmin
         .from("orders")
-        .update({ status: "in_transit" })
+        .update({ status: "assigned" })
         .eq("company_id", profile.company_id)
-        .in("id", inTransitIds)
+        .in("id", assignIds)
         .select("id");
       if (error) {
         res.status(500).json({ ok: false, error: error.message });
