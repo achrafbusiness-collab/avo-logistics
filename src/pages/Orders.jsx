@@ -383,50 +383,36 @@ export default function Orders() {
   const getMainOrderStatus = (status) =>
     status === 'shuttle' || status === 'zwischenabgabe' ? DELIVERY_MAIN_STATUS : status;
 
-  const deliverySubstatusByOrder = useMemo(() => {
+  const latestDeliverySubstatusByOrder = useMemo(() => {
     const map = {};
-    const ensure = (orderId) => {
-      if (!orderId) return null;
-      if (!map[orderId]) {
-        map[orderId] = { shuttle: false, zwischenabgabe: false };
-      }
-      return map[orderId];
+    const setLatest = (orderId, substatus) => {
+      if (!orderId || map[orderId]) return;
+      map[orderId] = substatus;
     };
 
     deliverySegments.forEach((segment) => {
       if (!segment?.order_id) return;
       if (segment.segment_type === 'shuttle') {
-        const entry = ensure(segment.order_id);
-        if (entry) entry.shuttle = true;
+        setLatest(segment.order_id, 'shuttle');
       } else if (segment.segment_type === 'handoff') {
-        const entry = ensure(segment.order_id);
-        if (entry) entry.zwischenabgabe = true;
+        setLatest(segment.order_id, 'zwischenabgabe');
       }
     });
 
-    // Legacy-Fallback: alte Statuswerte weiterhin als Unterstatus anzeigen.
+    // Legacy-Fallback: falls kein Segment vorhanden ist, alten Status als Unterstatus zeigen.
     orders.forEach((order) => {
-      if (!order?.id) return;
-      if (order.status === 'shuttle') {
-        const entry = ensure(order.id);
-        if (entry) entry.shuttle = true;
-      } else if (order.status === 'zwischenabgabe') {
-        const entry = ensure(order.id);
-        if (entry) entry.zwischenabgabe = true;
-      }
+      if (!order?.id || map[order.id]) return;
+      if (order.status === 'shuttle') map[order.id] = 'shuttle';
+      if (order.status === 'zwischenabgabe') map[order.id] = 'zwischenabgabe';
     });
 
     return map;
   }, [deliverySegments, orders]);
 
-  const getDeliverySubstatuses = (order) => {
+  const getLatestDeliverySubstatus = (order) => {
     if (!order?.id || !IN_DELIVERY_STATUSES.has(order?.status)) return [];
-    const flags = deliverySubstatusByOrder[order.id];
-    if (!flags) return [];
-    const statuses = [];
-    if (flags.zwischenabgabe) statuses.push('zwischenabgabe');
-    if (flags.shuttle) statuses.push('shuttle');
-    return statuses;
+    const status = latestDeliverySubstatusByOrder[order.id];
+    return status ? [status] : [];
   };
 
   const expensesByOrder = useMemo(() => {
@@ -1590,7 +1576,7 @@ export default function Orders() {
                 <div className="divide-y divide-slate-200">
                   {paginatedOrders.map((order) => {
                     const mainStatus = getMainOrderStatus(order.status);
-                    const deliverySubstatuses = getDeliverySubstatuses(order);
+                    const deliverySubstatuses = getLatestDeliverySubstatus(order);
                     const dueStatus = getDueStatus(order);
                     const isCompleted = order.status === 'completed';
                     const isCancelled = order.status === 'cancelled';
@@ -1755,7 +1741,7 @@ export default function Orders() {
                   <TableBody>
                     {paginatedOrders.map((order) => {
                       const mainStatus = getMainOrderStatus(order.status);
-                      const deliverySubstatuses = getDeliverySubstatuses(order);
+                      const deliverySubstatuses = getLatestDeliverySubstatus(order);
                       const dueStatus = getDueStatus(order);
                       const isCompleted = order.status === 'completed';
                       const isCancelled = order.status === 'cancelled';
