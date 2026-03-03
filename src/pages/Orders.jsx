@@ -53,7 +53,8 @@ import {
   Download
 } from 'lucide-react';
 
-const IN_DELIVERY_STATUSES = new Set(['in_transit', 'shuttle']);
+const DELIVERY_MAIN_STATUS = 'in_transit';
+const IN_DELIVERY_STATUSES = new Set([DELIVERY_MAIN_STATUS, 'shuttle', 'zwischenabgabe']);
 const PAGE_SIZE = 30;
 const EXPENSE_TYPE_LABELS = {
   fuel: 'Betankung',
@@ -319,6 +320,16 @@ export default function Orders() {
       ),
   });
 
+  const { data: deliverySegments = [] } = useQuery({
+    queryKey: ['order-delivery-substatus'],
+    queryFn: () =>
+      appClient.entities.OrderSegment.list(
+        '-created_date',
+        5000,
+        'id,order_id,segment_type'
+      ),
+  });
+
   const { data: customers = [] } = useQuery({
     queryKey: ['customers'],
     queryFn: () =>
@@ -368,6 +379,55 @@ export default function Orders() {
 
     return { open, inDelivery, dueTomorrow, overdue };
   }, [orders]);
+
+  const getMainOrderStatus = (status) =>
+    status === 'shuttle' || status === 'zwischenabgabe' ? DELIVERY_MAIN_STATUS : status;
+
+  const deliverySubstatusByOrder = useMemo(() => {
+    const map = {};
+    const ensure = (orderId) => {
+      if (!orderId) return null;
+      if (!map[orderId]) {
+        map[orderId] = { shuttle: false, zwischenabgabe: false };
+      }
+      return map[orderId];
+    };
+
+    deliverySegments.forEach((segment) => {
+      if (!segment?.order_id) return;
+      if (segment.segment_type === 'shuttle') {
+        const entry = ensure(segment.order_id);
+        if (entry) entry.shuttle = true;
+      } else if (segment.segment_type === 'handoff') {
+        const entry = ensure(segment.order_id);
+        if (entry) entry.zwischenabgabe = true;
+      }
+    });
+
+    // Legacy-Fallback: alte Statuswerte weiterhin als Unterstatus anzeigen.
+    orders.forEach((order) => {
+      if (!order?.id) return;
+      if (order.status === 'shuttle') {
+        const entry = ensure(order.id);
+        if (entry) entry.shuttle = true;
+      } else if (order.status === 'zwischenabgabe') {
+        const entry = ensure(order.id);
+        if (entry) entry.zwischenabgabe = true;
+      }
+    });
+
+    return map;
+  }, [deliverySegments, orders]);
+
+  const getDeliverySubstatuses = (order) => {
+    if (!order?.id || !IN_DELIVERY_STATUSES.has(order?.status)) return [];
+    const flags = deliverySubstatusByOrder[order.id];
+    if (!flags) return [];
+    const statuses = [];
+    if (flags.zwischenabgabe) statuses.push('zwischenabgabe');
+    if (flags.shuttle) statuses.push('shuttle');
+    return statuses;
+  };
 
   const expensesByOrder = useMemo(() => {
     const map = {};
@@ -451,7 +511,7 @@ export default function Orders() {
       }
     }
     if (urlParams.get('status')) {
-      setStatusFilter(urlParams.get('status'));
+      setStatusFilter(getMainOrderStatus(urlParams.get('status')));
     }
     const dueParam = urlParams.get('due');
     setDueFilter(dueParam || 'all');
@@ -485,7 +545,7 @@ export default function Orders() {
       ) {
         normalized.status = 'in_transit';
       }
-      if (!normalized.assigned_driver_id && ['in_transit', 'shuttle'].includes(normalized.status)) {
+      if (!normalized.assigned_driver_id && ['in_transit', 'shuttle', 'zwischenabgabe'].includes(normalized.status)) {
         normalized.status = 'new';
       }
       if (normalized.customer_id === '') {
@@ -528,14 +588,15 @@ export default function Orders() {
       assigned_driver_id: driverId,
       assigned_driver_name: driverName,
     };
+    const selectedStatus = getMainOrderStatus(selectedOrder.status);
     if (driverId) {
-      if (!selectedOrder.status || selectedOrder.status !== 'in_transit') {
+      if (!selectedStatus || selectedStatus !== 'in_transit') {
         updates.status = 'in_transit';
       }
     } else {
       updates.assigned_driver_id = null;
       updates.assigned_driver_name = '';
-      if (['assigned', 'in_transit', 'shuttle'].includes(selectedOrder.status)) {
+      if (['assigned', 'in_transit'].includes(selectedStatus)) {
         updates.status = 'new';
       }
     }
@@ -589,7 +650,7 @@ export default function Orders() {
       statusFilter === 'all' ||
       (statusFilter === 'in_transit'
         ? IN_DELIVERY_STATUSES.has(order.status)
-        : order.status === statusFilter);
+        : getMainOrderStatus(order.status) === statusFilter);
     
     const matchesDriver =
       driverFilter === 'all' || order.assigned_driver_id === driverFilter;
@@ -1360,8 +1421,6 @@ export default function Orders() {
                     <SelectItem value="assigned">Zugewiesen</SelectItem>
                     <SelectItem value="pickup_started">Übernahme läuft</SelectItem>
                     <SelectItem value="in_transit">In Lieferung</SelectItem>
-                    <SelectItem value="shuttle">Shuttle</SelectItem>
-                    <SelectItem value="zwischenabgabe">Zwischenabgabe</SelectItem>
                     <SelectItem value="delivery_started">Übergabe läuft</SelectItem>
                     <SelectItem value="review">Prüfung</SelectItem>
                     <SelectItem value="ready_for_billing">Freigabe Abrechnung</SelectItem>
@@ -1530,6 +1589,8 @@ export default function Orders() {
               <div className="block md:hidden">
                 <div className="divide-y divide-slate-200">
                   {paginatedOrders.map((order) => {
+                    const mainStatus = getMainOrderStatus(order.status);
+                    const deliverySubstatuses = getDeliverySubstatuses(order);
                     const dueStatus = getDueStatus(order);
                     const isCompleted = order.status === 'completed';
                     const isCancelled = order.status === 'cancelled';
@@ -1643,14 +1704,25 @@ export default function Orders() {
                           ) : (
                             <div className="flex flex-col gap-1">
                               <p className="uppercase text-xs text-slate-400">Status</p>
-                              <StatusBadge status={order.status} />
+                              <StatusBadge status={mainStatus} />
+                              {deliverySubstatuses.length > 0 && (
+                                <div className="flex flex-wrap gap-1">
+                                  {deliverySubstatuses.map((subStatus) => (
+                                    <StatusBadge
+                                      key={`${order.id}-${subStatus}-mobile`}
+                                      status={subStatus}
+                                      size="sm"
+                                    />
+                                  ))}
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>
 
                         {listMode === 'completed' && (
                           <div className="mt-3">
-                            <StatusBadge status={order.status} />
+                            <StatusBadge status={mainStatus} />
                           </div>
                         )}
                       </div>
@@ -1682,6 +1754,8 @@ export default function Orders() {
                   </TableHeader>
                   <TableBody>
                     {paginatedOrders.map((order) => {
+                      const mainStatus = getMainOrderStatus(order.status);
+                      const deliverySubstatuses = getDeliverySubstatuses(order);
                       const dueStatus = getDueStatus(order);
                       const isCompleted = order.status === 'completed';
                       const isCancelled = order.status === 'cancelled';
@@ -1893,7 +1967,20 @@ export default function Orders() {
                             )}
                           </TableCell>
                           <TableCell>
-                            <StatusBadge status={order.status} />
+                            <div className="space-y-1">
+                              <StatusBadge status={mainStatus} />
+                              {deliverySubstatuses.length > 0 && (
+                                <div className="flex flex-wrap gap-1">
+                                  {deliverySubstatuses.map((subStatus) => (
+                                    <StatusBadge
+                                      key={`${order.id}-${subStatus}-table`}
+                                      status={subStatus}
+                                      size="sm"
+                                    />
+                                  ))}
+                                </div>
+                              )}
+                            </div>
                           </TableCell>
                           {listMode === 'completed' && (
                             <TableCell onClick={(event) => event.stopPropagation()}>

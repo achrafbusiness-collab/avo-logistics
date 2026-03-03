@@ -414,7 +414,7 @@ export default function DriverChecklist() {
           data: {
             assigned_driver_id: null,
             assigned_driver_name: '',
-            status: 'zwischenabgabe',
+            status: 'in_transit',
           },
         });
         queryClient.invalidateQueries({ queryKey: ['driver-orders'] });

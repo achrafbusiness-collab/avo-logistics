@@ -154,7 +154,7 @@ export default async function handler(req, res) {
       const { data, error } = await supabaseAdmin
         .from("orders")
         .update({
-          status: "zwischenabgabe",
+          status: "in_transit",
           assigned_driver_id: null,
           assigned_driver_name: "",
         })

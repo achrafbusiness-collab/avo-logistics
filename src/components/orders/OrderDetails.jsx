@@ -49,14 +49,15 @@ const STATUS_FLOW = [
   { value: 'assigned', label: 'Zugewiesen' },
   { value: 'pickup_started', label: 'Übernahme läuft' },
   { value: 'in_transit', label: 'In Lieferung' },
-  { value: 'shuttle', label: 'Shuttle' },
-  { value: 'zwischenabgabe', label: 'Zwischenabgabe' },
   { value: 'delivery_started', label: 'Übergabe läuft' },
   { value: 'completed', label: 'Erfolgreich beendet' },
   { value: 'review', label: 'Prüfung' },
   { value: 'ready_for_billing', label: 'Freigabe Abrechnung' },
   { value: 'approved', label: 'Freigegeben' },
 ];
+
+const normalizeOrderStatusForOverride = (status) =>
+  status === 'shuttle' || status === 'zwischenabgabe' ? 'in_transit' : status;
 
 const REVIEW_CHECKS = [
   { key: 'fuel_receipts', label: 'Tankbelege geprüft' },
@@ -87,7 +88,9 @@ export default function OrderDetails({
   const [reviewChecks, setReviewChecks] = useState(buildReviewChecks(order?.review_checks));
   const [reviewNotes, setReviewNotes] = useState(order?.review_notes || '');
   const [overrideOpen, setOverrideOpen] = useState(false);
-  const [overrideStatus, setOverrideStatus] = useState(order?.status || 'assigned');
+  const [overrideStatus, setOverrideStatus] = useState(
+    normalizeOrderStatusForOverride(order?.status || 'assigned')
+  );
   const [overrideReason, setOverrideReason] = useState('');
   const [notes, setNotes] = useState([]);
   const [noteText, setNoteText] = useState('');
@@ -182,7 +185,7 @@ export default function OrderDetails({
   useEffect(() => {
     setReviewChecks(buildReviewChecks(order?.review_checks));
     setReviewNotes(order?.review_notes || '');
-    setOverrideStatus(order?.status || 'assigned');
+    setOverrideStatus(normalizeOrderStatusForOverride(order?.status || 'assigned'));
     setOverrideReason('');
     setStatusError('');
     setCustomerProtocolEmail(order?.customer_email || '');
