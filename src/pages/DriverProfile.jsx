@@ -28,11 +28,6 @@ import {
 } from "lucide-react";
 import { useI18n } from "@/i18n";
 
-const formatOrderAddress = (address, postalCode, city) => {
-  const cityLine = [postalCode, city].filter(Boolean).join(" ");
-  return [address, cityLine].filter(Boolean).join(", ");
-};
-
 export default function DriverProfile() {
   const { t, formatDate, formatNumber } = useI18n();
   const queryClient = useQueryClient();
@@ -119,9 +114,7 @@ export default function DriverProfile() {
       if (!segmentOrderIds.length) return [];
       const { data, error } = await supabase
         .from("orders")
-        .select(
-          "id, license_plate, pickup_address, pickup_postal_code, pickup_city, dropoff_address, dropoff_postal_code, dropoff_city"
-        )
+        .select("id, license_plate")
         .in("id", segmentOrderIds);
       if (error) {
         console.error("Supabase driver orders error:", error.message);
@@ -175,18 +168,8 @@ export default function DriverProfile() {
           (segment.price !== null && segment.price !== undefined ? "approved" : "pending");
         const order = segment?.order_id ? ordersById.get(segment.order_id) : null;
         const isExtraRequest = segment.segment_type === "extra_request";
-        const pickupAddress =
-          isExtraRequest
-            ? segment.start_location || "-"
-            : formatOrderAddress(order?.pickup_address, order?.pickup_postal_code, order?.pickup_city) ||
-              segment.start_location ||
-              "-";
-        const dropoffAddress =
-          isExtraRequest
-            ? "-"
-            : formatOrderAddress(order?.dropoff_address, order?.dropoff_postal_code, order?.dropoff_city) ||
-              segment.end_location ||
-              "-";
+        const pickupAddress = segment.start_location || "-";
+        const dropoffAddress = isExtraRequest ? "-" : segment.end_location || "-";
         return {
           id: segment.id,
           date,
