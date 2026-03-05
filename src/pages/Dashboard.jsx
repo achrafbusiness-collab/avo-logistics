@@ -712,7 +712,7 @@ export default function Dashboard() {
             <div>
               <CardTitle className="text-lg font-semibold text-slate-900">Tagesrouten & Übersicht</CardTitle>
               <p className="text-sm text-slate-500">
-                Klicke auf Marker: gleiche Strecken werden gezählt, bei Zielpunkten siehst du alle Aufträge mit diesem Ziel.
+                Klicke auf einen Standort-Marker: du siehst die Anzahl Fahrzeuge/Aufträge und alle offenen Aufträge an diesem Punkt.
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -771,7 +771,6 @@ export default function Dashboard() {
                     selectedOrderId={selectedOrderId}
                     onSelectOrder={setSelectedOrderId}
                     showPopups
-                    enableClusters
                   />
                   {selectedOrder && (
                     <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm">

@@ -202,6 +202,28 @@ export default function OrdersMap({
             "circle-stroke-width": 1,
           },
         });
+
+        map.addLayer({
+          id: "orders-points-order-count",
+          type: "symbol",
+          source: "orders-points",
+          filter: [
+            "all",
+            ["!", ["has", "point_count"]],
+            [">", ["to-number", ["get", "orderCount"]], 1],
+          ],
+          layout: {
+            "text-field": ["to-string", ["get", "orderCount"]],
+            "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
+            "text-size": 11,
+            "text-offset": [0, 0],
+          },
+          paint: {
+            "text-color": "#0f172a",
+            "text-halo-color": "#ffffff",
+            "text-halo-width": 1.2,
+          },
+        });
       } else {
         map.addLayer({
           id: "orders-points-layer",
@@ -212,6 +234,24 @@ export default function OrdersMap({
             "circle-color": "#94a3b8",
             "circle-stroke-color": "#0f172a",
             "circle-stroke-width": 1,
+          },
+        });
+
+        map.addLayer({
+          id: "orders-points-order-count",
+          type: "symbol",
+          source: "orders-points",
+          filter: [">", ["to-number", ["get", "orderCount"]], 1],
+          layout: {
+            "text-field": ["to-string", ["get", "orderCount"]],
+            "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
+            "text-size": 11,
+            "text-offset": [0, 0],
+          },
+          paint: {
+            "text-color": "#0f172a",
+            "text-halo-color": "#ffffff",
+            "text-halo-width": 1.2,
           },
         });
       }
@@ -336,96 +376,76 @@ export default function OrdersMap({
 
   const pointsData = useMemo(() => {
     if (!routes.length) return emptyFeatureCollection;
-    const routeGroups = new Map();
-    const destinationGroups = new Map();
+
+    const locationGroups = new Map();
+    const buildOrderLabel = (order) => {
+      const orderLabel = order.order_number || "Auftrag";
+      const plate = order.license_plate ? ` (${order.license_plate})` : "";
+      const routeLabel = `${order.pickup_city || "Start"} -> ${order.dropoff_city || "Ziel"}`;
+      return `${orderLabel}${plate} | ${routeLabel}`;
+    };
+
+    const pushGroupItem = (key, payload) => {
+      if (!locationGroups.has(key)) {
+        locationGroups.set(key, {
+          type: payload.type,
+          coordinates: payload.coordinates,
+          locationLabel: payload.locationLabel,
+          orders: [],
+        });
+      }
+      const group = locationGroups.get(key);
+      group.orders.push(payload.order);
+    };
 
     routes.forEach((route) => {
-      const routeKey = buildRouteKey(route.start, route.end);
-      const destinationKey = coordKey(route.end);
-
-      if (!routeGroups.has(routeKey)) routeGroups.set(routeKey, []);
-      routeGroups.get(routeKey).push(route.order);
-
-      if (!destinationGroups.has(destinationKey)) destinationGroups.set(destinationKey, []);
-      destinationGroups.get(destinationKey).push(route.order);
+      const pickupLabel = normalizeAddress(route.order, "pickup");
+      const dropoffLabel = normalizeAddress(route.order, "dropoff");
+      pushGroupItem(`pickup:${coordKey(route.start)}`, {
+        type: "pickup",
+        coordinates: route.start,
+        locationLabel: pickupLabel,
+        order: route.order,
+      });
+      pushGroupItem(`dropoff:${coordKey(route.end)}`, {
+        type: "dropoff",
+        coordinates: route.end,
+        locationLabel: dropoffLabel,
+        order: route.order,
+      });
     });
 
-    const formatOrderList = (ordersList = []) =>
-      ordersList
-        .slice(0, 12)
-        .map((item) => {
-          const orderLabel = item.order_number || "Auftrag";
-          const plate = item.license_plate ? ` (${item.license_plate})` : "";
-          return `${orderLabel}${plate}`;
-        })
-        .join(";;");
+    const features = Array.from(locationGroups.values()).map((group) => {
+      const uniqueOrders = Array.from(
+        new Map(group.orders.map((order) => [order.id, order])).values()
+      );
+      const primary =
+        uniqueOrders.find((order) => order.id === selectedOrderId) || uniqueOrders[0];
+      const selected = Boolean(
+        selectedOrderId && uniqueOrders.some((order) => order.id === selectedOrderId)
+      );
+      return {
+        type: "Feature",
+        geometry: {
+          type: "Point",
+          coordinates: group.coordinates,
+        },
+        properties: {
+          type: group.type,
+          locationLabel: group.locationLabel || "-",
+          primaryOrderId: primary?.id || "",
+          orderCount: uniqueOrders.length,
+          selected,
+          ordersList: uniqueOrders.slice(0, 20).map((order) => buildOrderLabel(order)).join(";;"),
+        },
+      };
+    });
 
     return {
       type: "FeatureCollection",
-      features: routes.flatMap((route) => [
-        (() => {
-          const routeKey = buildRouteKey(route.start, route.end);
-          const destinationKey = coordKey(route.end);
-          const sameRouteOrders = routeGroups.get(routeKey) || [];
-          const sameDestinationOrders = destinationGroups.get(destinationKey) || [];
-          const sharedProperties = {
-            orderId: route.order.id,
-            orderNumber: route.order.order_number,
-            licensePlate: route.order.license_plate,
-            status: route.order.status,
-            driver: route.order.assigned_driver_name,
-            pickup: route.order.pickup_city || route.order.pickup_address,
-            dropoff: route.order.dropoff_city || route.order.dropoff_address,
-            routeCount: sameRouteOrders.length,
-            routeOrders: formatOrderList(sameRouteOrders),
-            destinationCount: sameDestinationOrders.length,
-            destinationOrders: formatOrderList(sameDestinationOrders),
-          };
-          return {
-            type: "Feature",
-            geometry: {
-              type: "Point",
-              coordinates: route.start,
-            },
-            properties: {
-              ...sharedProperties,
-              type: "pickup",
-            },
-          };
-        })(),
-        (() => {
-          const routeKey = buildRouteKey(route.start, route.end);
-          const destinationKey = coordKey(route.end);
-          const sameRouteOrders = routeGroups.get(routeKey) || [];
-          const sameDestinationOrders = destinationGroups.get(destinationKey) || [];
-          const sharedProperties = {
-            orderId: route.order.id,
-            orderNumber: route.order.order_number,
-            licensePlate: route.order.license_plate,
-            status: route.order.status,
-            driver: route.order.assigned_driver_name,
-            pickup: route.order.pickup_city || route.order.pickup_address,
-            dropoff: route.order.dropoff_city || route.order.dropoff_address,
-            routeCount: sameRouteOrders.length,
-            routeOrders: formatOrderList(sameRouteOrders),
-            destinationCount: sameDestinationOrders.length,
-            destinationOrders: formatOrderList(sameDestinationOrders),
-          };
-          return {
-            type: "Feature",
-            geometry: {
-              type: "Point",
-              coordinates: route.end,
-            },
-            properties: {
-              ...sharedProperties,
-              type: "dropoff",
-            },
-          };
-        })(),
-      ]),
+      features,
     };
-  }, [routes]);
+  }, [routes, selectedOrderId]);
 
   const selectedRoute = useMemo(() => {
     if (!routes.length) return null;
@@ -491,20 +511,24 @@ export default function OrdersMap({
       extraSource.setData(extraRouteData);
     }
 
-    const highlight = selectedRoute?.order?.id || "";
     const pointLayerId = enableClusters ? "orders-points-unclustered" : "orders-points-layer";
     if (map.getLayer(pointLayerId)) {
       map.setPaintProperty(pointLayerId, "circle-color", [
         "case",
-        ["==", ["get", "orderId"], highlight],
+        ["boolean", ["get", "selected"], false],
         ["match", ["get", "type"], "pickup", "#2563eb", "dropoff", "#0f172a", "#2563eb"],
         ["match", ["get", "type"], "pickup", "#94a3b8", "dropoff", "#64748b", "#94a3b8"],
       ]);
       map.setPaintProperty(pointLayerId, "circle-radius", [
         "case",
-        ["==", ["get", "orderId"], highlight],
-        8,
-        6,
+        ["boolean", ["get", "selected"], false],
+        8.5,
+        [
+          "case",
+          [">", ["to-number", ["get", "orderCount"]], 1],
+          7.5,
+          6,
+        ],
       ]);
     }
   }, [mapReady, pointsData, selectedRouteData, selectedRoute, enableClusters, extraRouteData]);
@@ -526,61 +550,40 @@ export default function OrdersMap({
 
     const handleClick = (event) => {
       const feature = event.features?.[0];
-      const orderId = feature?.properties?.orderId;
+      const orderId = feature?.properties?.primaryOrderId;
       if (orderId && onSelectOrder) {
         onSelectOrder(orderId);
       }
       if (showPopups && feature) {
         const props = feature.properties || {};
-        const routeCount = Number(props.routeCount || 0);
-        const destinationCount = Number(props.destinationCount || 0);
-        const routeOrderList = String(props.routeOrders || "")
+        const orderCount = Number(props.orderCount || 0);
+        const orderList = String(props.ordersList || "")
           .split(";;")
           .map((item) => item.trim())
           .filter(Boolean);
-        const destinationOrderList = String(props.destinationOrders || "")
-          .split(";;")
-          .map((item) => item.trim())
-          .filter(Boolean);
-        const routeListHtml =
-          routeCount > 1 && routeOrderList.length
-            ? `
-              <div style="margin-top: 8px; border-top: 1px solid #e2e8f0; padding-top: 8px;">
-                <div style="font-weight: 600; color: #1e3a5f;">Gleiche Strecke: ${routeCount} Aufträge</div>
-                <div style="margin-top: 4px; color: #334155;">
-                  ${routeOrderList.map((item) => `<div>• ${escapeHtml(item)}</div>`).join("")}
-                </div>
-              </div>
-            `
-            : "";
-        const destinationListHtml =
-          props.type === "dropoff" && destinationCount > 1 && destinationOrderList.length
-            ? `
-              <div style="margin-top: 8px; border-top: 1px solid #e2e8f0; padding-top: 8px;">
-                <div style="font-weight: 600; color: #0f172a;">
-                  Zieladresse: ${escapeHtml(props.dropoff || "Ziel")} (${destinationCount} Aufträge)
-                </div>
-                <div style="margin-top: 4px; color: #334155;">
-                  ${destinationOrderList.map((item) => `<div>• ${escapeHtml(item)}</div>`).join("")}
-                </div>
-              </div>
-            `
-            : "";
+        const listTitle =
+          props.type === "dropoff"
+            ? "Aufträge zu diesem Ziel"
+            : "Aufträge von diesem Standort";
+        const locationTitle =
+          props.type === "dropoff" ? "Zielstandort" : "Abholstandort";
         const popupHtml = `
           <div style="font-family: Arial, sans-serif; font-size: 12px;">
-            <div style="font-weight: 600; margin-bottom: 4px;">${escapeHtml(props.orderNumber || 'Auftrag')}</div>
-            <div>${escapeHtml(props.licensePlate || '-')}</div>
-            <div style="margin-top: 4px; color: #475569;">
-              ${escapeHtml(props.pickup || 'Start')} → ${escapeHtml(props.dropoff || 'Ziel')}
+            <div style="font-weight: 700; margin-bottom: 4px; color: #0f172a;">${locationTitle}</div>
+            <div style="color: #334155;">${escapeHtml(props.locationLabel || "-")}</div>
+            <div style="margin-top: 6px; font-weight: 600; color: #1e3a5f;">
+              Fahrzeuge/Aufträge: ${orderCount}
             </div>
-            <div style="margin-top: 4px;">
-              Status: ${escapeHtml(props.status || '-')}
+            <div style="margin-top: 8px; border-top: 1px solid #e2e8f0; padding-top: 8px;">
+              <div style="font-weight: 600; color: #0f172a;">${listTitle}</div>
+              <div style="margin-top: 4px; color: #334155;">
+                ${
+                  orderList.length
+                    ? orderList.map((item) => `<div>• ${escapeHtml(item)}</div>`).join("")
+                    : "<div>Keine Aufträge gefunden.</div>"
+                }
+              </div>
             </div>
-            <div style="margin-top: 4px;">
-              Fahrer: ${escapeHtml(props.driver || '-')}
-            </div>
-            ${routeListHtml}
-            ${destinationListHtml}
           </div>
         `;
         if (popupRef.current) {
