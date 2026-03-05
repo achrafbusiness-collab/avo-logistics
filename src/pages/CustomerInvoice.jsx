@@ -446,14 +446,34 @@ export default function CustomerInvoice() {
       const marginX = 14;
       const contentWidth = pageWidth - marginX * 2;
       const footerTop = pageHeight - 31;
+      const getImageFormat = (dataUrl) => {
+        const raw = String(dataUrl || '').toLowerCase();
+        if (raw.startsWith('data:image/jpeg') || raw.startsWith('data:image/jpg')) return 'JPEG';
+        return 'PNG';
+      };
 
       doc.setFont('helvetica', 'normal');
       if (logoDataUrl) {
-        doc.addImage(logoDataUrl, 'PNG', pageWidth - marginX - 38, 10, 38, 16);
+        try {
+          doc.addImage(
+            logoDataUrl,
+            getImageFormat(logoDataUrl),
+            pageWidth - marginX - 38,
+            10,
+            38,
+            16
+          );
+        } catch (error) {
+          doc.setFontSize(16);
+          doc.text(issuer.name, pageWidth - marginX, 18, { align: 'right' });
+        }
       } else {
         doc.setFontSize(16);
         doc.text(issuer.name, pageWidth - marginX, 18, { align: 'right' });
       }
+
+      doc.setFillColor(30, 58, 95);
+      doc.rect(marginX, 8, contentWidth, 1.3, 'F');
 
       doc.setFontSize(8.5);
       const companyHeader = [issuer.name, issuer.companySuffix].filter(Boolean).join(' ');
@@ -464,9 +484,25 @@ export default function CustomerInvoice() {
       );
 
       const customerLines = getCustomerAddressLines(record);
+      const customerExtraLines = [
+        record?.customer?.email ? `E-Mail: ${record.customer.email}` : '',
+        record?.customer?.phone ? `Telefon: ${record.customer.phone}` : '',
+      ].filter(Boolean);
+      doc.setFillColor(248, 250, 252);
+      doc.rect(marginX, 41, 86, 38, 'F');
+      doc.setDrawColor(226, 232, 240);
+      doc.rect(marginX, 41, 86, 38, 'S');
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9.5);
+      doc.text('Rechnung an', marginX + 2, 46.5);
       doc.setFontSize(11);
+      doc.setFont('helvetica', 'normal');
       customerLines.forEach((line, index) => {
-        doc.text(line, marginX, 47 + index * 6);
+        doc.text(line, marginX + 2, 53 + index * 5.2);
+      });
+      doc.setFontSize(9);
+      customerExtraLines.forEach((line, index) => {
+        doc.text(line, marginX + 2, 68 + index * 4.6);
       });
 
       const invoiceTopY = 48;
@@ -498,7 +534,7 @@ export default function CustomerInvoice() {
       autoTable(doc, {
         startY: 126,
         margin: { left: marginX, right: marginX, bottom: 42 },
-        head: [['Pos.', 'Beschreibung', 'Menge', 'Einzelpreis', 'Gesamtpreis']],
+        head: [['Pos.', 'Beschreibung', 'Einzelpreis', 'Gesamtpreis']],
         body: rows.map((row, index) => {
           const orderPrice = parseMoneyInput(row.orderPriceDraft);
           const fuelExpenses = parseMoneyInput(row.fuelExpensesDraft);
@@ -507,7 +543,6 @@ export default function CustomerInvoice() {
           return [
             String(index + 1),
             description,
-            'pauschal',
             formatEuroText(lineTotal),
             formatEuroText(lineTotal),
           ];
@@ -527,10 +562,9 @@ export default function CustomerInvoice() {
         },
         columnStyles: {
           0: { cellWidth: 10, halign: 'center' },
-          1: { cellWidth: 104 },
-          2: { cellWidth: 18, halign: 'center' },
+          1: { cellWidth: 122 },
+          2: { cellWidth: 25, halign: 'right' },
           3: { cellWidth: 25, halign: 'right' },
-          4: { cellWidth: 25, halign: 'right' },
         },
       });
 
