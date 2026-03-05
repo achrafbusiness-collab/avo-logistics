@@ -799,83 +799,85 @@ export default function Dashboard() {
                   )}
                 </div>
 
-                <div className="space-y-3">
-                  {!selectedMapLocation ? (
-                    <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
-                      Wähle auf der Karte einen Standort aus, um die zugehörigen Aufträge zu sehen.
-                    </div>
-                  ) : locationOrders.length === 0 ? (
-                    <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
-                      Für diesen Standort wurden keine passenden Aufträge gefunden.
-                    </div>
-                  ) : (
-                    <>
-                      <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
-                        <p className="font-semibold text-slate-900">
-                          {selectedMapLocation.type === 'dropoff' ? 'Zielstandort' : 'Abholstandort'}
-                        </p>
-                        <p className="text-slate-600">{selectedMapLocation.locationLabel || '-'}</p>
-                        <p className="mt-1 text-xs text-slate-500">
-                          {locationOrders.length} Auftrag{locationOrders.length !== 1 ? 'e' : ''} an diesem Standort
-                        </p>
+                <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm lg:h-[460px]">
+                  <div className="h-full overflow-y-auto pr-1 space-y-3">
+                    {!selectedMapLocation ? (
+                      <div className="flex h-full min-h-[240px] items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
+                        Wähle auf der Karte einen Standort aus, um die zugehörigen Aufträge zu sehen.
                       </div>
-                      {locationOrders.map((order) => {
-                        const isSelected = order.id === selectedOrderId;
-                        return (
-                          <div
-                            key={order.id}
-                            role="button"
-                            tabIndex={0}
-                            onClick={() => setSelectedOrderId(order.id)}
-                            onKeyDown={(event) => {
-                              if (event.key === 'Enter' || event.key === ' ') {
-                                event.preventDefault();
-                                setSelectedOrderId(order.id);
-                              }
-                            }}
-                            className={`w-full rounded-xl border px-4 py-3 text-left transition-all ${
-                              isSelected
-                                ? 'border-blue-200 bg-blue-50'
-                                : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
-                            }`}
-                          >
-                            <div className="flex items-center justify-between gap-4">
-                              <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-lg bg-[#1e3a5f]/10 flex items-center justify-center">
-                                  <Truck className="w-5 h-5 text-[#1e3a5f]" />
+                    ) : locationOrders.length === 0 ? (
+                      <div className="flex h-full min-h-[240px] items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
+                        Für diesen Standort wurden keine passenden Aufträge gefunden.
+                      </div>
+                    ) : (
+                      <>
+                        <div className="sticky top-0 z-10 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
+                          <p className="font-semibold text-slate-900">
+                            {selectedMapLocation.type === 'dropoff' ? 'Zielstandort' : 'Abholstandort'}
+                          </p>
+                          <p className="text-slate-600">{selectedMapLocation.locationLabel || '-'}</p>
+                          <p className="mt-1 text-xs text-slate-500">
+                            {locationOrders.length} Auftrag{locationOrders.length !== 1 ? 'e' : ''} an diesem Standort
+                          </p>
+                        </div>
+                        {locationOrders.map((order) => {
+                          const isSelected = order.id === selectedOrderId;
+                          return (
+                            <div
+                              key={order.id}
+                              role="button"
+                              tabIndex={0}
+                              onClick={() => setSelectedOrderId(order.id)}
+                              onKeyDown={(event) => {
+                                if (event.key === 'Enter' || event.key === ' ') {
+                                  event.preventDefault();
+                                  setSelectedOrderId(order.id);
+                                }
+                              }}
+                              className={`w-full rounded-xl border px-4 py-3 text-left transition-all ${
+                                isSelected
+                                  ? 'border-blue-200 bg-blue-50'
+                                  : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between gap-4">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-10 h-10 rounded-lg bg-[#1e3a5f]/10 flex items-center justify-center">
+                                    <Truck className="w-5 h-5 text-[#1e3a5f]" />
+                                  </div>
+                                  <div>
+                                    <p className="font-medium text-slate-900">{order.order_number}</p>
+                                    <p className="text-sm text-slate-500">
+                                      {order.pickup_city || 'Start'} → {order.dropoff_city || 'Ziel'}
+                                    </p>
+                                  </div>
                                 </div>
-                                <div>
-                                  <p className="font-medium text-slate-900">{order.order_number}</p>
-                                  <p className="text-sm text-slate-500">
-                                    {order.pickup_city || 'Start'} → {order.dropoff_city || 'Ziel'}
-                                  </p>
+                                <div className="flex items-center gap-2">
+                                  <StatusBadge status={order.status} />
+                                  <ArrowRight className="w-4 h-4 text-slate-400" />
                                 </div>
                               </div>
-                              <div className="flex items-center gap-2">
-                                <StatusBadge status={order.status} />
-                                <ArrowRight className="w-4 h-4 text-slate-400" />
-                              </div>
-                            </div>
 
-                            {isSelected && (
-                              <div className="mt-3 border-t border-blue-200 pt-3">
-                                <Button
-                                  size="sm"
-                                  className={DASH_PRIMARY_BTN}
-                                  onClick={(event) => {
-                                    event.stopPropagation();
-                                    navigate(`${createPageUrl('Orders')}?id=${order.id}`);
-                                  }}
-                                >
-                                  Auftrag öffnen
-                                </Button>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </>
-                  )}
+                              {isSelected && (
+                                <div className="mt-3 border-t border-blue-200 pt-3">
+                                  <Button
+                                    size="sm"
+                                    className={DASH_PRIMARY_BTN}
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      navigate(`${createPageUrl('Orders')}?id=${order.id}`);
+                                    }}
+                                  >
+                                    Auftrag öffnen
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
