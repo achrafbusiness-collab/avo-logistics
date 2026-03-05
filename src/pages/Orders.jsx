@@ -146,6 +146,8 @@ export default function Orders() {
   const [expensesFilter, setExpensesFilter] = useState('all');
   const [dueFilter, setDueFilter] = useState('all');
   const [dueSort, setDueSort] = useState('desc');
+  const [dateFromFilter, setDateFromFilter] = useState('');
+  const [dateToFilter, setDateToFilter] = useState('');
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]);
@@ -348,6 +350,21 @@ export default function Orders() {
     return date;
   };
 
+  const parseOrderDateTime = (value) => {
+    if (!value) return null;
+    if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      const dateOnly = new Date(`${value}T12:00:00`);
+      return Number.isNaN(dateOnly.getTime()) ? null : dateOnly;
+    }
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  };
+
+  const getOrderFilterDateTime = (order) =>
+    parseOrderDateTime(order?.dropoff_date) ||
+    parseOrderDateTime(order?.pickup_date) ||
+    parseOrderDateTime(order?.created_date);
+
   const summaryCounts = useMemo(() => {
     const now = new Date();
     const tomorrow = addDays(now, 1);
@@ -501,6 +518,8 @@ export default function Orders() {
     }
     const dueParam = urlParams.get('due');
     setDueFilter(dueParam || 'all');
+    setDateFromFilter(urlParams.get('dateFrom') || '');
+    setDateToFilter(urlParams.get('dateTo') || '');
     const customerParam = urlParams.get('customerId');
     if (customerParam) {
       setCustomerFilter(customerParam);
@@ -611,6 +630,8 @@ export default function Orders() {
   };
 
   const searchLower = searchTerm.trim().toLowerCase();
+  const dateFromBound = dateFromFilter ? new Date(`${dateFromFilter}T00:00:00`) : null;
+  const dateToBound = dateToFilter ? new Date(`${dateToFilter}T23:59:59.999`) : null;
   const filteredOrders = orders.filter(order => {
     const matchesSearch =
       !searchLower ||
@@ -654,6 +675,7 @@ export default function Orders() {
       (expensesFilter === 'with' ? hasExpenses : !hasExpenses);
 
     const dueAt = getDueDateTime(order);
+    const orderDateTime = getOrderFilterDateTime(order);
     const now = new Date();
     const tomorrow = addDays(now, 1);
     const matchesDueFilter = (() => {
@@ -672,6 +694,13 @@ export default function Orders() {
       }
       return true;
     })();
+    const matchesDateRange = (() => {
+      if (!dateFromBound && !dateToBound) return true;
+      if (!orderDateTime) return false;
+      if (dateFromBound && orderDateTime.getTime() < dateFromBound.getTime()) return false;
+      if (dateToBound && orderDateTime.getTime() > dateToBound.getTime()) return false;
+      return true;
+    })();
     
     return (
       matchesSearch &&
@@ -680,7 +709,8 @@ export default function Orders() {
       matchesDriver &&
       matchesCustomer &&
       matchesExpenses &&
-      matchesDueFilter
+      matchesDueFilter &&
+      matchesDateRange
     );
   });
 
@@ -707,7 +737,20 @@ export default function Orders() {
     expensesFilter,
     dueFilter,
     dueSort,
+    dateFromFilter,
+    dateToFilter,
   ]);
+
+  const hasActiveFilters = Boolean(
+    searchTerm ||
+      statusFilter !== 'all' ||
+      driverFilter !== 'all' ||
+      customerFilter !== 'all' ||
+      expensesFilter !== 'all' ||
+      dueFilter !== 'all' ||
+      dateFromFilter ||
+      dateToFilter
+  );
 
   const totalPages = Math.max(1, Math.ceil(sortedOrders.length / PAGE_SIZE));
   useEffect(() => {
@@ -1395,6 +1438,38 @@ export default function Orders() {
                 <SelectItem value="asc">Fälligkeit: alt → neu</SelectItem>
               </SelectContent>
             </Select>
+            <div className="flex flex-wrap items-end gap-2">
+              <div>
+                <label className="mb-1 block text-xs text-slate-500">Datum von</label>
+                <Input
+                  type="date"
+                  value={dateFromFilter}
+                  onChange={(e) => setDateFromFilter(e.target.value)}
+                  className="w-full sm:w-40"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs text-slate-500">Datum bis</label>
+                <Input
+                  type="date"
+                  value={dateToFilter}
+                  onChange={(e) => setDateToFilter(e.target.value)}
+                  className="w-full sm:w-40"
+                />
+              </div>
+              {(dateFromFilter || dateToFilter) && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setDateFromFilter('');
+                    setDateToFilter('');
+                  }}
+                >
+                  Datum löschen
+                </Button>
+              )}
+            </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-full sm:w-48">
                 <Filter className="w-4 h-4 mr-2" />
@@ -1547,7 +1622,7 @@ export default function Orders() {
             <div className="text-center py-12">
               <Truck className="w-12 h-12 mx-auto mb-4 text-gray-300" />
               <p className="text-gray-500">Keine Aufträge gefunden</p>
-              {searchTerm || statusFilter !== 'all' ? (
+              {hasActiveFilters ? (
                 <Button 
                   variant="outline" 
                   className="mt-4"
@@ -1558,6 +1633,8 @@ export default function Orders() {
                     setCustomerFilter('all');
                     setExpensesFilter('all');
                     setDueFilter('all');
+                    setDateFromFilter('');
+                    setDateToFilter('');
                   }}
                 >
                   Filter zurücksetzen
