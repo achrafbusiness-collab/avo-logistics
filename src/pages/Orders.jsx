@@ -1606,31 +1606,34 @@ export default function Orders() {
 
       {/* Filters */}
       <Card>
-        <CardContent className="p-4">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <Input 
-                placeholder="Suche nach Auftragsnummer, Kunde, Kennzeichen, Ort, PLZ, Straße..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-10"
-              />
-              {searchTerm && (
-                <button
-                  type="button"
-                  onClick={() => setSearchTerm('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  aria-label="Suche leeren"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              )}
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
+        <CardContent className="p-4 space-y-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Input 
+              placeholder="Suche nach Auftragsnummer, Kunde, Kennzeichen, Ort, PLZ, Straße..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 pr-10"
+            />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => setSearchTerm('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                aria-label="Suche leeren"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Auslagen</p>
+            <div className="inline-flex flex-wrap items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 p-1">
               <Button
                 type="button"
-                variant={expensesFilter === 'all' ? 'default' : 'outline'}
+                size="sm"
+                variant={expensesFilter === 'all' ? 'default' : 'ghost'}
                 className={expensesFilter === 'all' ? 'bg-[#1e3a5f] hover:bg-[#2d5a8a]' : ''}
                 onClick={() => setExpensesFilter('all')}
               >
@@ -1638,7 +1641,8 @@ export default function Orders() {
               </Button>
               <Button
                 type="button"
-                variant={expensesFilter === 'with' ? 'default' : 'outline'}
+                size="sm"
+                variant={expensesFilter === 'with' ? 'default' : 'ghost'}
                 className={expensesFilter === 'with' ? 'bg-[#1e3a5f] hover:bg-[#2d5a8a]' : ''}
                 onClick={() => setExpensesFilter('with')}
               >
@@ -1646,45 +1650,54 @@ export default function Orders() {
               </Button>
               <Button
                 type="button"
-                variant={expensesFilter === 'without' ? 'default' : 'outline'}
+                size="sm"
+                variant={expensesFilter === 'without' ? 'default' : 'ghost'}
                 className={expensesFilter === 'without' ? 'bg-[#1e3a5f] hover:bg-[#2d5a8a]' : ''}
                 onClick={() => setExpensesFilter('without')}
               >
                 Keine Auslagen
               </Button>
             </div>
-            <Select value={dueSort} onValueChange={setDueSort}>
-              <SelectTrigger className="w-full sm:w-48">
-                <SelectValue placeholder="Fälligkeit" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="desc">Fälligkeit: neu → alt</SelectItem>
-                <SelectItem value="asc">Fälligkeit: alt → neu</SelectItem>
-              </SelectContent>
-            </Select>
-            <div className="flex flex-wrap items-end gap-2">
-              <div>
-                <label className="mb-1 block text-xs text-slate-500">Datum von</label>
-                <Input
-                  type="date"
-                  value={dateFromFilter}
-                  onChange={(e) => setDateFromFilter(e.target.value)}
-                  className="w-full sm:w-40"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs text-slate-500">Datum bis</label>
-                <Input
-                  type="date"
-                  value={dateToFilter}
-                  onChange={(e) => setDateToFilter(e.target.value)}
-                  className="w-full sm:w-40"
-                />
-              </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-6">
+            <div className="space-y-1">
+              <label className="text-xs font-medium uppercase tracking-wide text-slate-500">Fälligkeit</label>
+              <Select value={dueSort} onValueChange={setDueSort}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Fälligkeit" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="desc">Fälligkeit: neu → alt</SelectItem>
+                  <SelectItem value="asc">Fälligkeit: alt → neu</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-medium uppercase tracking-wide text-slate-500">Datum von</label>
+              <Input
+                type="date"
+                value={dateFromFilter}
+                onChange={(e) => setDateFromFilter(e.target.value)}
+                className="w-full"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-medium uppercase tracking-wide text-slate-500">Datum bis</label>
+              <Input
+                type="date"
+                value={dateToFilter}
+                onChange={(e) => setDateToFilter(e.target.value)}
+                className="w-full"
+              />
               {(dateFromFilter || dateToFilter) && (
                 <Button
                   type="button"
+                  size="sm"
                   variant="outline"
+                  className="w-full"
                   onClick={() => {
                     setDateFromFilter('');
                     setDateToFilter('');
@@ -1694,75 +1707,88 @@ export default function Orders() {
                 </Button>
               )}
             </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full sm:w-48">
-                <Filter className="w-4 h-4 mr-2" />
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Alle Status</SelectItem>
-                {listMode === 'active' ? (
-                  <>
-                    <SelectItem value="new">Offen</SelectItem>
-                    <SelectItem value="assigned">Zugewiesen</SelectItem>
-                    <SelectItem value="pickup_started">Übernahme läuft</SelectItem>
-                    <SelectItem value="in_transit">In Lieferung</SelectItem>
-                    <SelectItem value="delivery_started">Übergabe läuft</SelectItem>
-                    <SelectItem value="review">Prüfung</SelectItem>
-                    <SelectItem value="ready_for_billing">Freigabe Abrechnung</SelectItem>
-                    <SelectItem value="approved">Freigegeben</SelectItem>
-                    <SelectItem value="cancelled">Storniert</SelectItem>
-                  </>
-                ) : (
-                  <>
-                    <SelectItem value="all">Alle abgeschlossenen</SelectItem>
-                    <SelectItem value="completed">Erfolgreich beendet</SelectItem>
-                    <SelectItem value="cancelled">Storniert</SelectItem>
-                  </>
-                )}
-              </SelectContent>
-            </Select>
-            <Select value={driverFilter} onValueChange={setDriverFilter}>
-              <SelectTrigger className="w-full sm:w-56">
-                <SelectValue placeholder="Fahrer" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Alle Fahrer</SelectItem>
-                {drivers.map((driver) => {
-                  const label =
-                    driver.name ||
-                    [driver.first_name, driver.last_name].filter(Boolean).join(' ') ||
-                    driver.email ||
-                    'Fahrer';
-                  return (
-                    <SelectItem key={driver.id} value={driver.id}>
-                      {label}
-                    </SelectItem>
-                  );
-                })}
-              </SelectContent>
-            </Select>
-            <Select value={customerFilter} onValueChange={setCustomerFilter}>
-              <SelectTrigger className="w-full sm:w-56">
-                <SelectValue placeholder="Kunden" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Alle Kunden</SelectItem>
-                <SelectItem value="none">Ohne Kunde</SelectItem>
-                {customers.map((customer) => {
-                  const name =
-                    customer.type === 'business' && customer.company_name
-                      ? customer.company_name
-                      : `${customer.first_name || ''} ${customer.last_name || ''}`.trim();
-                  const label = name || customer.email || 'Kunde';
-                  return (
-                    <SelectItem key={customer.id} value={customer.id}>
-                      {label}
-                    </SelectItem>
-                  );
-                })}
-              </SelectContent>
-            </Select>
+
+            <div className="space-y-1">
+              <label className="text-xs font-medium uppercase tracking-wide text-slate-500">Status</label>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-full">
+                  <Filter className="w-4 h-4 mr-2" />
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">
+                    {listMode === 'active' ? 'Alle Status' : 'Alle abgeschlossenen'}
+                  </SelectItem>
+                  {listMode === 'active' ? (
+                    <>
+                      <SelectItem value="new">Offen</SelectItem>
+                      <SelectItem value="assigned">Zugewiesen</SelectItem>
+                      <SelectItem value="pickup_started">Übernahme läuft</SelectItem>
+                      <SelectItem value="in_transit">In Lieferung</SelectItem>
+                      <SelectItem value="delivery_started">Übergabe läuft</SelectItem>
+                      <SelectItem value="review">Prüfung</SelectItem>
+                      <SelectItem value="ready_for_billing">Freigabe Abrechnung</SelectItem>
+                      <SelectItem value="approved">Freigegeben</SelectItem>
+                      <SelectItem value="cancelled">Storniert</SelectItem>
+                    </>
+                  ) : (
+                    <>
+                      <SelectItem value="completed">Erfolgreich beendet</SelectItem>
+                      <SelectItem value="cancelled">Storniert</SelectItem>
+                    </>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-medium uppercase tracking-wide text-slate-500">Fahrer</label>
+              <Select value={driverFilter} onValueChange={setDriverFilter}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Fahrer" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Alle Fahrer</SelectItem>
+                  {drivers.map((driver) => {
+                    const label =
+                      driver.name ||
+                      [driver.first_name, driver.last_name].filter(Boolean).join(' ') ||
+                      driver.email ||
+                      'Fahrer';
+                    return (
+                      <SelectItem key={driver.id} value={driver.id}>
+                        {label}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-medium uppercase tracking-wide text-slate-500">Kunden</label>
+              <Select value={customerFilter} onValueChange={setCustomerFilter}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Kunden" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Alle Kunden</SelectItem>
+                  <SelectItem value="none">Ohne Kunde</SelectItem>
+                  {customers.map((customer) => {
+                    const name =
+                      customer.type === 'business' && customer.company_name
+                        ? customer.company_name
+                        : `${customer.first_name || ''} ${customer.last_name || ''}`.trim();
+                    const label = name || customer.email || 'Kunde';
+                    return (
+                      <SelectItem key={customer.id} value={customer.id}>
+                        {label}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardContent>
       </Card>
