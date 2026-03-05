@@ -819,34 +819,61 @@ export default function Dashboard() {
                           {locationOrders.length} Auftrag{locationOrders.length !== 1 ? 'e' : ''} an diesem Standort
                         </p>
                       </div>
-                      {locationOrders.map((order) => (
-                      <button
-                        key={order.id}
-                        type="button"
-                        onClick={() => navigate(`${createPageUrl('Orders')}?id=${order.id}`)}
-                        className={`w-full text-left flex items-center justify-between gap-4 rounded-xl border px-4 py-3 transition-all ${
-                          order.id === selectedOrderId
-                            ? 'border-blue-200 bg-blue-50'
-                            : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-lg bg-[#1e3a5f]/10 flex items-center justify-center">
-                            <Truck className="w-5 h-5 text-[#1e3a5f]" />
+                      {locationOrders.map((order) => {
+                        const isSelected = order.id === selectedOrderId;
+                        return (
+                          <div
+                            key={order.id}
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => setSelectedOrderId(order.id)}
+                            onKeyDown={(event) => {
+                              if (event.key === 'Enter' || event.key === ' ') {
+                                event.preventDefault();
+                                setSelectedOrderId(order.id);
+                              }
+                            }}
+                            className={`w-full rounded-xl border px-4 py-3 text-left transition-all ${
+                              isSelected
+                                ? 'border-blue-200 bg-blue-50'
+                                : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between gap-4">
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-lg bg-[#1e3a5f]/10 flex items-center justify-center">
+                                  <Truck className="w-5 h-5 text-[#1e3a5f]" />
+                                </div>
+                                <div>
+                                  <p className="font-medium text-slate-900">{order.order_number}</p>
+                                  <p className="text-sm text-slate-500">
+                                    {order.pickup_city || 'Start'} → {order.dropoff_city || 'Ziel'}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <StatusBadge status={order.status} />
+                                <ArrowRight className="w-4 h-4 text-slate-400" />
+                              </div>
+                            </div>
+
+                            {isSelected && (
+                              <div className="mt-3 border-t border-blue-200 pt-3">
+                                <Button
+                                  size="sm"
+                                  className={DASH_PRIMARY_BTN}
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    navigate(`${createPageUrl('Orders')}?id=${order.id}`);
+                                  }}
+                                >
+                                  Auftrag öffnen
+                                </Button>
+                              </div>
+                            )}
                           </div>
-                          <div>
-                            <p className="font-medium text-slate-900">{order.order_number}</p>
-                            <p className="text-sm text-slate-500">
-                              {order.pickup_city || 'Start'} → {order.dropoff_city || 'Ziel'}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <StatusBadge status={order.status} />
-                          <ArrowRight className="w-4 h-4 text-slate-400" />
-                        </div>
-                      </button>
-                      ))}
+                        );
+                      })}
                     </>
                   )}
                 </div>
