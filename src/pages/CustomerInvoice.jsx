@@ -325,26 +325,23 @@ export default function CustomerInvoice() {
   const summary = useMemo(() => {
     const vatRate = parseMoneyInput(invoiceMeta.vatRate);
     const includeFuel = invoiceMeta.includeFuel !== false;
-    const gross = rows.reduce((sum, row) => {
-      const orderGross = parseMoneyInput(row.orderPriceDraft);
-      const fuelGross = includeFuel ? parseMoneyInput(row.fuelExpensesDraft) : 0;
-      return sum + orderGross + fuelGross;
-    }, 0);
-    const net = rows.reduce((sum, row) => {
-      const orderGross = parseMoneyInput(row.orderPriceDraft);
-      const fuelGross = includeFuel ? parseMoneyInput(row.fuelExpensesDraft) : 0;
-      return sum + grossToNet(orderGross + fuelGross, vatRate);
+    const orderNet = rows.reduce((sum, row) => {
+      const orderNetValue = parseMoneyInput(row.orderPriceDraft);
+      return sum + orderNetValue;
     }, 0);
     const fuelNet = rows.reduce((sum, row) => {
       const fuelGross = includeFuel ? parseMoneyInput(row.fuelExpensesDraft) : 0;
       return sum + grossToNet(fuelGross, vatRate);
     }, 0);
+    const net = orderNet + fuelNet;
     const fuelGross = rows.reduce((sum, row) => {
       return sum + (includeFuel ? parseMoneyInput(row.fuelExpensesDraft) : 0);
     }, 0);
-    const vatAmount = gross - net;
+    const vatAmount = net * (vatRate / 100);
+    const gross = net + vatAmount;
     return {
       orderCount: rows.length,
+      orderNet,
       net,
       vatRate,
       vatAmount,
@@ -565,10 +562,9 @@ export default function CustomerInvoice() {
         margin: { left: marginX, right: marginX, bottom: 42 },
         head: [['Pos.', 'Beschreibung', 'Tour Netto', 'Tank Netto', 'Gesamt Netto']],
         body: rows.map((row, index) => {
-          const orderGross = parseMoneyInput(row.orderPriceDraft);
+          const orderNet = parseMoneyInput(row.orderPriceDraft);
           const fuelGrossRaw = parseMoneyInput(row.fuelExpensesDraft);
           const fuelGross = finalMeta.includeFuel === false ? 0 : fuelGrossRaw;
-          const orderNet = grossToNet(orderGross, summary.vatRate);
           const fuelNet = grossToNet(fuelGross, summary.vatRate);
           const lineNet = orderNet + fuelNet;
           const description = `${row.orderNumber} ${row.routeDraft}`.trim();
@@ -628,7 +624,7 @@ export default function CustomerInvoice() {
         doc.text(value, summaryX + summaryWidth - 2, top, { align: 'right' });
       };
 
-      const requiredHeight = 6 * lineHeight + paymentTermsLines.length * 5 + 24;
+      const requiredHeight = 5 * lineHeight + paymentTermsLines.length * 5 + 24;
       if (y + requiredHeight > pageHeight - 42) {
         doc.addPage();
         y = 20;
@@ -637,9 +633,9 @@ export default function CustomerInvoice() {
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(10);
       doc.text('Kalkulation (letzte Seite)', marginX, y - 2);
-      drawSummaryLine('Gesamter Nettobetrag', formatEuroText(summary.net), y + lineHeight, false, true);
+      drawSummaryLine('Gesamtauftragspreise (Netto)', formatEuroText(summary.orderNet), y + lineHeight, false, true);
       drawSummaryLine('Nettobetrag Auslagen (Tank)', formatEuroText(summary.fuelNet), y + lineHeight * 2, false, false);
-      drawSummaryLine('Bruttobetrag Auslagen (Tank)', formatEuroText(summary.fuelGross), y + lineHeight * 3, false, false);
+      drawSummaryLine('Gesamter Nettobetrag', formatEuroText(summary.net), y + lineHeight * 3, false, false);
       drawSummaryLine(`Umsatzsteuer ${summary.vatRate || 0}%`, formatEuroText(summary.vatAmount), y + lineHeight * 4, false, false);
       drawSummaryLine('Gesamter Bruttobetrag', formatEuroText(summary.gross), y + lineHeight * 5, true, true);
 
@@ -916,7 +912,7 @@ export default function CustomerInvoice() {
                   <th className="px-3 py-2">Beschreibung / Route</th>
                   <th className="px-3 py-2">Fahrzeug</th>
                   <th className="px-3 py-2">Kennzeichen</th>
-                  <th className="px-3 py-2 text-right">Auftragspreis (Brutto)</th>
+                  <th className="px-3 py-2 text-right">Auftragspreis (Netto)</th>
                   <th className="px-3 py-2 text-right">Tank (Brutto)</th>
                   <th className="px-3 py-2 text-right">Tank (Netto)</th>
                   <th className="px-3 py-2 text-right">Rechnung Netto</th>
@@ -928,7 +924,7 @@ export default function CustomerInvoice() {
                   const fuelExpensesRaw = parseMoneyInput(row.fuelExpensesDraft);
                   const fuelIncluded = invoiceMeta.includeFuel === false ? 0 : fuelExpensesRaw;
                   const fuelNet = grossToNet(fuelIncluded, summary.vatRate);
-                  const lineNet = grossToNet(orderPrice + fuelIncluded, summary.vatRate);
+                  const lineNet = orderPrice + fuelNet;
                   return (
                     <tr key={row.id} className="border-t border-slate-200 align-top">
                       <td className="px-3 py-2">{index + 1}</td>
