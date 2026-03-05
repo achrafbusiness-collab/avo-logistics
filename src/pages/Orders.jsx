@@ -35,6 +35,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import StatusBadge from '@/components/ui/StatusBadge';
 import OrderForm from '@/components/orders/OrderForm';
 import OrderDetails from '@/components/orders/OrderDetails';
@@ -153,8 +161,10 @@ export default function Orders() {
   const [selectedIds, setSelectedIds] = useState([]);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [bulkAssignCustomerOpen, setBulkAssignCustomerOpen] = useState(false);
+  const [bulkCustomerBillingOpen, setBulkCustomerBillingOpen] = useState(false);
   const [bulkCustomerId, setBulkCustomerId] = useState('none');
   const [bulkWorking, setBulkWorking] = useState(false);
+  const [bulkBillingExporting, setBulkBillingExporting] = useState(false);
   const [bulkMessage, setBulkMessage] = useState('');
   const [bulkError, setBulkError] = useState('');
   const [maintenanceChecked, setMaintenanceChecked] = useState(false);
@@ -447,6 +457,23 @@ export default function Orders() {
     return map;
   }, [checklists]);
 
+  const fuelExpensesByOrder = useMemo(() => {
+    const map = {};
+    checklists.forEach((checklist) => {
+      const orderId = checklist?.order_id;
+      if (!orderId || !Array.isArray(checklist?.expenses)) return;
+      const sum = checklist.expenses.reduce((acc, expense) => {
+        if (expense?.type !== 'fuel') return acc;
+        const value = Number.parseFloat(String(expense?.amount ?? '').replace(',', '.'));
+        return Number.isFinite(value) ? acc + value : acc;
+      }, 0);
+      if (sum > 0) {
+        map[orderId] = (map[orderId] || 0) + sum;
+      }
+    });
+    return map;
+  }, [checklists]);
+
   const activeOrdersCount = useMemo(
     () => orders.filter((order) => order.status !== 'completed' && order.status !== 'cancelled').length,
     [orders]
@@ -628,6 +655,14 @@ export default function Orders() {
     }
     return `${customer.first_name || ''} ${customer.last_name || ''}`.trim();
   };
+
+  const formatCurrencyValue = (value) =>
+    Number(value || 0).toLocaleString('de-DE', {
+      style: 'currency',
+      currency: 'EUR',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
 
   const searchLower = searchTerm.trim().toLowerCase();
   const dateFromBound = dateFromFilter ? new Date(`${dateFromFilter}T00:00:00`) : null;
@@ -847,6 +882,195 @@ export default function Orders() {
   const selectedOrders = filteredOrders.filter((order) => selectedIds.includes(order.id));
   const allSelected = selectedOrders.length > 0 && selectedOrders.length === filteredOrders.length;
   const someSelected = selectedOrders.length > 0 && !allSelected;
+
+  const customerBillingRows = useMemo(() => {
+    const formatRoute = (order) => {
+      const pickup = [order.pickup_address, order.pickup_postal_code, order.pickup_city]
+        .filter(Boolean)
+        .join(', ');
+      const dropoff = [order.dropoff_address, order.dropoff_postal_code, order.dropoff_city]
+        .filter(Boolean)
+        .join(', ');
+      return `${pickup || '-'} -> ${dropoff || '-'}`;
+    };
+    const getOrderDate = (order) => {
+      const raw = order.dropoff_date || order.pickup_date || order.created_date;
+      if (!raw) return null;
+      if (typeof raw === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+        const parsed = new Date(`${raw}T12:00:00`);
+        return Number.isNaN(parsed.getTime()) ? null : parsed;
+      }
+      const parsed = new Date(raw);
+      return Number.isNaN(parsed.getTime()) ? null : parsed;
+    };
+
+    return selectedOrders.map((order) => {
+      const orderDate = getOrderDate(order);
+      const orderPrice = Number.parseFloat(order.driver_price);
+      const fuelExpenses = Number.parseFloat(fuelExpensesByOrder[order.id] || 0);
+      const orderPriceSafe = Number.isFinite(orderPrice) ? orderPrice : 0;
+      const fuelExpensesSafe = Number.isFinite(fuelExpenses) ? fuelExpenses : 0;
+      return {
+        id: order.id,
+        orderNumber: order.order_number || '-',
+        date: orderDate,
+        dateLabel: orderDate ? format(orderDate, 'dd.MM.yyyy', { locale: de }) : '-',
+        route: formatRoute(order),
+        vehicle: [order.vehicle_brand, order.vehicle_model].filter(Boolean).join(' ') || '-',
+        plate: order.license_plate || '-',
+        orderPrice: orderPriceSafe,
+        fuelExpenses: fuelExpensesSafe,
+        total: orderPriceSafe + fuelExpensesSafe,
+      };
+    });
+  }, [selectedOrders, fuelExpensesByOrder]);
+
+  const customerBillingSummary = useMemo(() => {
+    const uniqueCustomers = Array.from(
+      new Set(
+        selectedOrders.map((order) => order.customer_name?.trim()).filter(Boolean)
+      )
+    );
+    const customerLabel =
+      uniqueCustomers.length === 0
+        ? 'Ohne Kunde'
+        : uniqueCustomers.length === 1
+          ? uniqueCustomers[0]
+          : `Mehrere Kunden (${uniqueCustomers.length})`;
+    const orderTotal = customerBillingRows.reduce((acc, row) => acc + row.orderPrice, 0);
+    const fuelTotal = customerBillingRows.reduce((acc, row) => acc + row.fuelExpenses, 0);
+    return {
+      customerLabel,
+      orderCount: customerBillingRows.length,
+      orderTotal,
+      fuelTotal,
+      grandTotal: orderTotal + fuelTotal,
+    };
+  }, [customerBillingRows, selectedOrders]);
+
+  const exportCustomerBillingExcel = async () => {
+    if (!customerBillingRows.length) return;
+    setBulkBillingExporting(true);
+    setBulkError('');
+    try {
+      const xlsxModule = await import('xlsx');
+      const XLSX =
+        xlsxModule?.default && xlsxModule.default.utils
+          ? xlsxModule.default
+          : xlsxModule;
+      const rows = [
+        ['Kunde', customerBillingSummary.customerLabel],
+        ['Anzahl Aufträge', customerBillingSummary.orderCount],
+        ['Gesamtbetrag Aufträge', customerBillingSummary.orderTotal],
+        ['Gesamtbetrag Tank/Auslagen', customerBillingSummary.fuelTotal],
+        ['Gesamtsumme', customerBillingSummary.grandTotal],
+        [],
+        ['Auftragsnummer', 'Datum', 'Route', 'Fahrzeug', 'Kennzeichen', 'Auftragspreis', 'Auslagen (Tank)', 'Gesamt'],
+        ...customerBillingRows.map((row) => [
+          row.orderNumber,
+          row.dateLabel,
+          row.route,
+          row.vehicle,
+          row.plate,
+          row.orderPrice,
+          row.fuelExpenses,
+          row.total,
+        ]),
+        [],
+        ['SUMME', '', '', '', '', customerBillingSummary.orderTotal, customerBillingSummary.fuelTotal, customerBillingSummary.grandTotal],
+      ];
+
+      const sheet = XLSX.utils.aoa_to_sheet(rows);
+      sheet['!cols'] = [
+        { wch: 18 },
+        { wch: 12 },
+        { wch: 42 },
+        { wch: 20 },
+        { wch: 14 },
+        { wch: 16 },
+        { wch: 16 },
+        { wch: 16 },
+      ];
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, sheet, 'Kundenabrechnung');
+      const stamp = format(new Date(), 'yyyyMMdd_HHmm');
+      const customerSafe =
+        sanitizeFileNamePart(customerBillingSummary.customerLabel || 'Kunde', 32) || 'Kunde';
+      XLSX.writeFile(workbook, `Kundenabrechnung_${customerSafe}_${stamp}.xlsx`);
+    } catch (error) {
+      setBulkError(error?.message || 'Excel-Export fehlgeschlagen.');
+    } finally {
+      setBulkBillingExporting(false);
+    }
+  };
+
+  const exportCustomerBillingPdf = async () => {
+    if (!customerBillingRows.length) return;
+    setBulkBillingExporting(true);
+    setBulkError('');
+    try {
+      const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+        import('jspdf'),
+        import('jspdf-autotable'),
+      ]);
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+      doc.setFontSize(15);
+      doc.text('Kundenabrechnung', 40, 36);
+      doc.setFontSize(10);
+      doc.text(`Kunde: ${customerBillingSummary.customerLabel}`, 40, 56);
+      doc.text(`Anzahl Auftraege: ${customerBillingSummary.orderCount}`, 40, 72);
+      doc.text(`Gesamtbetrag Auftraege: ${formatCurrencyValue(customerBillingSummary.orderTotal)}`, 320, 56);
+      doc.text(`Gesamtbetrag Tank/Auslagen: ${formatCurrencyValue(customerBillingSummary.fuelTotal)}`, 320, 72);
+      doc.text(`Gesamtsumme: ${formatCurrencyValue(customerBillingSummary.grandTotal)}`, 610, 72);
+
+      autoTable(doc, {
+        startY: 88,
+        head: [['Auftragsnr.', 'Datum', 'Route', 'Fahrzeug', 'Kennzeichen', 'Auftragspreis', 'Auslagen (Tank)', 'Gesamt']],
+        body: customerBillingRows.map((row) => [
+          row.orderNumber,
+          row.dateLabel,
+          row.route,
+          row.vehicle,
+          row.plate,
+          formatCurrencyValue(row.orderPrice),
+          formatCurrencyValue(row.fuelExpenses),
+          formatCurrencyValue(row.total),
+        ]),
+        foot: [[
+          'SUMME',
+          '',
+          '',
+          '',
+          '',
+          formatCurrencyValue(customerBillingSummary.orderTotal),
+          formatCurrencyValue(customerBillingSummary.fuelTotal),
+          formatCurrencyValue(customerBillingSummary.grandTotal),
+        ]],
+        styles: { fontSize: 8, cellPadding: 4, overflow: 'linebreak' },
+        headStyles: { fillColor: [30, 58, 95] },
+        footStyles: { fillColor: [241, 245, 249], textColor: 31, fontStyle: 'bold' },
+        columnStyles: {
+          0: { cellWidth: 72 },
+          1: { cellWidth: 58 },
+          2: { cellWidth: 250 },
+          3: { cellWidth: 95 },
+          4: { cellWidth: 70 },
+          5: { cellWidth: 80, halign: 'right' },
+          6: { cellWidth: 90, halign: 'right' },
+          7: { cellWidth: 80, halign: 'right' },
+        },
+      });
+
+      const stamp = format(new Date(), 'yyyyMMdd_HHmm');
+      const customerSafe =
+        sanitizeFileNamePart(customerBillingSummary.customerLabel || 'Kunde', 32) || 'Kunde';
+      doc.save(`Kundenabrechnung_${customerSafe}_${stamp}.pdf`);
+    } catch (error) {
+      setBulkError(error?.message || 'PDF-Export fehlgeschlagen.');
+    } finally {
+      setBulkBillingExporting(false);
+    }
+  };
 
   const handleBulkDelete = async () => {
     if (!selectedIds.length) return;
@@ -1579,6 +1803,17 @@ export default function Orders() {
               </Button>
               <Button
                 variant="outline"
+                onClick={() => {
+                  setBulkError('');
+                  setBulkMessage('');
+                  setBulkCustomerBillingOpen(true);
+                }}
+                disabled={bulkWorking}
+              >
+                Mit Kunden abrechnen
+              </Button>
+              <Button
+                variant="outline"
                 className="border-red-200 text-red-700 hover:bg-red-50"
                 onClick={handleBulkCancel}
                 disabled={bulkWorking}
@@ -2194,6 +2429,99 @@ export default function Orders() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={bulkCustomerBillingOpen} onOpenChange={setBulkCustomerBillingOpen}>
+        <DialogContent className="max-w-[96vw] lg:max-w-6xl">
+          <DialogHeader>
+            <DialogTitle>Kundenabrechnung</DialogTitle>
+            <DialogDescription>
+              Übersicht der ausgewählten Aufträge inkl. Auftragspreis und Tank-Auslagen.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-5">
+            <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+              <p className="text-xs text-slate-500">Kunde</p>
+              <p className="font-semibold text-slate-900">{customerBillingSummary.customerLabel}</p>
+            </div>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+              <p className="text-xs text-slate-500">Aufträge</p>
+              <p className="font-semibold text-slate-900">{customerBillingSummary.orderCount}</p>
+            </div>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+              <p className="text-xs text-slate-500">Gesamt Aufträge</p>
+              <p className="font-semibold text-slate-900">{formatCurrencyValue(customerBillingSummary.orderTotal)}</p>
+            </div>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+              <p className="text-xs text-slate-500">Gesamt Tank</p>
+              <p className="font-semibold text-slate-900">{formatCurrencyValue(customerBillingSummary.fuelTotal)}</p>
+            </div>
+            <div className="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2">
+              <p className="text-xs text-emerald-700">Gesamtsumme</p>
+              <p className="font-semibold text-emerald-900">{formatCurrencyValue(customerBillingSummary.grandTotal)}</p>
+            </div>
+          </div>
+
+          <div className="max-h-[50vh] overflow-auto rounded-lg border border-slate-200">
+            <table className="min-w-full text-sm">
+              <thead className="sticky top-0 z-10 bg-slate-100 text-left text-slate-600">
+                <tr>
+                  <th className="px-3 py-2">Auftragsnummer</th>
+                  <th className="px-3 py-2">Datum</th>
+                  <th className="px-3 py-2">Route</th>
+                  <th className="px-3 py-2">Fahrzeug</th>
+                  <th className="px-3 py-2">Kennzeichen</th>
+                  <th className="px-3 py-2 text-right">Auftragspreis</th>
+                  <th className="px-3 py-2 text-right">Auslagen (Tank)</th>
+                  <th className="px-3 py-2 text-right">Gesamt</th>
+                </tr>
+              </thead>
+              <tbody>
+                {customerBillingRows.map((row) => (
+                  <tr key={row.id} className="border-t border-slate-200">
+                    <td className="px-3 py-2">{row.orderNumber}</td>
+                    <td className="px-3 py-2">{row.dateLabel}</td>
+                    <td className="px-3 py-2">{row.route}</td>
+                    <td className="px-3 py-2">{row.vehicle}</td>
+                    <td className="px-3 py-2">{row.plate}</td>
+                    <td className="px-3 py-2 text-right">{formatCurrencyValue(row.orderPrice)}</td>
+                    <td className="px-3 py-2 text-right">{formatCurrencyValue(row.fuelExpenses)}</td>
+                    <td className="px-3 py-2 text-right font-semibold">{formatCurrencyValue(row.total)}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot className="bg-slate-50">
+                <tr className="border-t border-slate-300 font-semibold text-slate-900">
+                  <td className="px-3 py-2">SUMME</td>
+                  <td className="px-3 py-2" colSpan={4}></td>
+                  <td className="px-3 py-2 text-right">{formatCurrencyValue(customerBillingSummary.orderTotal)}</td>
+                  <td className="px-3 py-2 text-right">{formatCurrencyValue(customerBillingSummary.fuelTotal)}</td>
+                  <td className="px-3 py-2 text-right">{formatCurrencyValue(customerBillingSummary.grandTotal)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={exportCustomerBillingExcel}
+              disabled={bulkBillingExporting || customerBillingRows.length === 0}
+            >
+              {bulkBillingExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Als Excel herunterladen
+            </Button>
+            <Button
+              className="bg-[#1e3a5f] hover:bg-[#2d5a8a]"
+              onClick={exportCustomerBillingPdf}
+              disabled={bulkBillingExporting || customerBillingRows.length === 0}
+            >
+              {bulkBillingExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Als PDF herunterladen
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
