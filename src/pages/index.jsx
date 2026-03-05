@@ -6,6 +6,7 @@ import Customers from "./Customers";
 
 import Dashboard from "./Dashboard";
 import Statistics from "./Statistics";
+import CustomerInvoice from "./CustomerInvoice";
 
 import DriverChecklist from "./DriverChecklist";
 
@@ -62,6 +63,8 @@ const PAGES = {
     Dashboard: Dashboard,
 
     Statistics: Statistics,
+
+    CustomerInvoice: CustomerInvoice,
     
     DriverChecklist: DriverChecklist,
     
@@ -220,6 +223,8 @@ function PagesContent() {
                 <Route path="/Dashboard" element={<Dashboard />} />
 
                 <Route path="/Statistics" element={<Statistics />} />
+
+                <Route path="/CustomerInvoice" element={<CustomerInvoice />} />
                 
                 <Route path="/DriverChecklist" element={<DriverChecklist />} />
                 
