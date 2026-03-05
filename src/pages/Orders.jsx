@@ -48,6 +48,7 @@ import OrderForm from '@/components/orders/OrderForm';
 import OrderDetails from '@/components/orders/OrderDetails';
 import { getPriceForDistance } from '@/utils/priceList';
 import { getMapboxDistanceKm } from '@/utils/mapboxDistance';
+import { upsertInvoiceDraft } from '@/utils/invoiceStorage';
 import { 
   Plus, 
   Search, 
@@ -1143,10 +1144,16 @@ export default function Orders() {
       customerBillingCustomers.find((customer) => customer.key === customerKey)?.label || 'Kunde';
     const customerRecord =
       customerKey !== '__none__' ? customerLookupById.get(customerKey) : null;
+    const draftId = `draft_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
     const draft = {
+      id: draftId,
       customerKey,
       customerLabel,
       createdAt: new Date().toISOString(),
+      status: 'draft',
+      source: 'orders-bulk',
+      createdBy: currentUser?.id || '',
+      companyId: currentUser?.company_id || '',
       customer: customerRecord
         ? {
             id: customerRecord.id,
@@ -1166,12 +1173,8 @@ export default function Orders() {
         : null,
       rows: customerRows,
     };
-    const draftKey = `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
-    const storageKey = `avo:customer-invoice-draft:${draftKey}`;
-    if (typeof window !== 'undefined') {
-      window.sessionStorage.setItem(storageKey, JSON.stringify(draft));
-    }
-    const targetUrl = `${createPageUrl('CustomerInvoice')}?draft=${encodeURIComponent(draftKey)}`;
+    upsertInvoiceDraft(draft);
+    const targetUrl = `${createPageUrl('CustomerInvoice')}?id=${encodeURIComponent(draftId)}`;
     const popup = window.open(targetUrl, '_blank', 'noopener,noreferrer');
     if (!popup) {
       window.location.href = targetUrl;

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { createPageUrl } from '@/utils';
@@ -9,7 +9,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Download, Loader2, TriangleAlert } from 'lucide-react';
+import { Download, Loader2, TriangleAlert, Save, CheckCircle2 } from 'lucide-react';
+import {
+  consumeNextInvoiceNumber,
+  finalizeDraftToInvoice,
+  getFinanceSettings,
+  getInvoice,
+  getInvoiceDraft,
+  upsertInvoice,
+  upsertInvoiceDraft,
+} from '@/utils/invoiceStorage';
 
 const DEFAULT_ISSUER = {
   name: 'AVO LOGISTICS',
@@ -70,6 +79,7 @@ const sanitizeFileNamePart = (value, maxLength = 60) => {
 
 const toDateInput = (value) => {
   if (!value) return '';
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '';
   return format(date, 'yyyy-MM-dd');
@@ -99,32 +109,48 @@ const loadImageAsDataUrl = async (src) => {
   }
 };
 
-const getCustomerName = (draft) => {
-  if (draft?.customer?.type === 'business' && draft.customer?.company_name) {
-    return draft.customer.company_name;
+const getCustomerName = (record) => {
+  if (record?.customer?.type === 'business' && record.customer?.company_name) {
+    return record.customer.company_name;
   }
-  const fullName = [draft?.customer?.first_name, draft?.customer?.last_name]
+  const fullName = [record?.customer?.first_name, record?.customer?.last_name]
     .filter(Boolean)
     .join(' ')
     .trim();
-  return fullName || draft?.customerLabel || 'Kunde';
+  return fullName || record?.customerLabel || 'Kunde';
 };
 
-const getCustomerAddressLines = (draft) => {
+const getCustomerAddressLines = (record) => {
   const lines = [];
-  lines.push(getCustomerName(draft));
-  if (draft?.customer?.address) lines.push(draft.customer.address);
-  const cityLine = [draft?.customer?.postal_code, draft?.customer?.city].filter(Boolean).join(' ');
+  lines.push(getCustomerName(record));
+  if (record?.customer?.address) lines.push(record.customer.address);
+  const cityLine = [record?.customer?.postal_code, record?.customer?.city].filter(Boolean).join(' ');
   if (cityLine) lines.push(cityLine);
-  if (draft?.customer?.country) lines.push(draft.customer.country);
-  if (lines.length === 1 && draft?.customer?.email) lines.push(draft.customer.email);
+  if (record?.customer?.country) lines.push(record.customer.country);
+  if (lines.length === 1 && record?.customer?.email) lines.push(record.customer.email);
   return lines;
 };
 
+const buildInvoiceNumber = () => {
+  const settings = getFinanceSettings();
+  const prefix = String(settings.invoicePrefix || 'AV').trim() || 'AV';
+  const sequence = consumeNextInvoiceNumber();
+  const sequenceLabel = String(sequence).padStart(4, '0');
+  return `${prefix}-${format(new Date(), 'yy')}${sequenceLabel}`;
+};
+
 export default function CustomerInvoice() {
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const draftId = searchParams.get('draft') || '';
+  const draftId = searchParams.get('id') || '';
+  const invoiceId = searchParams.get('invoiceId') || '';
+  const legacyDraftId = searchParams.get('draft') || '';
+  const isInvoice = Boolean(invoiceId);
+
   const [downloading, setDownloading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [finalizing, setFinalizing] = useState(false);
+  const [message, setMessage] = useState('');
   const [downloadError, setDownloadError] = useState('');
   const [currentUser, setCurrentUser] = useState(null);
 
@@ -145,30 +171,48 @@ export default function CustomerInvoice() {
     };
   }, []);
 
-  const draft = useMemo(() => {
-    if (!draftId || typeof window === 'undefined') return null;
-    const raw = window.sessionStorage.getItem(`avo:customer-invoice-draft:${draftId}`);
-    if (!raw) return null;
+  useEffect(() => {
+    if (!legacyDraftId || draftId || invoiceId || typeof window === 'undefined') return;
+    const raw = window.sessionStorage.getItem(`avo:customer-invoice-draft:${legacyDraftId}`);
+    if (!raw) return;
     try {
-      return JSON.parse(raw);
+      const parsed = JSON.parse(raw);
+      const newDraftId = `draft_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      upsertInvoiceDraft({
+        ...parsed,
+        id: newDraftId,
+        status: 'draft',
+      });
+      window.sessionStorage.removeItem(`avo:customer-invoice-draft:${legacyDraftId}`);
+      navigate(`${createPageUrl('CustomerInvoice')}?id=${encodeURIComponent(newDraftId)}`, {
+        replace: true,
+      });
     } catch (error) {
-      return null;
+      // ignore
     }
-  }, [draftId]);
+  }, [legacyDraftId, draftId, invoiceId, navigate]);
+
+  const record = useMemo(() => {
+    if (invoiceId) return getInvoice(invoiceId);
+    if (draftId) return getInvoiceDraft(draftId);
+    return null;
+  }, [invoiceId, draftId]);
+
+  const financeDefaults = useMemo(() => getFinanceSettings(), [record?.id]);
 
   const initialRows = useMemo(() => {
-    if (!draft?.rows || !Array.isArray(draft.rows)) return [];
-    return draft.rows.map((row) => ({
+    if (!record?.rows || !Array.isArray(record.rows)) return [];
+    return record.rows.map((row) => ({
       id: row.id,
       orderNumber: row.orderNumber || '-',
       dateLabel: row.dateLabel || '-',
-      routeDraft: row.route || '-',
+      routeDraft: row.routeDraft || row.route || '-',
       vehicle: row.vehicle || '-',
       plate: row.plate || '-',
-      orderPriceDraft: toMoneyInput(row.orderPrice),
-      fuelExpensesDraft: toMoneyInput(row.fuelExpenses),
+      orderPriceDraft: toMoneyInput(row.orderPriceDraft ?? row.orderPrice),
+      fuelExpensesDraft: toMoneyInput(row.fuelExpensesDraft ?? row.fuelExpenses),
     }));
-  }, [draft]);
+  }, [record]);
 
   const latestDeliveryDate = useMemo(() => {
     const parsedDates = initialRows
@@ -194,21 +238,20 @@ export default function CustomerInvoice() {
   }, [initialRows]);
 
   useEffect(() => {
-    if (!draft) return;
-    const invoiceNumberSuffix =
-      draftId.replace(/\D/g, '').slice(-4) || Math.floor(1000 + Math.random() * 9000).toString();
+    if (!record) return;
     const defaultContact =
       currentUser?.full_name || currentUser?.name || currentUser?.email || DEFAULT_ISSUER.owner;
+    const meta = record.invoiceMeta || {};
     setInvoiceMeta({
-      invoiceNumber: `AV-${format(new Date(), 'yyMMdd')}-${invoiceNumberSuffix}`,
-      invoiceDate: toDateInput(new Date()),
-      deliveryDate: toDateInput(latestDeliveryDate),
-      customerNumber: draft?.customer?.customer_number || '',
-      contactPerson: defaultContact,
-      paymentDays: '14',
-      vatRate: '19',
+      invoiceNumber: meta.invoiceNumber || '',
+      invoiceDate: toDateInput(meta.invoiceDate || new Date()),
+      deliveryDate: toDateInput(meta.deliveryDate || latestDeliveryDate),
+      customerNumber: meta.customerNumber || record?.customer?.customer_number || '',
+      contactPerson: meta.contactPerson || defaultContact,
+      paymentDays: String(meta.paymentDays || financeDefaults.defaultPaymentDays || 14),
+      vatRate: String(meta.vatRate ?? financeDefaults.defaultVatRate ?? 19),
     });
-  }, [draft, draftId, currentUser, latestDeliveryDate]);
+  }, [record, currentUser, latestDeliveryDate, financeDefaults.defaultPaymentDays, financeDefaults.defaultVatRate]);
 
   const issuer = useMemo(() => {
     const officeAddress = String(appSettings?.office_address || '').trim();
@@ -253,6 +296,22 @@ export default function CustomerInvoice() {
     };
   }, [rows, invoiceMeta.vatRate]);
 
+  const normalizedRowsForSave = useMemo(() => {
+    return rows.map((row) => ({
+      id: row.id,
+      orderNumber: row.orderNumber,
+      dateLabel: row.dateLabel,
+      route: row.routeDraft,
+      routeDraft: row.routeDraft,
+      vehicle: row.vehicle,
+      plate: row.plate,
+      orderPrice: parseMoneyInput(row.orderPriceDraft),
+      orderPriceDraft: row.orderPriceDraft,
+      fuelExpenses: parseMoneyInput(row.fuelExpensesDraft),
+      fuelExpensesDraft: row.fuelExpensesDraft,
+    }));
+  }, [rows]);
+
   const handleRowChange = (rowId, field, value) => {
     setRows((prev) =>
       prev.map((row) => (row.id === rowId ? { ...row, [field]: value } : row))
@@ -263,8 +322,66 @@ export default function CustomerInvoice() {
     setInvoiceMeta((prev) => ({ ...prev, [field]: value }));
   };
 
+  const handleSave = () => {
+    if (!record) return;
+    setSaving(true);
+    setMessage('');
+    try {
+      const payload = {
+        ...record,
+        rows: normalizedRowsForSave,
+        invoiceMeta,
+        totals: {
+          net: summary.net,
+          vatRate: summary.vatRate,
+          vatAmount: summary.vatAmount,
+          gross: summary.gross,
+        },
+      };
+      if (isInvoice) {
+        upsertInvoice(payload);
+      } else {
+        upsertInvoiceDraft(payload);
+      }
+      setMessage(isInvoice ? 'Rechnung gespeichert.' : 'Entwurf gespeichert.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleFinalize = () => {
+    if (!record || isInvoice) return;
+    setFinalizing(true);
+    setMessage('');
+    try {
+      const finalMeta = {
+        ...invoiceMeta,
+        invoiceNumber: invoiceMeta.invoiceNumber || buildInvoiceNumber(),
+      };
+      const invoice = finalizeDraftToInvoice(record.id, {
+        ...record,
+        rows: normalizedRowsForSave,
+        invoiceMeta: finalMeta,
+        totals: {
+          net: summary.net,
+          vatRate: summary.vatRate,
+          vatAmount: summary.vatAmount,
+          gross: summary.gross,
+        },
+        status: 'open',
+      });
+      if (!invoice?.id) return;
+      setMessage('Rechnung wurde finalisiert und unter Rechnungen gespeichert.');
+      navigate(`${createPageUrl('CustomerInvoice')}?invoiceId=${encodeURIComponent(invoice.id)}`, {
+        replace: true,
+      });
+    } finally {
+      setFinalizing(false);
+    }
+  };
+
   const downloadInvoicePdf = async () => {
-    if (!rows.length) return;
+    if (!rows.length || !record) return;
     setDownloading(true);
     setDownloadError('');
     try {
@@ -272,6 +389,11 @@ export default function CustomerInvoice() {
         import('jspdf'),
         import('jspdf-autotable'),
       ]);
+
+      const finalMeta = {
+        ...invoiceMeta,
+        invoiceNumber: invoiceMeta.invoiceNumber || (isInvoice ? '-' : buildInvoiceNumber()),
+      };
 
       const logoDataUrl = await loadImageAsDataUrl('/logo.png');
       const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
@@ -291,7 +413,7 @@ export default function CustomerInvoice() {
         45
       );
 
-      const customerLines = getCustomerAddressLines(draft);
+      const customerLines = getCustomerAddressLines(record);
       doc.setFontSize(11);
       customerLines.forEach((line, index) => {
         doc.text(line, 20, 57 + index * 6);
@@ -301,22 +423,22 @@ export default function CustomerInvoice() {
       doc.setFontSize(12);
       doc.setFont('helvetica', 'bold');
       doc.text('Rechnungs-Nr.', 130, invoiceTopY);
-      doc.text(invoiceMeta.invoiceNumber || '-', 194, invoiceTopY, { align: 'right' });
+      doc.text(finalMeta.invoiceNumber || '-', 194, invoiceTopY, { align: 'right' });
 
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(10);
       doc.text('Rechnungsdatum', 130, invoiceTopY + 8);
-      doc.text(invoiceMeta.invoiceDate || '-', 194, invoiceTopY + 8, { align: 'right' });
+      doc.text(finalMeta.invoiceDate || '-', 194, invoiceTopY + 8, { align: 'right' });
       doc.text('Lieferdatum', 130, invoiceTopY + 15);
-      doc.text(invoiceMeta.deliveryDate || '-', 194, invoiceTopY + 15, { align: 'right' });
+      doc.text(finalMeta.deliveryDate || '-', 194, invoiceTopY + 15, { align: 'right' });
       doc.text('Ihre Kundennummer', 130, invoiceTopY + 25);
-      doc.text(invoiceMeta.customerNumber || '-', 194, invoiceTopY + 25, { align: 'right' });
+      doc.text(finalMeta.customerNumber || '-', 194, invoiceTopY + 25, { align: 'right' });
       doc.text('Ihr Ansprechpartner', 130, invoiceTopY + 32);
-      doc.text(invoiceMeta.contactPerson || '-', 194, invoiceTopY + 32, { align: 'right' });
+      doc.text(finalMeta.contactPerson || '-', 194, invoiceTopY + 32, { align: 'right' });
 
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(15);
-      doc.text(`Rechnung Nr. ${invoiceMeta.invoiceNumber || '-'}`, 20, 107);
+      doc.text(`Rechnung Nr. ${finalMeta.invoiceNumber || '-'}`, 20, 107);
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(12);
       doc.text('Sehr geehrte Damen und Herren,', 20, 117);
@@ -390,7 +512,7 @@ export default function CustomerInvoice() {
       doc.setFontSize(11);
       const paymentY = y + lineHeight * 2 + 12;
       doc.text(
-        `Zahlungsbedingungen: Zahlung innerhalb von ${invoiceMeta.paymentDays || 14} Tagen ab Rechnungseingang ohne Abzüge.`,
+        `Zahlungsbedingungen: Zahlung innerhalb von ${finalMeta.paymentDays || 14} Tagen ab Rechnungseingang ohne Abzüge.`,
         20,
         paymentY
       );
@@ -418,7 +540,7 @@ export default function CustomerInvoice() {
         doc.text(`Seite ${page} von ${totalPages}`, 190, 266, { align: 'right' });
       }
 
-      const customerSafe = sanitizeFileNamePart(getCustomerName(draft), 32) || 'Kunde';
+      const customerSafe = sanitizeFileNamePart(getCustomerName(record), 32) || 'Kunde';
       const stamp = format(new Date(), 'yyyyMMdd_HHmm');
       doc.save(`Rechnung_${customerSafe}_${stamp}.pdf`);
     } catch (error) {
@@ -428,7 +550,7 @@ export default function CustomerInvoice() {
     }
   };
 
-  if (!draft || !rows.length) {
+  if (!record || !rows.length) {
     return (
       <div className="space-y-4">
         <Card className="border border-amber-200 bg-amber-50">
@@ -436,13 +558,18 @@ export default function CustomerInvoice() {
             <TriangleAlert className="mx-auto mb-3 h-8 w-8 text-amber-600" />
             <p className="font-medium text-amber-900">Rechnungsentwurf nicht gefunden</p>
             <p className="mt-1 text-sm text-amber-800">
-              Bitte öffne die Rechnung erneut über „Mit Kunden abrechnen“.
+              Bitte öffne die Rechnung erneut über „Mit Kunden abrechnen" oder über „Kunden & Finanzen".
             </p>
           </CardContent>
         </Card>
-        <Link to={createPageUrl('Orders')}>
-          <Button variant="outline">Zurück zu Aufträgen</Button>
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link to={createPageUrl('Orders')}>
+            <Button variant="outline">Zurück zu Aufträgen</Button>
+          </Link>
+          <Link to={`${createPageUrl('Customers')}?tab=drafts`}>
+            <Button variant="outline">Zu Kunden & Finanzen</Button>
+          </Link>
+        </div>
       </div>
     );
   }
@@ -453,22 +580,50 @@ export default function CustomerInvoice() {
         <CardHeader className="pb-2">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <CardTitle className="text-xl">Rechnung</CardTitle>
+              <CardTitle className="text-xl">{isInvoice ? 'Rechnung' : 'Rechnungsentwurf'}</CardTitle>
               <p className="text-sm text-slate-500">
-                Kunde: <span className="font-medium text-slate-900">{getCustomerName(draft)}</span>
+                Kunde: <span className="font-medium text-slate-900">{getCustomerName(record)}</span>
               </p>
             </div>
-            <Button
-              className="bg-[#1e3a5f] hover:bg-[#2d5a8a]"
-              onClick={downloadInvoicePdf}
-              disabled={downloading || rows.length === 0}
-            >
-              {downloading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
-              Rechnung als PDF herunterladen
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              {!isInvoice ? (
+                <Button
+                  variant="outline"
+                  onClick={handleSave}
+                  disabled={saving || finalizing}
+                >
+                  {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                  Entwurf speichern
+                </Button>
+              ) : null}
+              {!isInvoice ? (
+                <Button
+                  className="bg-emerald-600 hover:bg-emerald-700"
+                  onClick={handleFinalize}
+                  disabled={saving || finalizing}
+                >
+                  {finalizing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
+                  Finalisieren
+                </Button>
+              ) : null}
+              <Button
+                className="bg-[#1e3a5f] hover:bg-[#2d5a8a]"
+                onClick={downloadInvoicePdf}
+                disabled={downloading || rows.length === 0}
+              >
+                {downloading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+                Rechnung als PDF herunterladen
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
+          {message ? (
+            <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+              {message}
+            </div>
+          ) : null}
+
           <div className="grid grid-cols-1 gap-3 md:grid-cols-3 xl:grid-cols-7">
             <div className="space-y-1 xl:col-span-2">
               <p className="text-xs text-slate-500">Rechnungsnummer</p>

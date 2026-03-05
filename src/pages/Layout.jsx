@@ -35,7 +35,7 @@ const adminPages = [
   { name: 'Statistik', icon: BarChart3, page: 'Statistics' },
   { name: 'Aufträge', icon: Truck, page: 'Orders' },
   { name: 'Fahrer', icon: Users, page: 'Drivers' },
-  { name: 'Kunden', icon: User, page: 'Customers' },
+  { name: 'Kunden & Finanzen', icon: User, page: 'Customers' },
   { name: 'App & Einstellungen', icon: Settings, page: 'AppConnection' },
   { name: 'Team', icon: Users, page: 'TeamAVO' },
   { name: 'Admin Controlling', icon: ShieldCheck, page: 'AdminControlling' },

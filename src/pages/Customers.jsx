@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { appClient } from '@/api/appClient';
 import { createPageUrl } from '@/utils';
@@ -29,6 +29,16 @@ import {
 import { Separator } from "@/components/ui/separator";
 import StatusBadge from '@/components/ui/StatusBadge';
 import { buildEmptyPriceRow, normalizePriceList } from '@/utils/priceList';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  deleteInvoice,
+  deleteInvoiceDraft,
+  getFinanceSettings,
+  listInvoiceDrafts,
+  listInvoices,
+  saveFinanceSettings,
+  updateInvoiceStatus,
+} from '@/utils/invoiceStorage';
 import { 
   Plus, 
   Search, 
@@ -54,12 +64,16 @@ export default function Customers() {
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [activeTab, setActiveTab] = useState(urlParams.get('tab') || 'customers');
   const [priceListText, setPriceListText] = useState('');
   const [priceListRows, setPriceListRows] = useState([]);
   const [priceListError, setPriceListError] = useState('');
   const [priceListMessage, setPriceListMessage] = useState('');
   const [priceListAnalyzing, setPriceListAnalyzing] = useState(false);
   const [priceListSaving, setPriceListSaving] = useState(false);
+  const [financeRefreshTick, setFinanceRefreshTick] = useState(0);
+  const [financeSearch, setFinanceSearch] = useState('');
+  const [financeSettings, setFinanceSettings] = useState(() => getFinanceSettings());
   
   const [formData, setFormData] = useState({
     customer_number: '',
@@ -109,6 +123,10 @@ export default function Customers() {
   });
 
   useEffect(() => {
+    const tabParam = urlParams.get('tab');
+    if (tabParam) {
+      setActiveTab(tabParam);
+    }
     if (urlParams.get('new') === 'true') {
       setView('form');
       setSelectedCustomer(null);
@@ -123,6 +141,19 @@ export default function Customers() {
       }
     }
   }, [urlParams.toString(), customers]);
+
+  useEffect(() => {
+    const refreshFinance = () => {
+      setFinanceRefreshTick((prev) => prev + 1);
+      setFinanceSettings(getFinanceSettings());
+    };
+    window.addEventListener('focus', refreshFinance);
+    document.addEventListener('visibilitychange', refreshFinance);
+    return () => {
+      window.removeEventListener('focus', refreshFinance);
+      document.removeEventListener('visibilitychange', refreshFinance);
+    };
+  }, []);
 
   useEffect(() => {
     if (selectedCustomer && view === 'form') {
@@ -296,6 +327,131 @@ Gib ausschließlich strukturierte Daten zurück.`,
            customer.customer_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
            customer.email?.toLowerCase().includes(searchTerm.toLowerCase());
   });
+
+  const formatMoney = (value) =>
+    Number(value || 0).toLocaleString('de-DE', {
+      style: 'currency',
+      currency: 'EUR',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+
+  const formatDate = (value) => {
+    if (!value) return '-';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '-';
+    return format(date, 'dd.MM.yyyy HH:mm', { locale: de });
+  };
+
+  const invoiceDrafts = useMemo(() => listInvoiceDrafts(), [financeRefreshTick]);
+  const invoices = useMemo(() => listInvoices(), [financeRefreshTick]);
+
+  const filteredDrafts = useMemo(() => {
+    const term = financeSearch.trim().toLowerCase();
+    if (!term) return invoiceDrafts;
+    return invoiceDrafts.filter((draft) => {
+      const hay = [
+        draft.customerLabel,
+        draft.invoiceMeta?.invoiceNumber,
+        draft.customer?.customer_number,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return hay.includes(term);
+    });
+  }, [invoiceDrafts, financeSearch]);
+
+  const filteredInvoices = useMemo(() => {
+    const term = financeSearch.trim().toLowerCase();
+    if (!term) return invoices;
+    return invoices.filter((invoice) => {
+      const hay = [
+        invoice.customerLabel,
+        invoice.invoiceMeta?.invoiceNumber,
+        invoice.customer?.customer_number,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return hay.includes(term);
+    });
+  }, [invoices, financeSearch]);
+
+  const receivables = useMemo(() => {
+    return invoices
+      .filter((invoice) => !['paid', 'cancelled'].includes(invoice.status))
+      .map((invoice) => {
+        const invoiceDateValue = invoice?.invoiceMeta?.invoiceDate;
+        const paymentDays = Number.parseInt(invoice?.invoiceMeta?.paymentDays || 14, 10);
+        const dueDate = invoiceDateValue
+          ? new Date(`${invoiceDateValue}T12:00:00`)
+          : new Date(invoice.createdAt || Date.now());
+        dueDate.setDate(dueDate.getDate() + (Number.isFinite(paymentDays) ? paymentDays : 14));
+        const gross = Number(invoice?.totals?.gross || 0);
+        const now = new Date();
+        const overdue = dueDate.getTime() < now.getTime() && invoice.status !== 'paid';
+        return {
+          ...invoice,
+          dueDate,
+          gross,
+          overdue,
+        };
+      });
+  }, [invoices]);
+
+  const receivablesSummary = useMemo(() => {
+    const openAmount = receivables.reduce((sum, item) => sum + Number(item.gross || 0), 0);
+    const overdueAmount = receivables
+      .filter((item) => item.overdue)
+      .reduce((sum, item) => sum + Number(item.gross || 0), 0);
+    return {
+      openCount: receivables.length,
+      openAmount,
+      overdueAmount,
+    };
+  }, [receivables]);
+
+  const handleFinanceTabChange = (tab) => {
+    setActiveTab(tab);
+    const url = `${createPageUrl('Customers')}?tab=${encodeURIComponent(tab)}`;
+    window.history.replaceState({}, '', url);
+  };
+
+  const refreshFinanceData = () => {
+    setFinanceRefreshTick((prev) => prev + 1);
+  };
+
+  const handleDeleteDraft = (draftId) => {
+    deleteInvoiceDraft(draftId);
+    refreshFinanceData();
+  };
+
+  const handleDeleteInvoice = (invoiceId) => {
+    deleteInvoice(invoiceId);
+    refreshFinanceData();
+  };
+
+  const handleInvoiceStatusChange = (invoiceId, status) => {
+    updateInvoiceStatus(invoiceId, status);
+    refreshFinanceData();
+  };
+
+  const handleFinanceSettingChange = (field, value) => {
+    setFinanceSettings((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleFinanceSettingsSave = () => {
+    const payload = {
+      invoicePrefix: String(financeSettings.invoicePrefix || 'AV').trim() || 'AV',
+      defaultVatRate: Number.parseFloat(String(financeSettings.defaultVatRate || 19).replace(',', '.')) || 19,
+      defaultPaymentDays: Number.parseInt(financeSettings.defaultPaymentDays, 10) || 14,
+      nextInvoiceNumber: Number.parseInt(financeSettings.nextInvoiceNumber, 10) || 1000,
+    };
+    const saved = saveFinanceSettings(payload);
+    setFinanceSettings(saved);
+    refreshFinanceData();
+  };
 
   // Form View
   if (view === 'form') {
@@ -741,73 +897,347 @@ Gib ausschließlich strukturierte Daten zurück.`,
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Kunden</h1>
-          <p className="text-gray-500">{customers.length} Kunden insgesamt</p>
+          <h1 className="text-2xl font-bold text-gray-900">Kunden & Finanzen</h1>
+          <p className="text-gray-500">
+            {customers.length} Kunden • {invoiceDrafts.length} Entwürfe • {invoices.length} Rechnungen
+          </p>
         </div>
-        <Button 
-          className="bg-[#1e3a5f] hover:bg-[#2d5a8a]"
-          onClick={() => {
-            setSelectedCustomer(null);
-            setView('form');
-          }}
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Neuer Kunde
-        </Button>
+        {activeTab === 'customers' ? (
+          <Button
+            className="bg-[#1e3a5f] hover:bg-[#2d5a8a]"
+            onClick={() => {
+              setSelectedCustomer(null);
+              setView('form');
+            }}
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Neuer Kunde
+          </Button>
+        ) : null}
       </div>
 
-      <Card>
-        <CardContent className="p-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <Input 
-              placeholder="Suche nach Name, Kundennummer, E-Mail..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-        </CardContent>
-      </Card>
+      <Tabs value={activeTab} onValueChange={handleFinanceTabChange} className="space-y-4">
+        <TabsList className="flex h-auto w-full flex-wrap justify-start gap-2 bg-transparent p-0">
+          <TabsTrigger value="customers" className="rounded-xl border border-slate-200 data-[state=active]:border-[#1e3a5f] data-[state=active]:bg-[#1e3a5f] data-[state=active]:text-white">
+            Kunden
+          </TabsTrigger>
+          <TabsTrigger value="drafts" className="rounded-xl border border-slate-200 data-[state=active]:border-[#1e3a5f] data-[state=active]:bg-[#1e3a5f] data-[state=active]:text-white">
+            Rechnungsentwürfe
+          </TabsTrigger>
+          <TabsTrigger value="invoices" className="rounded-xl border border-slate-200 data-[state=active]:border-[#1e3a5f] data-[state=active]:bg-[#1e3a5f] data-[state=active]:text-white">
+            Rechnungen
+          </TabsTrigger>
+          <TabsTrigger value="receivables" className="rounded-xl border border-slate-200 data-[state=active]:border-[#1e3a5f] data-[state=active]:bg-[#1e3a5f] data-[state=active]:text-white">
+            Offene Posten
+          </TabsTrigger>
+          <TabsTrigger value="settings" className="rounded-xl border border-slate-200 data-[state=active]:border-[#1e3a5f] data-[state=active]:bg-[#1e3a5f] data-[state=active]:text-white">
+            Einstellungen
+          </TabsTrigger>
+        </TabsList>
 
-      {isLoading ? (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
-        </div>
-      ) : filteredCustomers.length === 0 ? (
-        <Card>
-          <CardContent className="text-center py-12">
-            <Building2 className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-            <p className="text-gray-500">Keine Kunden gefunden</p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredCustomers.map((customer) => (
-            <Card 
-              key={customer.id}
-              className="cursor-pointer hover:shadow-lg transition-shadow"
-              onClick={() => {
-                setSelectedCustomer(customer);
-                setView('details');
-                window.history.pushState({}, '', createPageUrl('Customers') + `?id=${customer.id}`);
-              }}
-            >
-              <CardContent className="p-6">
-                <div className="flex items-start gap-4">
-                  <div className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 ${customer.type === 'business' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>
-                    {customer.type === 'business' ? <Building2 className="w-6 h-6" /> : <UserCircle className="w-6 h-6" />}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold truncate">{getCustomerName(customer)}</h3>
-                    <p className="text-sm text-gray-500">{customer.customer_number}</p>
-                  </div>
-                </div>
+        <TabsContent value="customers" className="space-y-4">
+          <Card>
+            <CardContent className="p-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Input
+                  placeholder="Suche nach Name, Kundennummer, E-Mail..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+            </div>
+          ) : filteredCustomers.length === 0 ? (
+            <Card>
+              <CardContent className="text-center py-12">
+                <Building2 className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                <p className="text-gray-500">Keine Kunden gefunden</p>
               </CardContent>
             </Card>
-          ))}
-        </div>
-      )}
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredCustomers.map((customer) => (
+                <Card
+                  key={customer.id}
+                  className="cursor-pointer hover:shadow-lg transition-shadow"
+                  onClick={() => {
+                    setSelectedCustomer(customer);
+                    setView('details');
+                    window.history.pushState({}, '', createPageUrl('Customers') + `?id=${customer.id}`);
+                  }}
+                >
+                  <CardContent className="p-6">
+                    <div className="flex items-start gap-4">
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 ${customer.type === 'business' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>
+                        {customer.type === 'business' ? <Building2 className="w-6 h-6" /> : <UserCircle className="w-6 h-6" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold truncate">{getCustomerName(customer)}</h3>
+                        <p className="text-sm text-gray-500">{customer.customer_number}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="drafts" className="space-y-4">
+          <Card>
+            <CardContent className="p-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Input
+                  placeholder="Entwürfe suchen (Kunde, Rechnungsnummer, Kundennr.)..."
+                  value={financeSearch}
+                  onChange={(e) => setFinanceSearch(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-0">
+              {filteredDrafts.length === 0 ? (
+                <div className="py-10 text-center text-sm text-slate-500">Keine Rechnungsentwürfe vorhanden.</div>
+              ) : (
+                <div className="overflow-auto">
+                  <table className="min-w-full text-sm">
+                    <thead className="bg-slate-100 text-left text-slate-600">
+                      <tr>
+                        <th className="px-3 py-2">Kunde</th>
+                        <th className="px-3 py-2">Rechnungsnr.</th>
+                        <th className="px-3 py-2">Positionen</th>
+                        <th className="px-3 py-2">Zuletzt geändert</th>
+                        <th className="px-3 py-2 text-right">Aktionen</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredDrafts.map((draft) => (
+                        <tr key={draft.id} className="border-t border-slate-200">
+                          <td className="px-3 py-2">{draft.customerLabel || 'Kunde'}</td>
+                          <td className="px-3 py-2">{draft.invoiceMeta?.invoiceNumber || '-'}</td>
+                          <td className="px-3 py-2">{Array.isArray(draft.rows) ? draft.rows.length : 0}</td>
+                          <td className="px-3 py-2">{formatDate(draft.updatedAt || draft.createdAt)}</td>
+                          <td className="px-3 py-2">
+                            <div className="flex justify-end gap-2">
+                              <Link to={`${createPageUrl('CustomerInvoice')}?id=${draft.id}`}>
+                                <Button size="sm" variant="outline">Öffnen</Button>
+                              </Link>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-red-600 hover:bg-red-50"
+                                onClick={() => handleDeleteDraft(draft.id)}
+                              >
+                                Löschen
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="invoices" className="space-y-4">
+          <Card>
+            <CardContent className="p-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Input
+                  placeholder="Rechnungen suchen (Kunde, Rechnungsnummer, Kundennr.)..."
+                  value={financeSearch}
+                  onChange={(e) => setFinanceSearch(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-0">
+              {filteredInvoices.length === 0 ? (
+                <div className="py-10 text-center text-sm text-slate-500">Keine Rechnungen vorhanden.</div>
+              ) : (
+                <div className="overflow-auto">
+                  <table className="min-w-full text-sm">
+                    <thead className="bg-slate-100 text-left text-slate-600">
+                      <tr>
+                        <th className="px-3 py-2">Rechnungsnr.</th>
+                        <th className="px-3 py-2">Kunde</th>
+                        <th className="px-3 py-2">Rechnungsdatum</th>
+                        <th className="px-3 py-2">Betrag brutto</th>
+                        <th className="px-3 py-2">Status</th>
+                        <th className="px-3 py-2 text-right">Aktionen</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredInvoices.map((invoice) => (
+                        <tr key={invoice.id} className="border-t border-slate-200">
+                          <td className="px-3 py-2 font-medium">{invoice.invoiceMeta?.invoiceNumber || '-'}</td>
+                          <td className="px-3 py-2">{invoice.customerLabel || 'Kunde'}</td>
+                          <td className="px-3 py-2">{invoice.invoiceMeta?.invoiceDate || '-'}</td>
+                          <td className="px-3 py-2">{formatMoney(invoice?.totals?.gross || 0)}</td>
+                          <td className="px-3 py-2">
+                            <select
+                              className="rounded-md border border-slate-300 px-2 py-1 text-sm"
+                              value={invoice.status || 'open'}
+                              onChange={(event) => handleInvoiceStatusChange(invoice.id, event.target.value)}
+                            >
+                              <option value="open">Offen</option>
+                              <option value="partially_paid">Teilbezahlt</option>
+                              <option value="paid">Bezahlt</option>
+                              <option value="overdue">Überfällig</option>
+                              <option value="cancelled">Storniert</option>
+                            </select>
+                          </td>
+                          <td className="px-3 py-2">
+                            <div className="flex justify-end gap-2">
+                              <Link to={`${createPageUrl('CustomerInvoice')}?invoiceId=${invoice.id}`}>
+                                <Button size="sm" variant="outline">Öffnen</Button>
+                              </Link>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-red-600 hover:bg-red-50"
+                                onClick={() => handleDeleteInvoice(invoice.id)}
+                              >
+                                Löschen
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="receivables" className="space-y-4">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+            <Card>
+              <CardContent className="p-4">
+                <p className="text-xs text-slate-500">Offene Rechnungen</p>
+                <p className="mt-1 text-2xl font-semibold text-slate-900">{receivablesSummary.openCount}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <p className="text-xs text-slate-500">Offener Betrag</p>
+                <p className="mt-1 text-2xl font-semibold text-slate-900">{formatMoney(receivablesSummary.openAmount)}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <p className="text-xs text-red-600">Überfällig</p>
+                <p className="mt-1 text-2xl font-semibold text-red-700">{formatMoney(receivablesSummary.overdueAmount)}</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card>
+            <CardContent className="p-0">
+              {receivables.length === 0 ? (
+                <div className="py-10 text-center text-sm text-slate-500">Keine offenen Posten.</div>
+              ) : (
+                <div className="overflow-auto">
+                  <table className="min-w-full text-sm">
+                    <thead className="bg-slate-100 text-left text-slate-600">
+                      <tr>
+                        <th className="px-3 py-2">Rechnungsnr.</th>
+                        <th className="px-3 py-2">Kunde</th>
+                        <th className="px-3 py-2">Fällig am</th>
+                        <th className="px-3 py-2">Offen</th>
+                        <th className="px-3 py-2">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {receivables.map((item) => (
+                        <tr key={item.id} className="border-t border-slate-200">
+                          <td className="px-3 py-2 font-medium">{item.invoiceMeta?.invoiceNumber || '-'}</td>
+                          <td className="px-3 py-2">{item.customerLabel || 'Kunde'}</td>
+                          <td className="px-3 py-2">{format(item.dueDate, 'dd.MM.yyyy', { locale: de })}</td>
+                          <td className="px-3 py-2">{formatMoney(item.gross)}</td>
+                          <td className="px-3 py-2">
+                            {item.overdue ? (
+                              <span className="rounded-md bg-red-100 px-2 py-1 text-xs font-medium text-red-700">Überfällig</span>
+                            ) : (
+                              <span className="rounded-md bg-amber-100 px-2 py-1 text-xs font-medium text-amber-700">Offen</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="settings" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Finanz-Einstellungen</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+                <div className="space-y-1">
+                  <Label>Rechnungspräfix</Label>
+                  <Input
+                    value={financeSettings.invoicePrefix || 'AV'}
+                    onChange={(e) => handleFinanceSettingChange('invoicePrefix', e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>Standard MwSt. (%)</Label>
+                  <Input
+                    value={financeSettings.defaultVatRate ?? 19}
+                    onChange={(e) => handleFinanceSettingChange('defaultVatRate', e.target.value)}
+                    inputMode="decimal"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>Standard Zahlungsziel (Tage)</Label>
+                  <Input
+                    value={financeSettings.defaultPaymentDays ?? 14}
+                    onChange={(e) => handleFinanceSettingChange('defaultPaymentDays', e.target.value)}
+                    inputMode="numeric"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>Nächste Rechnungsnummer</Label>
+                  <Input
+                    value={financeSettings.nextInvoiceNumber ?? 1000}
+                    onChange={(e) => handleFinanceSettingChange('nextInvoiceNumber', e.target.value)}
+                    inputMode="numeric"
+                  />
+                </div>
+              </div>
+              <Button className="bg-[#1e3a5f] hover:bg-[#2d5a8a]" onClick={handleFinanceSettingsSave}>
+                Einstellungen speichern
+              </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
