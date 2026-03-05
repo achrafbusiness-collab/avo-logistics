@@ -22,19 +22,26 @@ import {
 
 const DEFAULT_ISSUER = {
   name: 'AVO LOGISTICS',
+  companySuffix: '',
+  legalForm: '',
   street: 'Collenbachstraße 1',
   postalCode: '40476',
   city: 'Düsseldorf',
   country: 'Deutschland',
   phone: '+49 17624273014',
+  fax: '',
   email: 'info@avo-logistics.de',
   web: 'www.avo-logistics.de',
   vatId: 'DE361070222',
   taxNumber: '10350222746',
   owner: 'Achraf Bolakhrif',
   bankName: 'Stadtsparkasse Düsseldorf',
+  accountNumber: '',
+  blz: '',
   iban: 'DE98 3005 0110 1009 0619 02',
   bic: 'DUSSDEDDXXX',
+  defaultContactPerson: 'Achraf Bolakhrif',
+  paymentTerms: 'Zahlung innerhalb von {days} Tagen ab Rechnungseingang ohne Abzüge.',
 };
 
 const parseMoneyInput = (value) => {
@@ -239,8 +246,13 @@ export default function CustomerInvoice() {
 
   useEffect(() => {
     if (!record) return;
+    const profile = financeDefaults.invoiceProfile || {};
     const defaultContact =
-      currentUser?.full_name || currentUser?.name || currentUser?.email || DEFAULT_ISSUER.owner;
+      profile.defaultContactPerson ||
+      currentUser?.full_name ||
+      currentUser?.name ||
+      currentUser?.email ||
+      DEFAULT_ISSUER.owner;
     const meta = record.invoiceMeta || {};
     setInvoiceMeta({
       invoiceNumber: meta.invoiceNumber || '',
@@ -251,32 +263,54 @@ export default function CustomerInvoice() {
       paymentDays: String(meta.paymentDays || financeDefaults.defaultPaymentDays || 14),
       vatRate: String(meta.vatRate ?? financeDefaults.defaultVatRate ?? 19),
     });
-  }, [record, currentUser, latestDeliveryDate, financeDefaults.defaultPaymentDays, financeDefaults.defaultVatRate]);
+  }, [
+    record,
+    currentUser,
+    latestDeliveryDate,
+    financeDefaults.defaultPaymentDays,
+    financeDefaults.defaultVatRate,
+    financeDefaults.invoiceProfile,
+  ]);
 
   const issuer = useMemo(() => {
+    const profile = financeDefaults.invoiceProfile || {};
     const officeAddress = String(appSettings?.office_address || '').trim();
     const [officeStreetRaw = '', officeCityRaw = '', officeCountryRaw = ''] = officeAddress
       .split(/\n|,/)
       .map((part) => part.trim())
       .filter(Boolean);
 
-    const street = officeStreetRaw || DEFAULT_ISSUER.street;
+    const street = profile.street || officeStreetRaw || DEFAULT_ISSUER.street;
     const cityMatch = officeCityRaw.match(/^(\d{4,5})\s+(.+)$/);
-    const postalCode = cityMatch?.[1] || DEFAULT_ISSUER.postalCode;
-    const city = cityMatch?.[2] || officeCityRaw || DEFAULT_ISSUER.city;
-    const country = officeCountryRaw || DEFAULT_ISSUER.country;
+    const postalCode = profile.postalCode || cityMatch?.[1] || DEFAULT_ISSUER.postalCode;
+    const city = profile.city || cityMatch?.[2] || officeCityRaw || DEFAULT_ISSUER.city;
+    const country = profile.country || officeCountryRaw || DEFAULT_ISSUER.country;
 
     return {
       ...DEFAULT_ISSUER,
-      name: appSettings?.company_name || DEFAULT_ISSUER.name,
+      name: profile.companyName || appSettings?.company_name || DEFAULT_ISSUER.name,
+      companySuffix: profile.companySuffix || '',
+      legalForm: profile.legalForm || '',
       street,
       postalCode,
       city,
       country,
-      phone: appSettings?.support_phone || DEFAULT_ISSUER.phone,
-      email: appSettings?.support_email || DEFAULT_ISSUER.email,
+      phone: profile.phone || appSettings?.support_phone || DEFAULT_ISSUER.phone,
+      fax: profile.fax || DEFAULT_ISSUER.fax,
+      email: profile.email || appSettings?.support_email || DEFAULT_ISSUER.email,
+      web: profile.website || DEFAULT_ISSUER.web,
+      taxNumber: profile.taxNumber || DEFAULT_ISSUER.taxNumber,
+      vatId: profile.vatId || DEFAULT_ISSUER.vatId,
+      bankName: profile.bankName || DEFAULT_ISSUER.bankName,
+      accountNumber: profile.accountNumber || DEFAULT_ISSUER.accountNumber,
+      blz: profile.blz || DEFAULT_ISSUER.blz,
+      iban: profile.iban || DEFAULT_ISSUER.iban,
+      bic: profile.bic || DEFAULT_ISSUER.bic,
+      owner: profile.owner || DEFAULT_ISSUER.owner,
+      paymentTerms: profile.paymentTerms || DEFAULT_ISSUER.paymentTerms,
+      logoDataUrl: profile.logoDataUrl || '',
     };
-  }, [appSettings]);
+  }, [appSettings, financeDefaults.invoiceProfile]);
 
   const summary = useMemo(() => {
     const net = rows.reduce((sum, row) => {
@@ -395,7 +429,7 @@ export default function CustomerInvoice() {
         invoiceNumber: invoiceMeta.invoiceNumber || (isInvoice ? '-' : buildInvoiceNumber()),
       };
 
-      const logoDataUrl = await loadImageAsDataUrl('/logo.png');
+      const logoDataUrl = issuer.logoDataUrl || (await loadImageAsDataUrl('/logo.png'));
       const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
 
       doc.setFont('helvetica', 'normal');
@@ -407,8 +441,9 @@ export default function CustomerInvoice() {
       }
 
       doc.setFontSize(8.5);
+      const companyHeader = [issuer.name, issuer.companySuffix].filter(Boolean).join(' ');
       doc.text(
-        `${issuer.name} - ${issuer.street} - ${issuer.postalCode} ${issuer.city}`,
+        `${companyHeader} - ${issuer.street} - ${issuer.postalCode} ${issuer.city}`,
         20,
         45
       );
@@ -511,8 +546,12 @@ export default function CustomerInvoice() {
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(11);
       const paymentY = y + lineHeight * 2 + 12;
+      const paymentTermsText = String(issuer.paymentTerms || DEFAULT_ISSUER.paymentTerms).replace(
+        '{days}',
+        String(finalMeta.paymentDays || 14)
+      );
       doc.text(
-        `Zahlungsbedingungen: Zahlung innerhalb von ${finalMeta.paymentDays || 14} Tagen ab Rechnungseingang ohne Abzüge.`,
+        `Zahlungsbedingungen: ${paymentTermsText}`,
         20,
         paymentY
       );
@@ -527,10 +566,32 @@ export default function CustomerInvoice() {
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(8.5);
 
-        const leftBlock = [issuer.name, issuer.street, `${issuer.postalCode} ${issuer.city}`, issuer.country];
-        const midLeftBlock = [`Tel.: ${issuer.phone}`, `E-Mail: ${issuer.email}`, `Web: ${issuer.web}`];
-        const midRightBlock = [`USt.-ID: ${issuer.vatId}`, `Steuer-Nr.: ${issuer.taxNumber}`, `Inhaber/-in: ${issuer.owner}`];
-        const rightBlock = [issuer.bankName, `IBAN: ${issuer.iban}`, `BIC: ${issuer.bic}`];
+        const footerCompanyName = [issuer.name, issuer.companySuffix].filter(Boolean).join(' ');
+        const footerOwnerLine = [issuer.owner, issuer.legalForm].filter(Boolean).join(' • ');
+        const leftBlock = [
+          footerCompanyName,
+          footerOwnerLine,
+          issuer.street,
+          `${issuer.postalCode} ${issuer.city}`,
+          issuer.country,
+        ].filter(Boolean);
+        const midLeftBlock = [
+          `Tel.: ${issuer.phone || '-'}`,
+          `FAX: ${issuer.fax || '-'}`,
+          `E-Mail: ${issuer.email || '-'}`,
+          `Web: ${issuer.web || '-'}`,
+        ];
+        const midRightBlock = [
+          `Steuer-Nr.: ${issuer.taxNumber || '-'}`,
+          `USt.-ID: ${issuer.vatId || '-'}`,
+        ];
+        const rightBlock = [
+          issuer.bankName || '-',
+          `Kontonummer: ${issuer.accountNumber || '-'}`,
+          `BLZ: ${issuer.blz || '-'}`,
+          `IBAN: ${issuer.iban || '-'}`,
+          `BIC: ${issuer.bic || '-'}`,
+        ];
 
         leftBlock.forEach((line, idx) => doc.text(line, 20, 276 + idx * 5));
         midLeftBlock.forEach((line, idx) => doc.text(line, 66, 276 + idx * 5));

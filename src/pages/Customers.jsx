@@ -76,6 +76,7 @@ export default function Customers() {
   const [financeRefreshTick, setFinanceRefreshTick] = useState(0);
   const [financeSearch, setFinanceSearch] = useState('');
   const [financeSettings, setFinanceSettings] = useState(() => getFinanceSettings());
+  const [logoUploading, setLogoUploading] = useState(false);
   
   const [formData, setFormData] = useState({
     customer_number: '',
@@ -347,6 +348,7 @@ Gib ausschließlich strukturierte Daten zurück.`,
 
   const invoiceDrafts = useMemo(() => listInvoiceDrafts(), [financeRefreshTick]);
   const invoices = useMemo(() => listInvoices(), [financeRefreshTick]);
+  const invoiceProfile = financeSettings.invoiceProfile || {};
 
   const filteredDrafts = useMemo(() => {
     const term = financeSearch.trim().toLowerCase();
@@ -443,12 +445,70 @@ Gib ausschließlich strukturierte Daten zurück.`,
     setFinanceSettings((prev) => ({ ...prev, [field]: value }));
   };
 
+  const handleInvoiceProfileChange = (field, value) => {
+    setFinanceSettings((prev) => ({
+      ...prev,
+      invoiceProfile: {
+        ...(prev.invoiceProfile || {}),
+        [field]: value,
+      },
+    }));
+  };
+
+  const handleLogoUpload = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setLogoUploading(true);
+    try {
+      const dataUrl = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ''));
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      handleInvoiceProfileChange('logoDataUrl', dataUrl);
+    } finally {
+      setLogoUploading(false);
+    }
+  };
+
+  const handleRemoveLogo = () => {
+    handleInvoiceProfileChange('logoDataUrl', '');
+  };
+
   const handleFinanceSettingsSave = () => {
+    const profile = financeSettings.invoiceProfile || {};
     const payload = {
       invoicePrefix: String(financeSettings.invoicePrefix || 'AV').trim() || 'AV',
       defaultVatRate: Number.parseFloat(String(financeSettings.defaultVatRate || 19).replace(',', '.')) || 19,
       defaultPaymentDays: Number.parseInt(financeSettings.defaultPaymentDays, 10) || 14,
       nextInvoiceNumber: Number.parseInt(financeSettings.nextInvoiceNumber, 10) || 1000,
+      invoiceProfile: {
+        companyName: String(profile.companyName || '').trim(),
+        companySuffix: String(profile.companySuffix || '').trim(),
+        owner: String(profile.owner || '').trim(),
+        legalForm: String(profile.legalForm || '').trim(),
+        street: String(profile.street || '').trim(),
+        postalCode: String(profile.postalCode || '').trim(),
+        city: String(profile.city || '').trim(),
+        country: String(profile.country || '').trim() || 'Deutschland',
+        phone: String(profile.phone || '').trim(),
+        fax: String(profile.fax || '').trim(),
+        email: String(profile.email || '').trim(),
+        website: String(profile.website || '').trim(),
+        taxNumber: String(profile.taxNumber || '').trim(),
+        vatId: String(profile.vatId || '').trim(),
+        bankName: String(profile.bankName || '').trim(),
+        accountNumber: String(profile.accountNumber || '').trim(),
+        blz: String(profile.blz || '').trim(),
+        iban: String(profile.iban || '').trim(),
+        bic: String(profile.bic || '').trim(),
+        defaultContactPerson: String(profile.defaultContactPerson || '').trim(),
+        paymentTerms:
+          String(profile.paymentTerms || '').trim() ||
+          'Zahlung innerhalb von {days} Tagen ab Rechnungseingang ohne Abzüge.',
+        logoDataUrl: String(profile.logoDataUrl || ''),
+      },
     };
     const saved = saveFinanceSettings(payload);
     setFinanceSettings(saved);
@@ -1200,39 +1260,240 @@ Gib ausschließlich strukturierte Daten zurück.`,
               <CardTitle className="text-lg">Finanz-Einstellungen</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-                <div className="space-y-1">
-                  <Label>Rechnungspräfix</Label>
-                  <Input
-                    value={financeSettings.invoicePrefix || 'AV'}
-                    onChange={(e) => handleFinanceSettingChange('invoicePrefix', e.target.value)}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label>Standard MwSt. (%)</Label>
-                  <Input
-                    value={financeSettings.defaultVatRate ?? 19}
-                    onChange={(e) => handleFinanceSettingChange('defaultVatRate', e.target.value)}
-                    inputMode="decimal"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label>Standard Zahlungsziel (Tage)</Label>
-                  <Input
-                    value={financeSettings.defaultPaymentDays ?? 14}
-                    onChange={(e) => handleFinanceSettingChange('defaultPaymentDays', e.target.value)}
-                    inputMode="numeric"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label>Nächste Rechnungsnummer</Label>
-                  <Input
-                    value={financeSettings.nextInvoiceNumber ?? 1000}
-                    onChange={(e) => handleFinanceSettingChange('nextInvoiceNumber', e.target.value)}
-                    inputMode="numeric"
-                  />
+              <div className="rounded-xl border border-slate-200 p-4">
+                <h3 className="mb-3 text-sm font-semibold text-slate-800">Allgemein</h3>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+                  <div className="space-y-1">
+                    <Label>Rechnungspräfix</Label>
+                    <Input
+                      value={financeSettings.invoicePrefix || 'AV'}
+                      onChange={(e) => handleFinanceSettingChange('invoicePrefix', e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Standard MwSt. (%)</Label>
+                    <Input
+                      value={financeSettings.defaultVatRate ?? 19}
+                      onChange={(e) => handleFinanceSettingChange('defaultVatRate', e.target.value)}
+                      inputMode="decimal"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Standard Zahlungsziel (Tage)</Label>
+                    <Input
+                      value={financeSettings.defaultPaymentDays ?? 14}
+                      onChange={(e) => handleFinanceSettingChange('defaultPaymentDays', e.target.value)}
+                      inputMode="numeric"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Nächste Rechnungsnummer</Label>
+                    <Input
+                      value={financeSettings.nextInvoiceNumber ?? 1000}
+                      onChange={(e) => handleFinanceSettingChange('nextInvoiceNumber', e.target.value)}
+                      inputMode="numeric"
+                    />
+                  </div>
                 </div>
               </div>
+
+              <div className="rounded-xl border border-slate-200 p-4">
+                <h3 className="mb-3 text-sm font-semibold text-slate-800">Briefkopf & Unternehmen</h3>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div className="space-y-1">
+                    <Label>Firma</Label>
+                    <Input
+                      value={invoiceProfile.companyName || ''}
+                      onChange={(e) => handleInvoiceProfileChange('companyName', e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Firmenzusatz</Label>
+                    <Input
+                      value={invoiceProfile.companySuffix || ''}
+                      onChange={(e) => handleInvoiceProfileChange('companySuffix', e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Inhaber</Label>
+                    <Input
+                      value={invoiceProfile.owner || ''}
+                      onChange={(e) => handleInvoiceProfileChange('owner', e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Rechtsform</Label>
+                    <Input
+                      value={invoiceProfile.legalForm || ''}
+                      onChange={(e) => handleInvoiceProfileChange('legalForm', e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1 md:col-span-2">
+                    <Label>Adresse</Label>
+                    <Input
+                      value={invoiceProfile.street || ''}
+                      onChange={(e) => handleInvoiceProfileChange('street', e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>PLZ</Label>
+                    <Input
+                      value={invoiceProfile.postalCode || ''}
+                      onChange={(e) => handleInvoiceProfileChange('postalCode', e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Stadt</Label>
+                    <Input
+                      value={invoiceProfile.city || ''}
+                      onChange={(e) => handleInvoiceProfileChange('city', e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Land</Label>
+                    <Input
+                      value={invoiceProfile.country || ''}
+                      onChange={(e) => handleInvoiceProfileChange('country', e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 p-4">
+                <h3 className="mb-3 text-sm font-semibold text-slate-800">Kontakt & Steuern</h3>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div className="space-y-1">
+                    <Label>Telefon</Label>
+                    <Input
+                      value={invoiceProfile.phone || ''}
+                      onChange={(e) => handleInvoiceProfileChange('phone', e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>FAX</Label>
+                    <Input
+                      value={invoiceProfile.fax || ''}
+                      onChange={(e) => handleInvoiceProfileChange('fax', e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>E-Mail-Adresse</Label>
+                    <Input
+                      value={invoiceProfile.email || ''}
+                      onChange={(e) => handleInvoiceProfileChange('email', e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Webseite</Label>
+                    <Input
+                      value={invoiceProfile.website || ''}
+                      onChange={(e) => handleInvoiceProfileChange('website', e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Steuernummer</Label>
+                    <Input
+                      value={invoiceProfile.taxNumber || ''}
+                      onChange={(e) => handleInvoiceProfileChange('taxNumber', e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Umsatzsteuer-ID</Label>
+                    <Input
+                      value={invoiceProfile.vatId || ''}
+                      onChange={(e) => handleInvoiceProfileChange('vatId', e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 p-4">
+                <h3 className="mb-3 text-sm font-semibold text-slate-800">Bankdaten</h3>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div className="space-y-1">
+                    <Label>Bankname</Label>
+                    <Input
+                      value={invoiceProfile.bankName || ''}
+                      onChange={(e) => handleInvoiceProfileChange('bankName', e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Kontonummer</Label>
+                    <Input
+                      value={invoiceProfile.accountNumber || ''}
+                      onChange={(e) => handleInvoiceProfileChange('accountNumber', e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>BLZ</Label>
+                    <Input
+                      value={invoiceProfile.blz || ''}
+                      onChange={(e) => handleInvoiceProfileChange('blz', e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>IBAN</Label>
+                    <Input
+                      value={invoiceProfile.iban || ''}
+                      onChange={(e) => handleInvoiceProfileChange('iban', e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>BIC</Label>
+                    <Input
+                      value={invoiceProfile.bic || ''}
+                      onChange={(e) => handleInvoiceProfileChange('bic', e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 p-4">
+                <h3 className="mb-3 text-sm font-semibold text-slate-800">Rechnungstext & Logo</h3>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div className="space-y-1">
+                    <Label>Standard Ansprechpartner</Label>
+                    <Input
+                      value={invoiceProfile.defaultContactPerson || ''}
+                      onChange={(e) => handleInvoiceProfileChange('defaultContactPerson', e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Zahlungsbedingungen ({'{days}'} als Platzhalter)</Label>
+                    <Textarea
+                      value={invoiceProfile.paymentTerms || ''}
+                      onChange={(e) => handleInvoiceProfileChange('paymentTerms', e.target.value)}
+                      rows={2}
+                    />
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <Label>Logo (oben rechts auf Rechnung)</Label>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleLogoUpload}
+                        className="max-w-md"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleRemoveLogo}
+                        disabled={!invoiceProfile.logoDataUrl}
+                      >
+                        Logo entfernen
+                      </Button>
+                      {logoUploading ? <span className="text-sm text-slate-500">Logo wird geladen…</span> : null}
+                    </div>
+                    {invoiceProfile.logoDataUrl ? (
+                      <div className="mt-2 rounded-lg border border-slate-200 bg-white p-3">
+                        <img src={invoiceProfile.logoDataUrl} alt="Logo Vorschau" className="h-16 w-auto object-contain" />
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+
               <Button className="bg-[#1e3a5f] hover:bg-[#2d5a8a]" onClick={handleFinanceSettingsSave}>
                 Einstellungen speichern
               </Button>

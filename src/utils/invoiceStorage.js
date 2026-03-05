@@ -2,6 +2,37 @@ const DRAFTS_KEY = 'avo:finance:invoice-drafts:v1';
 const INVOICES_KEY = 'avo:finance:invoices:v1';
 const SETTINGS_KEY = 'avo:finance:settings:v1';
 
+const DEFAULT_FINANCE_SETTINGS = {
+  invoicePrefix: 'AV',
+  defaultVatRate: 19,
+  defaultPaymentDays: 14,
+  nextInvoiceNumber: 1000,
+  invoiceProfile: {
+    companyName: 'AVO LOGISTICS',
+    companySuffix: '',
+    owner: 'Achraf Bolakhrif',
+    legalForm: '',
+    street: 'Collenbachstraße 1',
+    postalCode: '40476',
+    city: 'Düsseldorf',
+    country: 'Deutschland',
+    phone: '+49 17624273014',
+    fax: '',
+    email: 'info@avo-logistics.de',
+    website: 'www.avo-logistics.de',
+    taxNumber: '10350222746',
+    vatId: 'DE361070222',
+    bankName: 'Stadtsparkasse Düsseldorf',
+    accountNumber: '',
+    blz: '',
+    iban: 'DE98 3005 0110 1009 0619 02',
+    bic: 'DUSSDEDDXXX',
+    defaultContactPerson: 'Achraf Bolakhrif',
+    paymentTerms: 'Zahlung innerhalb von {days} Tagen ab Rechnungseingang ohne Abzüge.',
+    logoDataUrl: '',
+  },
+};
+
 const readJson = (key, fallback) => {
   if (typeof window === 'undefined') return fallback;
   const raw = window.localStorage.getItem(key);
@@ -132,14 +163,15 @@ export const finalizeDraftToInvoice = (draftId, data = {}) => {
 };
 
 export const getFinanceSettings = () => {
-  return (
-    readJson(SETTINGS_KEY, {
-      invoicePrefix: 'AV',
-      defaultVatRate: 19,
-      defaultPaymentDays: 14,
-      nextInvoiceNumber: 1000,
-    }) || {}
-  );
+  const raw = readJson(SETTINGS_KEY, {});
+  return {
+    ...DEFAULT_FINANCE_SETTINGS,
+    ...raw,
+    invoiceProfile: {
+      ...DEFAULT_FINANCE_SETTINGS.invoiceProfile,
+      ...(raw?.invoiceProfile || {}),
+    },
+  };
 };
 
 export const saveFinanceSettings = (settings) => {
