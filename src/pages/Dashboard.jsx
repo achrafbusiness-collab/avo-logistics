@@ -59,6 +59,7 @@ export default function Dashboard() {
   const todayKey = format(new Date(), 'yyyy-MM-dd');
   const [dateFrom, setDateFrom] = useState(todayKey);
   const [dateTo, setDateTo] = useState(todayKey);
+  const [recentProtocolsDays, setRecentProtocolsDays] = useState(2);
   const [selectedOrderId, setSelectedOrderId] = useState(null);
   const [selectedMapLocation, setSelectedMapLocation] = useState(null);
   const [mapMode, setMapMode] = useState('open');
@@ -355,6 +356,19 @@ export default function Dashboard() {
       inDelivery: rangeOrders.filter((order) => DELIVERY_STATUSES.has(order.status)).length,
     };
   }, [rangeOrders]);
+
+  const recentChecklists = useMemo(() => {
+    const boundary = new Date();
+    boundary.setHours(0, 0, 0, 0);
+    boundary.setDate(boundary.getDate() - Math.max(0, recentProtocolsDays - 1));
+    return (checklists || []).filter((item) => {
+      const raw = item?.datetime || item?.created_date;
+      if (!raw) return false;
+      const date = new Date(raw);
+      if (Number.isNaN(date.getTime())) return false;
+      return date.getTime() >= boundary.getTime();
+    });
+  }, [checklists, recentProtocolsDays]);
 
   const mapOrders = useMemo(() => {
     return rangeOrders.filter((order) => {
@@ -911,7 +925,22 @@ export default function Dashboard() {
           {/* Recent Activity */}
           <Card className="border border-slate-200/80 bg-white/90 shadow-[0_20px_40px_-30px_rgba(15,23,42,0.55)]">
             <CardHeader className="pb-3">
-              <CardTitle className="text-lg font-semibold">Letzte Protokolle</CardTitle>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <CardTitle className="text-lg font-semibold">Letzte Protokolle</CardTitle>
+                <div className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 p-1">
+                  {[2, 3, 4].map((days) => (
+                    <Button
+                      key={days}
+                      size="sm"
+                      variant={recentProtocolsDays === days ? 'default' : 'ghost'}
+                      className={recentProtocolsDays === days ? DASH_CHIP_ACTIVE : ''}
+                      onClick={() => setRecentProtocolsDays(days)}
+                    >
+                      Letzte {days} Tage
+                    </Button>
+                  ))}
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
               {checklistsLoading ? (
@@ -920,26 +949,28 @@ export default function Dashboard() {
                     <div key={i} className="h-12 bg-gray-100 rounded animate-pulse" />
                   ))}
                 </div>
-              ) : checklists.length === 0 ? (
+              ) : recentChecklists.length === 0 ? (
                 <p className="text-sm text-gray-500 text-center py-4">
-                  Noch keine Protokolle
+                  Keine Protokolle in den letzten {recentProtocolsDays} Tagen
                 </p>
               ) : (
-                <div className="space-y-3">
-                  {checklists.slice(0, 5).map((checklist) => (
-                    <div key={checklist.id} className="flex items-center gap-3 text-sm">
-                      <div className={`w-2 h-2 rounded-full ${checklist.type === 'pickup' ? 'bg-blue-500' : 'bg-green-500'}`} />
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium truncate">{checklist.order_number}</p>
-                        <p className="text-gray-500 text-xs">
-                          {checklist.driver_name} • {checklist.type === 'pickup' ? 'Abholung' : 'Abgabe'}
-                        </p>
+                <div className="max-h-[360px] overflow-y-auto pr-1">
+                  <div className="space-y-3">
+                    {recentChecklists.map((checklist) => (
+                      <div key={checklist.id} className="flex items-center gap-3 text-sm">
+                        <div className={`w-2 h-2 rounded-full ${checklist.type === 'pickup' ? 'bg-blue-500' : 'bg-green-500'}`} />
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium truncate">{checklist.order_number}</p>
+                          <p className="text-gray-500 text-xs">
+                            {checklist.driver_name} • {checklist.type === 'pickup' ? 'Abholung' : 'Abgabe'}
+                          </p>
+                        </div>
+                        <span className="text-xs text-gray-400 whitespace-nowrap">
+                          {checklist.datetime && format(new Date(checklist.datetime), 'dd.MM.', { locale: de })}
+                        </span>
                       </div>
-                      <span className="text-xs text-gray-400 whitespace-nowrap">
-                        {checklist.datetime && format(new Date(checklist.datetime), 'dd.MM.', { locale: de })}
-                      </span>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               )}
             </CardContent>
