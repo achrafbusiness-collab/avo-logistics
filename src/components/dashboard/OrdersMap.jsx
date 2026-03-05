@@ -68,6 +68,14 @@ const emptyFeatureCollection = {
   features: [],
 };
 
+const escapeHtml = (value) =>
+  String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+
 export default function OrdersMap({
   orders,
   selectedOrderId,
@@ -328,43 +336,93 @@ export default function OrdersMap({
 
   const pointsData = useMemo(() => {
     if (!routes.length) return emptyFeatureCollection;
+    const routeGroups = new Map();
+    const destinationGroups = new Map();
+
+    routes.forEach((route) => {
+      const routeKey = buildRouteKey(route.start, route.end);
+      const destinationKey = coordKey(route.end);
+
+      if (!routeGroups.has(routeKey)) routeGroups.set(routeKey, []);
+      routeGroups.get(routeKey).push(route.order);
+
+      if (!destinationGroups.has(destinationKey)) destinationGroups.set(destinationKey, []);
+      destinationGroups.get(destinationKey).push(route.order);
+    });
+
+    const formatOrderList = (ordersList = []) =>
+      ordersList
+        .slice(0, 12)
+        .map((item) => {
+          const orderLabel = item.order_number || "Auftrag";
+          const plate = item.license_plate ? ` (${item.license_plate})` : "";
+          return `${orderLabel}${plate}`;
+        })
+        .join(";;");
+
     return {
       type: "FeatureCollection",
       features: routes.flatMap((route) => [
-        {
-          type: "Feature",
-          geometry: {
-            type: "Point",
-            coordinates: route.start,
-          },
-          properties: {
+        (() => {
+          const routeKey = buildRouteKey(route.start, route.end);
+          const destinationKey = coordKey(route.end);
+          const sameRouteOrders = routeGroups.get(routeKey) || [];
+          const sameDestinationOrders = destinationGroups.get(destinationKey) || [];
+          const sharedProperties = {
             orderId: route.order.id,
-            type: "pickup",
             orderNumber: route.order.order_number,
             licensePlate: route.order.license_plate,
             status: route.order.status,
             driver: route.order.assigned_driver_name,
             pickup: route.order.pickup_city || route.order.pickup_address,
             dropoff: route.order.dropoff_city || route.order.dropoff_address,
-          },
-        },
-        {
-          type: "Feature",
-          geometry: {
-            type: "Point",
-            coordinates: route.end,
-          },
-          properties: {
+            routeCount: sameRouteOrders.length,
+            routeOrders: formatOrderList(sameRouteOrders),
+            destinationCount: sameDestinationOrders.length,
+            destinationOrders: formatOrderList(sameDestinationOrders),
+          };
+          return {
+            type: "Feature",
+            geometry: {
+              type: "Point",
+              coordinates: route.start,
+            },
+            properties: {
+              ...sharedProperties,
+              type: "pickup",
+            },
+          };
+        })(),
+        (() => {
+          const routeKey = buildRouteKey(route.start, route.end);
+          const destinationKey = coordKey(route.end);
+          const sameRouteOrders = routeGroups.get(routeKey) || [];
+          const sameDestinationOrders = destinationGroups.get(destinationKey) || [];
+          const sharedProperties = {
             orderId: route.order.id,
-            type: "dropoff",
             orderNumber: route.order.order_number,
             licensePlate: route.order.license_plate,
             status: route.order.status,
             driver: route.order.assigned_driver_name,
             pickup: route.order.pickup_city || route.order.pickup_address,
             dropoff: route.order.dropoff_city || route.order.dropoff_address,
-          },
-        },
+            routeCount: sameRouteOrders.length,
+            routeOrders: formatOrderList(sameRouteOrders),
+            destinationCount: sameDestinationOrders.length,
+            destinationOrders: formatOrderList(sameDestinationOrders),
+          };
+          return {
+            type: "Feature",
+            geometry: {
+              type: "Point",
+              coordinates: route.end,
+            },
+            properties: {
+              ...sharedProperties,
+              type: "dropoff",
+            },
+          };
+        })(),
       ]),
     };
   }, [routes]);
@@ -474,19 +532,55 @@ export default function OrdersMap({
       }
       if (showPopups && feature) {
         const props = feature.properties || {};
+        const routeCount = Number(props.routeCount || 0);
+        const destinationCount = Number(props.destinationCount || 0);
+        const routeOrderList = String(props.routeOrders || "")
+          .split(";;")
+          .map((item) => item.trim())
+          .filter(Boolean);
+        const destinationOrderList = String(props.destinationOrders || "")
+          .split(";;")
+          .map((item) => item.trim())
+          .filter(Boolean);
+        const routeListHtml =
+          routeCount > 1 && routeOrderList.length
+            ? `
+              <div style="margin-top: 8px; border-top: 1px solid #e2e8f0; padding-top: 8px;">
+                <div style="font-weight: 600; color: #1e3a5f;">Gleiche Strecke: ${routeCount} Aufträge</div>
+                <div style="margin-top: 4px; color: #334155;">
+                  ${routeOrderList.map((item) => `<div>• ${escapeHtml(item)}</div>`).join("")}
+                </div>
+              </div>
+            `
+            : "";
+        const destinationListHtml =
+          props.type === "dropoff" && destinationCount > 1 && destinationOrderList.length
+            ? `
+              <div style="margin-top: 8px; border-top: 1px solid #e2e8f0; padding-top: 8px;">
+                <div style="font-weight: 600; color: #0f172a;">
+                  Zieladresse: ${escapeHtml(props.dropoff || "Ziel")} (${destinationCount} Aufträge)
+                </div>
+                <div style="margin-top: 4px; color: #334155;">
+                  ${destinationOrderList.map((item) => `<div>• ${escapeHtml(item)}</div>`).join("")}
+                </div>
+              </div>
+            `
+            : "";
         const popupHtml = `
           <div style="font-family: Arial, sans-serif; font-size: 12px;">
-            <div style="font-weight: 600; margin-bottom: 4px;">${props.orderNumber || 'Auftrag'}</div>
-            <div>${props.licensePlate || '-'}</div>
+            <div style="font-weight: 600; margin-bottom: 4px;">${escapeHtml(props.orderNumber || 'Auftrag')}</div>
+            <div>${escapeHtml(props.licensePlate || '-')}</div>
             <div style="margin-top: 4px; color: #475569;">
-              ${props.pickup || 'Start'} → ${props.dropoff || 'Ziel'}
+              ${escapeHtml(props.pickup || 'Start')} → ${escapeHtml(props.dropoff || 'Ziel')}
             </div>
             <div style="margin-top: 4px;">
-              Status: ${props.status || '-'}
+              Status: ${escapeHtml(props.status || '-')}
             </div>
             <div style="margin-top: 4px;">
-              Fahrer: ${props.driver || '-'}
+              Fahrer: ${escapeHtml(props.driver || '-')}
             </div>
+            ${routeListHtml}
+            ${destinationListHtml}
           </div>
         `;
         if (popupRef.current) {
