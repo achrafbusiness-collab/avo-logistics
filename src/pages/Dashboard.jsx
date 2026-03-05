@@ -45,6 +45,15 @@ const parseAmount = (value) => {
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
+const DASH_PRIMARY_BTN =
+  "rounded-xl border-0 bg-gradient-to-r from-[#1e3a5f] to-[#2d5a8a] text-white shadow-[0_14px_34px_-18px_rgba(30,58,95,0.9)] transition-all duration-200 hover:-translate-y-0.5 hover:from-[#24456e] hover:to-[#356796] hover:shadow-[0_18px_36px_-18px_rgba(30,58,95,0.95)]";
+
+const DASH_OUTLINE_BTN =
+  "rounded-xl border-slate-300 bg-white text-slate-700 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-400 hover:bg-slate-900 hover:text-white hover:shadow-md";
+
+const DASH_CHIP_ACTIVE =
+  "rounded-xl border-0 bg-[#1e3a5f] text-white shadow-[0_10px_22px_-14px_rgba(30,58,95,0.95)] hover:bg-[#2d5a8a]";
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const todayKey = format(new Date(), 'yyyy-MM-dd');
@@ -444,7 +453,7 @@ export default function Dashboard() {
                 Zeitraum: {rangeLabel}
               </div>
               <Link to={createPageUrl('Orders') + '?new=true'}>
-                <Button className="bg-blue-500 text-white hover:bg-blue-600">
+                <Button className={DASH_PRIMARY_BTN}>
                   <Truck className="w-4 h-4 mr-2" />
                   Neuer Auftrag
                 </Button>
@@ -525,7 +534,7 @@ export default function Dashboard() {
             <Button
               variant="outline"
               size="sm"
-              className="border-slate-300 text-slate-700 hover:bg-slate-900 hover:text-white"
+              className={DASH_OUTLINE_BTN}
               onClick={setTodayRange}
             >
               Heute
@@ -533,7 +542,7 @@ export default function Dashboard() {
             <Button
               variant="outline"
               size="sm"
-              className="border-slate-300 text-slate-700 hover:bg-slate-900 hover:text-white"
+              className={DASH_OUTLINE_BTN}
               onClick={setLastSevenDays}
             >
               Letzte 7 Tage
@@ -541,7 +550,7 @@ export default function Dashboard() {
             <Button
               variant="outline"
               size="sm"
-              className="border-slate-300 text-slate-700 hover:bg-slate-900 hover:text-white"
+              className={DASH_OUTLINE_BTN}
               onClick={() => {
                 const end = new Date();
                 const start = subDays(end, 13);
@@ -554,7 +563,7 @@ export default function Dashboard() {
             <Button
               variant="outline"
               size="sm"
-              className="border-slate-300 text-slate-700 hover:bg-slate-900 hover:text-white"
+              className={DASH_OUTLINE_BTN}
               onClick={() => {
                 const end = new Date();
                 const start = subDays(end, 29);
@@ -567,7 +576,7 @@ export default function Dashboard() {
             <Button
               variant="outline"
               size="sm"
-              className="border-slate-300 text-slate-700 hover:bg-slate-900 hover:text-white"
+              className={DASH_OUTLINE_BTN}
               onClick={() => {
                 const now = new Date();
                 setDateFrom(format(startOfMonth(now), 'yyyy-MM-dd'));
@@ -579,7 +588,7 @@ export default function Dashboard() {
             <Button
               variant="outline"
               size="sm"
-              className="border-slate-300 text-slate-700 hover:bg-slate-900 hover:text-white"
+              className={DASH_OUTLINE_BTN}
               onClick={() => {
                 const lastMonth = subDays(startOfMonth(new Date()), 1);
                 setDateFrom(format(startOfMonth(lastMonth), 'yyyy-MM-dd'));
@@ -591,7 +600,7 @@ export default function Dashboard() {
             <Button
               variant={onlyDue ? "default" : "outline"}
               size="sm"
-              className={onlyDue ? "bg-[#1e3a5f] hover:bg-[#2d5a8a]" : "border-slate-300 text-slate-700 hover:bg-slate-900 hover:text-white"}
+              className={onlyDue ? DASH_CHIP_ACTIVE : DASH_OUTLINE_BTN}
               onClick={() => setOnlyDue((prev) => !prev)}
             >
               Nur fällige Aufträge
@@ -644,7 +653,7 @@ export default function Dashboard() {
               <p className="text-sm text-slate-500">Abgeschlossene Touren im gewählten Zeitraum</p>
             </div>
             <Link to={statisticsUrl}>
-              <Button className="bg-[#1e3a5f] hover:bg-[#2d5a8a]">
+              <Button className={DASH_PRIMARY_BTN}>
                 <BarChart3 className="mr-2 h-4 w-4" />
                 Statistik öffnen
               </Button>
@@ -706,7 +715,7 @@ export default function Dashboard() {
             </div>
             <div className="flex items-center gap-2">
               <Link to={createPageUrl('Orders')}>
-                <Button variant="ghost" size="sm">
+                <Button variant="ghost" size="sm" className="rounded-xl text-slate-700 hover:bg-slate-900 hover:text-white">
                   Alle anzeigen
                   <ArrowRight className="w-4 h-4 ml-1" />
                 </Button>
@@ -725,7 +734,7 @@ export default function Dashboard() {
                 <Truck className="w-12 h-12 mx-auto mb-3 text-slate-300" />
                 <p>Keine Aufträge im gewählten Zeitraum</p>
                 <Link to={createPageUrl('Orders') + '?new=true'}>
-                  <Button variant="outline" size="sm" className="mt-3">
+                  <Button variant="outline" size="sm" className={`mt-3 ${DASH_OUTLINE_BTN}`}>
                     Ersten Auftrag erstellen
                   </Button>
                 </Link>
@@ -740,7 +749,7 @@ export default function Dashboard() {
                       <Button
                         size="sm"
                         variant={mapMode === 'open' ? 'default' : 'outline'}
-                        className={mapMode === 'open' ? 'bg-[#1e3a5f] hover:bg-[#2d5a8a]' : ''}
+                        className={mapMode === 'open' ? DASH_CHIP_ACTIVE : DASH_OUTLINE_BTN}
                         onClick={() => setMapMode('open')}
                       >
                         Offen ({mapCounts.open})
@@ -748,7 +757,7 @@ export default function Dashboard() {
                       <Button
                         size="sm"
                         variant={mapMode === 'in_transit' ? 'default' : 'outline'}
-                        className={mapMode === 'in_transit' ? 'bg-[#1e3a5f] hover:bg-[#2d5a8a]' : ''}
+                        className={mapMode === 'in_transit' ? DASH_CHIP_ACTIVE : DASH_OUTLINE_BTN}
                         onClick={() => setMapMode('in_transit')}
                       >
                         In Lieferung ({mapCounts.inDelivery})
@@ -830,7 +839,7 @@ export default function Dashboard() {
                       Aufträge ohne Fahrerzuweisung
                     </p>
                     <Link to={createPageUrl('Orders') + '?status=new'}>
-                      <Button size="sm" variant="outline" className="mt-3 border-blue-200 text-blue-700 hover:bg-blue-100">
+                      <Button size="sm" variant="outline" className={`mt-3 ${DASH_OUTLINE_BTN}`}>
                         Jetzt zuweisen
                       </Button>
                     </Link>
@@ -884,19 +893,19 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent className="space-y-2">
               <Link to={createPageUrl('Orders') + '?new=true'} className="block">
-                <Button variant="outline" className="w-full justify-start border-slate-300 hover:bg-slate-900 hover:text-white">
+                <Button variant="outline" className={`w-full justify-start ${DASH_OUTLINE_BTN}`}>
                   <Truck className="w-4 h-4 mr-2" />
                   Neuer Auftrag
                 </Button>
               </Link>
               <Link to={createPageUrl('Drivers') + '?new=true'} className="block">
-                <Button variant="outline" className="w-full justify-start border-slate-300 hover:bg-slate-900 hover:text-white">
+                <Button variant="outline" className={`w-full justify-start ${DASH_OUTLINE_BTN}`}>
                   <Users className="w-4 h-4 mr-2" />
                   Fahrer hinzufügen
                 </Button>
               </Link>
               <Link to={createPageUrl('AppConnection')} className="block">
-                <Button variant="outline" className="w-full justify-start border-slate-300 hover:bg-slate-900 hover:text-white">
+                <Button variant="outline" className={`w-full justify-start ${DASH_OUTLINE_BTN}`}>
                   <Settings className="w-4 h-4 mr-2" />
                   App & Einstellungen
                 </Button>
