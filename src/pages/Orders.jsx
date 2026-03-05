@@ -1141,10 +1141,29 @@ export default function Orders() {
 
     const customerLabel =
       customerBillingCustomers.find((customer) => customer.key === customerKey)?.label || 'Kunde';
+    const customerRecord =
+      customerKey !== '__none__' ? customerLookupById.get(customerKey) : null;
     const draft = {
       customerKey,
       customerLabel,
       createdAt: new Date().toISOString(),
+      customer: customerRecord
+        ? {
+            id: customerRecord.id,
+            customer_number: customerRecord.customer_number || '',
+            type: customerRecord.type || 'business',
+            company_name: customerRecord.company_name || '',
+            first_name: customerRecord.first_name || '',
+            last_name: customerRecord.last_name || '',
+            email: customerRecord.email || '',
+            phone: customerRecord.phone || '',
+            address: customerRecord.address || '',
+            postal_code: customerRecord.postal_code || '',
+            city: customerRecord.city || '',
+            country: customerRecord.country || '',
+            tax_id: customerRecord.tax_id || '',
+          }
+        : null,
       rows: customerRows,
     };
     const draftKey = `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
