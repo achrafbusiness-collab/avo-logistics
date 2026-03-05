@@ -80,6 +80,8 @@ export default function OrdersMap({
   orders,
   selectedOrderId,
   onSelectOrder,
+  selectedLocationKey,
+  onSelectLocation,
   maxRoutes = 20,
   enableClusters = false,
   showPopups = false,
@@ -210,7 +212,7 @@ export default function OrdersMap({
           filter: [
             "all",
             ["!", ["has", "point_count"]],
-            [">", ["to-number", ["get", "orderCount"]], 1],
+            [">", ["to-number", ["get", "orderCount"]], 0],
           ],
           layout: {
             "text-field": ["to-string", ["get", "orderCount"]],
@@ -241,7 +243,7 @@ export default function OrdersMap({
           id: "orders-points-order-count",
           type: "symbol",
           source: "orders-points",
-          filter: [">", ["to-number", ["get", "orderCount"]], 1],
+          filter: [">", ["to-number", ["get", "orderCount"]], 0],
           layout: {
             "text-field": ["to-string", ["get", "orderCount"]],
             "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
@@ -415,14 +417,16 @@ export default function OrdersMap({
       });
     });
 
-    const features = Array.from(locationGroups.values()).map((group) => {
+    const features = Array.from(locationGroups.entries()).map(([locationKey, group]) => {
       const uniqueOrders = Array.from(
         new Map(group.orders.map((order) => [order.id, order])).values()
       );
       const primary =
         uniqueOrders.find((order) => order.id === selectedOrderId) || uniqueOrders[0];
       const selected = Boolean(
-        selectedOrderId && uniqueOrders.some((order) => order.id === selectedOrderId)
+        selectedLocationKey
+          ? locationKey === selectedLocationKey
+          : selectedOrderId && uniqueOrders.some((order) => order.id === selectedOrderId)
       );
       return {
         type: "Feature",
@@ -431,11 +435,13 @@ export default function OrdersMap({
           coordinates: group.coordinates,
         },
         properties: {
+          locationKey,
           type: group.type,
           locationLabel: group.locationLabel || "-",
           primaryOrderId: primary?.id || "",
           orderCount: uniqueOrders.length,
           selected,
+          orderIds: uniqueOrders.map((order) => order.id).join(";;"),
           ordersList: uniqueOrders.slice(0, 20).map((order) => buildOrderLabel(order)).join(";;"),
         },
       };
@@ -445,7 +451,7 @@ export default function OrdersMap({
       type: "FeatureCollection",
       features,
     };
-  }, [routes, selectedOrderId]);
+  }, [routes, selectedOrderId, selectedLocationKey]);
 
   const selectedRoute = useMemo(() => {
     if (!routes.length) return null;
@@ -486,13 +492,32 @@ export default function OrdersMap({
   }, [extraRoute]);
 
   useEffect(() => {
-    if (!routes.length || !onSelectOrder) {
+    if (!pointsData.features.length) return;
+    const firstFeature = pointsData.features[0];
+    const props = firstFeature?.properties || {};
+    if (onSelectLocation) {
+      const hasSelection = Boolean(
+        selectedLocationKey &&
+          pointsData.features.some((feature) => feature?.properties?.locationKey === selectedLocationKey)
+      );
+      if (!hasSelection) {
+        const orderIds = String(props.orderIds || "")
+          .split(";;")
+          .map((id) => id.trim())
+          .filter(Boolean);
+        onSelectLocation({
+          locationKey: props.locationKey || "",
+          type: props.type || "",
+          locationLabel: props.locationLabel || "",
+          orderIds,
+        });
+      }
       return;
     }
-    if (!selectedOrderId || !routes.some((route) => route.order.id === selectedOrderId)) {
+    if (onSelectOrder && (!selectedOrderId || !routes.some((route) => route.order.id === selectedOrderId))) {
       onSelectOrder(routes[0].order.id);
     }
-  }, [routes, selectedOrderId, onSelectOrder]);
+  }, [pointsData, selectedLocationKey, onSelectLocation, onSelectOrder, selectedOrderId, routes]);
 
   useEffect(() => {
     if (!mapReady || !mapRef.current) return;
@@ -550,12 +575,24 @@ export default function OrdersMap({
 
     const handleClick = (event) => {
       const feature = event.features?.[0];
-      const orderId = feature?.properties?.primaryOrderId;
-      if (orderId && onSelectOrder) {
+      const props = feature?.properties || {};
+      const orderIds = String(props.orderIds || "")
+        .split(";;")
+        .map((id) => id.trim())
+        .filter(Boolean);
+      const orderId = props?.primaryOrderId;
+
+      if (onSelectLocation) {
+        onSelectLocation({
+          locationKey: props.locationKey || "",
+          type: props.type || "",
+          locationLabel: props.locationLabel || "",
+          orderIds,
+        });
+      } else if (orderId && onSelectOrder) {
         onSelectOrder(orderId);
       }
       if (showPopups && feature) {
-        const props = feature.properties || {};
         const orderCount = Number(props.orderCount || 0);
         const orderList = String(props.ordersList || "")
           .split(";;")
@@ -628,7 +665,7 @@ export default function OrdersMap({
         map.off("click", "orders-points-clusters");
       }
     };
-  }, [mapReady, onSelectOrder, enableClusters, showPopups]);
+  }, [mapReady, onSelectOrder, onSelectLocation, enableClusters, showPopups]);
 
   if (!token) {
     return (

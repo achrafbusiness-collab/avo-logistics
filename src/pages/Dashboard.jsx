@@ -60,6 +60,7 @@ export default function Dashboard() {
   const [dateFrom, setDateFrom] = useState(todayKey);
   const [dateTo, setDateTo] = useState(todayKey);
   const [selectedOrderId, setSelectedOrderId] = useState(null);
+  const [selectedMapLocation, setSelectedMapLocation] = useState(null);
   const [mapMode, setMapMode] = useState('open');
   const [onlyDue, setOnlyDue] = useState(false);
   const [quickSearch, setQuickSearch] = useState('');
@@ -372,17 +373,27 @@ export default function Dashboard() {
     });
   }, [rangeOrders, mapMode]);
 
-  const recentOrders = mapOrders.slice(0, 8);
+  const locationOrders = useMemo(() => {
+    const orderIds = selectedMapLocation?.orderIds || [];
+    if (!orderIds.length) return [];
+    const ids = new Set(orderIds);
+    return mapOrders.filter((order) => ids.has(order.id));
+  }, [mapOrders, selectedMapLocation]);
 
   useEffect(() => {
-    if (!mapOrders.length) {
-      setSelectedOrderId(null);
-      return;
+    if (!locationOrders.length) return;
+    if (!selectedOrderId || !locationOrders.some((order) => order.id === selectedOrderId)) {
+      setSelectedOrderId(locationOrders[0].id);
     }
-    if (!selectedOrderId || !mapOrders.some(order => order.id === selectedOrderId)) {
-      setSelectedOrderId(mapOrders[0].id);
+  }, [locationOrders, selectedOrderId]);
+
+  const handleMapLocationSelect = (payload) => {
+    setSelectedMapLocation(payload || null);
+    const firstOrderId = payload?.orderIds?.[0];
+    if (firstOrderId) {
+      setSelectedOrderId(firstOrderId);
     }
-  }, [mapOrders, selectedOrderId]);
+  };
 
   const selectedOrder = mapOrders.find(order => order.id === selectedOrderId);
 
@@ -712,7 +723,7 @@ export default function Dashboard() {
             <div>
               <CardTitle className="text-lg font-semibold text-slate-900">Tagesrouten & Übersicht</CardTitle>
               <p className="text-sm text-slate-500">
-                Klicke auf einen Standort-Marker: du siehst die Anzahl Fahrzeuge/Aufträge und alle offenen Aufträge an diesem Punkt.
+                Klicke auf einen Standort-Marker. In der Karte siehst du die Anzahl, rechts erscheinen die passenden Aufträge.
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -770,7 +781,8 @@ export default function Dashboard() {
                     orders={mapOrders}
                     selectedOrderId={selectedOrderId}
                     onSelectOrder={setSelectedOrderId}
-                    showPopups
+                    selectedLocationKey={selectedMapLocation?.locationKey || ""}
+                    onSelectLocation={handleMapLocationSelect}
                   />
                   {selectedOrder && (
                     <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm">
@@ -788,16 +800,30 @@ export default function Dashboard() {
                 </div>
 
                 <div className="space-y-3">
-                  {recentOrders.length === 0 ? (
+                  {!selectedMapLocation ? (
                     <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
-                      Für die Kartenansicht fehlen Adressen oder Aufträge.
+                      Wähle auf der Karte einen Standort aus, um die zugehörigen Aufträge zu sehen.
+                    </div>
+                  ) : locationOrders.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
+                      Für diesen Standort wurden keine passenden Aufträge gefunden.
                     </div>
                   ) : (
-                    recentOrders.map((order) => (
+                    <>
+                      <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
+                        <p className="font-semibold text-slate-900">
+                          {selectedMapLocation.type === 'dropoff' ? 'Zielstandort' : 'Abholstandort'}
+                        </p>
+                        <p className="text-slate-600">{selectedMapLocation.locationLabel || '-'}</p>
+                        <p className="mt-1 text-xs text-slate-500">
+                          {locationOrders.length} Auftrag{locationOrders.length !== 1 ? 'e' : ''} an diesem Standort
+                        </p>
+                      </div>
+                      {locationOrders.map((order) => (
                       <button
                         key={order.id}
                         type="button"
-                        onClick={() => setSelectedOrderId(order.id)}
+                        onClick={() => navigate(`${createPageUrl('Orders')}?id=${order.id}`)}
                         className={`w-full text-left flex items-center justify-between gap-4 rounded-xl border px-4 py-3 transition-all ${
                           order.id === selectedOrderId
                             ? 'border-blue-200 bg-blue-50'
@@ -820,7 +846,8 @@ export default function Dashboard() {
                           <ArrowRight className="w-4 h-4 text-slate-400" />
                         </div>
                       </button>
-                    ))
+                      ))}
+                    </>
                   )}
                 </div>
               </div>
