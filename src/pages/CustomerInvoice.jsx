@@ -598,50 +598,52 @@ export default function CustomerInvoice() {
         },
       });
 
-      let y = (doc.lastAutoTable?.finalY || 126) + 8;
-      if (y > pageHeight - 78) {
-        doc.addPage();
-        y = 20;
-      }
-
       const paymentTermsText = String(issuer.paymentTerms || DEFAULT_ISSUER.paymentTerms).replace(
         '{days}',
         String(finalMeta.paymentDays || 14)
       );
       const paymentTermsLines = doc.splitTextToSize(`Zahlungsbedingungen: ${paymentTermsText}`, contentWidth);
 
-      const summaryX = pageWidth - marginX - 72;
-      const summaryWidth = 72;
-      const lineHeight = 7;
-      const drawSummaryLine = (label, value, top, bold = false, shaded = false) => {
-        if (shaded) {
-          doc.setFillColor(241, 245, 249);
-          doc.rect(summaryX, top - 4.8, summaryWidth, 6.6, 'F');
-        }
-        doc.setFont('helvetica', bold ? 'bold' : 'normal');
-        doc.setFontSize(10);
-        doc.text(label, summaryX + 2, top);
-        doc.text(value, summaryX + summaryWidth - 2, top, { align: 'right' });
-      };
+      autoTable(doc, {
+        startY: (doc.lastAutoTable?.finalY || 126) + 4,
+        margin: { left: marginX + 84, right: marginX, bottom: 42 },
+        tableWidth: contentWidth - 84,
+        theme: 'grid',
+        body: [
+          ['Gesamtauftragspreise (Netto)', formatEuroText(summary.orderNet)],
+          ['Nettobetrag Auslagen (Tank)', formatEuroText(summary.fuelNet)],
+          ['Gesamter Nettobetrag', formatEuroText(summary.net)],
+          [`Umsatzsteuer ${summary.vatRate || 0}%`, formatEuroText(summary.vatAmount)],
+          ['Gesamter Bruttobetrag', formatEuroText(summary.gross)],
+        ],
+        styles: {
+          fontSize: 9.2,
+          cellPadding: 2.2,
+          lineColor: [220, 220, 220],
+          lineWidth: 0.1,
+        },
+        columnStyles: {
+          0: { cellWidth: 52 },
+          1: { cellWidth: 32, halign: 'right' },
+        },
+        didParseCell: (hook) => {
+          if (hook.row.section === 'body' && hook.row.index === 4) {
+            hook.cell.styles.fontStyle = 'bold';
+          }
+          if (hook.row.section === 'body' && (hook.row.index === 0 || hook.row.index === 4)) {
+            hook.cell.styles.fillColor = [241, 245, 249];
+          }
+        },
+      });
 
-      const requiredHeight = 5 * lineHeight + paymentTermsLines.length * 5 + 24;
-      if (y + requiredHeight > pageHeight - 42) {
+      let paymentY = (doc.lastAutoTable?.finalY || 126) + 10;
+      const paymentBlockHeight = paymentTermsLines.length * 5 + 14;
+      if (paymentY + paymentBlockHeight > footerTop - 2) {
         doc.addPage();
-        y = 20;
+        paymentY = 20;
       }
-
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(10);
-      doc.text('Kalkulation (letzte Seite)', marginX, y - 2);
-      drawSummaryLine('Gesamtauftragspreise (Netto)', formatEuroText(summary.orderNet), y + lineHeight, false, true);
-      drawSummaryLine('Nettobetrag Auslagen (Tank)', formatEuroText(summary.fuelNet), y + lineHeight * 2, false, false);
-      drawSummaryLine('Gesamter Nettobetrag', formatEuroText(summary.net), y + lineHeight * 3, false, false);
-      drawSummaryLine(`Umsatzsteuer ${summary.vatRate || 0}%`, formatEuroText(summary.vatAmount), y + lineHeight * 4, false, false);
-      drawSummaryLine('Gesamter Bruttobetrag', formatEuroText(summary.gross), y + lineHeight * 5, true, true);
-
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(10.5);
-      const paymentY = y + lineHeight * 5 + 12;
       doc.text(paymentTermsLines, marginX, paymentY);
       const signatureY = paymentY + paymentTermsLines.length * 5 + 6;
       doc.text('Mit freundlichen Grüßen', marginX, signatureY);
