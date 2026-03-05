@@ -8,7 +8,6 @@ import {
   Users, 
   ArrowRight,
   AlertCircle,
-  Calendar,
   Route,
   Search,
   Settings,
@@ -56,14 +55,10 @@ const DASH_CHIP_ACTIVE =
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const todayKey = format(new Date(), 'yyyy-MM-dd');
-  const [dateFrom, setDateFrom] = useState(todayKey);
-  const [dateTo, setDateTo] = useState(todayKey);
   const [recentProtocolsDays, setRecentProtocolsDays] = useState(2);
   const [selectedOrderId, setSelectedOrderId] = useState(null);
   const [selectedMapLocation, setSelectedMapLocation] = useState(null);
   const [mapMode, setMapMode] = useState('open');
-  const [onlyDue, setOnlyDue] = useState(false);
   const [quickSearch, setQuickSearch] = useState('');
   const [currentUser, setCurrentUser] = useState(null);
   const [profitTargetSaved, setProfitTargetSaved] = useState('');
@@ -138,22 +133,8 @@ export default function Dashboard() {
   });
 
   const rangeOrders = useMemo(() => {
-    if (!dateFrom && !dateTo) return orders;
-    const start = dateFrom && dateTo && dateFrom > dateTo ? dateTo : dateFrom;
-    const end = dateFrom && dateTo && dateFrom > dateTo ? dateFrom : dateTo;
-    return orders.filter((order) => {
-      const orderDate = toDateKey(order.pickup_date) || toDateKey(order.dropoff_date) || toDateKey(order.created_date);
-      if (!orderDate) return false;
-      if (start && orderDate < start) return false;
-      if (end && orderDate > end) return false;
-      if (onlyDue) {
-        const dueDate = toDateKey(order.dropoff_date) || toDateKey(order.pickup_date);
-        if (!dueDate) return false;
-        if (dueDate > todayKey) return false;
-      }
-      return true;
-    });
-  }, [orders, dateFrom, dateTo, onlyDue, todayKey]);
+    return orders;
+  }, [orders]);
 
   const stats = {
     pendingOrders: rangeOrders.filter(o => o.status === 'new').length,
@@ -224,12 +205,7 @@ export default function Dashboard() {
     };
   }, []);
 
-  const targetMonthKey = useMemo(() => {
-    if (dateFrom && dateTo && dateFrom.slice(0, 7) === dateTo.slice(0, 7)) {
-      return dateFrom.slice(0, 7);
-    }
-    return format(new Date(), 'yyyy-MM');
-  }, [dateFrom, dateTo]);
+  const targetMonthKey = useMemo(() => format(new Date(), 'yyyy-MM'), []);
 
   useEffect(() => {
     const companyKey = currentUser?.company_id || currentUser?.id || 'global';
@@ -337,25 +313,12 @@ export default function Dashboard() {
     }).slice(0, 6);
   }, [orders, quickSearch]);
 
-  const rangeLabel = useMemo(() => {
-    const parse = (value) => {
-      if (!value) return null;
-      const date = new Date(value);
-      if (Number.isNaN(date.getTime())) return null;
-      return format(date, 'dd.MM.yyyy', { locale: de });
-    };
-    const fromLabel = parse(dateFrom);
-    const toLabel = parse(dateTo);
-    if (fromLabel && toLabel) return `${fromLabel} – ${toLabel}`;
-    return fromLabel || toLabel || 'Kein Zeitraum';
-  }, [dateFrom, dateTo]);
-
   const mapCounts = useMemo(() => {
     return {
-      open: rangeOrders.filter((order) => OPEN_STATUSES.includes(order.status)).length,
-      inDelivery: rangeOrders.filter((order) => DELIVERY_STATUSES.has(order.status)).length,
+      open: orders.filter((order) => OPEN_STATUSES.includes(order.status)).length,
+      inDelivery: orders.filter((order) => DELIVERY_STATUSES.has(order.status)).length,
     };
-  }, [rangeOrders]);
+  }, [orders]);
 
   const recentChecklists = useMemo(() => {
     const boundary = new Date();
@@ -371,7 +334,7 @@ export default function Dashboard() {
   }, [checklists, recentProtocolsDays]);
 
   const mapOrders = useMemo(() => {
-    return rangeOrders.filter((order) => {
+    return orders.filter((order) => {
       const pickup = [order.pickup_address, order.pickup_postal_code, order.pickup_city]
         .filter(Boolean)
         .join(", ")
@@ -385,7 +348,7 @@ export default function Dashboard() {
       if (mapMode === 'in_transit') return DELIVERY_STATUSES.has(order.status);
       return true;
     });
-  }, [rangeOrders, mapMode]);
+  }, [orders, mapMode]);
 
   const locationOrders = useMemo(() => {
     const orderIds = selectedMapLocation?.orderIds || [];
@@ -440,25 +403,7 @@ export default function Dashboard() {
     </Card>
   );
 
-  const setTodayRange = () => {
-    setDateFrom(todayKey);
-    setDateTo(todayKey);
-  };
-
-  const setLastSevenDays = () => {
-    const end = new Date();
-    const start = subDays(end, 6);
-    setDateFrom(format(start, 'yyyy-MM-dd'));
-    setDateTo(format(end, 'yyyy-MM-dd'));
-  };
-
-  const statisticsUrl = useMemo(() => {
-    const params = new URLSearchParams();
-    if (dateFrom) params.set('from', dateFrom);
-    if (dateTo) params.set('to', dateTo);
-    const query = params.toString();
-    return `${createPageUrl('Statistics')}${query ? `?${query}` : ''}`;
-  }, [dateFrom, dateTo]);
+  const statisticsUrl = createPageUrl('Statistics');
 
   return (
     <div className="space-y-6">
@@ -474,9 +419,6 @@ export default function Dashboard() {
               <p className="text-sm text-slate-300">Übersicht aller Aktivitäten, Aufträge und Routen</p>
             </div>
             <div className="flex flex-wrap items-center gap-3">
-              <div className="rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs uppercase tracking-wide text-slate-200">
-                Zeitraum: {rangeLabel}
-              </div>
               <Link to={createPageUrl('Orders') + '?new=true'}>
                 <Button className={DASH_PRIMARY_BTN}>
                   <Truck className="w-4 h-4 mr-2" />
@@ -533,107 +475,6 @@ export default function Dashboard() {
         </CardContent>
       </Card>
 
-      <Card className="border border-slate-200/80 bg-white/90 shadow-[0_20px_40px_-30px_rgba(15,23,42,0.6)]">
-        <CardContent className="flex flex-col gap-4 p-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-center gap-3 text-slate-700">
-            <Calendar className="w-5 h-5 text-[#1e3a5f]" />
-            <div>
-              <p className="text-sm font-medium">Zeitraum auswählen</p>
-              <p className="text-xs text-slate-500">Daten nach Abhol- oder Erstellungsdatum</p>
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <Input
-              type="date"
-              value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
-              className="w-40"
-            />
-            <span className="text-slate-400">bis</span>
-            <Input
-              type="date"
-              value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
-              className="w-40"
-            />
-            <Button
-              variant="outline"
-              size="sm"
-              className={DASH_OUTLINE_BTN}
-              onClick={setTodayRange}
-            >
-              Heute
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className={DASH_OUTLINE_BTN}
-              onClick={setLastSevenDays}
-            >
-              Letzte 7 Tage
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className={DASH_OUTLINE_BTN}
-              onClick={() => {
-                const end = new Date();
-                const start = subDays(end, 13);
-                setDateFrom(format(start, 'yyyy-MM-dd'));
-                setDateTo(format(end, 'yyyy-MM-dd'));
-              }}
-            >
-              Letzte 14 Tage
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className={DASH_OUTLINE_BTN}
-              onClick={() => {
-                const end = new Date();
-                const start = subDays(end, 29);
-                setDateFrom(format(start, 'yyyy-MM-dd'));
-                setDateTo(format(end, 'yyyy-MM-dd'));
-              }}
-            >
-              Letzte 30 Tage
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className={DASH_OUTLINE_BTN}
-              onClick={() => {
-                const now = new Date();
-                setDateFrom(format(startOfMonth(now), 'yyyy-MM-dd'));
-                setDateTo(format(endOfMonth(now), 'yyyy-MM-dd'));
-              }}
-            >
-              Dieser Monat
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className={DASH_OUTLINE_BTN}
-              onClick={() => {
-                const lastMonth = subDays(startOfMonth(new Date()), 1);
-                setDateFrom(format(startOfMonth(lastMonth), 'yyyy-MM-dd'));
-                setDateTo(format(endOfMonth(lastMonth), 'yyyy-MM-dd'));
-              }}
-            >
-              Letzter Monat
-            </Button>
-            <Button
-              variant={onlyDue ? "default" : "outline"}
-              size="sm"
-              className={onlyDue ? DASH_CHIP_ACTIVE : DASH_OUTLINE_BTN}
-              onClick={() => setOnlyDue((prev) => !prev)}
-            >
-              Nur fällige Aufträge
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard 
@@ -675,7 +516,7 @@ export default function Dashboard() {
           <div className="flex items-center justify-between gap-3">
             <div>
               <CardTitle className="text-lg font-semibold text-slate-900">Finanz-Übersicht</CardTitle>
-              <p className="text-sm text-slate-500">Abgeschlossene Touren im gewählten Zeitraum</p>
+              <p className="text-sm text-slate-500">Abgeschlossene Touren gesamt</p>
             </div>
             <Link to={statisticsUrl}>
               <Button className={DASH_PRIMARY_BTN}>
