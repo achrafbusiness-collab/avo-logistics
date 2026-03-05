@@ -75,6 +75,14 @@ const formatEuroText = (value) =>
     maximumFractionDigits: 2,
   })} EUR`;
 
+const grossToNet = (grossValue, vatRateValue) => {
+  const gross = Number(grossValue || 0);
+  const vatRate = Number(vatRateValue || 0);
+  if (!Number.isFinite(gross)) return 0;
+  if (!Number.isFinite(vatRate) || vatRate <= 0) return gross;
+  return gross / (1 + vatRate / 100);
+};
+
 const sanitizeFileNamePart = (value, maxLength = 60) => {
   const cleaned = String(value || '')
     .replace(/[\\/:*?"<>|]+/g, ' ')
@@ -218,6 +226,10 @@ export default function CustomerInvoice() {
       plate: row.plate || '-',
       orderPriceDraft: toMoneyInput(row.orderPriceDraft ?? row.orderPrice),
       fuelExpensesDraft: toMoneyInput(row.fuelExpensesDraft ?? row.fuelExpenses),
+      billFuel:
+        typeof row.billFuel === 'boolean'
+          ? row.billFuel
+          : parseMoneyInput(row.fuelExpensesDraft ?? row.fuelExpenses) > 0,
     }));
   }, [record]);
 
@@ -313,20 +325,33 @@ export default function CustomerInvoice() {
   }, [appSettings, financeDefaults.invoiceProfile]);
 
   const summary = useMemo(() => {
-    const net = rows.reduce((sum, row) => {
-      const orderPrice = parseMoneyInput(row.orderPriceDraft);
-      const fuelExpenses = parseMoneyInput(row.fuelExpensesDraft);
-      return sum + orderPrice + fuelExpenses;
-    }, 0);
     const vatRate = parseMoneyInput(invoiceMeta.vatRate);
-    const vatAmount = net * (vatRate / 100);
-    const gross = net + vatAmount;
+    const gross = rows.reduce((sum, row) => {
+      const orderGross = parseMoneyInput(row.orderPriceDraft);
+      const fuelGross = row.billFuel === false ? 0 : parseMoneyInput(row.fuelExpensesDraft);
+      return sum + orderGross + fuelGross;
+    }, 0);
+    const net = rows.reduce((sum, row) => {
+      const orderGross = parseMoneyInput(row.orderPriceDraft);
+      const fuelGross = row.billFuel === false ? 0 : parseMoneyInput(row.fuelExpensesDraft);
+      return sum + grossToNet(orderGross + fuelGross, vatRate);
+    }, 0);
+    const fuelNet = rows.reduce((sum, row) => {
+      const fuelGross = row.billFuel === false ? 0 : parseMoneyInput(row.fuelExpensesDraft);
+      return sum + grossToNet(fuelGross, vatRate);
+    }, 0);
+    const fuelGross = rows.reduce((sum, row) => {
+      return sum + (row.billFuel === false ? 0 : parseMoneyInput(row.fuelExpensesDraft));
+    }, 0);
+    const vatAmount = gross - net;
     return {
       orderCount: rows.length,
       net,
       vatRate,
       vatAmount,
       gross,
+      fuelNet,
+      fuelGross,
     };
   }, [rows, invoiceMeta.vatRate]);
 
@@ -343,6 +368,7 @@ export default function CustomerInvoice() {
       orderPriceDraft: row.orderPriceDraft,
       fuelExpenses: parseMoneyInput(row.fuelExpensesDraft),
       fuelExpensesDraft: row.fuelExpensesDraft,
+      billFuel: row.billFuel !== false,
     }));
   }, [rows]);
 
@@ -370,6 +396,8 @@ export default function CustomerInvoice() {
           vatRate: summary.vatRate,
           vatAmount: summary.vatAmount,
           gross: summary.gross,
+          fuelNet: summary.fuelNet,
+          fuelGross: summary.fuelGross,
         },
       };
       if (isInvoice) {
@@ -401,6 +429,8 @@ export default function CustomerInvoice() {
           vatRate: summary.vatRate,
           vatAmount: summary.vatAmount,
           gross: summary.gross,
+          fuelNet: summary.fuelNet,
+          fuelGross: summary.fuelGross,
         },
         status: 'open',
       });
@@ -534,17 +564,21 @@ export default function CustomerInvoice() {
       autoTable(doc, {
         startY: 126,
         margin: { left: marginX, right: marginX, bottom: 42 },
-        head: [['Pos.', 'Beschreibung', 'Einzelpreis', 'Gesamtpreis']],
+        head: [['Pos.', 'Beschreibung', 'Tour Netto', 'Tank Netto', 'Gesamt Netto']],
         body: rows.map((row, index) => {
-          const orderPrice = parseMoneyInput(row.orderPriceDraft);
-          const fuelExpenses = parseMoneyInput(row.fuelExpensesDraft);
-          const lineTotal = orderPrice + fuelExpenses;
+          const orderGross = parseMoneyInput(row.orderPriceDraft);
+          const fuelGrossRaw = parseMoneyInput(row.fuelExpensesDraft);
+          const fuelGross = row.billFuel === false ? 0 : fuelGrossRaw;
+          const orderNet = grossToNet(orderGross, summary.vatRate);
+          const fuelNet = grossToNet(fuelGross, summary.vatRate);
+          const lineNet = orderNet + fuelNet;
           const description = `${row.orderNumber} ${row.routeDraft}`.trim();
           return [
             String(index + 1),
             description,
-            formatEuroText(lineTotal),
-            formatEuroText(lineTotal),
+            formatEuroText(orderNet),
+            formatEuroText(fuelNet),
+            formatEuroText(lineNet),
           ];
         }),
         styles: {
@@ -562,9 +596,10 @@ export default function CustomerInvoice() {
         },
         columnStyles: {
           0: { cellWidth: 10, halign: 'center' },
-          1: { cellWidth: 122 },
-          2: { cellWidth: 25, halign: 'right' },
-          3: { cellWidth: 25, halign: 'right' },
+          1: { cellWidth: 92 },
+          2: { cellWidth: 26, halign: 'right' },
+          3: { cellWidth: 26, halign: 'right' },
+          4: { cellWidth: 28, halign: 'right' },
         },
       });
 
@@ -594,19 +629,23 @@ export default function CustomerInvoice() {
         doc.text(value, summaryX + summaryWidth - 2, top, { align: 'right' });
       };
 
-      const requiredHeight = 3 * lineHeight + paymentTermsLines.length * 5 + 20;
+      const requiredHeight = 5 * lineHeight + paymentTermsLines.length * 5 + 24;
       if (y + requiredHeight > pageHeight - 42) {
         doc.addPage();
         y = 20;
       }
 
-      drawSummaryLine('Gesamtbetrag netto', formatEuroText(summary.net), y, false, true);
-      drawSummaryLine(`Umsatzsteuer ${summary.vatRate || 0}%`, formatEuroText(summary.vatAmount), y + lineHeight, false, false);
-      drawSummaryLine('Gesamtbetrag brutto', formatEuroText(summary.gross), y + lineHeight * 2, true, true);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10);
+      doc.text('Kalkulation (letzte Seite)', marginX, y - 2);
+      drawSummaryLine('Gesamter Nettobetrag', formatEuroText(summary.net), y + lineHeight, false, true);
+      drawSummaryLine('Nettobetrag Auslagen (Tank)', formatEuroText(summary.fuelNet), y + lineHeight * 2, false, false);
+      drawSummaryLine(`Umsatzsteuer ${summary.vatRate || 0}%`, formatEuroText(summary.vatAmount), y + lineHeight * 3, false, false);
+      drawSummaryLine('Gesamter Bruttobetrag', formatEuroText(summary.gross), y + lineHeight * 4, true, true);
 
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(10.5);
-      const paymentY = y + lineHeight * 2 + 12;
+      const paymentY = y + lineHeight * 4 + 12;
       doc.text(paymentTermsLines, marginX, paymentY);
       const signatureY = paymentY + paymentTermsLines.length * 5 + 6;
       doc.text('Mit freundlichen Grüßen', marginX, signatureY);
@@ -798,14 +837,18 @@ export default function CustomerInvoice() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-6">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-7">
             <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
               <p className="text-xs text-slate-500">Positionen</p>
               <p className="font-semibold text-slate-900">{summary.orderCount}</p>
             </div>
             <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-              <p className="text-xs text-slate-500">Netto</p>
+              <p className="text-xs text-slate-500">Netto (Rechnung)</p>
               <p className="font-semibold text-slate-900">{formatCurrencyValue(summary.net)}</p>
+            </div>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+              <p className="text-xs text-slate-500">Tank Netto</p>
+              <p className="font-semibold text-slate-900">{formatCurrencyValue(summary.fuelNet)}</p>
             </div>
             <div className="space-y-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
               <p className="text-xs text-slate-500">MwSt. %</p>
@@ -843,16 +886,18 @@ export default function CustomerInvoice() {
                   <th className="px-3 py-2">Beschreibung / Route</th>
                   <th className="px-3 py-2">Fahrzeug</th>
                   <th className="px-3 py-2">Kennzeichen</th>
-                  <th className="px-3 py-2 text-right">Auftragspreis</th>
-                  <th className="px-3 py-2 text-right">Auslagen (Tank)</th>
-                  <th className="px-3 py-2 text-right">Gesamt</th>
+                  <th className="px-3 py-2 text-right">Auftragspreis (Brutto)</th>
+                  <th className="px-3 py-2 text-right">Tank (Brutto)</th>
+                  <th className="px-3 py-2 text-center">Tank abrechnen</th>
+                  <th className="px-3 py-2 text-right">Rechnung Netto</th>
                 </tr>
               </thead>
               <tbody>
                 {rows.map((row, index) => {
                   const orderPrice = parseMoneyInput(row.orderPriceDraft);
-                  const fuelExpenses = parseMoneyInput(row.fuelExpensesDraft);
-                  const total = orderPrice + fuelExpenses;
+                  const fuelExpensesRaw = parseMoneyInput(row.fuelExpensesDraft);
+                  const fuelIncluded = row.billFuel === false ? 0 : fuelExpensesRaw;
+                  const lineNet = grossToNet(orderPrice + fuelIncluded, summary.vatRate);
                   return (
                     <tr key={row.id} className="border-t border-slate-200 align-top">
                       <td className="px-3 py-2">{index + 1}</td>
@@ -881,7 +926,14 @@ export default function CustomerInvoice() {
                           inputMode="decimal"
                         />
                       </td>
-                      <td className="px-3 py-2 text-right font-semibold">{formatCurrencyValue(total)}</td>
+                      <td className="px-3 py-2 text-center">
+                        <input
+                          type="checkbox"
+                          checked={row.billFuel !== false}
+                          onChange={(event) => handleRowChange(row.id, 'billFuel', event.target.checked)}
+                        />
+                      </td>
+                      <td className="px-3 py-2 text-right font-semibold">{formatCurrencyValue(lineNet)}</td>
                     </tr>
                   );
                 })}
