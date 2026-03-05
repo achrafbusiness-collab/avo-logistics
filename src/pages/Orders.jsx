@@ -163,6 +163,11 @@ export default function Orders() {
   const [bulkAssignCustomerOpen, setBulkAssignCustomerOpen] = useState(false);
   const [bulkCustomerBillingOpen, setBulkCustomerBillingOpen] = useState(false);
   const [bulkCustomerId, setBulkCustomerId] = useState('none');
+  const [invoiceCustomerPickerOpen, setInvoiceCustomerPickerOpen] = useState(false);
+  const [invoiceEditorOpen, setInvoiceEditorOpen] = useState(false);
+  const [invoiceCustomerKey, setInvoiceCustomerKey] = useState('');
+  const [invoicePickerCustomerKey, setInvoicePickerCustomerKey] = useState('');
+  const [invoiceDraftRows, setInvoiceDraftRows] = useState([]);
   const [bulkWorking, setBulkWorking] = useState(false);
   const [bulkBillingExporting, setBulkBillingExporting] = useState(false);
   const [bulkMessage, setBulkMessage] = useState('');
@@ -664,6 +669,23 @@ export default function Orders() {
       maximumFractionDigits: 2,
     });
 
+  const parseMoneyInput = (value) => {
+    if (value === null || value === undefined || value === '') return 0;
+    const raw = String(value).trim();
+    if (!raw) return 0;
+    const normalized = raw.includes(',')
+      ? raw.replace(/\./g, '').replace(',', '.')
+      : raw;
+    const parsed = Number.parseFloat(normalized);
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
+
+  const toMoneyInput = (value) => {
+    const parsed = Number.parseFloat(value);
+    const safe = Number.isFinite(parsed) ? parsed : 0;
+    return safe.toFixed(2).replace('.', ',');
+  };
+
   const searchLower = searchTerm.trim().toLowerCase();
   const dateFromBound = dateFromFilter ? new Date(`${dateFromFilter}T00:00:00`) : null;
   const dateToBound = dateToFilter ? new Date(`${dateToFilter}T23:59:59.999`) : null;
@@ -883,6 +905,31 @@ export default function Orders() {
   const allSelected = selectedOrders.length > 0 && selectedOrders.length === filteredOrders.length;
   const someSelected = selectedOrders.length > 0 && !allSelected;
 
+  const customerLookupById = useMemo(() => {
+    const map = new Map();
+    customers.forEach((customer) => {
+      map.set(customer.id, customer);
+    });
+    return map;
+  }, [customers]);
+
+  const getOrderCustomerKey = (order) => order.customer_id || '__none__';
+
+  const getOrderCustomerLabel = (order) => {
+    if (order?.customer_id) {
+      const customer = customerLookupById.get(order.customer_id);
+      if (customer) {
+        return (
+          getCustomerDisplayName(customer) ||
+          customer.email ||
+          order.customer_name?.trim() ||
+          'Kunde'
+        );
+      }
+    }
+    return order?.customer_name?.trim() || 'Ohne Kunde';
+  };
+
   const customerBillingRows = useMemo(() => {
     const formatRoute = (order) => {
       const pickup = [order.pickup_address, order.pickup_postal_code, order.pickup_city]
@@ -910,8 +957,12 @@ export default function Orders() {
       const fuelExpenses = Number.parseFloat(fuelExpensesByOrder[order.id] || 0);
       const orderPriceSafe = Number.isFinite(orderPrice) ? orderPrice : 0;
       const fuelExpensesSafe = Number.isFinite(fuelExpenses) ? fuelExpenses : 0;
+      const customerKey = getOrderCustomerKey(order);
+      const customerLabel = getOrderCustomerLabel(order);
       return {
         id: order.id,
+        customerKey,
+        customerLabel,
         orderNumber: order.order_number || '-',
         date: orderDate,
         dateLabel: orderDate ? format(orderDate, 'dd.MM.yyyy', { locale: de }) : '-',
@@ -923,12 +974,29 @@ export default function Orders() {
         total: orderPriceSafe + fuelExpensesSafe,
       };
     });
-  }, [selectedOrders, fuelExpensesByOrder]);
+  }, [selectedOrders, fuelExpensesByOrder, customerLookupById]);
+
+  const customerBillingCustomers = useMemo(() => {
+    const grouped = new Map();
+    customerBillingRows.forEach((row) => {
+      if (!grouped.has(row.customerKey)) {
+        grouped.set(row.customerKey, {
+          key: row.customerKey,
+          label: row.customerLabel || 'Kunde',
+          orderCount: 0,
+        });
+      }
+      grouped.get(row.customerKey).orderCount += 1;
+    });
+    return Array.from(grouped.values()).sort((a, b) =>
+      (a.label || '').localeCompare(b.label || '', 'de')
+    );
+  }, [customerBillingRows]);
 
   const customerBillingSummary = useMemo(() => {
     const uniqueCustomers = Array.from(
       new Set(
-        selectedOrders.map((order) => order.customer_name?.trim()).filter(Boolean)
+        customerBillingRows.map((row) => row.customerLabel?.trim()).filter(Boolean)
       )
     );
     const customerLabel =
@@ -946,7 +1014,7 @@ export default function Orders() {
       fuelTotal,
       grandTotal: orderTotal + fuelTotal,
     };
-  }, [customerBillingRows, selectedOrders]);
+  }, [customerBillingRows]);
 
   const exportCustomerBillingExcel = async () => {
     if (!customerBillingRows.length) return;
@@ -1071,6 +1139,65 @@ export default function Orders() {
       setBulkBillingExporting(false);
     }
   };
+
+  const openInvoiceEditorForCustomer = (customerKey) => {
+    if (!customerKey) return;
+    const customerRows = customerBillingRows
+      .filter((row) => row.customerKey === customerKey)
+      .map((row) => ({
+        ...row,
+        routeDraft: row.route,
+        orderPriceDraft: toMoneyInput(row.orderPrice),
+        fuelExpensesDraft: toMoneyInput(row.fuelExpenses),
+      }));
+    if (!customerRows.length) {
+      setBulkError('Für den ausgewählten Kunden wurden keine Aufträge gefunden.');
+      return;
+    }
+    setInvoiceCustomerKey(customerKey);
+    setInvoiceDraftRows(customerRows);
+    setInvoiceCustomerPickerOpen(false);
+    setBulkCustomerBillingOpen(false);
+    setInvoiceEditorOpen(true);
+  };
+
+  const handleOpenInvoiceFlow = () => {
+    if (!customerBillingRows.length) return;
+    setBulkError('');
+    if (customerBillingCustomers.length <= 1) {
+      openInvoiceEditorForCustomer(customerBillingCustomers[0]?.key || '__none__');
+      return;
+    }
+    const defaultCustomer = customerBillingCustomers[0]?.key || '';
+    setInvoicePickerCustomerKey(defaultCustomer);
+    setInvoiceCustomerPickerOpen(true);
+  };
+
+  const handleInvoiceDraftChange = (rowId, field, value) => {
+    setInvoiceDraftRows((prev) =>
+      prev.map((row) => (row.id === rowId ? { ...row, [field]: value } : row))
+    );
+  };
+
+  const invoiceEditorSummary = useMemo(() => {
+    const orderTotal = invoiceDraftRows.reduce(
+      (sum, row) => sum + parseMoneyInput(row.orderPriceDraft),
+      0
+    );
+    const fuelTotal = invoiceDraftRows.reduce(
+      (sum, row) => sum + parseMoneyInput(row.fuelExpensesDraft),
+      0
+    );
+    return {
+      orderCount: invoiceDraftRows.length,
+      orderTotal,
+      fuelTotal,
+      grandTotal: orderTotal + fuelTotal,
+    };
+  }, [invoiceDraftRows]);
+
+  const activeInvoiceCustomerLabel =
+    customerBillingCustomers.find((customer) => customer.key === invoiceCustomerKey)?.label || 'Kunde';
 
   const handleBulkDelete = async () => {
     if (!selectedIds.length) return;
@@ -2544,6 +2671,159 @@ export default function Orders() {
             >
               {bulkBillingExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               Als PDF herunterladen
+            </Button>
+            <Button
+              className="bg-emerald-600 hover:bg-emerald-700"
+              onClick={handleOpenInvoiceFlow}
+              disabled={bulkBillingExporting || customerBillingRows.length === 0}
+            >
+              In Rechnung stellen
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={invoiceCustomerPickerOpen} onOpenChange={setInvoiceCustomerPickerOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Kunden für Rechnung wählen</DialogTitle>
+            <DialogDescription>
+              In der Auswahl sind mehrere Kunden enthalten. Wähle bitte den Kunden, den du jetzt abrechnen möchtest.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Select value={invoicePickerCustomerKey} onValueChange={setInvoicePickerCustomerKey}>
+              <SelectTrigger>
+                <SelectValue placeholder="Kunde auswählen" />
+              </SelectTrigger>
+              <SelectContent>
+                {customerBillingCustomers.map((customer) => (
+                  <SelectItem key={customer.key} value={customer.key}>
+                    {customer.label} ({customer.orderCount} Auftrag{customer.orderCount !== 1 ? 'e' : ''})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setInvoiceCustomerPickerOpen(false)}>
+              Abbrechen
+            </Button>
+            <Button
+              className="bg-[#1e3a5f] hover:bg-[#2d5a8a]"
+              onClick={() => openInvoiceEditorForCustomer(invoicePickerCustomerKey)}
+              disabled={!invoicePickerCustomerKey}
+            >
+              Rechnung öffnen
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={invoiceEditorOpen} onOpenChange={setInvoiceEditorOpen}>
+        <DialogContent className="max-w-[96vw] lg:max-w-6xl">
+          <DialogHeader>
+            <DialogTitle>Rechnung</DialogTitle>
+            <DialogDescription>
+              Route und Beträge pro Auftrag können hier bearbeitet werden. Die Gesamtsumme wird automatisch berechnet.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-5">
+            <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+              <p className="text-xs text-slate-500">Kunde</p>
+              <p className="font-semibold text-slate-900">{activeInvoiceCustomerLabel}</p>
+            </div>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+              <p className="text-xs text-slate-500">Aufträge</p>
+              <p className="font-semibold text-slate-900">{invoiceEditorSummary.orderCount}</p>
+            </div>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+              <p className="text-xs text-slate-500">Gesamt Aufträge</p>
+              <p className="font-semibold text-slate-900">{formatCurrencyValue(invoiceEditorSummary.orderTotal)}</p>
+            </div>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+              <p className="text-xs text-slate-500">Gesamt Tank</p>
+              <p className="font-semibold text-slate-900">{formatCurrencyValue(invoiceEditorSummary.fuelTotal)}</p>
+            </div>
+            <div className="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2">
+              <p className="text-xs text-emerald-700">Gesamtsumme</p>
+              <p className="font-semibold text-emerald-900">{formatCurrencyValue(invoiceEditorSummary.grandTotal)}</p>
+            </div>
+          </div>
+
+          <div className="max-h-[55vh] overflow-auto rounded-lg border border-slate-200">
+            <table className="min-w-full text-sm">
+              <thead className="sticky top-0 z-10 bg-slate-100 text-left text-slate-600">
+                <tr>
+                  <th className="px-3 py-2">Auftragsnummer</th>
+                  <th className="px-3 py-2">Datum</th>
+                  <th className="px-3 py-2">Route</th>
+                  <th className="px-3 py-2">Fahrzeug</th>
+                  <th className="px-3 py-2">Kennzeichen</th>
+                  <th className="px-3 py-2 text-right">Auftragspreis</th>
+                  <th className="px-3 py-2 text-right">Auslagen (Tank)</th>
+                  <th className="px-3 py-2 text-right">Gesamt</th>
+                </tr>
+              </thead>
+              <tbody>
+                {invoiceDraftRows.map((row) => {
+                  const orderPrice = parseMoneyInput(row.orderPriceDraft);
+                  const fuelExpenses = parseMoneyInput(row.fuelExpensesDraft);
+                  const total = orderPrice + fuelExpenses;
+                  return (
+                    <tr key={row.id} className="border-t border-slate-200 align-top">
+                      <td className="px-3 py-2">{row.orderNumber}</td>
+                      <td className="px-3 py-2">{row.dateLabel}</td>
+                      <td className="px-3 py-2 min-w-[280px]">
+                        <Textarea
+                          value={row.routeDraft}
+                          onChange={(event) =>
+                            handleInvoiceDraftChange(row.id, 'routeDraft', event.target.value)
+                          }
+                          rows={2}
+                        />
+                      </td>
+                      <td className="px-3 py-2">{row.vehicle}</td>
+                      <td className="px-3 py-2">{row.plate}</td>
+                      <td className="px-3 py-2 min-w-[140px]">
+                        <Input
+                          value={row.orderPriceDraft}
+                          onChange={(event) =>
+                            handleInvoiceDraftChange(row.id, 'orderPriceDraft', event.target.value)
+                          }
+                          inputMode="decimal"
+                        />
+                      </td>
+                      <td className="px-3 py-2 min-w-[140px]">
+                        <Input
+                          value={row.fuelExpensesDraft}
+                          onChange={(event) =>
+                            handleInvoiceDraftChange(row.id, 'fuelExpensesDraft', event.target.value)
+                          }
+                          inputMode="decimal"
+                        />
+                      </td>
+                      <td className="px-3 py-2 text-right font-semibold">{formatCurrencyValue(total)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot className="bg-slate-50">
+                <tr className="border-t border-slate-300 font-semibold text-slate-900">
+                  <td className="px-3 py-2">SUMME</td>
+                  <td className="px-3 py-2" colSpan={4}></td>
+                  <td className="px-3 py-2 text-right">{formatCurrencyValue(invoiceEditorSummary.orderTotal)}</td>
+                  <td className="px-3 py-2 text-right">{formatCurrencyValue(invoiceEditorSummary.fuelTotal)}</td>
+                  <td className="px-3 py-2 text-right">{formatCurrencyValue(invoiceEditorSummary.grandTotal)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setInvoiceEditorOpen(false)}>
+              Schließen
             </Button>
           </DialogFooter>
         </DialogContent>
