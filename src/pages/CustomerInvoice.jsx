@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Download, Loader2, TriangleAlert, Save, CheckCircle2 } from 'lucide-react';
+import { Download, Loader2, TriangleAlert, Save, CheckCircle2, ArrowLeft } from 'lucide-react';
 import {
   consumeNextInvoiceNumber,
   finalizeDraftToInvoice,
@@ -226,10 +226,6 @@ export default function CustomerInvoice() {
       plate: row.plate || '-',
       orderPriceDraft: toMoneyInput(row.orderPriceDraft ?? row.orderPrice),
       fuelExpensesDraft: toMoneyInput(row.fuelExpensesDraft ?? row.fuelExpenses),
-      billFuel:
-        typeof row.billFuel === 'boolean'
-          ? row.billFuel
-          : parseMoneyInput(row.fuelExpensesDraft ?? row.fuelExpenses) > 0,
     }));
   }, [record]);
 
@@ -250,6 +246,7 @@ export default function CustomerInvoice() {
     contactPerson: '',
     paymentDays: '14',
     vatRate: '19',
+    includeFuel: true,
   });
 
   useEffect(() => {
@@ -274,6 +271,7 @@ export default function CustomerInvoice() {
       contactPerson: meta.contactPerson || defaultContact,
       paymentDays: String(meta.paymentDays || financeDefaults.defaultPaymentDays || 14),
       vatRate: String(meta.vatRate ?? financeDefaults.defaultVatRate ?? 19),
+      includeFuel: meta.includeFuel !== false,
     });
   }, [
     record,
@@ -326,22 +324,23 @@ export default function CustomerInvoice() {
 
   const summary = useMemo(() => {
     const vatRate = parseMoneyInput(invoiceMeta.vatRate);
+    const includeFuel = invoiceMeta.includeFuel !== false;
     const gross = rows.reduce((sum, row) => {
       const orderGross = parseMoneyInput(row.orderPriceDraft);
-      const fuelGross = row.billFuel === false ? 0 : parseMoneyInput(row.fuelExpensesDraft);
+      const fuelGross = includeFuel ? parseMoneyInput(row.fuelExpensesDraft) : 0;
       return sum + orderGross + fuelGross;
     }, 0);
     const net = rows.reduce((sum, row) => {
       const orderGross = parseMoneyInput(row.orderPriceDraft);
-      const fuelGross = row.billFuel === false ? 0 : parseMoneyInput(row.fuelExpensesDraft);
+      const fuelGross = includeFuel ? parseMoneyInput(row.fuelExpensesDraft) : 0;
       return sum + grossToNet(orderGross + fuelGross, vatRate);
     }, 0);
     const fuelNet = rows.reduce((sum, row) => {
-      const fuelGross = row.billFuel === false ? 0 : parseMoneyInput(row.fuelExpensesDraft);
+      const fuelGross = includeFuel ? parseMoneyInput(row.fuelExpensesDraft) : 0;
       return sum + grossToNet(fuelGross, vatRate);
     }, 0);
     const fuelGross = rows.reduce((sum, row) => {
-      return sum + (row.billFuel === false ? 0 : parseMoneyInput(row.fuelExpensesDraft));
+      return sum + (includeFuel ? parseMoneyInput(row.fuelExpensesDraft) : 0);
     }, 0);
     const vatAmount = gross - net;
     return {
@@ -352,8 +351,9 @@ export default function CustomerInvoice() {
       gross,
       fuelNet,
       fuelGross,
+      includeFuel,
     };
-  }, [rows, invoiceMeta.vatRate]);
+  }, [rows, invoiceMeta.vatRate, invoiceMeta.includeFuel]);
 
   const normalizedRowsForSave = useMemo(() => {
     return rows.map((row) => ({
@@ -368,7 +368,6 @@ export default function CustomerInvoice() {
       orderPriceDraft: row.orderPriceDraft,
       fuelExpenses: parseMoneyInput(row.fuelExpensesDraft),
       fuelExpensesDraft: row.fuelExpensesDraft,
-      billFuel: row.billFuel !== false,
     }));
   }, [rows]);
 
@@ -568,7 +567,7 @@ export default function CustomerInvoice() {
         body: rows.map((row, index) => {
           const orderGross = parseMoneyInput(row.orderPriceDraft);
           const fuelGrossRaw = parseMoneyInput(row.fuelExpensesDraft);
-          const fuelGross = row.billFuel === false ? 0 : fuelGrossRaw;
+          const fuelGross = finalMeta.includeFuel === false ? 0 : fuelGrossRaw;
           const orderNet = grossToNet(orderGross, summary.vatRate);
           const fuelNet = grossToNet(fuelGross, summary.vatRate);
           const lineNet = orderNet + fuelNet;
@@ -629,7 +628,7 @@ export default function CustomerInvoice() {
         doc.text(value, summaryX + summaryWidth - 2, top, { align: 'right' });
       };
 
-      const requiredHeight = 5 * lineHeight + paymentTermsLines.length * 5 + 24;
+      const requiredHeight = 6 * lineHeight + paymentTermsLines.length * 5 + 24;
       if (y + requiredHeight > pageHeight - 42) {
         doc.addPage();
         y = 20;
@@ -640,12 +639,13 @@ export default function CustomerInvoice() {
       doc.text('Kalkulation (letzte Seite)', marginX, y - 2);
       drawSummaryLine('Gesamter Nettobetrag', formatEuroText(summary.net), y + lineHeight, false, true);
       drawSummaryLine('Nettobetrag Auslagen (Tank)', formatEuroText(summary.fuelNet), y + lineHeight * 2, false, false);
-      drawSummaryLine(`Umsatzsteuer ${summary.vatRate || 0}%`, formatEuroText(summary.vatAmount), y + lineHeight * 3, false, false);
-      drawSummaryLine('Gesamter Bruttobetrag', formatEuroText(summary.gross), y + lineHeight * 4, true, true);
+      drawSummaryLine('Bruttobetrag Auslagen (Tank)', formatEuroText(summary.fuelGross), y + lineHeight * 3, false, false);
+      drawSummaryLine(`Umsatzsteuer ${summary.vatRate || 0}%`, formatEuroText(summary.vatAmount), y + lineHeight * 4, false, false);
+      drawSummaryLine('Gesamter Bruttobetrag', formatEuroText(summary.gross), y + lineHeight * 5, true, true);
 
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(10.5);
-      const paymentY = y + lineHeight * 4 + 12;
+      const paymentY = y + lineHeight * 5 + 12;
       doc.text(paymentTermsLines, marginX, paymentY);
       const signatureY = paymentY + paymentTermsLines.length * 5 + 6;
       doc.text('Mit freundlichen Grüßen', marginX, signatureY);
@@ -747,8 +747,22 @@ export default function CustomerInvoice() {
     );
   }
 
+  const handleBack = () => {
+    if (typeof window !== 'undefined' && window.history.length > 1) {
+      navigate(-1);
+      return;
+    }
+    navigate(`${createPageUrl('Customers')}?tab=${isInvoice ? 'invoices' : 'drafts'}`);
+  };
+
   return (
     <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <Button variant="outline" onClick={handleBack}>
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Zurück zur letzten Seite
+        </Button>
+      </div>
       <Card className="border border-slate-200">
         <CardHeader className="pb-2">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -837,7 +851,19 @@ export default function CustomerInvoice() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-7">
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <label className="flex items-center gap-3 text-sm font-medium text-slate-700">
+              <input
+                type="checkbox"
+                className="h-4 w-4 rounded border-slate-300"
+                checked={invoiceMeta.includeFuel !== false}
+                onChange={(event) => handleMetaChange('includeFuel', event.target.checked)}
+              />
+              Tank-Auslagen für die gesamte Rechnung abrechnen
+            </label>
+          </div>
+
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-8">
             <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
               <p className="text-xs text-slate-500">Positionen</p>
               <p className="font-semibold text-slate-900">{summary.orderCount}</p>
@@ -849,6 +875,10 @@ export default function CustomerInvoice() {
             <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
               <p className="text-xs text-slate-500">Tank Netto</p>
               <p className="font-semibold text-slate-900">{formatCurrencyValue(summary.fuelNet)}</p>
+            </div>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+              <p className="text-xs text-slate-500">Tank Brutto</p>
+              <p className="font-semibold text-slate-900">{formatCurrencyValue(summary.fuelGross)}</p>
             </div>
             <div className="space-y-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
               <p className="text-xs text-slate-500">MwSt. %</p>
@@ -888,7 +918,7 @@ export default function CustomerInvoice() {
                   <th className="px-3 py-2">Kennzeichen</th>
                   <th className="px-3 py-2 text-right">Auftragspreis (Brutto)</th>
                   <th className="px-3 py-2 text-right">Tank (Brutto)</th>
-                  <th className="px-3 py-2 text-center">Tank abrechnen</th>
+                  <th className="px-3 py-2 text-right">Tank (Netto)</th>
                   <th className="px-3 py-2 text-right">Rechnung Netto</th>
                 </tr>
               </thead>
@@ -896,7 +926,8 @@ export default function CustomerInvoice() {
                 {rows.map((row, index) => {
                   const orderPrice = parseMoneyInput(row.orderPriceDraft);
                   const fuelExpensesRaw = parseMoneyInput(row.fuelExpensesDraft);
-                  const fuelIncluded = row.billFuel === false ? 0 : fuelExpensesRaw;
+                  const fuelIncluded = invoiceMeta.includeFuel === false ? 0 : fuelExpensesRaw;
+                  const fuelNet = grossToNet(fuelIncluded, summary.vatRate);
                   const lineNet = grossToNet(orderPrice + fuelIncluded, summary.vatRate);
                   return (
                     <tr key={row.id} className="border-t border-slate-200 align-top">
@@ -924,15 +955,10 @@ export default function CustomerInvoice() {
                           value={row.fuelExpensesDraft}
                           onChange={(event) => handleRowChange(row.id, 'fuelExpensesDraft', event.target.value)}
                           inputMode="decimal"
+                          disabled={invoiceMeta.includeFuel === false}
                         />
                       </td>
-                      <td className="px-3 py-2 text-center">
-                        <input
-                          type="checkbox"
-                          checked={row.billFuel !== false}
-                          onChange={(event) => handleRowChange(row.id, 'billFuel', event.target.checked)}
-                        />
-                      </td>
+                      <td className="px-3 py-2 text-right">{formatCurrencyValue(fuelNet)}</td>
                       <td className="px-3 py-2 text-right font-semibold">{formatCurrencyValue(lineNet)}</td>
                     </tr>
                   );
