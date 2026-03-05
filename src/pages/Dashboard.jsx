@@ -19,7 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import StatusBadge from '@/components/ui/StatusBadge';
 import OrdersMap from '@/components/dashboard/OrdersMap';
-import { format, startOfMonth, endOfMonth, subDays } from 'date-fns';
+import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, subDays } from 'date-fns';
 import { de } from 'date-fns/locale';
 
 const toDateKey = (value) => {
@@ -35,6 +35,15 @@ const toDateKey = (value) => {
 const DELIVERY_STATUSES = new Set(['in_transit', 'shuttle']);
 const OPEN_STATUSES = ['new', 'assigned', 'pickup_started', 'delivery_started', 'zwischenabgabe'];
 const COMPLETED_STATUSES = new Set(['completed', 'review', 'ready_for_billing', 'approved']);
+const FINANCE_PRESETS = [
+  { key: 'today', label: 'Heute' },
+  { key: 'yesterday', label: 'Gestern' },
+  { key: 'day_before_yesterday', label: 'Vorgestern' },
+  { key: 'this_week', label: 'Diese Woche' },
+  { key: 'last_week', label: 'Letzte Woche' },
+  { key: 'this_month', label: 'Dieser Monat' },
+  { key: 'last_month', label: 'Letzter Monat' },
+];
 
 const parseAmount = (value) => {
   if (value === null || value === undefined || value === '') return 0;
@@ -56,6 +65,7 @@ const DASH_CHIP_ACTIVE =
 export default function Dashboard() {
   const navigate = useNavigate();
   const [recentProtocolsDays, setRecentProtocolsDays] = useState(2);
+  const [financePreset, setFinancePreset] = useState('this_month');
   const [selectedOrderId, setSelectedOrderId] = useState(null);
   const [selectedMapLocation, setSelectedMapLocation] = useState(null);
   const [mapMode, setMapMode] = useState('open');
@@ -173,9 +183,73 @@ export default function Dashboard() {
     return map;
   }, [financeChecklists]);
 
+  const financeRange = useMemo(() => {
+    const today = new Date();
+    const startOfToday = new Date(today);
+    startOfToday.setHours(0, 0, 0, 0);
+    const endOfToday = new Date(today);
+    endOfToday.setHours(23, 59, 59, 999);
+
+    if (financePreset === 'today') {
+      return { start: startOfToday, end: endOfToday };
+    }
+    if (financePreset === 'yesterday') {
+      const day = subDays(startOfToday, 1);
+      const start = new Date(day);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(day);
+      end.setHours(23, 59, 59, 999);
+      return { start, end };
+    }
+    if (financePreset === 'day_before_yesterday') {
+      const day = subDays(startOfToday, 2);
+      const start = new Date(day);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(day);
+      end.setHours(23, 59, 59, 999);
+      return { start, end };
+    }
+    if (financePreset === 'this_week') {
+      return {
+        start: startOfWeek(today, { weekStartsOn: 1 }),
+        end: endOfWeek(today, { weekStartsOn: 1 }),
+      };
+    }
+    if (financePreset === 'last_week') {
+      const reference = subDays(today, 7);
+      return {
+        start: startOfWeek(reference, { weekStartsOn: 1 }),
+        end: endOfWeek(reference, { weekStartsOn: 1 }),
+      };
+    }
+    if (financePreset === 'last_month') {
+      const now = new Date();
+      const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const end = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+      return { start, end };
+    }
+    // this_month default
+    return {
+      start: startOfMonth(today),
+      end: endOfMonth(today),
+    };
+  }, [financePreset]);
+
+  const getOrderOperationalDate = (order) => {
+    const dateValue = toDateKey(order.dropoff_date) || toDateKey(order.pickup_date) || toDateKey(order.created_date);
+    const date = dateValue ? new Date(`${dateValue}T12:00:00`) : null;
+    if (!date || Number.isNaN(date.getTime())) return null;
+    return date;
+  };
+
   const financialOverview = useMemo(() => {
-    return rangeOrders
+    return orders
       .filter((order) => COMPLETED_STATUSES.has(order.status))
+      .filter((order) => {
+        const date = getOrderOperationalDate(order);
+        if (!date) return false;
+        return date >= financeRange.start && date <= financeRange.end;
+      })
       .reduce(
         (acc, order) => {
           const safeRevenue = parseAmount(order.driver_price);
@@ -190,7 +264,7 @@ export default function Dashboard() {
         },
         { tours: 0, revenue: 0, driverCost: 0, fuelAdvance: 0, profit: 0 }
       );
-  }, [rangeOrders, driverCostByOrder, fuelAdvanceByOrder]);
+  }, [orders, driverCostByOrder, fuelAdvanceByOrder, financeRange]);
 
   const formatCurrency = (value) =>
     new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(value || 0);
@@ -516,7 +590,7 @@ export default function Dashboard() {
           <div className="flex items-center justify-between gap-3">
             <div>
               <CardTitle className="text-lg font-semibold text-slate-900">Finanz-Übersicht</CardTitle>
-              <p className="text-sm text-slate-500">Abgeschlossene Touren gesamt</p>
+              <p className="text-sm text-slate-500">Abgeschlossene Touren im ausgewählten Zeitraum</p>
             </div>
             <Link to={statisticsUrl}>
               <Button className={DASH_PRIMARY_BTN}>
@@ -527,6 +601,20 @@ export default function Dashboard() {
           </div>
         </CardHeader>
         <CardContent>
+          <div className="mb-3 flex flex-wrap gap-2">
+            {FINANCE_PRESETS.map((preset) => (
+              <Button
+                key={preset.key}
+                type="button"
+                size="sm"
+                variant={financePreset === preset.key ? 'default' : 'outline'}
+                className={financePreset === preset.key ? DASH_CHIP_ACTIVE : DASH_OUTLINE_BTN}
+                onClick={() => setFinancePreset(preset.key)}
+              >
+                {preset.label}
+              </Button>
+            ))}
+          </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
               <p className="text-xs text-slate-500">Touren abgeschlossen</p>
@@ -597,10 +685,10 @@ export default function Dashboard() {
                   <div key={i} className="h-16 bg-slate-100 rounded-lg animate-pulse" />
                 ))}
               </div>
-            ) : rangeOrders.length === 0 ? (
+            ) : orders.length === 0 ? (
               <div className="text-center py-8 text-slate-500">
                 <Truck className="w-12 h-12 mx-auto mb-3 text-slate-300" />
-                <p>Keine Aufträge im gewählten Zeitraum</p>
+                <p>Keine Aufträge im aktuellen Stand</p>
                 <Link to={createPageUrl('Orders') + '?new=true'}>
                   <Button variant="outline" size="sm" className={`mt-3 ${DASH_OUTLINE_BTN}`}>
                     Ersten Auftrag erstellen
