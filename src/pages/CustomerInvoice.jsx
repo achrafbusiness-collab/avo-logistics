@@ -428,61 +428,76 @@ export default function CustomerInvoice() {
         ...invoiceMeta,
         invoiceNumber: invoiceMeta.invoiceNumber || (isInvoice ? '-' : buildInvoiceNumber()),
       };
+      const toDisplayDate = (value) => {
+        if (!value) return '-';
+        if (/^\d{4}-\d{2}-\d{2}$/.test(String(value))) {
+          const parsed = new Date(`${value}T12:00:00`);
+          if (!Number.isNaN(parsed.getTime())) {
+            return format(parsed, 'dd.MM.yyyy', { locale: de });
+          }
+        }
+        return String(value);
+      };
 
       const logoDataUrl = issuer.logoDataUrl || (await loadImageAsDataUrl('/logo.png'));
       const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const marginX = 14;
+      const contentWidth = pageWidth - marginX * 2;
+      const footerTop = pageHeight - 31;
 
       doc.setFont('helvetica', 'normal');
       if (logoDataUrl) {
-        doc.addImage(logoDataUrl, 'PNG', 154, 12, 40, 18);
+        doc.addImage(logoDataUrl, 'PNG', pageWidth - marginX - 38, 10, 38, 16);
       } else {
         doc.setFontSize(16);
-        doc.text(issuer.name, 194, 22, { align: 'right' });
+        doc.text(issuer.name, pageWidth - marginX, 18, { align: 'right' });
       }
 
       doc.setFontSize(8.5);
       const companyHeader = [issuer.name, issuer.companySuffix].filter(Boolean).join(' ');
       doc.text(
         `${companyHeader} - ${issuer.street} - ${issuer.postalCode} ${issuer.city}`,
-        20,
-        45
+        marginX,
+        35
       );
 
       const customerLines = getCustomerAddressLines(record);
       doc.setFontSize(11);
       customerLines.forEach((line, index) => {
-        doc.text(line, 20, 57 + index * 6);
+        doc.text(line, marginX, 47 + index * 6);
       });
 
-      const invoiceTopY = 57;
+      const invoiceTopY = 48;
       doc.setFontSize(12);
       doc.setFont('helvetica', 'bold');
       doc.text('Rechnungs-Nr.', 130, invoiceTopY);
-      doc.text(finalMeta.invoiceNumber || '-', 194, invoiceTopY, { align: 'right' });
+      doc.text(finalMeta.invoiceNumber || '-', pageWidth - marginX, invoiceTopY, { align: 'right' });
 
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(10);
       doc.text('Rechnungsdatum', 130, invoiceTopY + 8);
-      doc.text(finalMeta.invoiceDate || '-', 194, invoiceTopY + 8, { align: 'right' });
+      doc.text(toDisplayDate(finalMeta.invoiceDate), pageWidth - marginX, invoiceTopY + 8, { align: 'right' });
       doc.text('Lieferdatum', 130, invoiceTopY + 15);
-      doc.text(finalMeta.deliveryDate || '-', 194, invoiceTopY + 15, { align: 'right' });
+      doc.text(toDisplayDate(finalMeta.deliveryDate), pageWidth - marginX, invoiceTopY + 15, { align: 'right' });
       doc.text('Ihre Kundennummer', 130, invoiceTopY + 25);
-      doc.text(finalMeta.customerNumber || '-', 194, invoiceTopY + 25, { align: 'right' });
+      doc.text(finalMeta.customerNumber || '-', pageWidth - marginX, invoiceTopY + 25, { align: 'right' });
       doc.text('Ihr Ansprechpartner', 130, invoiceTopY + 32);
-      doc.text(finalMeta.contactPerson || '-', 194, invoiceTopY + 32, { align: 'right' });
+      doc.text(finalMeta.contactPerson || '-', pageWidth - marginX, invoiceTopY + 32, { align: 'right' });
 
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(15);
-      doc.text(`Rechnung Nr. ${finalMeta.invoiceNumber || '-'}`, 20, 107);
+      doc.text(`Rechnung Nr. ${finalMeta.invoiceNumber || '-'}`, marginX, 98);
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(12);
-      doc.text('Sehr geehrte Damen und Herren,', 20, 117);
-      doc.text('vielen Dank für Ihre Aufträge und das damit verbundene Vertrauen.', 20, 125);
-      doc.text('Hiermit stellen wir Ihnen die folgenden Leistungen in Rechnung:', 20, 131);
+      doc.text('Sehr geehrte Damen und Herren,', marginX, 108);
+      doc.text('vielen Dank für Ihre Aufträge und das damit verbundene Vertrauen.', marginX, 116);
+      doc.text('Hiermit stellen wir Ihnen die folgenden Leistungen in Rechnung:', marginX, 122);
 
       autoTable(doc, {
-        startY: 136,
-        margin: { left: 20, right: 20 },
+        startY: 126,
+        margin: { left: marginX, right: marginX, bottom: 42 },
         head: [['Pos.', 'Beschreibung', 'Menge', 'Einzelpreis', 'Gesamtpreis']],
         body: rows.map((row, index) => {
           const orderPrice = parseMoneyInput(row.orderPriceDraft);
@@ -498,8 +513,8 @@ export default function CustomerInvoice() {
           ];
         }),
         styles: {
-          fontSize: 9,
-          cellPadding: 2.6,
+          fontSize: 8.6,
+          cellPadding: 2.4,
           overflow: 'linebreak',
           textColor: [30, 41, 59],
           lineColor: [220, 220, 220],
@@ -511,94 +526,118 @@ export default function CustomerInvoice() {
           fontStyle: 'bold',
         },
         columnStyles: {
-          0: { cellWidth: 12, halign: 'center' },
-          1: { cellWidth: 95 },
-          2: { cellWidth: 24, halign: 'center' },
-          3: { cellWidth: 26, halign: 'right' },
-          4: { cellWidth: 26, halign: 'right' },
+          0: { cellWidth: 10, halign: 'center' },
+          1: { cellWidth: 104 },
+          2: { cellWidth: 18, halign: 'center' },
+          3: { cellWidth: 25, halign: 'right' },
+          4: { cellWidth: 25, halign: 'right' },
         },
       });
 
-      let y = (doc.lastAutoTable?.finalY || 136) + 8;
-      if (y > 235) {
+      let y = (doc.lastAutoTable?.finalY || 126) + 8;
+      if (y > pageHeight - 78) {
         doc.addPage();
-        y = 24;
+        y = 20;
       }
 
-      const summaryX = 110;
-      const summaryWidth = 84;
-      const lineHeight = 8;
+      const paymentTermsText = String(issuer.paymentTerms || DEFAULT_ISSUER.paymentTerms).replace(
+        '{days}',
+        String(finalMeta.paymentDays || 14)
+      );
+      const paymentTermsLines = doc.splitTextToSize(`Zahlungsbedingungen: ${paymentTermsText}`, contentWidth);
+
+      const summaryX = pageWidth - marginX - 72;
+      const summaryWidth = 72;
+      const lineHeight = 7;
       const drawSummaryLine = (label, value, top, bold = false, shaded = false) => {
         if (shaded) {
           doc.setFillColor(241, 245, 249);
-          doc.rect(summaryX, top - 5.2, summaryWidth, 7.2, 'F');
+          doc.rect(summaryX, top - 4.8, summaryWidth, 6.6, 'F');
         }
         doc.setFont('helvetica', bold ? 'bold' : 'normal');
-        doc.setFontSize(10.5);
+        doc.setFontSize(10);
         doc.text(label, summaryX + 2, top);
         doc.text(value, summaryX + summaryWidth - 2, top, { align: 'right' });
       };
+
+      const requiredHeight = 3 * lineHeight + paymentTermsLines.length * 5 + 20;
+      if (y + requiredHeight > pageHeight - 42) {
+        doc.addPage();
+        y = 20;
+      }
 
       drawSummaryLine('Gesamtbetrag netto', formatEuroText(summary.net), y, false, true);
       drawSummaryLine(`Umsatzsteuer ${summary.vatRate || 0}%`, formatEuroText(summary.vatAmount), y + lineHeight, false, false);
       drawSummaryLine('Gesamtbetrag brutto', formatEuroText(summary.gross), y + lineHeight * 2, true, true);
 
       doc.setFont('helvetica', 'normal');
-      doc.setFontSize(11);
+      doc.setFontSize(10.5);
       const paymentY = y + lineHeight * 2 + 12;
-      const paymentTermsText = String(issuer.paymentTerms || DEFAULT_ISSUER.paymentTerms).replace(
-        '{days}',
-        String(finalMeta.paymentDays || 14)
-      );
-      doc.text(
-        `Zahlungsbedingungen: ${paymentTermsText}`,
-        20,
-        paymentY
-      );
-      doc.text('Mit freundlichen Grüßen', 20, paymentY + 11);
-      doc.text(`Team ${issuer.name}`, 20, paymentY + 18);
+      doc.text(paymentTermsLines, marginX, paymentY);
+      const signatureY = paymentY + paymentTermsLines.length * 5 + 6;
+      doc.text('Mit freundlichen Grüßen', marginX, signatureY);
+      doc.text(`Team ${issuer.name}`, marginX, signatureY + 6);
 
       const totalPages = doc.internal.getNumberOfPages();
       for (let page = 1; page <= totalPages; page += 1) {
         doc.setPage(page);
         doc.setDrawColor(212, 212, 212);
-        doc.line(20, 270, 190, 270);
+        doc.line(marginX, footerTop - 2, pageWidth - marginX, footerTop - 2);
         doc.setFont('helvetica', 'normal');
-        doc.setFontSize(8.5);
+        doc.setFontSize(7.1);
 
         const footerCompanyName = [issuer.name, issuer.companySuffix].filter(Boolean).join(' ');
-        const footerOwnerLine = [issuer.owner, issuer.legalForm].filter(Boolean).join(' • ');
-        const leftBlock = [
+        const leftBlockRaw = [
           footerCompanyName,
-          footerOwnerLine,
+          [issuer.owner, issuer.legalForm].filter(Boolean).join(' • '),
           issuer.street,
           `${issuer.postalCode} ${issuer.city}`,
           issuer.country,
-        ].filter(Boolean);
-        const midLeftBlock = [
+        ];
+        const midLeftBlockRaw = [
           `Tel.: ${issuer.phone || '-'}`,
           `FAX: ${issuer.fax || '-'}`,
           `E-Mail: ${issuer.email || '-'}`,
           `Web: ${issuer.web || '-'}`,
         ];
-        const midRightBlock = [
+        const midRightBlockRaw = [
           `Steuer-Nr.: ${issuer.taxNumber || '-'}`,
           `USt.-ID: ${issuer.vatId || '-'}`,
         ];
-        const rightBlock = [
+        const rightBlockRaw = [
           issuer.bankName || '-',
           `Kontonummer: ${issuer.accountNumber || '-'}`,
           `BLZ: ${issuer.blz || '-'}`,
           `IBAN: ${issuer.iban || '-'}`,
           `BIC: ${issuer.bic || '-'}`,
         ];
+        const colGap = 2;
+        const colWidth = (contentWidth - colGap * 3) / 4;
+        const colX = [
+          marginX,
+          marginX + colWidth + colGap,
+          marginX + (colWidth + colGap) * 2,
+          marginX + (colWidth + colGap) * 3,
+        ];
+        const drawFooterColumn = (x, lines) => {
+          const maxLines = 5;
+          const result = [];
+          lines
+            .filter(Boolean)
+            .forEach((line) => {
+              const wrapped = doc.splitTextToSize(String(line), colWidth);
+              wrapped.forEach((item) => {
+                if (result.length < maxLines) result.push(item);
+              });
+            });
+          result.forEach((line, idx) => doc.text(line, x, footerTop + idx * 4.3));
+        };
+        drawFooterColumn(colX[0], leftBlockRaw);
+        drawFooterColumn(colX[1], midLeftBlockRaw);
+        drawFooterColumn(colX[2], midRightBlockRaw);
+        drawFooterColumn(colX[3], rightBlockRaw);
 
-        leftBlock.forEach((line, idx) => doc.text(line, 20, 276 + idx * 5));
-        midLeftBlock.forEach((line, idx) => doc.text(line, 66, 276 + idx * 5));
-        midRightBlock.forEach((line, idx) => doc.text(line, 112, 276 + idx * 5));
-        rightBlock.forEach((line, idx) => doc.text(line, 154, 276 + idx * 5));
-
-        doc.text(`Seite ${page} von ${totalPages}`, 190, 266, { align: 'right' });
+        doc.text(`Seite ${page} von ${totalPages}`, pageWidth - marginX, footerTop - 4.5, { align: 'right' });
       }
 
       const customerSafe = sanitizeFileNamePart(getCustomerName(record), 32) || 'Kunde';
