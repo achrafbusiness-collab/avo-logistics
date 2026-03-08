@@ -154,7 +154,7 @@ export const buildCustomerInvoicePdf = async ({
     if (raw.startsWith('data:image/jpeg') || raw.startsWith('data:image/jpg')) return 'JPEG';
     return 'PNG';
   };
-  const logoBox = { x: pageWidth - marginX - 64, y: 7, w: 64, h: 24 };
+  const logoBox = { x: pageWidth - marginX - 86, y: 4, w: 86, h: 32 };
   const fontSizes = {
     title: 16,
     body: 10,
