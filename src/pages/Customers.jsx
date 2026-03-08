@@ -64,7 +64,9 @@ import {
   Trash2,
   Mail,
   Phone,
-  MapPin
+  MapPin,
+  Download,
+  CheckCircle2
 } from 'lucide-react';
 
 export default function Customers() {
@@ -92,6 +94,9 @@ export default function Customers() {
   const [invoiceEmailFeedback, setInvoiceEmailFeedback] = useState({ type: '', message: '' });
   const [invoiceEmailSending, setInvoiceEmailSending] = useState(false);
   const [selectedInvoiceForEmail, setSelectedInvoiceForEmail] = useState(null);
+  const [invoiceStatusFilter, setInvoiceStatusFilter] = useState('all');
+  const [invoiceActionFeedback, setInvoiceActionFeedback] = useState({ type: '', message: '' });
+  const [invoicePdfDownloadingId, setInvoicePdfDownloadingId] = useState('');
   
   const [formData, setFormData] = useState({
     customer_number: '',
@@ -367,6 +372,56 @@ Gib ausschließlich strukturierte Daten zurück.`,
     return format(date, 'dd.MM.yyyy HH:mm', { locale: de });
   };
 
+  const formatDateOnly = (value) => {
+    if (!value) return '-';
+    const raw = String(value).trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+      const date = new Date(`${raw}T12:00:00`);
+      if (!Number.isNaN(date.getTime())) {
+        return format(date, 'dd.MM.yyyy', { locale: de });
+      }
+    }
+    const date = new Date(raw);
+    if (Number.isNaN(date.getTime())) return '-';
+    return format(date, 'dd.MM.yyyy', { locale: de });
+  };
+
+  const toDateInputValue = (value) => {
+    if (!value) return '';
+    const raw = String(value).trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+    const date = new Date(raw);
+    if (Number.isNaN(date.getTime())) return '';
+    return format(date, 'yyyy-MM-dd');
+  };
+
+  const getInvoiceSortTimestamp = (invoice) => {
+    const value = invoice?.invoiceMeta?.invoiceDate || invoice?.createdAt || '';
+    const raw = String(value || '').trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+      const date = new Date(`${raw}T12:00:00`);
+      return Number.isNaN(date.getTime()) ? 0 : date.getTime();
+    }
+    const date = new Date(raw);
+    return Number.isNaN(date.getTime()) ? 0 : date.getTime();
+  };
+
+  const resolveInvoiceDueDate = (invoice) => {
+    const invoiceDateValue = invoice?.invoiceMeta?.invoiceDate;
+    const paymentDays = Number.parseInt(
+      invoice?.invoiceMeta?.paymentDays || financeSettings.defaultPaymentDays || 14,
+      10
+    );
+    const baseDate = invoiceDateValue
+      ? new Date(`${invoiceDateValue}T12:00:00`)
+      : new Date(invoice?.createdAt || Date.now());
+    if (Number.isNaN(baseDate.getTime())) {
+      return new Date();
+    }
+    baseDate.setDate(baseDate.getDate() + (Number.isFinite(paymentDays) ? paymentDays : 14));
+    return baseDate;
+  };
+
   const resolveInvoiceCustomerEmail = (invoice) => {
     const fromInvoice = String(invoice?.customer?.email || '').trim();
     if (fromInvoice) return fromInvoice;
@@ -487,19 +542,41 @@ Gib ausschließlich strukturierte Daten zurück.`,
 
   const filteredInvoices = useMemo(() => {
     const term = financeSearch.trim().toLowerCase();
-    if (!term) return invoices;
-    return invoices.filter((invoice) => {
-      const hay = [
-        invoice.customerLabel,
-        invoice.invoiceMeta?.invoiceNumber,
-        invoice.customer?.customer_number,
-      ]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase();
-      return hay.includes(term);
-    });
-  }, [invoices, financeSearch]);
+    return [...invoices]
+      .filter((invoice) => {
+        const hay = [
+          invoice.customerLabel,
+          invoice.invoiceMeta?.invoiceNumber,
+          invoice.customer?.customer_number,
+        ]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase();
+        const termMatch = !term || hay.includes(term);
+        const statusMatch = invoiceStatusFilter === 'all' || (invoice.status || 'open') === invoiceStatusFilter;
+        return termMatch && statusMatch;
+      })
+      .sort((a, b) => getInvoiceSortTimestamp(b) - getInvoiceSortTimestamp(a));
+  }, [invoices, financeSearch, invoiceStatusFilter]);
+
+  const invoiceOverview = useMemo(() => {
+    const visible = filteredInvoices;
+    const netTotal = visible.reduce((sum, invoice) => sum + Number(invoice?.totals?.net || 0), 0);
+    const grossTotal = visible.reduce((sum, invoice) => sum + Number(invoice?.totals?.gross || 0), 0);
+    const paidGross = visible
+      .filter((invoice) => (invoice.status || 'open') === 'paid')
+      .reduce((sum, invoice) => sum + Number(invoice?.totals?.gross || 0), 0);
+    const openGross = visible
+      .filter((invoice) => !['paid', 'cancelled'].includes(invoice.status || 'open'))
+      .reduce((sum, invoice) => sum + Number(invoice?.totals?.gross || 0), 0);
+    return {
+      count: visible.length,
+      netTotal,
+      grossTotal,
+      paidGross,
+      openGross,
+    };
+  }, [filteredInvoices]);
 
   const receivables = useMemo(() => {
     return invoices
@@ -555,9 +632,25 @@ Gib ausschließlich strukturierte Daten zurück.`,
     refreshFinanceData();
   };
 
-  const handleInvoiceStatusChange = (invoiceId, status) => {
-    updateInvoiceStatus(invoiceId, status);
+  const handleInvoiceStatusChange = (invoiceId, status, options = {}) => {
+    updateInvoiceStatus(invoiceId, status, options);
     refreshFinanceData();
+    setInvoiceActionFeedback({
+      type: 'success',
+      message: status === 'paid' ? 'Rechnung als bezahlt markiert.' : 'Rechnungsstatus aktualisiert.',
+    });
+  };
+
+  const handleMarkInvoicePaid = (invoiceId) => {
+    handleInvoiceStatusChange(invoiceId, 'paid', { paidAt: new Date().toISOString() });
+  };
+
+  const handlePaidDateChange = (invoiceId, value) => {
+    const raw = String(value || '').trim();
+    if (!raw) return;
+    const date = new Date(`${raw}T12:00:00`);
+    if (Number.isNaN(date.getTime())) return;
+    handleInvoiceStatusChange(invoiceId, 'paid', { paidAt: date.toISOString() });
   };
 
   const openInvoiceEmailDialog = (invoice) => {
@@ -565,6 +658,31 @@ Gib ausschließlich strukturierte Daten zurück.`,
     setInvoiceEmailTarget(resolveInvoiceCustomerEmail(invoice));
     setInvoiceEmailFeedback({ type: '', message: '' });
     setInvoiceEmailDialogOpen(true);
+  };
+
+  const handleDownloadInvoicePdf = async (invoice) => {
+    if (!invoice) return;
+    setInvoicePdfDownloadingId(invoice.id);
+    setInvoiceActionFeedback({ type: '', message: '' });
+    try {
+      const { arrayBuffer, fileName } = await buildInvoicePdfForEmail(invoice);
+      const blob = new Blob([arrayBuffer], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      setInvoiceActionFeedback({
+        type: 'error',
+        message: error?.message || 'Rechnung konnte nicht heruntergeladen werden.',
+      });
+    } finally {
+      setInvoicePdfDownloadingId('');
+    }
   };
 
   const handleSendInvoiceToCustomer = async () => {
@@ -1311,17 +1429,87 @@ Gib ausschließlich strukturierte Daten zurück.`,
         </TabsContent>
 
         <TabsContent value="invoices" className="space-y-4">
-          <Card>
-            <CardContent className="p-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <Input
-                  placeholder="Rechnungen suchen (Kunde, Rechnungsnummer, Kundennr.)..."
-                  value={financeSearch}
-                  onChange={(e) => setFinanceSearch(e.target.value)}
-                  className="pl-10"
-                />
+          <Card className="border-slate-200 bg-gradient-to-r from-slate-50 via-white to-slate-100">
+            <CardContent className="space-y-4 p-4">
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+                <div className="relative md:col-span-2">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  <Input
+                    placeholder="Rechnungen suchen (Kunde, Rechnungsnummer, Kundennr.)..."
+                    value={financeSearch}
+                    onChange={(e) => setFinanceSearch(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>Statusfilter</Label>
+                  <Select value={invoiceStatusFilter} onValueChange={setInvoiceStatusFilter}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Alle Status</SelectItem>
+                      <SelectItem value="open">Offen</SelectItem>
+                      <SelectItem value="partially_paid">Teilbezahlt</SelectItem>
+                      <SelectItem value="paid">Bezahlt</SelectItem>
+                      <SelectItem value="overdue">Überfällig</SelectItem>
+                      <SelectItem value="cancelled">Storniert</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-end">
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => {
+                      setFinanceSearch('');
+                      setInvoiceStatusFilter('all');
+                    }}
+                  >
+                    Filter zurücksetzen
+                  </Button>
+                </div>
               </div>
+
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+                <Card className="border-slate-200">
+                  <CardContent className="p-4">
+                    <p className="text-xs text-slate-500">Rechnungen (sichtbar)</p>
+                    <p className="mt-1 text-2xl font-semibold text-slate-900">{invoiceOverview.count}</p>
+                  </CardContent>
+                </Card>
+                <Card className="border-slate-200">
+                  <CardContent className="p-4">
+                    <p className="text-xs text-slate-500">Summe Netto</p>
+                    <p className="mt-1 text-xl font-semibold text-slate-900">{formatMoney(invoiceOverview.netTotal)}</p>
+                  </CardContent>
+                </Card>
+                <Card className="border-slate-200">
+                  <CardContent className="p-4">
+                    <p className="text-xs text-slate-500">Summe Brutto</p>
+                    <p className="mt-1 text-xl font-semibold text-slate-900">{formatMoney(invoiceOverview.grossTotal)}</p>
+                  </CardContent>
+                </Card>
+                <Card className="border-slate-200">
+                  <CardContent className="p-4">
+                    <p className="text-xs text-slate-500">Offen / Bezahlt</p>
+                    <p className="mt-1 text-sm font-semibold text-amber-700">Offen: {formatMoney(invoiceOverview.openGross)}</p>
+                    <p className="text-sm font-semibold text-emerald-700">Bezahlt: {formatMoney(invoiceOverview.paidGross)}</p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {invoiceActionFeedback.message ? (
+                <div
+                  className={`rounded-lg border px-3 py-2 text-sm ${
+                    invoiceActionFeedback.type === 'success'
+                      ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                      : 'border-red-200 bg-red-50 text-red-700'
+                  }`}
+                >
+                  {invoiceActionFeedback.message}
+                </div>
+              ) : null}
             </CardContent>
           </Card>
 
@@ -1331,62 +1519,116 @@ Gib ausschließlich strukturierte Daten zurück.`,
                 <div className="py-10 text-center text-sm text-slate-500">Keine Rechnungen vorhanden.</div>
               ) : (
                 <div className="overflow-auto">
-                  <table className="min-w-full text-sm">
+                  <table className="min-w-[1450px] w-full text-sm">
                     <thead className="bg-slate-100 text-left text-slate-600">
                       <tr>
                         <th className="px-3 py-2">Rechnungsnr.</th>
                         <th className="px-3 py-2">Kunde</th>
                         <th className="px-3 py-2">Rechnungsdatum</th>
+                        <th className="px-3 py-2">Fällig am</th>
+                        <th className="px-3 py-2">Betrag netto</th>
                         <th className="px-3 py-2">Betrag brutto</th>
                         <th className="px-3 py-2">Status</th>
+                        <th className="px-3 py-2">Bezahlt am</th>
                         <th className="px-3 py-2 text-right">Aktionen</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredInvoices.map((invoice) => (
-                        <tr key={invoice.id} className="border-t border-slate-200">
-                          <td className="px-3 py-2 font-medium">{invoice.invoiceMeta?.invoiceNumber || '-'}</td>
-                          <td className="px-3 py-2">{invoice.customerLabel || 'Kunde'}</td>
-                          <td className="px-3 py-2">{invoice.invoiceMeta?.invoiceDate || '-'}</td>
-                          <td className="px-3 py-2">{formatMoney(invoice?.totals?.gross || 0)}</td>
-                          <td className="px-3 py-2">
-                            <select
-                              className="rounded-md border border-slate-300 px-2 py-1 text-sm"
-                              value={invoice.status || 'open'}
-                              onChange={(event) => handleInvoiceStatusChange(invoice.id, event.target.value)}
-                            >
-                              <option value="open">Offen</option>
-                              <option value="partially_paid">Teilbezahlt</option>
-                              <option value="paid">Bezahlt</option>
-                              <option value="overdue">Überfällig</option>
-                              <option value="cancelled">Storniert</option>
-                            </select>
-                          </td>
-                          <td className="px-3 py-2">
-                            <div className="flex justify-end gap-2">
-                              <Button
-                                size="sm"
-                                className="bg-emerald-600 hover:bg-emerald-700 text-white"
-                                onClick={() => openInvoiceEmailDialog(invoice)}
-                              >
-                                <Mail className="mr-2 h-4 w-4" />
-                                Senden
-                              </Button>
-                              <Link to={`${createPageUrl('CustomerInvoice')}?invoiceId=${invoice.id}`}>
-                                <Button size="sm" variant="outline">Öffnen</Button>
-                              </Link>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="text-red-600 hover:bg-red-50"
-                                onClick={() => handleDeleteInvoice(invoice.id)}
-                              >
-                                Löschen
-                              </Button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
+                      {filteredInvoices.map((invoice) => {
+                        const currentStatus = invoice.status || 'open';
+                        const isPaid = currentStatus === 'paid';
+                        return (
+                          <tr key={invoice.id} className="border-t border-slate-200 hover:bg-slate-50/70">
+                            <td className="px-3 py-2 font-semibold text-slate-800">{invoice.invoiceMeta?.invoiceNumber || '-'}</td>
+                            <td className="px-3 py-2">{invoice.customerLabel || 'Kunde'}</td>
+                            <td className="px-3 py-2">{formatDateOnly(invoice.invoiceMeta?.invoiceDate || '')}</td>
+                            <td className="px-3 py-2">{format(resolveInvoiceDueDate(invoice), 'dd.MM.yyyy', { locale: de })}</td>
+                            <td className="px-3 py-2 font-medium text-slate-700">{formatMoney(invoice?.totals?.net || 0)}</td>
+                            <td className="px-3 py-2 font-semibold text-slate-900">{formatMoney(invoice?.totals?.gross || 0)}</td>
+                            <td className="px-3 py-2">
+                              <div className="flex items-center gap-2">
+                                <select
+                                  className="h-8 rounded-md border border-slate-300 px-2 text-sm"
+                                  value={currentStatus}
+                                  onChange={(event) => handleInvoiceStatusChange(invoice.id, event.target.value)}
+                                >
+                                  <option value="open">Offen</option>
+                                  <option value="partially_paid">Teilbezahlt</option>
+                                  <option value="paid">Bezahlt</option>
+                                  <option value="overdue">Überfällig</option>
+                                  <option value="cancelled">Storniert</option>
+                                </select>
+                                {isPaid ? (
+                                  <span className="rounded-md bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-700">
+                                    Bezahlt
+                                  </span>
+                                ) : null}
+                              </div>
+                            </td>
+                            <td className="px-3 py-2">
+                              {isPaid ? (
+                                <div className="space-y-1">
+                                  <Input
+                                    type="date"
+                                    className="h-8 w-[150px]"
+                                    value={toDateInputValue(invoice.paidAt)}
+                                    onChange={(event) => handlePaidDateChange(invoice.id, event.target.value)}
+                                  />
+                                  <p className="text-xs text-slate-500">{formatDate(invoice.paidAt)}</p>
+                                </div>
+                              ) : (
+                                <span className="text-slate-400">-</span>
+                              )}
+                            </td>
+                            <td className="px-3 py-2">
+                              <div className="flex flex-wrap justify-end gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleDownloadInvoicePdf(invoice)}
+                                  disabled={invoicePdfDownloadingId === invoice.id}
+                                >
+                                  {invoicePdfDownloadingId === invoice.id ? (
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <Download className="mr-2 h-4 w-4" />
+                                  )}
+                                  PDF
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                                  onClick={() => handleMarkInvoicePaid(invoice.id)}
+                                  disabled={isPaid}
+                                >
+                                  <CheckCircle2 className="mr-2 h-4 w-4" />
+                                  Bezahlt
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  className="bg-emerald-600 text-white hover:bg-emerald-700"
+                                  onClick={() => openInvoiceEmailDialog(invoice)}
+                                >
+                                  <Mail className="mr-2 h-4 w-4" />
+                                  Senden
+                                </Button>
+                                <Link to={`${createPageUrl('CustomerInvoice')}?invoiceId=${invoice.id}`}>
+                                  <Button size="sm" variant="outline">Öffnen</Button>
+                                </Link>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="text-red-600 hover:bg-red-50"
+                                  onClick={() => handleDeleteInvoice(invoice.id)}
+                                >
+                                  Löschen
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>

@@ -125,14 +125,29 @@ export const upsertInvoice = (invoice) => {
   return payload;
 };
 
-export const updateInvoiceStatus = (invoiceId, status) => {
+export const updateInvoiceStatus = (invoiceId, status, options = {}) => {
   if (!invoiceId) return null;
   const invoices = listInvoices();
   const index = invoices.findIndex((invoice) => invoice.id === invoiceId);
   if (index < 0) return null;
+  const current = invoices[index] || {};
+  const nextStatus = status || current.status || 'open';
+  const hasPaidAtOverride = Object.prototype.hasOwnProperty.call(options, 'paidAt');
+  const overridePaidAt = hasPaidAtOverride ? String(options.paidAt || '').trim() : '';
+  let paidAt = String(current.paidAt || '').trim();
+  if (nextStatus === 'paid') {
+    if (hasPaidAtOverride) {
+      paidAt = overridePaidAt || new Date().toISOString();
+    } else if (!paidAt) {
+      paidAt = new Date().toISOString();
+    }
+  } else {
+    paidAt = '';
+  }
   invoices[index] = {
-    ...invoices[index],
-    status: status || invoices[index].status || 'open',
+    ...current,
+    status: nextStatus,
+    paidAt,
     updatedAt: new Date().toISOString(),
   };
   writeJson(INVOICES_KEY, invoices);
