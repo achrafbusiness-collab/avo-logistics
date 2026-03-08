@@ -124,25 +124,40 @@ const loadImageAsDataUrl = async (src) => {
   }
 };
 
-const getCustomerName = (record) => {
-  if (record?.customer?.type === 'business' && record.customer?.company_name) {
-    return record.customer.company_name;
+const mergeCustomerData = (record, customerOverride = null) => {
+  const snapshot = record?.customer && typeof record.customer === 'object' ? record.customer : {};
+  const latest = customerOverride && typeof customerOverride === 'object' ? customerOverride : {};
+  return {
+    ...snapshot,
+    ...latest,
+  };
+};
+
+const getCustomerName = (record, customerOverride = null) => {
+  const customer = mergeCustomerData(record, customerOverride);
+  if (customer?.type === 'business' && customer?.company_name) {
+    return customer.company_name;
   }
-  const fullName = [record?.customer?.first_name, record?.customer?.last_name]
+  const fullName = [customer?.first_name, customer?.last_name]
     .filter(Boolean)
     .join(' ')
     .trim();
   return fullName || record?.customerLabel || 'Kunde';
 };
 
-const getCustomerAddressLines = (record) => {
+const getCustomerAddressLines = (record, customerOverride = null) => {
+  const customer = mergeCustomerData(record, customerOverride);
   const lines = [];
-  lines.push(getCustomerName(record));
-  if (record?.customer?.address) lines.push(record.customer.address);
-  const cityLine = [record?.customer?.postal_code, record?.customer?.city].filter(Boolean).join(' ');
+  lines.push(getCustomerName(record, customerOverride));
+  const contactName = [customer?.first_name, customer?.last_name].filter(Boolean).join(' ').trim();
+  if (customer?.type === 'business' && customer?.company_name && contactName) {
+    lines.push(`z. Hd. ${contactName}`);
+  }
+  if (customer?.address) lines.push(customer.address);
+  const cityLine = [customer?.postal_code, customer?.city].filter(Boolean).join(' ');
   if (cityLine) lines.push(cityLine);
-  if (record?.customer?.country) lines.push(record.customer.country);
-  if (lines.length === 1 && record?.customer?.email) lines.push(record.customer.email);
+  if (customer?.country) lines.push(customer.country);
+  if (lines.length === 1 && customer?.email) lines.push(customer.email);
   return lines;
 };
 
@@ -213,6 +228,25 @@ export default function CustomerInvoice() {
     return null;
   }, [invoiceId, draftId]);
 
+  const customerProfileId = useMemo(() => {
+    if (!record) return '';
+    if (record?.customer?.id) return String(record.customer.id);
+    if (record?.customerKey && record.customerKey !== '__none__') return String(record.customerKey);
+    return '';
+  }, [record]);
+
+  const { data: customerProfileList = [] } = useQuery({
+    queryKey: ['invoice-customer-profile', customerProfileId],
+    enabled: Boolean(customerProfileId),
+    queryFn: () => appClient.entities.Customer.filter({ id: customerProfileId }),
+  });
+
+  const customerProfile = customerProfileList[0] || null;
+  const mergedCustomer = useMemo(
+    () => mergeCustomerData(record, customerProfile),
+    [record, customerProfile]
+  );
+
   const financeDefaults = useMemo(() => getFinanceSettings(), [record?.id]);
 
   const initialRows = useMemo(() => {
@@ -267,7 +301,7 @@ export default function CustomerInvoice() {
       invoiceNumber: meta.invoiceNumber || '',
       invoiceDate: toDateInput(meta.invoiceDate || new Date()),
       deliveryDate: toDateInput(meta.deliveryDate || latestDeliveryDate),
-      customerNumber: meta.customerNumber || record?.customer?.customer_number || '',
+      customerNumber: meta.customerNumber || mergedCustomer?.customer_number || '',
       contactPerson: meta.contactPerson || defaultContact,
       paymentDays: String(meta.paymentDays || financeDefaults.defaultPaymentDays || 14),
       vatRate: String(meta.vatRate ?? financeDefaults.defaultVatRate ?? 19),
@@ -277,6 +311,7 @@ export default function CustomerInvoice() {
     record,
     currentUser,
     latestDeliveryDate,
+    mergedCustomer?.customer_number,
     financeDefaults.defaultPaymentDays,
     financeDefaults.defaultVatRate,
     financeDefaults.invoiceProfile,
@@ -385,6 +420,7 @@ export default function CustomerInvoice() {
     try {
       const payload = {
         ...record,
+        customer: mergedCustomer,
         rows: normalizedRowsForSave,
         invoiceMeta,
         totals: {
@@ -418,6 +454,7 @@ export default function CustomerInvoice() {
       };
       const invoice = finalizeDraftToInvoice(record.id, {
         ...record,
+        customer: mergedCustomer,
         rows: normalizedRowsForSave,
         invoiceMeta: finalMeta,
         totals: {
@@ -536,26 +573,35 @@ export default function CustomerInvoice() {
         35.5
       );
 
-      const customerLines = getCustomerAddressLines(record);
+      const customerLines = getCustomerAddressLines(record, mergedCustomer).slice(0, 6);
       const customerExtraLines = [
-        record?.customer?.email ? `E-Mail: ${record.customer.email}` : '',
-        record?.customer?.phone ? `Telefon: ${record.customer.phone}` : '',
+        mergedCustomer?.customer_number ? `Kundennummer: ${mergedCustomer.customer_number}` : '',
+        mergedCustomer?.tax_id ? `Steuer-ID: ${mergedCustomer.tax_id}` : '',
+        mergedCustomer?.email ? `E-Mail: ${mergedCustomer.email}` : '',
+        mergedCustomer?.phone ? `Telefon: ${mergedCustomer.phone}` : '',
       ].filter(Boolean);
+      const customerBoxY = 41;
+      const customerBoxHeight = Math.min(
+        52,
+        Math.max(36, 14 + customerLines.length * 5.2 + customerExtraLines.length * 4.6)
+      );
+      const customerNameStartY = customerBoxY + 12;
+      const customerExtraStartY = customerNameStartY + customerLines.length * 5.2 + 0.8;
       doc.setFillColor(248, 250, 252);
-      doc.rect(marginX, 41, 86, 38, 'F');
+      doc.rect(marginX, customerBoxY, 86, customerBoxHeight, 'F');
       doc.setDrawColor(226, 232, 240);
-      doc.rect(marginX, 41, 86, 38, 'S');
+      doc.rect(marginX, customerBoxY, 86, customerBoxHeight, 'S');
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(9.5);
-      doc.text('Rechnung an', marginX + 2, 46.5);
+      doc.text('Rechnung an', marginX + 2, customerBoxY + 5.5);
       doc.setFontSize(11);
       doc.setFont('helvetica', 'normal');
       customerLines.forEach((line, index) => {
-        doc.text(line, marginX + 2, 53 + index * 5.2);
+        doc.text(line, marginX + 2, customerNameStartY + index * 5.2);
       });
       doc.setFontSize(9);
       customerExtraLines.forEach((line, index) => {
-        doc.text(line, marginX + 2, 68 + index * 4.6);
+        doc.text(line, marginX + 2, customerExtraStartY + index * 4.6);
       });
 
       const invoiceTopY = 48;
@@ -575,17 +621,22 @@ export default function CustomerInvoice() {
       doc.text('Ihr Ansprechpartner', 130, invoiceTopY + 32);
       doc.text(finalMeta.contactPerson || '-', pageWidth - marginX, invoiceTopY + 32, { align: 'right' });
 
+      const introTitleY = Math.max(98, customerBoxY + customerBoxHeight + 11);
+      const greetingY = introTitleY + 10;
+      const thanksY = greetingY + 8;
+      const leadInY = thanksY + 6;
+      const tableStartY = leadInY + 4;
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(15);
-      doc.text(`Rechnung Nr. ${finalMeta.invoiceNumber || '-'}`, marginX, 98);
+      doc.text(`Rechnung Nr. ${finalMeta.invoiceNumber || '-'}`, marginX, introTitleY);
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(12);
-      doc.text('Sehr geehrte Damen und Herren,', marginX, 108);
-      doc.text('vielen Dank für Ihre Aufträge und das damit verbundene Vertrauen.', marginX, 116);
-      doc.text('Hiermit stellen wir Ihnen die folgenden Leistungen in Rechnung:', marginX, 122);
+      doc.text('Sehr geehrte Damen und Herren,', marginX, greetingY);
+      doc.text('vielen Dank für Ihre Aufträge und das damit verbundene Vertrauen.', marginX, thanksY);
+      doc.text('Hiermit stellen wir Ihnen die folgenden Leistungen in Rechnung:', marginX, leadInY);
 
       autoTable(doc, {
-        startY: 126,
+        startY: tableStartY,
         margin: { left: marginX, right: marginX, bottom: 42 },
         head: [['Pos.', 'Beschreibung', 'Tour Netto', 'Tank Netto', 'Gesamt Netto']],
         body: rows.map((row, index) => {
@@ -679,10 +730,12 @@ export default function CustomerInvoice() {
       const totalPages = doc.internal.getNumberOfPages();
       for (let page = 1; page <= totalPages; page += 1) {
         doc.setPage(page);
-        doc.setDrawColor(212, 212, 212);
-        doc.line(marginX, footerTop - 2, pageWidth - marginX, footerTop - 2);
+        const footerAreaY = footerTop - 6;
+        doc.setFillColor(248, 250, 252);
+        doc.rect(marginX, footerAreaY, contentWidth, pageHeight - footerAreaY - 8, 'F');
         doc.setFont('helvetica', 'normal');
-        doc.setFontSize(7.1);
+        doc.setFontSize(7);
+        doc.setTextColor(51, 65, 85);
 
         const footerCompanyName = [issuer.name, issuer.companySuffix].filter(Boolean).join(' ');
         const leftBlockRaw = [
@@ -728,17 +781,17 @@ export default function CustomerInvoice() {
                 if (result.length < maxLines) result.push(item);
               });
             });
-          result.forEach((line, idx) => doc.text(line, x, footerTop + idx * 4.3));
+          result.forEach((line, idx) => doc.text(line, x, footerAreaY + 8 + idx * 4.1));
         };
         drawFooterColumn(colX[0], leftBlockRaw);
         drawFooterColumn(colX[1], midLeftBlockRaw);
         drawFooterColumn(colX[2], midRightBlockRaw);
         drawFooterColumn(colX[3], rightBlockRaw);
 
-        doc.text(`Seite ${page} von ${totalPages}`, pageWidth - marginX, footerTop - 4.5, { align: 'right' });
+        doc.text(`Seite ${page} von ${totalPages}`, pageWidth - marginX, footerAreaY + 4.2, { align: 'right' });
       }
 
-      const customerSafe = sanitizeFileNamePart(getCustomerName(record), 32) || 'Kunde';
+      const customerSafe = sanitizeFileNamePart(getCustomerName(record, mergedCustomer), 32) || 'Kunde';
       const stamp = format(new Date(), 'yyyyMMdd_HHmm');
       doc.save(`Rechnung_${customerSafe}_${stamp}.pdf`);
     } catch (error) {

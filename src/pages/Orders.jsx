@@ -351,7 +351,7 @@ export default function Orders() {
       appClient.entities.Customer.list(
         '-created_date',
         500,
-        'id,customer_number,type,company_name,first_name,last_name,email,phone,price_list'
+        'id,customer_number,type,company_name,first_name,last_name,email,phone,address,postal_code,city,country,tax_id,price_list'
       ),
   });
 
