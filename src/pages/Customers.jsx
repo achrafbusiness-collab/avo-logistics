@@ -50,6 +50,7 @@ import {
   saveFinanceSettings,
   updateInvoiceStatus,
 } from '@/utils/invoiceStorage';
+import { buildCustomerInvoicePdf } from '@/utils/customerInvoicePdf';
 import { 
   Plus, 
   Search, 
@@ -114,6 +115,12 @@ export default function Customers() {
     queryKey: ['customers'],
     queryFn: () => appClient.entities.Customer.list('-created_date', 500),
   });
+
+  const { data: appSettingsList = [] } = useQuery({
+    queryKey: ['appSettings'],
+    queryFn: () => appClient.entities.AppSettings.list('-created_date', 1),
+  });
+  const appSettings = appSettingsList[0] || null;
 
   const createMutation = useMutation({
     mutationFn: (data) => appClient.entities.Customer.create(data),
@@ -360,38 +367,6 @@ Gib ausschließlich strukturierte Daten zurück.`,
     return format(date, 'dd.MM.yyyy HH:mm', { locale: de });
   };
 
-  const parseMoney = (value) => {
-    if (value === null || value === undefined || value === '') return 0;
-    const raw = String(value).trim();
-    if (!raw) return 0;
-    const normalized = raw.includes(',') ? raw.replace(/\./g, '').replace(',', '.') : raw;
-    const parsed = Number.parseFloat(normalized);
-    return Number.isFinite(parsed) ? parsed : 0;
-  };
-
-  const formatEuroText = (value) =>
-    `${Number(value || 0).toLocaleString('de-DE', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    })} EUR`;
-
-  const grossToNet = (grossValue, vatRateValue) => {
-    const gross = Number(grossValue || 0);
-    const vatRate = Number(vatRateValue || 0);
-    if (!Number.isFinite(gross)) return 0;
-    if (!Number.isFinite(vatRate) || vatRate <= 0) return gross;
-    return gross / (1 + vatRate / 100);
-  };
-
-  const sanitizeFileNamePart = (value, maxLength = 60) => {
-    const cleaned = String(value || '')
-      .replace(/[\\/:*?"<>|]+/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
-    if (!cleaned) return '';
-    return cleaned.length > maxLength ? cleaned.slice(0, maxLength).trim() : cleaned;
-  };
-
   const resolveInvoiceCustomerEmail = (invoice) => {
     const fromInvoice = String(invoice?.customer?.email || '').trim();
     if (fromInvoice) return fromInvoice;
@@ -401,21 +376,6 @@ Gib ausschließlich strukturierte Daten zurück.`,
     return String(customer?.email || '').trim();
   };
 
-  const toDisplayDate = (value) => {
-    if (!value) return '-';
-    if (/^\d{4}-\d{2}-\d{2}$/.test(String(value))) {
-      const parsed = new Date(`${value}T12:00:00`);
-      if (!Number.isNaN(parsed.getTime())) {
-        return format(parsed, 'dd.MM.yyyy', { locale: de });
-      }
-    }
-    const parsed = new Date(value);
-    if (!Number.isNaN(parsed.getTime())) {
-      return format(parsed, 'dd.MM.yyyy', { locale: de });
-    }
-    return String(value);
-  };
-
   const getInvoiceCustomerName = (invoice) => {
     const customer = invoice?.customer || null;
     if (customer?.type === 'business' && customer?.company_name) return customer.company_name;
@@ -423,244 +383,85 @@ Gib ausschließlich strukturierte Daten zurück.`,
     return fullName || invoice?.customerLabel || 'Kunde';
   };
 
-  const buildInvoicePdfForEmail = async (invoice, options = {}) => {
-    const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
-      import('jspdf'),
-      import('jspdf-autotable'),
-    ]);
-
+  const resolveInvoiceIssuer = () => {
     const profile = financeSettings.invoiceProfile || {};
-    const issuer = {
-      name: profile.companyName || 'AVO LOGISTICS',
-      street: profile.street || 'Collenbachstraße 1',
-      postalCode: profile.postalCode || '40476',
-      city: profile.city || 'Düsseldorf',
-      country: profile.country || 'Deutschland',
-      email: profile.email || 'info@avo-logistics.de',
-      phone: profile.phone || '+49 17624273014',
+    const officeAddress = String(appSettings?.office_address || '').trim();
+    const [officeStreetRaw = '', officeCityRaw = '', officeCountryRaw = ''] = officeAddress
+      .split(/\n|,/)
+      .map((part) => part.trim())
+      .filter(Boolean);
+    const cityMatch = officeCityRaw.match(/^(\d{4,5})\s+(.+)$/);
+    const defaults = {
+      name: 'AVO LOGISTICS',
+      street: 'Collenbachstraße 1',
+      postalCode: '40476',
+      city: 'Düsseldorf',
+      country: 'Deutschland',
+      phone: '+49 17624273014',
+      email: 'info@avo-logistics.de',
+      web: 'www.avo-logistics.de',
+      taxNumber: '10350222746',
+      vatId: 'DE361070222',
+      bankName: 'Stadtsparkasse Düsseldorf',
+      iban: 'DE98 3005 0110 1009 0619 02',
+      bic: 'DUSSDEDDXXX',
+      owner: 'Achraf Bolakhrif',
+    };
+    return {
+      name: profile.companyName || appSettings?.company_name || defaults.name,
+      companySuffix: profile.companySuffix || '',
+      legalForm: profile.legalForm || '',
+      street: profile.street || officeStreetRaw || defaults.street,
+      postalCode: profile.postalCode || cityMatch?.[1] || defaults.postalCode,
+      city: profile.city || cityMatch?.[2] || officeCityRaw || defaults.city,
+      country: profile.country || officeCountryRaw || defaults.country,
+      phone: profile.phone || appSettings?.support_phone || defaults.phone,
+      fax: profile.fax || '',
+      email: profile.email || appSettings?.support_email || defaults.email,
+      web: profile.website || defaults.web,
+      taxNumber: profile.taxNumber || defaults.taxNumber,
+      vatId: profile.vatId || defaults.vatId,
+      bankName: profile.bankName || defaults.bankName,
+      accountNumber: profile.accountNumber || '',
+      blz: profile.blz || '',
+      iban: profile.iban || defaults.iban,
+      bic: profile.bic || defaults.bic,
+      owner: profile.owner || defaults.owner,
       paymentTerms:
         profile.paymentTerms || 'Zahlung innerhalb von {days} Tagen ab Rechnungseingang ohne Abzüge.',
       logoDataUrl: profile.logoDataUrl || '',
     };
-    const includeLogo = options.includeLogo !== false;
-    const optimizedLogoDataUrl = includeLogo
-      ? await optimizeImageDataUrl(issuer.logoDataUrl, 920, 0.72)
-      : '';
+  };
 
+  const buildInvoicePdfForEmail = async (invoice) => {
     const rows = Array.isArray(invoice?.rows) ? invoice.rows : [];
     const meta = invoice?.invoiceMeta || {};
-    const vatRate = Number.parseFloat(String(meta.vatRate ?? financeSettings.defaultVatRate ?? 19).replace(',', '.')) || 19;
-    const includeFuel = meta.includeFuel !== false;
-    const orderNet = rows.reduce((sum, row) => sum + parseMoney(row.orderPriceDraft ?? row.orderPrice), 0);
-    const fuelNet = rows.reduce((sum, row) => {
-      const fuelGross = includeFuel ? parseMoney(row.fuelExpensesDraft ?? row.fuelExpenses) : 0;
-      return sum + grossToNet(fuelGross, vatRate);
-    }, 0);
-    const net = Number(invoice?.totals?.net ?? (orderNet + fuelNet));
-    const vatAmount = Number(invoice?.totals?.vatAmount ?? (net * (vatRate / 100)));
-    const gross = Number(invoice?.totals?.gross ?? (net + vatAmount));
-
-    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const pageHeight = doc.internal.pageSize.getHeight();
-    const marginX = 14;
-    const contentWidth = pageWidth - marginX * 2;
-    const footerTop = pageHeight - 31;
-
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(15, 23, 42);
-    if (optimizedLogoDataUrl) {
-      try {
-        const imageFormat = String(optimizedLogoDataUrl || '').toLowerCase().startsWith('data:image/jpeg') ? 'JPEG' : 'PNG';
-        doc.addImage(optimizedLogoDataUrl, imageFormat, pageWidth - marginX - 38, 10, 38, 16, undefined, 'FAST');
-      } catch {
-        // ignore logo errors for email PDF fallback
-      }
-    }
-    doc.setFillColor(30, 58, 95);
-    doc.rect(marginX, 8, contentWidth, 1.3, 'F');
-    doc.setFontSize(10);
-    doc.text(`${issuer.name} - ${issuer.street} - ${issuer.postalCode} ${issuer.city}`, marginX, 16);
-
-    const customerName = getInvoiceCustomerName(invoice);
-    const customerAddress = [invoice?.customer?.address, [invoice?.customer?.postal_code, invoice?.customer?.city].filter(Boolean).join(' '), invoice?.customer?.country]
-      .filter(Boolean);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(10);
-    doc.text(customerName, marginX, 32);
-    doc.setFont('helvetica', 'normal');
-    customerAddress.forEach((line, index) => {
-      doc.text(String(line), marginX, 38 + index * 5);
-    });
-
-    const rightX = 130;
-    const invoiceTopY = 32;
-    doc.setFont('helvetica', 'bold');
-    doc.text('Rechnungs-Nr.', rightX, invoiceTopY);
-    doc.text(meta.invoiceNumber || '-', pageWidth - marginX, invoiceTopY, { align: 'right' });
-    doc.setFont('helvetica', 'normal');
-    doc.text('Rechnungsdatum', rightX, invoiceTopY + 8);
-    doc.text(toDisplayDate(meta.invoiceDate), pageWidth - marginX, invoiceTopY + 8, { align: 'right' });
-    doc.text('Lieferdatum', rightX, invoiceTopY + 15);
-    doc.text(toDisplayDate(meta.deliveryDate), pageWidth - marginX, invoiceTopY + 15, { align: 'right' });
-
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(16);
-    doc.text(`Rechnung Nr. ${meta.invoiceNumber || '-'}`, marginX, 72);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(10);
-    doc.text('Hiermit stellen wir Ihnen die folgenden Leistungen in Rechnung:', marginX, 80);
-
-    autoTable(doc, {
-      startY: 86,
-      margin: { left: marginX, right: marginX, bottom: 42 },
-      head: [['Pos.', 'Auftragsnr.', 'Abholadresse', 'Lieferadresse', 'Auftragspreis', 'Betankung (Netto)', 'Gesamtpreis']],
-      body: rows.map((row, index) => {
-        const routeRaw = String(row.routeDraft || row.route || '').trim();
-        const routeParts = routeRaw.split(/\s*->\s*/);
-        const pickup = String(row.pickupAddress || row.pickup_address || routeParts[0] || '-').trim() || '-';
-        const dropoff = String(
-          row.dropoffAddress ||
-          row.dropoff_address ||
-          (routeParts.length > 1 ? routeParts.slice(1).join(' -> ') : '')
-        ).trim() || '-';
-        const orderPrice = parseMoney(row.orderPriceDraft ?? row.orderPrice);
-        const fuelGrossRaw = parseMoney(row.fuelExpensesDraft ?? row.fuelExpenses);
-        const fuelNetValue = includeFuel ? grossToNet(fuelGrossRaw, vatRate) : 0;
-        const lineNet = orderPrice + fuelNetValue;
-        return [
-          String(index + 1),
-          String(row.orderNumber || '-'),
-          pickup,
-          dropoff,
-          formatEuroText(orderPrice),
-          formatEuroText(fuelNetValue),
-          formatEuroText(lineNet),
-        ];
-      }),
-      styles: {
-        fontSize: 10,
-        cellPadding: 1.4,
-        overflow: 'linebreak',
-        textColor: [30, 41, 59],
-        lineColor: [220, 220, 220],
-        lineWidth: 0.1,
-      },
-      headStyles: {
-        fillColor: [229, 231, 235],
-        textColor: [17, 24, 39],
-        fontStyle: 'bold',
-        fontSize: 10,
-      },
-      columnStyles: {
-        0: { cellWidth: 12, halign: 'center' },
-        1: { cellWidth: 24 },
-        2: { cellWidth: 35 },
-        3: { cellWidth: 35 },
-        4: { cellWidth: 26, halign: 'right' },
-        5: { cellWidth: 26, halign: 'right' },
-        6: { cellWidth: 24, halign: 'right' },
-      },
-    });
-
-    autoTable(doc, {
-      startY: (doc.lastAutoTable?.finalY || 86) + 5,
-      margin: { left: marginX + 84, right: marginX, bottom: 42 },
-      tableWidth: contentWidth - 84,
-      theme: 'grid',
-      body: [
-        ['Gesamter Nettobetrag', formatEuroText(net)],
-        [`Umsatzsteuer ${vatRate}%`, formatEuroText(vatAmount)],
-        ['Gesamter Bruttobetrag', formatEuroText(gross)],
-      ],
-      styles: {
-        fontSize: 11,
-        cellPadding: 2.2,
-      },
-      columnStyles: {
-        0: { cellWidth: 52 },
-        1: { cellWidth: 32, halign: 'right' },
-      },
-      didParseCell: (hook) => {
-        if (hook.row.section === 'body' && hook.row.index === 2) {
-          hook.cell.styles.fontStyle = 'bold';
-          hook.cell.styles.fillColor = [241, 245, 249];
-        }
-      },
-    });
-
-    const paymentTermsText = String(issuer.paymentTerms).replace('{days}', String(meta.paymentDays || 14));
-    const paymentTermsLines = doc.splitTextToSize(`Zahlungsbedingungen: ${paymentTermsText}`, contentWidth);
-    let paymentY = (doc.lastAutoTable?.finalY || 126) + 10;
-    if (paymentY + paymentTermsLines.length * 5 + 12 > footerTop) {
-      doc.addPage();
-      paymentY = 20;
-    }
-    doc.setFontSize(10);
-    doc.text(paymentTermsLines, marginX, paymentY);
-
-    const totalPages = doc.internal.getNumberOfPages();
-    for (let page = 1; page <= totalPages; page += 1) {
-      doc.setPage(page);
-      doc.setFontSize(9);
-      doc.text(`${issuer.name} • ${issuer.street}, ${issuer.postalCode} ${issuer.city} • ${issuer.email}`, marginX, footerTop);
-      doc.text(`${page}/${totalPages}`, pageWidth - marginX, footerTop, { align: 'right' });
-    }
-
-    const customerSafe = sanitizeFileNamePart(customerName, 32) || 'Kunde';
-    const fileName = `Rechnung_${customerSafe}_${meta.invoiceNumber || 'ohne-nummer'}.pdf`;
-    return {
-      fileName,
-      arrayBuffer: doc.output('arraybuffer'),
+    const customerId = invoice?.customer?.id || (invoice?.customerKey !== '__none__' ? invoice?.customerKey : '');
+    const latestCustomer = customerId ? customers.find((entry) => entry.id === customerId) : null;
+    const mergedCustomer = {
+      ...(invoice?.customer || {}),
+      ...(latestCustomer || {}),
     };
-  };
-
-  const arrayBufferToBase64 = (arrayBuffer) => {
-    const bytes = new Uint8Array(arrayBuffer);
-    let binary = '';
-    const chunkSize = 0x8000;
-    for (let offset = 0; offset < bytes.length; offset += chunkSize) {
-      const chunk = bytes.subarray(offset, offset + chunkSize);
-      binary += String.fromCharCode(...chunk);
-    }
-    return btoa(binary);
-  };
-
-  const optimizeImageDataUrl = async (dataUrl, maxEdge = 1200, quality = 0.76) => {
-    const source = String(dataUrl || '').trim();
-    if (!source.startsWith('data:image/')) return '';
-    if (typeof window === 'undefined') return source;
-    return await new Promise((resolve) => {
-      const image = new Image();
-      image.onload = () => {
-        try {
-          const width = image.naturalWidth || image.width;
-          const height = image.naturalHeight || image.height;
-          if (!width || !height) {
-            resolve(source);
-            return;
-          }
-          const scale = Math.min(1, maxEdge / Math.max(width, height));
-          const targetWidth = Math.max(1, Math.round(width * scale));
-          const targetHeight = Math.max(1, Math.round(height * scale));
-          const canvas = document.createElement('canvas');
-          canvas.width = targetWidth;
-          canvas.height = targetHeight;
-          const context = canvas.getContext('2d');
-          if (!context) {
-            resolve(source);
-            return;
-          }
-          context.fillStyle = '#ffffff';
-          context.fillRect(0, 0, targetWidth, targetHeight);
-          context.drawImage(image, 0, 0, targetWidth, targetHeight);
-          resolve(canvas.toDataURL('image/jpeg', quality));
-        } catch {
-          resolve(source);
-        }
-      };
-      image.onerror = () => resolve(source);
-      image.src = source;
+    const finalMeta = {
+      ...meta,
+      invoiceNumber: meta.invoiceNumber || '-',
+      invoiceDate: meta.invoiceDate || format(new Date(), 'yyyy-MM-dd'),
+      deliveryDate: meta.deliveryDate || meta.invoiceDate || format(new Date(), 'yyyy-MM-dd'),
+      customerNumber: meta.customerNumber || mergedCustomer?.customer_number || '',
+      contactPerson: meta.contactPerson || financeSettings?.invoiceProfile?.defaultContactPerson || '',
+      paymentDays: String(meta.paymentDays || financeSettings.defaultPaymentDays || 14),
+      vatRate: String(meta.vatRate ?? financeSettings.defaultVatRate ?? 19),
+      includeFuel: meta.includeFuel !== false,
+    };
+    return buildCustomerInvoicePdf({
+      record: {
+        ...invoice,
+        customer: mergedCustomer,
+      },
+      rows,
+      invoiceMeta: finalMeta,
+      issuer: resolveInvoiceIssuer(),
+      customerOverride: mergedCustomer,
     });
   };
 
@@ -780,22 +581,7 @@ Gib ausschließlich strukturierte Daten zurück.`,
     setInvoiceEmailSending(true);
     setInvoiceEmailFeedback({ type: '', message: '' });
     try {
-      let { arrayBuffer, fileName } = await buildInvoicePdfForEmail(selectedInvoiceForEmail, {
-        includeLogo: true,
-      });
-      let invoicePdfBase64 = arrayBufferToBase64(arrayBuffer);
-      const maxPayloadChars = 3_500_000;
-      if (invoicePdfBase64.length > maxPayloadChars) {
-        const fallback = await buildInvoicePdfForEmail(selectedInvoiceForEmail, {
-          includeLogo: false,
-        });
-        arrayBuffer = fallback.arrayBuffer;
-        fileName = fallback.fileName;
-        invoicePdfBase64 = arrayBufferToBase64(arrayBuffer);
-      }
-      if (invoicePdfBase64.length > maxPayloadChars) {
-        throw new Error('Rechnung zu groß für den E-Mail-Versand. Bitte weniger Positionen je Rechnung verwenden.');
-      }
+      const { arrayBuffer, fileName } = await buildInvoicePdfForEmail(selectedInvoiceForEmail);
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData?.session?.access_token;
       if (!token) throw new Error('Nicht angemeldet.');
@@ -803,17 +589,15 @@ Gib ausschließlich strukturierte Daten zurück.`,
       const response = await fetch('/api/admin/send-driver-assignment', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/pdf',
           Authorization: `Bearer ${token}`,
+          'x-send-customer-invoice-binary': '1',
+          'x-customer-invoice-email': targetEmail,
+          'x-customer-invoice-number': encodeURIComponent(selectedInvoiceForEmail?.invoiceMeta?.invoiceNumber || ''),
+          'x-customer-name': encodeURIComponent(getInvoiceCustomerName(selectedInvoiceForEmail)),
+          'x-customer-invoice-file': encodeURIComponent(fileName || ''),
         },
-        body: JSON.stringify({
-          sendCustomerInvoice: true,
-          customerInvoiceEmail: targetEmail,
-          invoiceNumber: selectedInvoiceForEmail?.invoiceMeta?.invoiceNumber || '',
-          customerName: getInvoiceCustomerName(selectedInvoiceForEmail),
-          invoiceFileName: fileName,
-          invoicePdfBase64,
-        }),
+        body: arrayBuffer,
       });
 
       let payload = null;

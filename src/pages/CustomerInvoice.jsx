@@ -19,6 +19,7 @@ import {
   upsertInvoice,
   upsertInvoiceDraft,
 } from '@/utils/invoiceStorage';
+import { buildCustomerInvoicePdf } from '@/utils/customerInvoicePdf';
 
 const DEFAULT_ISSUER = {
   name: 'AVO LOGISTICS',
@@ -502,317 +503,29 @@ export default function CustomerInvoice() {
     setDownloading(true);
     setDownloadError('');
     try {
-      const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
-        import('jspdf'),
-        import('jspdf-autotable'),
-      ]);
-
       const finalMeta = {
         ...invoiceMeta,
         invoiceNumber: invoiceMeta.invoiceNumber || (isInvoice ? '-' : buildInvoiceNumber()),
       };
-      const toDisplayDate = (value) => {
-        if (!value) return '-';
-        if (/^\d{4}-\d{2}-\d{2}$/.test(String(value))) {
-          const parsed = new Date(`${value}T12:00:00`);
-          if (!Number.isNaN(parsed.getTime())) {
-            return format(parsed, 'dd.MM.yyyy', { locale: de });
-          }
-        }
-        return String(value);
-      };
-
-      const logoDataUrl = issuer.logoDataUrl || (await loadImageAsDataUrl('/logo.png'));
-      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-      const pageWidth = doc.internal.pageSize.getWidth();
-      const pageHeight = doc.internal.pageSize.getHeight();
-      const marginX = 14;
-      const contentWidth = pageWidth - marginX * 2;
-      const footerTop = pageHeight - 31;
-      const getImageFormat = (dataUrl) => {
-        const raw = String(dataUrl || '').toLowerCase();
-        if (raw.startsWith('data:image/jpeg') || raw.startsWith('data:image/jpg')) return 'JPEG';
-        return 'PNG';
-      };
-      const logoBox = { x: pageWidth - marginX - 64, y: 7, w: 64, h: 24 };
-      const fontSizes = {
-        title: 16,
-        body: 10,
-        tableHead: 10,
-        tableBody: 10,
-        totals: 11,
-        footer: 9,
-      };
-
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(15, 23, 42);
-
-      doc.setFillColor(255, 255, 255);
-      doc.rect(logoBox.x, logoBox.y, logoBox.w, logoBox.h, 'F');
-      if (logoDataUrl) {
-        try {
-          const imageFormat = getImageFormat(logoDataUrl);
-          const properties = doc.getImageProperties(logoDataUrl);
-          const maxW = logoBox.w - 2;
-          const maxH = logoBox.h - 2;
-          const imgRatio = properties.width / properties.height;
-          let drawW = maxW;
-          let drawH = drawW / imgRatio;
-          if (drawH > maxH) {
-            drawH = maxH;
-            drawW = drawH * imgRatio;
-          }
-          const drawX = logoBox.x + (logoBox.w - drawW) / 2;
-          const drawY = logoBox.y + (logoBox.h - drawH) / 2;
-          doc.addImage(
-            logoDataUrl,
-            imageFormat,
-            drawX,
-            drawY,
-            drawW,
-            drawH,
-            undefined,
-            'FAST'
-          );
-        } catch (error) {
-          doc.setFontSize(16);
-          doc.text(issuer.name, pageWidth - marginX, 18, { align: 'right' });
-        }
-      } else {
-        doc.setFontSize(16);
-        doc.text(issuer.name, pageWidth - marginX, 18, { align: 'right' });
-      }
-
-      doc.setFillColor(30, 58, 95);
-      doc.rect(marginX, 35, contentWidth, 1.2, 'F');
-
-      const customerLines = getCustomerAddressLines(record, mergedCustomer).slice(0, 6);
-      const customerExtraLines = [
-        mergedCustomer?.tax_id ? `Steuer-ID: ${mergedCustomer.tax_id}` : '',
-        mergedCustomer?.email ? `E-Mail: ${mergedCustomer.email}` : '',
-        mergedCustomer?.phone ? `Telefon: ${mergedCustomer.phone}` : '',
-      ].filter(Boolean);
-      const customerBoxY = 46;
-      const customerBoxHeight = Math.min(
-        52,
-        Math.max(36, 14 + customerLines.length * 5.2 + customerExtraLines.length * 4.6)
-      );
-      const customerNameStartY = customerBoxY + 12;
-      const customerExtraStartY = customerNameStartY + customerLines.length * 5.2 + 0.8;
-      doc.setFillColor(248, 250, 252);
-      doc.rect(marginX, customerBoxY, 86, customerBoxHeight, 'F');
-      doc.setDrawColor(226, 232, 240);
-      doc.rect(marginX, customerBoxY, 86, customerBoxHeight, 'S');
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(fontSizes.body);
-      doc.text('Rechnung an', marginX + 2, customerBoxY + 5.5);
-      doc.setFontSize(fontSizes.body);
-      doc.setFont('helvetica', 'normal');
-      customerLines.forEach((line, index) => {
-        doc.text(line, marginX + 2, customerNameStartY + index * 5.2);
+      const { arrayBuffer, fileName } = await buildCustomerInvoicePdf({
+        record,
+        rows,
+        invoiceMeta: finalMeta,
+        issuer: {
+          ...issuer,
+          paymentTerms: issuer.paymentTerms || DEFAULT_ISSUER.paymentTerms,
+        },
+        customerOverride: mergedCustomer,
       });
-      doc.setFontSize(fontSizes.body);
-      customerExtraLines.forEach((line, index) => {
-        doc.text(line, marginX + 2, customerExtraStartY + index * 4.6);
-      });
-
-      const invoiceTopY = 48;
-      doc.setFontSize(fontSizes.body);
-      doc.setFont('helvetica', 'bold');
-      doc.text('Rechnungs-Nr.', 130, invoiceTopY);
-      doc.text(finalMeta.invoiceNumber || '-', pageWidth - marginX, invoiceTopY, { align: 'right' });
-
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(fontSizes.body);
-      doc.text('Rechnungsdatum', 130, invoiceTopY + 8);
-      doc.text(toDisplayDate(finalMeta.invoiceDate), pageWidth - marginX, invoiceTopY + 8, { align: 'right' });
-      doc.text('Lieferdatum', 130, invoiceTopY + 15);
-      doc.text(toDisplayDate(finalMeta.deliveryDate), pageWidth - marginX, invoiceTopY + 15, { align: 'right' });
-      doc.text('Ihre Kundennummer', 130, invoiceTopY + 25);
-      doc.text(finalMeta.customerNumber || '-', pageWidth - marginX, invoiceTopY + 25, { align: 'right' });
-      doc.text('Ihr Ansprechpartner', 130, invoiceTopY + 32);
-      doc.text(finalMeta.contactPerson || '-', pageWidth - marginX, invoiceTopY + 32, { align: 'right' });
-
-      const introTitleY = Math.max(98, customerBoxY + customerBoxHeight + 11);
-      const greetingY = introTitleY + 10;
-      const thanksY = greetingY + 8;
-      const leadInY = thanksY + 6;
-      const tableStartY = leadInY + 4;
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(fontSizes.title);
-      doc.text(`Rechnung Nr. ${finalMeta.invoiceNumber || '-'}`, marginX, introTitleY);
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(fontSizes.body);
-      doc.text('Sehr geehrte Damen und Herren,', marginX, greetingY);
-      doc.text('vielen Dank für Ihre Aufträge und das damit verbundene Vertrauen.', marginX, thanksY);
-      doc.text('Hiermit stellen wir Ihnen die folgenden Leistungen in Rechnung:', marginX, leadInY);
-
-      autoTable(doc, {
-        startY: tableStartY,
-        margin: { left: marginX, right: marginX, bottom: 42 },
-        head: [['Pos.', 'Auftragsnr.', 'Abholadresse', 'Lieferadresse', 'Auftragspreis', 'Betankung (Netto)', 'Gesamtpreis']],
-        body: rows.map((row, index) => {
-          const fallbackAddresses = splitRouteToAddresses(row.routeDraft);
-          const pickupAddress = (row.pickupAddress || fallbackAddresses.pickupAddress || '-').trim();
-          const dropoffAddress = (row.dropoffAddress || fallbackAddresses.dropoffAddress || '-').trim();
-          const orderNet = parseMoneyInput(row.orderPriceDraft);
-          const fuelGrossRaw = parseMoneyInput(row.fuelExpensesDraft);
-          const fuelGross = finalMeta.includeFuel === false ? 0 : fuelGrossRaw;
-          const fuelNet = grossToNet(fuelGross, summary.vatRate);
-          const lineNet = orderNet + fuelNet;
-          return [
-            String(index + 1),
-            row.orderNumber || '-',
-            pickupAddress || '-',
-            dropoffAddress || '-',
-            formatEuroText(orderNet),
-            formatEuroText(fuelNet),
-            formatEuroText(lineNet),
-          ];
-        }),
-        styles: {
-          fontSize: fontSizes.tableBody,
-          cellPadding: 1.4,
-          overflow: 'linebreak',
-          textColor: [30, 41, 59],
-          lineColor: [220, 220, 220],
-          lineWidth: 0.1,
-        },
-        headStyles: {
-          fillColor: [229, 231, 235],
-          textColor: [17, 24, 39],
-          fontStyle: 'bold',
-          fontSize: fontSizes.tableHead,
-        },
-        columnStyles: {
-          0: { cellWidth: 12, halign: 'center' },
-          1: { cellWidth: 24 },
-          2: { cellWidth: 35 },
-          3: { cellWidth: 35 },
-          4: { cellWidth: 26, halign: 'right' },
-          5: { cellWidth: 26, halign: 'right' },
-          6: { cellWidth: 24, halign: 'right' },
-        },
-      });
-
-      const paymentTermsText = String(issuer.paymentTerms || DEFAULT_ISSUER.paymentTerms).replace(
-        '{days}',
-        String(finalMeta.paymentDays || 14)
-      );
-      const paymentTermsLines = doc.splitTextToSize(`Zahlungsbedingungen: ${paymentTermsText}`, contentWidth);
-
-      autoTable(doc, {
-        startY: (doc.lastAutoTable?.finalY || 126) + 4,
-        margin: { left: marginX + 84, right: marginX, bottom: 42 },
-        tableWidth: contentWidth - 84,
-        theme: 'grid',
-        body: [
-          ['Gesamtauftragspreise (Netto)', formatEuroText(summary.orderNet)],
-          ['Nettobetrag Auslagen (Tank)', formatEuroText(summary.fuelNet)],
-          ['Gesamter Nettobetrag', formatEuroText(summary.net)],
-          [`Umsatzsteuer ${summary.vatRate || 0}%`, formatEuroText(summary.vatAmount)],
-          ['Gesamter Bruttobetrag', formatEuroText(summary.gross)],
-        ],
-        styles: {
-          fontSize: fontSizes.totals,
-          cellPadding: 2.2,
-          lineColor: [220, 220, 220],
-          lineWidth: 0.1,
-        },
-        columnStyles: {
-          0: { cellWidth: 52 },
-          1: { cellWidth: 32, halign: 'right' },
-        },
-        didParseCell: (hook) => {
-          if (hook.row.section === 'body' && hook.row.index === 4) {
-            hook.cell.styles.fontStyle = 'bold';
-          }
-          if (hook.row.section === 'body' && (hook.row.index === 0 || hook.row.index === 4)) {
-            hook.cell.styles.fillColor = [241, 245, 249];
-          }
-        },
-      });
-
-      let paymentY = (doc.lastAutoTable?.finalY || 126) + 10;
-      const paymentBlockHeight = paymentTermsLines.length * 5 + 14;
-      if (paymentY + paymentBlockHeight > footerTop - 2) {
-        doc.addPage();
-        paymentY = 20;
-      }
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(fontSizes.body);
-      doc.text(paymentTermsLines, marginX, paymentY);
-      const signatureY = paymentY + paymentTermsLines.length * 5 + 6;
-      doc.text('Mit freundlichen Grüßen', marginX, signatureY);
-      doc.text(`Team ${issuer.name}`, marginX, signatureY + 6);
-
-      const totalPages = doc.internal.getNumberOfPages();
-      for (let page = 1; page <= totalPages; page += 1) {
-        doc.setPage(page);
-        const footerAreaY = footerTop - 6;
-        doc.setFillColor(248, 250, 252);
-        doc.rect(marginX, footerAreaY, contentWidth, pageHeight - footerAreaY - 8, 'F');
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(fontSizes.footer);
-        doc.setTextColor(51, 65, 85);
-
-        const footerCompanyName = [issuer.name, issuer.companySuffix].filter(Boolean).join(' ');
-        const leftBlockRaw = [
-          footerCompanyName,
-          [issuer.owner, issuer.legalForm].filter(Boolean).join(' • '),
-          issuer.street,
-          `${issuer.postalCode} ${issuer.city}`,
-          issuer.country,
-        ];
-        const midLeftBlockRaw = [
-          `Tel.: ${issuer.phone || '-'}`,
-          `FAX: ${issuer.fax || '-'}`,
-          `E-Mail: ${issuer.email || '-'}`,
-          `Web: ${issuer.web || '-'}`,
-        ];
-        const midRightBlockRaw = [
-          `Steuer-Nr.: ${issuer.taxNumber || '-'}`,
-          `USt.-ID: ${issuer.vatId || '-'}`,
-        ];
-        const rightBlockRaw = [
-          issuer.bankName || '-',
-          `Kontonummer: ${issuer.accountNumber || '-'}`,
-          `BLZ: ${issuer.blz || '-'}`,
-          `IBAN: ${issuer.iban || '-'}`,
-          `BIC: ${issuer.bic || '-'}`,
-        ];
-        const colGap = 2;
-        const colWidth = (contentWidth - colGap * 3) / 4;
-        const colX = [
-          marginX,
-          marginX + colWidth + colGap,
-          marginX + (colWidth + colGap) * 2,
-          marginX + (colWidth + colGap) * 3,
-        ];
-        const drawFooterColumn = (x, lines) => {
-          const maxLines = 5;
-          const result = [];
-          lines
-            .filter(Boolean)
-            .forEach((line) => {
-              const wrapped = doc.splitTextToSize(String(line), colWidth);
-              wrapped.forEach((item) => {
-                if (result.length < maxLines) result.push(item);
-              });
-            });
-          result.forEach((line, idx) => doc.text(line, x, footerAreaY + 8 + idx * 4.1));
-        };
-        drawFooterColumn(colX[0], leftBlockRaw);
-        drawFooterColumn(colX[1], midLeftBlockRaw);
-        drawFooterColumn(colX[2], midRightBlockRaw);
-        drawFooterColumn(colX[3], rightBlockRaw);
-
-        doc.text(`Seite ${page} von ${totalPages}`, pageWidth - marginX, footerAreaY + 4.2, { align: 'right' });
-      }
-
-      const customerSafe = sanitizeFileNamePart(getCustomerName(record, mergedCustomer), 32) || 'Kunde';
-      const stamp = format(new Date(), 'yyyyMMdd_HHmm');
-      doc.save(`Rechnung_${customerSafe}_${stamp}.pdf`);
+      const blob = new Blob([arrayBuffer], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
     } catch (error) {
       setDownloadError(error?.message || 'PDF-Download fehlgeschlagen.');
     } finally {

@@ -481,31 +481,8 @@ export default async function handler(req, res) {
       return;
     }
 
-    let body;
-    try {
-      body = await readJsonBody(req);
-    } catch (bodyError) {
-      res.status(400).json({ ok: false, error: bodyError?.message || "Request-Body ungueltig." });
-      return;
-    }
-    const {
-      orderId,
-      downloadProtocolPdf,
-      checklistId,
-      testEmail,
-      to,
-      welcomeEmail,
-      sendCustomerProtocol,
-      customerProtocolEmail,
-      protocolChecklistId,
-      customerProtocolQuality,
-      sendCustomerInvoice,
-      customerInvoiceEmail,
-      invoiceNumber,
-      customerName,
-      invoiceFileName,
-      invoicePdfBase64,
-    } = body || {};
+    const sendCustomerInvoiceBinary =
+      String(req.headers["x-send-customer-invoice-binary"] || "").trim() === "1";
 
     const { data: settings } = await supabaseAdmin
       .from("app_settings")
@@ -541,6 +518,133 @@ export default async function handler(req, res) {
     const brandPrimary = "#1e3a5f";
     const brandSecondary = "#2d5a8a";
     const logoUrl = resolvePublicSiteUrl(req) ? `${resolvePublicSiteUrl(req)}/logo.png` : "";
+
+    if (sendCustomerInvoiceBinary) {
+      if (!canSendEmail(resolvedSmtp)) {
+        res.status(400).json({ ok: false, error: "SMTP ist nicht konfiguriert." });
+        return;
+      }
+
+      const decodeHeader = (value) => {
+        const raw = String(value || "").trim();
+        if (!raw) return "";
+        try {
+          return decodeURIComponent(raw);
+        } catch {
+          return raw;
+        }
+      };
+
+      const recipientEmail = String(req.headers["x-customer-invoice-email"] || "").trim();
+      if (!recipientEmail) {
+        res.status(400).json({ ok: false, error: "Bitte Kunden-E-Mail angeben." });
+        return;
+      }
+
+      const numberFromHeader = decodeHeader(req.headers["x-customer-invoice-number"]);
+      const customerNameFromHeader = decodeHeader(req.headers["x-customer-name"]) || "Kunde";
+      const fileNameFromHeader = decodeHeader(req.headers["x-customer-invoice-file"]);
+
+      const chunks = [];
+      for await (const chunk of req) {
+        chunks.push(chunk);
+      }
+      const attachmentBuffer = Buffer.concat(chunks);
+      if (!attachmentBuffer || !attachmentBuffer.length) {
+        res.status(400).json({ ok: false, error: "Rechnungs-PDF fehlt." });
+        return;
+      }
+
+      const subject = `Rechnung ${numberFromHeader || "-"}`;
+      const companyName = settings?.company_name || "AVO Logistics";
+      const text = `Sehr geehrte Damen und Herren,
+
+anbei erhalten Sie Ihre Rechnung ${numberFromHeader || "-"}.
+
+Kunde: ${customerNameFromHeader}
+
+Mit freundlichen Grüßen
+${companyName}`;
+      const html = `
+<div style="background:#f4f6fb; padding:24px 0; font-family:Arial, sans-serif; color:#0f172a;">
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width:640px; margin:0 auto;">
+    <tr>
+      <td style="padding:0 20px;">
+        <div style="background:#ffffff; border-radius:16px; box-shadow:0 8px 24px rgba(15,23,42,0.08); overflow:hidden;">
+          <div style="background:${brandPrimary}; color:#ffffff; padding:18px 24px;">
+            <h1 style="margin:0; font-size:20px; font-weight:700;">Rechnung ${numberFromHeader || "-"}</h1>
+          </div>
+          <div style="padding:20px 24px; font-size:14px; line-height:1.5;">
+            <p style="margin:0 0 12px;">Sehr geehrte Damen und Herren,</p>
+            <p style="margin:0 0 12px;">anbei erhalten Sie Ihre Rechnung als PDF-Anhang.</p>
+            <p style="margin:0 0 12px;"><strong>Kunde:</strong> ${customerNameFromHeader}</p>
+            <p style="margin:0;">Mit freundlichen Grüßen<br/>${companyName}</p>
+          </div>
+        </div>
+      </td>
+    </tr>
+  </table>
+</div>`;
+
+      const fallbackName = `rechnung-${String(numberFromHeader || Date.now()).replace(/[^a-z0-9._-]/gi, "_")}.pdf`;
+      const attachmentName = String(fileNameFromHeader || fallbackName)
+        .replace(/[^a-z0-9._-]/gi, "_")
+        .replace(/_+/g, "_");
+
+      try {
+        await sendEmail({
+          to: recipientEmail,
+          subject,
+          text,
+          html,
+          from: fromAddress,
+          replyTo,
+          smtp: resolvedSmtp,
+          attachments: [
+            {
+              filename: attachmentName.endsWith(".pdf") ? attachmentName : `${attachmentName}.pdf`,
+              content: attachmentBuffer,
+              contentType: "application/pdf",
+            },
+          ],
+        });
+      } catch (emailError) {
+        res.status(400).json({ ok: false, error: emailError?.message || "E-Mail konnte nicht gesendet werden." });
+        return;
+      }
+
+      res.status(200).json({
+        ok: true,
+        data: { emailSent: true, to: recipientEmail },
+      });
+      return;
+    }
+
+    let body;
+    try {
+      body = await readJsonBody(req);
+    } catch (bodyError) {
+      res.status(400).json({ ok: false, error: bodyError?.message || "Request-Body ungueltig." });
+      return;
+    }
+    const {
+      orderId,
+      downloadProtocolPdf,
+      checklistId,
+      testEmail,
+      to,
+      welcomeEmail,
+      sendCustomerProtocol,
+      customerProtocolEmail,
+      protocolChecklistId,
+      customerProtocolQuality,
+      sendCustomerInvoice,
+      customerInvoiceEmail,
+      invoiceNumber,
+      customerName,
+      invoiceFileName,
+      invoicePdfBase64,
+    } = body || {};
 
     if (testEmail) {
       const target = to || resolvedSmtp.user || senderAddress;
