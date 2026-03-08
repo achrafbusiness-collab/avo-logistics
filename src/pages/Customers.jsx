@@ -585,6 +585,15 @@ Gib ausschließlich strukturierte Daten zurück.`,
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData?.session?.access_token;
       if (!token) throw new Error('Nicht angemeldet.');
+      const invoiceProfileForEmail = financeSettings?.invoiceProfile || {};
+      const contactPerson = String(
+        invoiceProfileForEmail.defaultContactPerson ||
+          selectedInvoiceForEmail?.invoiceMeta?.contactPerson ||
+          ''
+      ).trim();
+      const contactEmail = String(invoiceProfileForEmail.email || '').trim();
+      const contactPhone = String(invoiceProfileForEmail.phone || '').trim();
+      const contactWebsite = String(invoiceProfileForEmail.website || '').trim();
 
       const response = await fetch('/api/admin/send-driver-assignment', {
         method: 'POST',
@@ -595,7 +604,10 @@ Gib ausschließlich strukturierte Daten zurück.`,
           'x-customer-invoice-email': targetEmail,
           'x-customer-invoice-number': encodeURIComponent(selectedInvoiceForEmail?.invoiceMeta?.invoiceNumber || ''),
           'x-customer-name': encodeURIComponent(getInvoiceCustomerName(selectedInvoiceForEmail)),
-          'x-customer-contact-person': encodeURIComponent(selectedInvoiceForEmail?.invoiceMeta?.contactPerson || ''),
+          'x-customer-contact-person': encodeURIComponent(contactPerson),
+          'x-customer-contact-email': encodeURIComponent(contactEmail),
+          'x-customer-contact-phone': encodeURIComponent(contactPhone),
+          'x-customer-contact-website': encodeURIComponent(contactWebsite),
           'x-customer-invoice-file': encodeURIComponent(fileName || ''),
         },
         body: arrayBuffer,

@@ -90,6 +90,59 @@ const sendEmail = async ({ from, to, subject, html, text, replyTo, smtp, attachm
   });
 };
 
+const decodeMaybeURIComponent = (value) => {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return raw;
+  }
+};
+
+const resolveInvoiceContactDetails = ({
+  contactPersonValue,
+  contactEmailValue,
+  contactPhoneValue,
+  contactWebsiteValue,
+  senderName,
+  companyName,
+  senderAddress,
+  replyTo,
+  smtpUser,
+  supportPhone,
+}) => {
+  const contactPerson = String(contactPersonValue || senderName || companyName || "").trim() || "-";
+  const contactEmail = String(contactEmailValue || replyTo || senderAddress || smtpUser || "").trim() || "-";
+  const contactPhone = String(contactPhoneValue || supportPhone || "").trim();
+  const contactWebsite = String(contactWebsiteValue || "").trim();
+  return {
+    contactPerson,
+    contactEmail,
+    contactPhone,
+    contactWebsite,
+  };
+};
+
+const buildInvoiceContactText = ({ contactPerson, contactEmail, contactPhone, contactWebsite }) => {
+  const lines = [`Bei Fragen können Sie sich gerne an Ihren Ansprechpartner ${contactPerson} wenden.`];
+  if (contactPhone) lines.push(`Telefon: ${contactPhone}`);
+  lines.push(`E-Mail: ${contactEmail || "-"}`);
+  if (contactWebsite) lines.push(`Web: ${contactWebsite}`);
+  return lines.join("\n");
+};
+
+const buildInvoiceContactHtml = ({ contactPerson, contactEmail, contactPhone, contactWebsite }) => {
+  return `
+            <div style="margin:0 0 12px; padding:10px 12px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px;">
+              <p style="margin:0 0 4px;"><strong>Bei Fragen:</strong></p>
+              <p style="margin:0;">Ansprechpartner: ${contactPerson || "-"}</p>
+              ${contactPhone ? `<p style="margin:0;">Telefon: ${contactPhone}</p>` : ""}
+              <p style="margin:0;">E-Mail: ${contactEmail || "-"}</p>
+              ${contactWebsite ? `<p style="margin:0;">Web: ${contactWebsite}</p>` : ""}
+            </div>`;
+};
+
 const formatAddress = (parts) =>
   parts
     .filter(Boolean)
@@ -487,7 +540,7 @@ export default async function handler(req, res) {
     const { data: settings } = await supabaseAdmin
       .from("app_settings")
       .select(
-        "email_sender_name, email_sender_address, support_email, company_name, smtp_host, smtp_port, smtp_user, smtp_pass, smtp_secure"
+        "email_sender_name, email_sender_address, support_email, support_phone, company_name, smtp_host, smtp_port, smtp_user, smtp_pass, smtp_secure"
       )
       .eq("company_id", profile.company_id)
       .order("created_date", { ascending: false })
@@ -525,26 +578,19 @@ export default async function handler(req, res) {
         return;
       }
 
-      const decodeHeader = (value) => {
-        const raw = String(value || "").trim();
-        if (!raw) return "";
-        try {
-          return decodeURIComponent(raw);
-        } catch {
-          return raw;
-        }
-      };
-
       const recipientEmail = String(req.headers["x-customer-invoice-email"] || "").trim();
       if (!recipientEmail) {
         res.status(400).json({ ok: false, error: "Bitte Kunden-E-Mail angeben." });
         return;
       }
 
-      const numberFromHeader = decodeHeader(req.headers["x-customer-invoice-number"]);
-      const customerNameFromHeader = decodeHeader(req.headers["x-customer-name"]) || "Kunde";
-      const fileNameFromHeader = decodeHeader(req.headers["x-customer-invoice-file"]);
-      const contactPersonFromHeader = decodeHeader(req.headers["x-customer-contact-person"]);
+      const numberFromHeader = decodeMaybeURIComponent(req.headers["x-customer-invoice-number"]);
+      const customerNameFromHeader = decodeMaybeURIComponent(req.headers["x-customer-name"]) || "Kunde";
+      const fileNameFromHeader = decodeMaybeURIComponent(req.headers["x-customer-invoice-file"]);
+      const contactPersonFromHeader = decodeMaybeURIComponent(req.headers["x-customer-contact-person"]);
+      const contactEmailFromHeader = decodeMaybeURIComponent(req.headers["x-customer-contact-email"]);
+      const contactPhoneFromHeader = decodeMaybeURIComponent(req.headers["x-customer-contact-phone"]);
+      const contactWebsiteFromHeader = decodeMaybeURIComponent(req.headers["x-customer-contact-website"]);
 
       const chunks = [];
       for await (const chunk of req) {
@@ -558,8 +604,20 @@ export default async function handler(req, res) {
 
       const subject = `Rechnung ${numberFromHeader || "-"}`;
       const companyName = settings?.company_name || "AVO Logistics";
-      const contactPerson = String(contactPersonFromHeader || senderName || companyName).trim();
-      const contactEmail = String(replyTo || senderAddress || resolvedSmtp.user || "").trim() || "-";
+      const contact = resolveInvoiceContactDetails({
+        contactPersonValue: contactPersonFromHeader,
+        contactEmailValue: contactEmailFromHeader,
+        contactPhoneValue: contactPhoneFromHeader,
+        contactWebsiteValue: contactWebsiteFromHeader,
+        senderName,
+        companyName,
+        senderAddress,
+        replyTo,
+        smtpUser: resolvedSmtp.user,
+        supportPhone: settings?.support_phone,
+      });
+      const contactTextBlock = buildInvoiceContactText(contact);
+      const contactHtmlBlock = buildInvoiceContactHtml(contact);
       const text = `Sehr geehrte Damen und Herren,
 
 vielen Dank für Ihre Aufträge und das damit verbundene Vertrauen.
@@ -570,8 +628,7 @@ Kunde: ${customerNameFromHeader}
 
 Die Rechnung finden Sie im Anhang als PDF.
 
-Bei Fragen können Sie sich gerne an Ihren Ansprechpartner ${contactPerson} wenden
-(E-Mail: ${contactEmail}).
+${contactTextBlock}
 
 Mit freundlichen Grüßen
 ${companyName}`;
@@ -591,11 +648,7 @@ ${companyName}`;
             <p style="margin:0;"><strong>Rechnung:</strong> ${numberFromHeader || "-"}</p>
             <p style="margin:0 0 12px;"><strong>Kunde:</strong> ${customerNameFromHeader}</p>
             <p style="margin:0 0 12px;">Die Rechnung finden Sie im Anhang als PDF.</p>
-            <div style="margin:0 0 12px; padding:10px 12px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px;">
-              <p style="margin:0 0 4px;"><strong>Bei Fragen:</strong></p>
-              <p style="margin:0;">Ansprechpartner: ${contactPerson}</p>
-              <p style="margin:0;">E-Mail: ${contactEmail}</p>
-            </div>
+${contactHtmlBlock}
             <p style="margin:0;">Mit freundlichen Grüßen<br/>${companyName}</p>
           </div>
         </div>
@@ -661,6 +714,9 @@ ${companyName}`;
       invoiceNumber,
       customerName,
       customerContactPerson,
+      customerContactEmail,
+      customerContactPhone,
+      customerContactWebsite,
       invoiceFileName,
       invoicePdfBase64,
     } = body || {};
@@ -889,8 +945,20 @@ ${companyName}`;
       const subject = `Rechnung ${invoiceNumber || "-"}`;
       const companyName = settings?.company_name || "AVO Logistics";
       const customerLabel = String(customerName || "Kunde").trim();
-      const contactPerson = String(customerContactPerson || senderName || companyName).trim();
-      const contactEmail = String(replyTo || senderAddress || resolvedSmtp.user || "").trim() || "-";
+      const contact = resolveInvoiceContactDetails({
+        contactPersonValue: customerContactPerson,
+        contactEmailValue: customerContactEmail,
+        contactPhoneValue: customerContactPhone,
+        contactWebsiteValue: customerContactWebsite,
+        senderName,
+        companyName,
+        senderAddress,
+        replyTo,
+        smtpUser: resolvedSmtp.user,
+        supportPhone: settings?.support_phone,
+      });
+      const contactTextBlock = buildInvoiceContactText(contact);
+      const contactHtmlBlock = buildInvoiceContactHtml(contact);
       const text = `Sehr geehrte Damen und Herren,
 
 vielen Dank für Ihre Aufträge und das damit verbundene Vertrauen.
@@ -901,8 +969,7 @@ Kunde: ${customerLabel}
 
 Die Rechnung finden Sie im Anhang als PDF.
 
-Bei Fragen können Sie sich gerne an Ihren Ansprechpartner ${contactPerson} wenden
-(E-Mail: ${contactEmail}).
+${contactTextBlock}
 
 Mit freundlichen Grüßen
 ${companyName}`;
@@ -922,11 +989,7 @@ ${companyName}`;
             <p style="margin:0;"><strong>Rechnung:</strong> ${invoiceNumber || "-"}</p>
             <p style="margin:0 0 12px;"><strong>Kunde:</strong> ${customerLabel}</p>
             <p style="margin:0 0 12px;">Die Rechnung finden Sie im Anhang als PDF.</p>
-            <div style="margin:0 0 12px; padding:10px 12px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px;">
-              <p style="margin:0 0 4px;"><strong>Bei Fragen:</strong></p>
-              <p style="margin:0;">Ansprechpartner: ${contactPerson}</p>
-              <p style="margin:0;">E-Mail: ${contactEmail}</p>
-            </div>
+${contactHtmlBlock}
             <p style="margin:0;">Mit freundlichen Grüßen<br/>${companyName}</p>
           </div>
         </div>
