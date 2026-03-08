@@ -499,6 +499,12 @@ export default async function handler(req, res) {
       customerProtocolEmail,
       protocolChecklistId,
       customerProtocolQuality,
+      sendCustomerInvoice,
+      customerInvoiceEmail,
+      invoiceNumber,
+      customerName,
+      invoiceFileName,
+      invoicePdfBase64,
     } = body || {};
 
     const { data: settings } = await supabaseAdmin
@@ -724,6 +730,102 @@ ${companyName}`;
       res.setHeader("Content-Type", "application/pdf");
       res.setHeader("Content-Disposition", `attachment; filename=\"protokoll-${safeFileId}.pdf\"`);
       res.status(200).send(attachment);
+      return;
+    }
+
+    if (sendCustomerInvoice) {
+      if (!canSendEmail(resolvedSmtp)) {
+        res.status(400).json({ ok: false, error: "SMTP ist nicht konfiguriert." });
+        return;
+      }
+
+      const recipientEmail = String(customerInvoiceEmail || "").trim();
+      if (!recipientEmail) {
+        res.status(400).json({ ok: false, error: "Bitte Kunden-E-Mail angeben." });
+        return;
+      }
+
+      const pdfRaw = String(invoicePdfBase64 || "").trim();
+      if (!pdfRaw) {
+        res.status(400).json({ ok: false, error: "Rechnungs-PDF fehlt." });
+        return;
+      }
+      const base64Payload = pdfRaw.includes("base64,") ? pdfRaw.split("base64,").pop() : pdfRaw;
+      let attachmentBuffer;
+      try {
+        attachmentBuffer = Buffer.from(base64Payload, "base64");
+      } catch {
+        res.status(400).json({ ok: false, error: "Rechnungs-PDF ist ungueltig." });
+        return;
+      }
+      if (!attachmentBuffer || !attachmentBuffer.length) {
+        res.status(400).json({ ok: false, error: "Rechnungs-PDF ist leer." });
+        return;
+      }
+
+      const subject = `Rechnung ${invoiceNumber || "-"}`;
+      const companyName = settings?.company_name || "AVO Logistics";
+      const customerLabel = String(customerName || "Kunde").trim();
+      const text = `Sehr geehrte Damen und Herren,
+
+anbei erhalten Sie Ihre Rechnung ${invoiceNumber || "-"}.
+
+Kunde: ${customerLabel}
+
+Mit freundlichen Grüßen
+${companyName}`;
+      const html = `
+<div style="background:#f4f6fb; padding:24px 0; font-family:Arial, sans-serif; color:#0f172a;">
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width:640px; margin:0 auto;">
+    <tr>
+      <td style="padding:0 20px;">
+        <div style="background:#ffffff; border-radius:16px; box-shadow:0 8px 24px rgba(15,23,42,0.08); overflow:hidden;">
+          <div style="background:${brandPrimary}; color:#ffffff; padding:18px 24px;">
+            <h1 style="margin:0; font-size:20px; font-weight:700;">Rechnung ${invoiceNumber || "-"}</h1>
+          </div>
+          <div style="padding:20px 24px; font-size:14px; line-height:1.5;">
+            <p style="margin:0 0 12px;">Sehr geehrte Damen und Herren,</p>
+            <p style="margin:0 0 12px;">anbei erhalten Sie Ihre Rechnung als PDF-Anhang.</p>
+            <p style="margin:0 0 12px;"><strong>Kunde:</strong> ${customerLabel}</p>
+            <p style="margin:0;">Mit freundlichen Grüßen<br/>${companyName}</p>
+          </div>
+        </div>
+      </td>
+    </tr>
+  </table>
+</div>`;
+
+      const fallbackName = `rechnung-${String(invoiceNumber || Date.now()).replace(/[^a-z0-9._-]/gi, "_")}.pdf`;
+      const attachmentName = String(invoiceFileName || fallbackName)
+        .replace(/[^a-z0-9._-]/gi, "_")
+        .replace(/_+/g, "_");
+
+      try {
+        await sendEmail({
+          to: recipientEmail,
+          subject,
+          text,
+          html,
+          from: fromAddress,
+          replyTo,
+          smtp: resolvedSmtp,
+          attachments: [
+            {
+              filename: attachmentName.endsWith(".pdf") ? attachmentName : `${attachmentName}.pdf`,
+              content: attachmentBuffer,
+              contentType: "application/pdf",
+            },
+          ],
+        });
+      } catch (emailError) {
+        res.status(400).json({ ok: false, error: emailError?.message || "E-Mail konnte nicht gesendet werden." });
+        return;
+      }
+
+      res.status(200).json({
+        ok: true,
+        data: { emailSent: true, to: recipientEmail },
+      });
       return;
     }
 

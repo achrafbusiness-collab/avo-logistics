@@ -29,9 +29,18 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Separator } from "@/components/ui/separator";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import StatusBadge from '@/components/ui/StatusBadge';
 import { buildEmptyPriceRow, normalizePriceList } from '@/utils/priceList';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { supabase } from '@/lib/supabaseClient';
 import {
   deleteInvoice,
   deleteInvoiceDraft,
@@ -77,6 +86,11 @@ export default function Customers() {
   const [financeSearch, setFinanceSearch] = useState('');
   const [financeSettings, setFinanceSettings] = useState(() => getFinanceSettings());
   const [logoUploading, setLogoUploading] = useState(false);
+  const [invoiceEmailDialogOpen, setInvoiceEmailDialogOpen] = useState(false);
+  const [invoiceEmailTarget, setInvoiceEmailTarget] = useState('');
+  const [invoiceEmailFeedback, setInvoiceEmailFeedback] = useState({ type: '', message: '' });
+  const [invoiceEmailSending, setInvoiceEmailSending] = useState(false);
+  const [selectedInvoiceForEmail, setSelectedInvoiceForEmail] = useState(null);
   
   const [formData, setFormData] = useState({
     customer_number: '',
@@ -346,6 +360,268 @@ Gib ausschließlich strukturierte Daten zurück.`,
     return format(date, 'dd.MM.yyyy HH:mm', { locale: de });
   };
 
+  const parseMoney = (value) => {
+    if (value === null || value === undefined || value === '') return 0;
+    const raw = String(value).trim();
+    if (!raw) return 0;
+    const normalized = raw.includes(',') ? raw.replace(/\./g, '').replace(',', '.') : raw;
+    const parsed = Number.parseFloat(normalized);
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
+
+  const formatEuroText = (value) =>
+    `${Number(value || 0).toLocaleString('de-DE', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })} EUR`;
+
+  const grossToNet = (grossValue, vatRateValue) => {
+    const gross = Number(grossValue || 0);
+    const vatRate = Number(vatRateValue || 0);
+    if (!Number.isFinite(gross)) return 0;
+    if (!Number.isFinite(vatRate) || vatRate <= 0) return gross;
+    return gross / (1 + vatRate / 100);
+  };
+
+  const sanitizeFileNamePart = (value, maxLength = 60) => {
+    const cleaned = String(value || '')
+      .replace(/[\\/:*?"<>|]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (!cleaned) return '';
+    return cleaned.length > maxLength ? cleaned.slice(0, maxLength).trim() : cleaned;
+  };
+
+  const resolveInvoiceCustomerEmail = (invoice) => {
+    const fromInvoice = String(invoice?.customer?.email || '').trim();
+    if (fromInvoice) return fromInvoice;
+    const customerId = invoice?.customer?.id || (invoice?.customerKey !== '__none__' ? invoice?.customerKey : '');
+    if (!customerId) return '';
+    const customer = customers.find((entry) => entry.id === customerId);
+    return String(customer?.email || '').trim();
+  };
+
+  const toDisplayDate = (value) => {
+    if (!value) return '-';
+    if (/^\d{4}-\d{2}-\d{2}$/.test(String(value))) {
+      const parsed = new Date(`${value}T12:00:00`);
+      if (!Number.isNaN(parsed.getTime())) {
+        return format(parsed, 'dd.MM.yyyy', { locale: de });
+      }
+    }
+    const parsed = new Date(value);
+    if (!Number.isNaN(parsed.getTime())) {
+      return format(parsed, 'dd.MM.yyyy', { locale: de });
+    }
+    return String(value);
+  };
+
+  const getInvoiceCustomerName = (invoice) => {
+    const customer = invoice?.customer || null;
+    if (customer?.type === 'business' && customer?.company_name) return customer.company_name;
+    const fullName = [customer?.first_name, customer?.last_name].filter(Boolean).join(' ').trim();
+    return fullName || invoice?.customerLabel || 'Kunde';
+  };
+
+  const buildInvoicePdfForEmail = async (invoice) => {
+    const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+      import('jspdf'),
+      import('jspdf-autotable'),
+    ]);
+
+    const profile = financeSettings.invoiceProfile || {};
+    const issuer = {
+      name: profile.companyName || 'AVO LOGISTICS',
+      street: profile.street || 'Collenbachstraße 1',
+      postalCode: profile.postalCode || '40476',
+      city: profile.city || 'Düsseldorf',
+      country: profile.country || 'Deutschland',
+      email: profile.email || 'info@avo-logistics.de',
+      phone: profile.phone || '+49 17624273014',
+      paymentTerms:
+        profile.paymentTerms || 'Zahlung innerhalb von {days} Tagen ab Rechnungseingang ohne Abzüge.',
+      logoDataUrl: profile.logoDataUrl || '',
+    };
+
+    const rows = Array.isArray(invoice?.rows) ? invoice.rows : [];
+    const meta = invoice?.invoiceMeta || {};
+    const vatRate = Number.parseFloat(String(meta.vatRate ?? financeSettings.defaultVatRate ?? 19).replace(',', '.')) || 19;
+    const includeFuel = meta.includeFuel !== false;
+    const orderNet = rows.reduce((sum, row) => sum + parseMoney(row.orderPriceDraft ?? row.orderPrice), 0);
+    const fuelNet = rows.reduce((sum, row) => {
+      const fuelGross = includeFuel ? parseMoney(row.fuelExpensesDraft ?? row.fuelExpenses) : 0;
+      return sum + grossToNet(fuelGross, vatRate);
+    }, 0);
+    const net = Number(invoice?.totals?.net ?? (orderNet + fuelNet));
+    const vatAmount = Number(invoice?.totals?.vatAmount ?? (net * (vatRate / 100)));
+    const gross = Number(invoice?.totals?.gross ?? (net + vatAmount));
+
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const marginX = 14;
+    const contentWidth = pageWidth - marginX * 2;
+    const footerTop = pageHeight - 31;
+
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(15, 23, 42);
+    if (issuer.logoDataUrl) {
+      try {
+        const imageFormat = String(issuer.logoDataUrl || '').toLowerCase().startsWith('data:image/jpeg') ? 'JPEG' : 'PNG';
+        doc.addImage(issuer.logoDataUrl, imageFormat, pageWidth - marginX - 38, 10, 38, 16);
+      } catch {
+        // ignore logo errors for email PDF fallback
+      }
+    }
+    doc.setFillColor(30, 58, 95);
+    doc.rect(marginX, 8, contentWidth, 1.3, 'F');
+    doc.setFontSize(10);
+    doc.text(`${issuer.name} - ${issuer.street} - ${issuer.postalCode} ${issuer.city}`, marginX, 16);
+
+    const customerName = getInvoiceCustomerName(invoice);
+    const customerAddress = [invoice?.customer?.address, [invoice?.customer?.postal_code, invoice?.customer?.city].filter(Boolean).join(' '), invoice?.customer?.country]
+      .filter(Boolean);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.text(customerName, marginX, 32);
+    doc.setFont('helvetica', 'normal');
+    customerAddress.forEach((line, index) => {
+      doc.text(String(line), marginX, 38 + index * 5);
+    });
+
+    const rightX = 130;
+    const invoiceTopY = 32;
+    doc.setFont('helvetica', 'bold');
+    doc.text('Rechnungs-Nr.', rightX, invoiceTopY);
+    doc.text(meta.invoiceNumber || '-', pageWidth - marginX, invoiceTopY, { align: 'right' });
+    doc.setFont('helvetica', 'normal');
+    doc.text('Rechnungsdatum', rightX, invoiceTopY + 8);
+    doc.text(toDisplayDate(meta.invoiceDate), pageWidth - marginX, invoiceTopY + 8, { align: 'right' });
+    doc.text('Lieferdatum', rightX, invoiceTopY + 15);
+    doc.text(toDisplayDate(meta.deliveryDate), pageWidth - marginX, invoiceTopY + 15, { align: 'right' });
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(16);
+    doc.text(`Rechnung Nr. ${meta.invoiceNumber || '-'}`, marginX, 72);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.text('Hiermit stellen wir Ihnen die folgenden Leistungen in Rechnung:', marginX, 80);
+
+    autoTable(doc, {
+      startY: 86,
+      margin: { left: marginX, right: marginX, bottom: 42 },
+      head: [['Pos.', 'Auftragsnr.', 'Abholadresse', 'Lieferadresse', 'Auftragspreis', 'Betankung (Netto)', 'Gesamtpreis']],
+      body: rows.map((row, index) => {
+        const routeRaw = String(row.routeDraft || row.route || '').trim();
+        const routeParts = routeRaw.split(/\s*->\s*/);
+        const pickup = String(row.pickupAddress || row.pickup_address || routeParts[0] || '-').trim() || '-';
+        const dropoff = String(
+          row.dropoffAddress ||
+          row.dropoff_address ||
+          (routeParts.length > 1 ? routeParts.slice(1).join(' -> ') : '')
+        ).trim() || '-';
+        const orderPrice = parseMoney(row.orderPriceDraft ?? row.orderPrice);
+        const fuelGrossRaw = parseMoney(row.fuelExpensesDraft ?? row.fuelExpenses);
+        const fuelNetValue = includeFuel ? grossToNet(fuelGrossRaw, vatRate) : 0;
+        const lineNet = orderPrice + fuelNetValue;
+        return [
+          String(index + 1),
+          String(row.orderNumber || '-'),
+          pickup,
+          dropoff,
+          formatEuroText(orderPrice),
+          formatEuroText(fuelNetValue),
+          formatEuroText(lineNet),
+        ];
+      }),
+      styles: {
+        fontSize: 10,
+        cellPadding: 1.4,
+        overflow: 'linebreak',
+        textColor: [30, 41, 59],
+        lineColor: [220, 220, 220],
+        lineWidth: 0.1,
+      },
+      headStyles: {
+        fillColor: [229, 231, 235],
+        textColor: [17, 24, 39],
+        fontStyle: 'bold',
+        fontSize: 10,
+      },
+      columnStyles: {
+        0: { cellWidth: 12, halign: 'center' },
+        1: { cellWidth: 24 },
+        2: { cellWidth: 35 },
+        3: { cellWidth: 35 },
+        4: { cellWidth: 26, halign: 'right' },
+        5: { cellWidth: 26, halign: 'right' },
+        6: { cellWidth: 24, halign: 'right' },
+      },
+    });
+
+    autoTable(doc, {
+      startY: (doc.lastAutoTable?.finalY || 86) + 5,
+      margin: { left: marginX + 84, right: marginX, bottom: 42 },
+      tableWidth: contentWidth - 84,
+      theme: 'grid',
+      body: [
+        ['Gesamter Nettobetrag', formatEuroText(net)],
+        [`Umsatzsteuer ${vatRate}%`, formatEuroText(vatAmount)],
+        ['Gesamter Bruttobetrag', formatEuroText(gross)],
+      ],
+      styles: {
+        fontSize: 11,
+        cellPadding: 2.2,
+      },
+      columnStyles: {
+        0: { cellWidth: 52 },
+        1: { cellWidth: 32, halign: 'right' },
+      },
+      didParseCell: (hook) => {
+        if (hook.row.section === 'body' && hook.row.index === 2) {
+          hook.cell.styles.fontStyle = 'bold';
+          hook.cell.styles.fillColor = [241, 245, 249];
+        }
+      },
+    });
+
+    const paymentTermsText = String(issuer.paymentTerms).replace('{days}', String(meta.paymentDays || 14));
+    const paymentTermsLines = doc.splitTextToSize(`Zahlungsbedingungen: ${paymentTermsText}`, contentWidth);
+    let paymentY = (doc.lastAutoTable?.finalY || 126) + 10;
+    if (paymentY + paymentTermsLines.length * 5 + 12 > footerTop) {
+      doc.addPage();
+      paymentY = 20;
+    }
+    doc.setFontSize(10);
+    doc.text(paymentTermsLines, marginX, paymentY);
+
+    const totalPages = doc.internal.getNumberOfPages();
+    for (let page = 1; page <= totalPages; page += 1) {
+      doc.setPage(page);
+      doc.setFontSize(9);
+      doc.text(`${issuer.name} • ${issuer.street}, ${issuer.postalCode} ${issuer.city} • ${issuer.email}`, marginX, footerTop);
+      doc.text(`${page}/${totalPages}`, pageWidth - marginX, footerTop, { align: 'right' });
+    }
+
+    const customerSafe = sanitizeFileNamePart(customerName, 32) || 'Kunde';
+    const fileName = `Rechnung_${customerSafe}_${meta.invoiceNumber || 'ohne-nummer'}.pdf`;
+    return {
+      fileName,
+      arrayBuffer: doc.output('arraybuffer'),
+    };
+  };
+
+  const arrayBufferToBase64 = (arrayBuffer) => {
+    const bytes = new Uint8Array(arrayBuffer);
+    let binary = '';
+    const chunkSize = 0x8000;
+    for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+      const chunk = bytes.subarray(offset, offset + chunkSize);
+      binary += String.fromCharCode(...chunk);
+    }
+    return btoa(binary);
+  };
+
   const invoiceDrafts = useMemo(() => listInvoiceDrafts(), [financeRefreshTick]);
   const invoices = useMemo(() => listInvoices(), [financeRefreshTick]);
   const invoiceProfile = financeSettings.invoiceProfile || {};
@@ -439,6 +715,72 @@ Gib ausschließlich strukturierte Daten zurück.`,
   const handleInvoiceStatusChange = (invoiceId, status) => {
     updateInvoiceStatus(invoiceId, status);
     refreshFinanceData();
+  };
+
+  const openInvoiceEmailDialog = (invoice) => {
+    setSelectedInvoiceForEmail(invoice);
+    setInvoiceEmailTarget(resolveInvoiceCustomerEmail(invoice));
+    setInvoiceEmailFeedback({ type: '', message: '' });
+    setInvoiceEmailDialogOpen(true);
+  };
+
+  const handleSendInvoiceToCustomer = async () => {
+    const targetEmail = String(invoiceEmailTarget || '').trim();
+    if (!selectedInvoiceForEmail) {
+      setInvoiceEmailFeedback({ type: 'error', message: 'Rechnung nicht gefunden.' });
+      return;
+    }
+    if (!targetEmail) {
+      setInvoiceEmailFeedback({ type: 'error', message: 'Bitte E-Mail-Adresse eingeben.' });
+      return;
+    }
+
+    setInvoiceEmailSending(true);
+    setInvoiceEmailFeedback({ type: '', message: '' });
+    try {
+      const { arrayBuffer, fileName } = await buildInvoicePdfForEmail(selectedInvoiceForEmail);
+      const invoicePdfBase64 = arrayBufferToBase64(arrayBuffer);
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      if (!token) throw new Error('Nicht angemeldet.');
+
+      const response = await fetch('/api/admin/send-driver-assignment', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          sendCustomerInvoice: true,
+          customerInvoiceEmail: targetEmail,
+          invoiceNumber: selectedInvoiceForEmail?.invoiceMeta?.invoiceNumber || '',
+          customerName: getInvoiceCustomerName(selectedInvoiceForEmail),
+          invoiceFileName: fileName,
+          invoicePdfBase64,
+        }),
+      });
+
+      let payload = null;
+      try {
+        payload = await response.json();
+      } catch {
+        payload = null;
+      }
+      if (!response.ok || !payload?.ok) {
+        throw new Error(payload?.error || `Serverfehler (${response.status})`);
+      }
+      setInvoiceEmailFeedback({
+        type: 'success',
+        message: `E-Mail erfolgreich an ${payload?.data?.to || targetEmail} gesendet.`,
+      });
+    } catch (error) {
+      setInvoiceEmailFeedback({
+        type: 'error',
+        message: error?.message || 'Rechnung konnte nicht versendet werden.',
+      });
+    } finally {
+      setInvoiceEmailSending(false);
+    }
   };
 
   const handleFinanceSettingChange = (field, value) => {
@@ -1169,6 +1511,14 @@ Gib ausschließlich strukturierte Daten zurück.`,
                           </td>
                           <td className="px-3 py-2">
                             <div className="flex justify-end gap-2">
+                              <Button
+                                size="sm"
+                                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                                onClick={() => openInvoiceEmailDialog(invoice)}
+                              >
+                                <Mail className="mr-2 h-4 w-4" />
+                                Senden
+                              </Button>
                               <Link to={`${createPageUrl('CustomerInvoice')}?invoiceId=${invoice.id}`}>
                                 <Button size="sm" variant="outline">Öffnen</Button>
                               </Link>
@@ -1501,6 +1851,86 @@ Gib ausschließlich strukturierte Daten zurück.`,
           </Card>
         </TabsContent>
       </Tabs>
+
+      <Dialog
+        open={invoiceEmailDialogOpen}
+        onOpenChange={(open) => {
+          if (invoiceEmailSending) return;
+          setInvoiceEmailDialogOpen(open);
+          if (!open) {
+            setInvoiceEmailFeedback({ type: '', message: '' });
+            setSelectedInvoiceForEmail(null);
+          }
+        }}
+      >
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Rechnung an Kunden senden</DialogTitle>
+            <DialogDescription>
+              Bitte E-Mail prüfen. Die Rechnung wird als PDF-Anhang versendet.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label>Kunden-E-Mail</Label>
+              <Input
+                type="email"
+                value={invoiceEmailTarget}
+                onChange={(event) => setInvoiceEmailTarget(event.target.value)}
+                placeholder="kunde@firma.de"
+              />
+            </div>
+            {selectedInvoiceForEmail ? (
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+                <p>
+                  Rechnung: <span className="font-semibold">{selectedInvoiceForEmail?.invoiceMeta?.invoiceNumber || '-'}</span>
+                </p>
+                <p>
+                  Kunde: <span className="font-semibold">{getInvoiceCustomerName(selectedInvoiceForEmail)}</span>
+                </p>
+              </div>
+            ) : null}
+            {invoiceEmailFeedback.message ? (
+              <div
+                className={`rounded-lg border px-3 py-2 text-sm ${
+                  invoiceEmailFeedback.type === 'success'
+                    ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                    : 'border-red-200 bg-red-50 text-red-700'
+                }`}
+              >
+                {invoiceEmailFeedback.message}
+              </div>
+            ) : null}
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setInvoiceEmailDialogOpen(false)}
+              disabled={invoiceEmailSending}
+            >
+              {invoiceEmailFeedback.type === 'success' ? 'Schließen' : 'Abbrechen'}
+            </Button>
+            {invoiceEmailFeedback.type !== 'success' ? (
+              <Button
+                type="button"
+                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                onClick={handleSendInvoiceToCustomer}
+                disabled={!invoiceEmailTarget.trim() || invoiceEmailSending}
+              >
+                {invoiceEmailSending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Rechnung wird versendet…
+                  </>
+                ) : (
+                  'Senden'
+                )}
+              </Button>
+            ) : null}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

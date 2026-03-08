@@ -24,6 +24,12 @@ const handlers = {
   "update-profile": updateProfile,
 };
 
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
+
 const applyCors = (req, res) => {
   const origin = req?.headers?.origin;
   res.setHeader("Access-Control-Allow-Origin", origin || "*");
