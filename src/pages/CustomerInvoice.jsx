@@ -672,7 +672,7 @@ export default function CustomerInvoice() {
         }),
         styles: {
           fontSize: fontSizes.tableBody,
-          cellPadding: 2.4,
+          cellPadding: 1.4,
           overflow: 'linebreak',
           textColor: [30, 41, 59],
           lineColor: [220, 220, 220],
@@ -685,13 +685,13 @@ export default function CustomerInvoice() {
           fontSize: fontSizes.tableHead,
         },
         columnStyles: {
-          0: { cellWidth: 10, halign: 'center' },
-          1: { cellWidth: 21 },
-          2: { cellWidth: 42 },
-          3: { cellWidth: 42 },
-          4: { cellWidth: 21, halign: 'right' },
-          5: { cellWidth: 23, halign: 'right' },
-          6: { cellWidth: 23, halign: 'right' },
+          0: { cellWidth: 12, halign: 'center' },
+          1: { cellWidth: 24 },
+          2: { cellWidth: 35 },
+          3: { cellWidth: 35 },
+          4: { cellWidth: 26, halign: 'right' },
+          5: { cellWidth: 26, halign: 'right' },
+          6: { cellWidth: 24, halign: 'right' },
         },
       });
 
