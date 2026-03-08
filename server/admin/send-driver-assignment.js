@@ -544,6 +544,7 @@ export default async function handler(req, res) {
       const numberFromHeader = decodeHeader(req.headers["x-customer-invoice-number"]);
       const customerNameFromHeader = decodeHeader(req.headers["x-customer-name"]) || "Kunde";
       const fileNameFromHeader = decodeHeader(req.headers["x-customer-invoice-file"]);
+      const contactPersonFromHeader = decodeHeader(req.headers["x-customer-contact-person"]);
 
       const chunks = [];
       for await (const chunk of req) {
@@ -557,11 +558,20 @@ export default async function handler(req, res) {
 
       const subject = `Rechnung ${numberFromHeader || "-"}`;
       const companyName = settings?.company_name || "AVO Logistics";
+      const contactPerson = String(contactPersonFromHeader || senderName || companyName).trim();
+      const contactEmail = String(replyTo || senderAddress || resolvedSmtp.user || "").trim() || "-";
       const text = `Sehr geehrte Damen und Herren,
 
-anbei erhalten Sie Ihre Rechnung ${numberFromHeader || "-"}.
+vielen Dank für Ihre Aufträge und das damit verbundene Vertrauen.
+Hiermit stellen wir Ihnen die folgenden Leistungen in Rechnung:
 
+Rechnung: ${numberFromHeader || "-"}
 Kunde: ${customerNameFromHeader}
+
+Die Rechnung finden Sie im Anhang als PDF.
+
+Bei Fragen können Sie sich gerne an Ihren Ansprechpartner ${contactPerson} wenden
+(E-Mail: ${contactEmail}).
 
 Mit freundlichen Grüßen
 ${companyName}`;
@@ -576,8 +586,16 @@ ${companyName}`;
           </div>
           <div style="padding:20px 24px; font-size:14px; line-height:1.5;">
             <p style="margin:0 0 12px;">Sehr geehrte Damen und Herren,</p>
-            <p style="margin:0 0 12px;">anbei erhalten Sie Ihre Rechnung als PDF-Anhang.</p>
+            <p style="margin:0 0 8px;">vielen Dank für Ihre Aufträge und das damit verbundene Vertrauen.</p>
+            <p style="margin:0 0 12px;">Hiermit stellen wir Ihnen die folgenden Leistungen in Rechnung:</p>
+            <p style="margin:0;"><strong>Rechnung:</strong> ${numberFromHeader || "-"}</p>
             <p style="margin:0 0 12px;"><strong>Kunde:</strong> ${customerNameFromHeader}</p>
+            <p style="margin:0 0 12px;">Die Rechnung finden Sie im Anhang als PDF.</p>
+            <div style="margin:0 0 12px; padding:10px 12px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px;">
+              <p style="margin:0 0 4px;"><strong>Bei Fragen:</strong></p>
+              <p style="margin:0;">Ansprechpartner: ${contactPerson}</p>
+              <p style="margin:0;">E-Mail: ${contactEmail}</p>
+            </div>
             <p style="margin:0;">Mit freundlichen Grüßen<br/>${companyName}</p>
           </div>
         </div>
@@ -642,6 +660,7 @@ ${companyName}`;
       customerInvoiceEmail,
       invoiceNumber,
       customerName,
+      customerContactPerson,
       invoiceFileName,
       invoicePdfBase64,
     } = body || {};
@@ -870,11 +889,20 @@ ${companyName}`;
       const subject = `Rechnung ${invoiceNumber || "-"}`;
       const companyName = settings?.company_name || "AVO Logistics";
       const customerLabel = String(customerName || "Kunde").trim();
+      const contactPerson = String(customerContactPerson || senderName || companyName).trim();
+      const contactEmail = String(replyTo || senderAddress || resolvedSmtp.user || "").trim() || "-";
       const text = `Sehr geehrte Damen und Herren,
 
-anbei erhalten Sie Ihre Rechnung ${invoiceNumber || "-"}.
+vielen Dank für Ihre Aufträge und das damit verbundene Vertrauen.
+Hiermit stellen wir Ihnen die folgenden Leistungen in Rechnung:
 
+Rechnung: ${invoiceNumber || "-"}
 Kunde: ${customerLabel}
+
+Die Rechnung finden Sie im Anhang als PDF.
+
+Bei Fragen können Sie sich gerne an Ihren Ansprechpartner ${contactPerson} wenden
+(E-Mail: ${contactEmail}).
 
 Mit freundlichen Grüßen
 ${companyName}`;
@@ -889,8 +917,16 @@ ${companyName}`;
           </div>
           <div style="padding:20px 24px; font-size:14px; line-height:1.5;">
             <p style="margin:0 0 12px;">Sehr geehrte Damen und Herren,</p>
-            <p style="margin:0 0 12px;">anbei erhalten Sie Ihre Rechnung als PDF-Anhang.</p>
+            <p style="margin:0 0 8px;">vielen Dank für Ihre Aufträge und das damit verbundene Vertrauen.</p>
+            <p style="margin:0 0 12px;">Hiermit stellen wir Ihnen die folgenden Leistungen in Rechnung:</p>
+            <p style="margin:0;"><strong>Rechnung:</strong> ${invoiceNumber || "-"}</p>
             <p style="margin:0 0 12px;"><strong>Kunde:</strong> ${customerLabel}</p>
+            <p style="margin:0 0 12px;">Die Rechnung finden Sie im Anhang als PDF.</p>
+            <div style="margin:0 0 12px; padding:10px 12px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px;">
+              <p style="margin:0 0 4px;"><strong>Bei Fragen:</strong></p>
+              <p style="margin:0;">Ansprechpartner: ${contactPerson}</p>
+              <p style="margin:0;">E-Mail: ${contactEmail}</p>
+            </div>
             <p style="margin:0;">Mit freundlichen Grüßen<br/>${companyName}</p>
           </div>
         </div>
