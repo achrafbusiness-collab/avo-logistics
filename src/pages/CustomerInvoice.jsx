@@ -161,6 +161,19 @@ const getCustomerAddressLines = (record, customerOverride = null) => {
   return lines;
 };
 
+const splitRouteToAddresses = (route) => {
+  const raw = String(route || '').trim();
+  if (!raw) return { pickupAddress: '-', dropoffAddress: '-' };
+  const parts = raw.split(/\s*->\s*/);
+  if (parts.length >= 2) {
+    return {
+      pickupAddress: parts[0]?.trim() || '-',
+      dropoffAddress: parts.slice(1).join(' -> ').trim() || '-',
+    };
+  }
+  return { pickupAddress: raw, dropoffAddress: '-' };
+};
+
 const buildInvoiceNumber = () => {
   const settings = getFinanceSettings();
   const prefix = String(settings.invoicePrefix || 'AV').trim() || 'AV';
@@ -251,16 +264,21 @@ export default function CustomerInvoice() {
 
   const initialRows = useMemo(() => {
     if (!record?.rows || !Array.isArray(record.rows)) return [];
-    return record.rows.map((row) => ({
-      id: row.id,
-      orderNumber: row.orderNumber || '-',
-      dateLabel: row.dateLabel || '-',
-      routeDraft: row.routeDraft || row.route || '-',
-      vehicle: row.vehicle || '-',
-      plate: row.plate || '-',
-      orderPriceDraft: toMoneyInput(row.orderPriceDraft ?? row.orderPrice),
-      fuelExpensesDraft: toMoneyInput(row.fuelExpensesDraft ?? row.fuelExpenses),
-    }));
+    return record.rows.map((row) => {
+      const fallbackAddresses = splitRouteToAddresses(row.routeDraft || row.route || '');
+      return {
+        id: row.id,
+        orderNumber: row.orderNumber || '-',
+        dateLabel: row.dateLabel || '-',
+        routeDraft: row.routeDraft || row.route || '-',
+        pickupAddress: row.pickupAddress || row.pickup_address || fallbackAddresses.pickupAddress,
+        dropoffAddress: row.dropoffAddress || row.dropoff_address || fallbackAddresses.dropoffAddress,
+        vehicle: row.vehicle || '-',
+        plate: row.plate || '-',
+        orderPriceDraft: toMoneyInput(row.orderPriceDraft ?? row.orderPrice),
+        fuelExpensesDraft: toMoneyInput(row.fuelExpensesDraft ?? row.fuelExpenses),
+      };
+    });
   }, [record]);
 
   const latestDeliveryDate = useMemo(() => {
@@ -394,6 +412,8 @@ export default function CustomerInvoice() {
       dateLabel: row.dateLabel,
       route: row.routeDraft,
       routeDraft: row.routeDraft,
+      pickupAddress: row.pickupAddress || '',
+      dropoffAddress: row.dropoffAddress || '',
       vehicle: row.vehicle,
       plate: row.plate,
       orderPrice: parseMoneyInput(row.orderPriceDraft),
@@ -514,18 +534,10 @@ export default function CustomerInvoice() {
         if (raw.startsWith('data:image/jpeg') || raw.startsWith('data:image/jpg')) return 'JPEG';
         return 'PNG';
       };
-      const companyHeader = [issuer.name, issuer.companySuffix].filter(Boolean).join(' ');
-      const logoBox = { x: pageWidth - marginX - 46, y: 10, w: 46, h: 18 };
+      const logoBox = { x: pageWidth - marginX - 64, y: 7, w: 64, h: 24 };
 
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(15, 23, 42);
-      doc.setFontSize(14);
-      doc.setFont('helvetica', 'bold');
-      doc.text(companyHeader || issuer.name, marginX, 17);
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(8.8);
-      doc.text(`${issuer.street}, ${issuer.postalCode} ${issuer.city}`, marginX, 22);
-      doc.text(`${issuer.email || '-'} • ${issuer.phone || '-'}`, marginX, 26.2);
 
       doc.setFillColor(255, 255, 255);
       doc.rect(logoBox.x, logoBox.y, logoBox.w, logoBox.h, 'F');
@@ -564,23 +576,15 @@ export default function CustomerInvoice() {
       }
 
       doc.setFillColor(30, 58, 95);
-      doc.rect(marginX, 30, contentWidth, 1.2, 'F');
-
-      doc.setFontSize(8.6);
-      doc.text(
-        `${companyHeader} - ${issuer.street} - ${issuer.postalCode} ${issuer.city}`,
-        marginX,
-        35.5
-      );
+      doc.rect(marginX, 35, contentWidth, 1.2, 'F');
 
       const customerLines = getCustomerAddressLines(record, mergedCustomer).slice(0, 6);
       const customerExtraLines = [
-        mergedCustomer?.customer_number ? `Kundennummer: ${mergedCustomer.customer_number}` : '',
         mergedCustomer?.tax_id ? `Steuer-ID: ${mergedCustomer.tax_id}` : '',
         mergedCustomer?.email ? `E-Mail: ${mergedCustomer.email}` : '',
         mergedCustomer?.phone ? `Telefon: ${mergedCustomer.phone}` : '',
       ].filter(Boolean);
-      const customerBoxY = 41;
+      const customerBoxY = 46;
       const customerBoxHeight = Math.min(
         52,
         Math.max(36, 14 + customerLines.length * 5.2 + customerExtraLines.length * 4.6)
@@ -638,17 +642,21 @@ export default function CustomerInvoice() {
       autoTable(doc, {
         startY: tableStartY,
         margin: { left: marginX, right: marginX, bottom: 42 },
-        head: [['Pos.', 'Beschreibung', 'Tour Netto', 'Tank Netto', 'Gesamt Netto']],
+        head: [['Pos.', 'Auftragsnr.', 'Abholadresse', 'Lieferadresse', 'Auftragspreis', 'Betankung (Netto)', 'Gesamtpreis']],
         body: rows.map((row, index) => {
+          const fallbackAddresses = splitRouteToAddresses(row.routeDraft);
+          const pickupAddress = (row.pickupAddress || fallbackAddresses.pickupAddress || '-').trim();
+          const dropoffAddress = (row.dropoffAddress || fallbackAddresses.dropoffAddress || '-').trim();
           const orderNet = parseMoneyInput(row.orderPriceDraft);
           const fuelGrossRaw = parseMoneyInput(row.fuelExpensesDraft);
           const fuelGross = finalMeta.includeFuel === false ? 0 : fuelGrossRaw;
           const fuelNet = grossToNet(fuelGross, summary.vatRate);
           const lineNet = orderNet + fuelNet;
-          const description = `${row.orderNumber} ${row.routeDraft}`.trim();
           return [
             String(index + 1),
-            description,
+            row.orderNumber || '-',
+            pickupAddress || '-',
+            dropoffAddress || '-',
             formatEuroText(orderNet),
             formatEuroText(fuelNet),
             formatEuroText(lineNet),
@@ -669,10 +677,12 @@ export default function CustomerInvoice() {
         },
         columnStyles: {
           0: { cellWidth: 10, halign: 'center' },
-          1: { cellWidth: 92 },
-          2: { cellWidth: 26, halign: 'right' },
-          3: { cellWidth: 26, halign: 'right' },
-          4: { cellWidth: 28, halign: 'right' },
+          1: { cellWidth: 21 },
+          2: { cellWidth: 42 },
+          3: { cellWidth: 42 },
+          4: { cellWidth: 21, halign: 'right' },
+          5: { cellWidth: 23, halign: 'right' },
+          6: { cellWidth: 23, halign: 'right' },
         },
       });
 

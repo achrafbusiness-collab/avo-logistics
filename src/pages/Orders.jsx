@@ -947,6 +947,12 @@ export default function Orders() {
         orderNumber: order.order_number || '-',
         date: orderDate,
         dateLabel: orderDate ? format(orderDate, 'dd.MM.yyyy', { locale: de }) : '-',
+        pickupAddress: [order.pickup_address, order.pickup_postal_code, order.pickup_city]
+          .filter(Boolean)
+          .join(', ') || '-',
+        dropoffAddress: [order.dropoff_address, order.dropoff_postal_code, order.dropoff_city]
+          .filter(Boolean)
+          .join(', ') || '-',
         route: formatRoute(order),
         vehicle: [order.vehicle_brand, order.vehicle_model].filter(Boolean).join(' ') || '-',
         plate: order.license_plate || '-',
@@ -1130,6 +1136,8 @@ export default function Orders() {
         orderNumber: row.orderNumber,
         dateLabel: row.dateLabel,
         route: row.route,
+        pickupAddress: row.pickupAddress || '',
+        dropoffAddress: row.dropoffAddress || '',
         vehicle: row.vehicle,
         plate: row.plate,
         orderPrice: Number(row.orderPrice || 0),
