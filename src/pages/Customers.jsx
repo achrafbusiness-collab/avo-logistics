@@ -39,7 +39,6 @@ import {
 } from "@/components/ui/dialog";
 import StatusBadge from '@/components/ui/StatusBadge';
 import { buildEmptyPriceRow, normalizePriceList } from '@/utils/priceList';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from '@/lib/supabaseClient';
 import {
   deleteInvoice,
@@ -66,19 +65,24 @@ import {
   Phone,
   MapPin,
   Download,
-  CheckCircle2
+  CheckCircle2,
+  Settings
 } from 'lucide-react';
 
 export default function Customers() {
   const queryClient = useQueryClient();
   const urlParams = new URLSearchParams(window.location.search);
+  const initialTab = urlParams.get('tab') || '';
   
   const [view, setView] = useState('list');
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState(urlParams.get('tab') || 'customers');
+  const [activeTab, setActiveTab] = useState(initialTab === 'settings' ? 'settings' : 'overview');
+  const [financePanel, setFinancePanel] = useState(
+    initialTab === 'drafts' || initialTab === 'receivables' ? initialTab : 'invoices'
+  );
   const [priceListText, setPriceListText] = useState('');
   const [priceListRows, setPriceListRows] = useState([]);
   const [priceListError, setPriceListError] = useState('');
@@ -154,7 +158,14 @@ export default function Customers() {
   useEffect(() => {
     const tabParam = urlParams.get('tab');
     if (tabParam) {
-      setActiveTab(tabParam);
+      if (tabParam === 'settings') {
+        setActiveTab('settings');
+      } else {
+        setActiveTab('overview');
+        if (tabParam === 'drafts' || tabParam === 'receivables' || tabParam === 'invoices') {
+          setFinancePanel(tabParam);
+        }
+      }
     }
     if (urlParams.get('new') === 'true') {
       setView('form');
@@ -612,9 +623,14 @@ Gib ausschließlich strukturierte Daten zurück.`,
     };
   }, [receivables]);
 
-  const handleFinanceTabChange = (tab) => {
-    setActiveTab(tab);
-    const url = `${createPageUrl('Customers')}?tab=${encodeURIComponent(tab)}`;
+  const handleFinanceTabChange = (tab, panel = null) => {
+    const nextTab = tab === 'settings' ? 'settings' : 'overview';
+    setActiveTab(nextTab);
+    if (panel === 'drafts' || panel === 'receivables' || panel === 'invoices') {
+      setFinancePanel(panel);
+    }
+    const tabParam = nextTab === 'settings' ? 'settings' : (panel || financePanel || 'invoices');
+    const url = `${createPageUrl('Customers')}?tab=${encodeURIComponent(tabParam)}`;
     window.history.replaceState({}, '', url);
   };
 
@@ -1270,14 +1286,30 @@ Gib ausschließlich strukturierte Daten zurück.`,
   // List View
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Kunden & Finanzen</h1>
           <p className="text-gray-500">
             {customers.length} Kunden • {invoiceDrafts.length} Entwürfe • {invoices.length} Rechnungen
           </p>
         </div>
-        {activeTab === 'customers' ? (
+        <div className="flex flex-wrap items-center gap-2">
+          {activeTab === 'settings' ? (
+            <Button
+              variant="outline"
+              onClick={() => handleFinanceTabChange('overview', financePanel)}
+            >
+              Zur Übersicht
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              onClick={() => handleFinanceTabChange('settings')}
+            >
+              <Settings className="mr-2 h-4 w-4" />
+              Einstellungen
+            </Button>
+          )}
           <Button
             className="bg-[#1e3a5f] hover:bg-[#2d5a8a]"
             onClick={() => {
@@ -1285,426 +1317,18 @@ Gib ausschließlich strukturierte Daten zurück.`,
               setView('form');
             }}
           >
-            <Plus className="w-4 h-4 mr-2" />
+            <Plus className="mr-2 h-4 w-4" />
             Neuer Kunde
           </Button>
-        ) : null}
+        </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={handleFinanceTabChange} className="space-y-4">
-        <TabsList className="flex h-auto w-full flex-wrap justify-start gap-2 bg-transparent p-0">
-          <TabsTrigger value="customers" className="rounded-xl border border-slate-200 data-[state=active]:border-[#1e3a5f] data-[state=active]:bg-[#1e3a5f] data-[state=active]:text-white">
-            Kunden
-          </TabsTrigger>
-          <TabsTrigger value="drafts" className="rounded-xl border border-slate-200 data-[state=active]:border-[#1e3a5f] data-[state=active]:bg-[#1e3a5f] data-[state=active]:text-white">
-            Rechnungsentwürfe
-          </TabsTrigger>
-          <TabsTrigger value="invoices" className="rounded-xl border border-slate-200 data-[state=active]:border-[#1e3a5f] data-[state=active]:bg-[#1e3a5f] data-[state=active]:text-white">
-            Rechnungen
-          </TabsTrigger>
-          <TabsTrigger value="receivables" className="rounded-xl border border-slate-200 data-[state=active]:border-[#1e3a5f] data-[state=active]:bg-[#1e3a5f] data-[state=active]:text-white">
-            Offene Posten
-          </TabsTrigger>
-          <TabsTrigger value="settings" className="rounded-xl border border-slate-200 data-[state=active]:border-[#1e3a5f] data-[state=active]:bg-[#1e3a5f] data-[state=active]:text-white">
-            Einstellungen
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="customers" className="space-y-4">
-          <Card>
-            <CardContent className="p-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <Input
-                  placeholder="Suche nach Name, Kundennummer, E-Mail..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          {isLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
-            </div>
-          ) : filteredCustomers.length === 0 ? (
-            <Card>
-              <CardContent className="text-center py-12">
-                <Building2 className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                <p className="text-gray-500">Keine Kunden gefunden</p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredCustomers.map((customer) => (
-                <Card
-                  key={customer.id}
-                  className="cursor-pointer hover:shadow-lg transition-shadow"
-                  onClick={() => {
-                    setSelectedCustomer(customer);
-                    setView('details');
-                    window.history.pushState({}, '', createPageUrl('Customers') + `?id=${customer.id}`);
-                  }}
-                >
-                  <CardContent className="p-6">
-                    <div className="flex items-start gap-4">
-                      <div className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 ${customer.type === 'business' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>
-                        {customer.type === 'business' ? <Building2 className="w-6 h-6" /> : <UserCircle className="w-6 h-6" />}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold truncate">{getCustomerName(customer)}</h3>
-                        <p className="text-sm text-gray-500">{customer.customer_number}</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </TabsContent>
-
-        <TabsContent value="drafts" className="space-y-4">
-          <Card>
-            <CardContent className="p-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <Input
-                  placeholder="Entwürfe suchen (Kunde, Rechnungsnummer, Kundennr.)..."
-                  value={financeSearch}
-                  onChange={(e) => setFinanceSearch(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-0">
-              {filteredDrafts.length === 0 ? (
-                <div className="py-10 text-center text-sm text-slate-500">Keine Rechnungsentwürfe vorhanden.</div>
-              ) : (
-                <div className="overflow-auto">
-                  <table className="min-w-full text-sm">
-                    <thead className="bg-slate-100 text-left text-slate-600">
-                      <tr>
-                        <th className="px-3 py-2">Kunde</th>
-                        <th className="px-3 py-2">Rechnungsnr.</th>
-                        <th className="px-3 py-2">Positionen</th>
-                        <th className="px-3 py-2">Zuletzt geändert</th>
-                        <th className="px-3 py-2 text-right">Aktionen</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredDrafts.map((draft) => (
-                        <tr key={draft.id} className="border-t border-slate-200">
-                          <td className="px-3 py-2">{draft.customerLabel || 'Kunde'}</td>
-                          <td className="px-3 py-2">{draft.invoiceMeta?.invoiceNumber || '-'}</td>
-                          <td className="px-3 py-2">{Array.isArray(draft.rows) ? draft.rows.length : 0}</td>
-                          <td className="px-3 py-2">{formatDate(draft.updatedAt || draft.createdAt)}</td>
-                          <td className="px-3 py-2">
-                            <div className="flex justify-end gap-2">
-                              <Link to={`${createPageUrl('CustomerInvoice')}?id=${draft.id}`}>
-                                <Button size="sm" variant="outline">Öffnen</Button>
-                              </Link>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="text-red-600 hover:bg-red-50"
-                                onClick={() => handleDeleteDraft(draft.id)}
-                              >
-                                Löschen
-                              </Button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="invoices" className="space-y-4">
-          <Card className="border-slate-200 bg-gradient-to-r from-slate-50 via-white to-slate-100">
-            <CardContent className="space-y-4 p-4">
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
-                <div className="relative md:col-span-2">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                  <Input
-                    placeholder="Rechnungen suchen (Kunde, Rechnungsnummer, Kundennr.)..."
-                    value={financeSearch}
-                    onChange={(e) => setFinanceSearch(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label>Statusfilter</Label>
-                  <Select value={invoiceStatusFilter} onValueChange={setInvoiceStatusFilter}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Alle Status</SelectItem>
-                      <SelectItem value="open">Offen</SelectItem>
-                      <SelectItem value="partially_paid">Teilbezahlt</SelectItem>
-                      <SelectItem value="paid">Bezahlt</SelectItem>
-                      <SelectItem value="overdue">Überfällig</SelectItem>
-                      <SelectItem value="cancelled">Storniert</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex items-end">
-                  <Button
-                    variant="outline"
-                    className="w-full"
-                    onClick={() => {
-                      setFinanceSearch('');
-                      setInvoiceStatusFilter('all');
-                    }}
-                  >
-                    Filter zurücksetzen
-                  </Button>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
-                <Card className="border-slate-200">
-                  <CardContent className="p-4">
-                    <p className="text-xs text-slate-500">Rechnungen (sichtbar)</p>
-                    <p className="mt-1 text-2xl font-semibold text-slate-900">{invoiceOverview.count}</p>
-                  </CardContent>
-                </Card>
-                <Card className="border-slate-200">
-                  <CardContent className="p-4">
-                    <p className="text-xs text-slate-500">Summe Netto</p>
-                    <p className="mt-1 text-xl font-semibold text-slate-900">{formatMoney(invoiceOverview.netTotal)}</p>
-                  </CardContent>
-                </Card>
-                <Card className="border-slate-200">
-                  <CardContent className="p-4">
-                    <p className="text-xs text-slate-500">Summe Brutto</p>
-                    <p className="mt-1 text-xl font-semibold text-slate-900">{formatMoney(invoiceOverview.grossTotal)}</p>
-                  </CardContent>
-                </Card>
-                <Card className="border-slate-200">
-                  <CardContent className="p-4">
-                    <p className="text-xs text-slate-500">Offen / Bezahlt</p>
-                    <p className="mt-1 text-sm font-semibold text-amber-700">Offen: {formatMoney(invoiceOverview.openGross)}</p>
-                    <p className="text-sm font-semibold text-emerald-700">Bezahlt: {formatMoney(invoiceOverview.paidGross)}</p>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {invoiceActionFeedback.message ? (
-                <div
-                  className={`rounded-lg border px-3 py-2 text-sm ${
-                    invoiceActionFeedback.type === 'success'
-                      ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                      : 'border-red-200 bg-red-50 text-red-700'
-                  }`}
-                >
-                  {invoiceActionFeedback.message}
-                </div>
-              ) : null}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-0">
-              {filteredInvoices.length === 0 ? (
-                <div className="py-10 text-center text-sm text-slate-500">Keine Rechnungen vorhanden.</div>
-              ) : (
-                <div className="overflow-auto">
-                  <table className="min-w-[1450px] w-full text-sm">
-                    <thead className="bg-slate-100 text-left text-slate-600">
-                      <tr>
-                        <th className="px-3 py-2">Rechnungsnr.</th>
-                        <th className="px-3 py-2">Kunde</th>
-                        <th className="px-3 py-2">Rechnungsdatum</th>
-                        <th className="px-3 py-2">Fällig am</th>
-                        <th className="px-3 py-2">Betrag netto</th>
-                        <th className="px-3 py-2">Betrag brutto</th>
-                        <th className="px-3 py-2">Status</th>
-                        <th className="px-3 py-2">Bezahlt am</th>
-                        <th className="px-3 py-2 text-right">Aktionen</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredInvoices.map((invoice) => {
-                        const currentStatus = invoice.status || 'open';
-                        const isPaid = currentStatus === 'paid';
-                        return (
-                          <tr key={invoice.id} className="border-t border-slate-200 hover:bg-slate-50/70">
-                            <td className="px-3 py-2 font-semibold text-slate-800">{invoice.invoiceMeta?.invoiceNumber || '-'}</td>
-                            <td className="px-3 py-2">{invoice.customerLabel || 'Kunde'}</td>
-                            <td className="px-3 py-2">{formatDateOnly(invoice.invoiceMeta?.invoiceDate || '')}</td>
-                            <td className="px-3 py-2">{format(resolveInvoiceDueDate(invoice), 'dd.MM.yyyy', { locale: de })}</td>
-                            <td className="px-3 py-2 font-medium text-slate-700">{formatMoney(invoice?.totals?.net || 0)}</td>
-                            <td className="px-3 py-2 font-semibold text-slate-900">{formatMoney(invoice?.totals?.gross || 0)}</td>
-                            <td className="px-3 py-2">
-                              <div className="flex items-center gap-2">
-                                <select
-                                  className="h-8 rounded-md border border-slate-300 px-2 text-sm"
-                                  value={currentStatus}
-                                  onChange={(event) => handleInvoiceStatusChange(invoice.id, event.target.value)}
-                                >
-                                  <option value="open">Offen</option>
-                                  <option value="partially_paid">Teilbezahlt</option>
-                                  <option value="paid">Bezahlt</option>
-                                  <option value="overdue">Überfällig</option>
-                                  <option value="cancelled">Storniert</option>
-                                </select>
-                                {isPaid ? (
-                                  <span className="rounded-md bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-700">
-                                    Bezahlt
-                                  </span>
-                                ) : null}
-                              </div>
-                            </td>
-                            <td className="px-3 py-2">
-                              {isPaid ? (
-                                <div className="space-y-1">
-                                  <Input
-                                    type="date"
-                                    className="h-8 w-[150px]"
-                                    value={toDateInputValue(invoice.paidAt)}
-                                    onChange={(event) => handlePaidDateChange(invoice.id, event.target.value)}
-                                  />
-                                  <p className="text-xs text-slate-500">{formatDate(invoice.paidAt)}</p>
-                                </div>
-                              ) : (
-                                <span className="text-slate-400">-</span>
-                              )}
-                            </td>
-                            <td className="px-3 py-2">
-                              <div className="flex flex-wrap justify-end gap-2">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleDownloadInvoicePdf(invoice)}
-                                  disabled={invoicePdfDownloadingId === invoice.id}
-                                >
-                                  {invoicePdfDownloadingId === invoice.id ? (
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                  ) : (
-                                    <Download className="mr-2 h-4 w-4" />
-                                  )}
-                                  PDF
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="border-emerald-200 text-emerald-700 hover:bg-emerald-50"
-                                  onClick={() => handleMarkInvoicePaid(invoice.id)}
-                                  disabled={isPaid}
-                                >
-                                  <CheckCircle2 className="mr-2 h-4 w-4" />
-                                  Bezahlt
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  className="bg-emerald-600 text-white hover:bg-emerald-700"
-                                  onClick={() => openInvoiceEmailDialog(invoice)}
-                                >
-                                  <Mail className="mr-2 h-4 w-4" />
-                                  Senden
-                                </Button>
-                                <Link to={`${createPageUrl('CustomerInvoice')}?invoiceId=${invoice.id}`}>
-                                  <Button size="sm" variant="outline">Öffnen</Button>
-                                </Link>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="text-red-600 hover:bg-red-50"
-                                  onClick={() => handleDeleteInvoice(invoice.id)}
-                                >
-                                  Löschen
-                                </Button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="receivables" className="space-y-4">
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-            <Card>
-              <CardContent className="p-4">
-                <p className="text-xs text-slate-500">Offene Rechnungen</p>
-                <p className="mt-1 text-2xl font-semibold text-slate-900">{receivablesSummary.openCount}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4">
-                <p className="text-xs text-slate-500">Offener Betrag</p>
-                <p className="mt-1 text-2xl font-semibold text-slate-900">{formatMoney(receivablesSummary.openAmount)}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4">
-                <p className="text-xs text-red-600">Überfällig</p>
-                <p className="mt-1 text-2xl font-semibold text-red-700">{formatMoney(receivablesSummary.overdueAmount)}</p>
-              </CardContent>
-            </Card>
-          </div>
-
-          <Card>
-            <CardContent className="p-0">
-              {receivables.length === 0 ? (
-                <div className="py-10 text-center text-sm text-slate-500">Keine offenen Posten.</div>
-              ) : (
-                <div className="overflow-auto">
-                  <table className="min-w-full text-sm">
-                    <thead className="bg-slate-100 text-left text-slate-600">
-                      <tr>
-                        <th className="px-3 py-2">Rechnungsnr.</th>
-                        <th className="px-3 py-2">Kunde</th>
-                        <th className="px-3 py-2">Fällig am</th>
-                        <th className="px-3 py-2">Offen</th>
-                        <th className="px-3 py-2">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {receivables.map((item) => (
-                        <tr key={item.id} className="border-t border-slate-200">
-                          <td className="px-3 py-2 font-medium">{item.invoiceMeta?.invoiceNumber || '-'}</td>
-                          <td className="px-3 py-2">{item.customerLabel || 'Kunde'}</td>
-                          <td className="px-3 py-2">{format(item.dueDate, 'dd.MM.yyyy', { locale: de })}</td>
-                          <td className="px-3 py-2">{formatMoney(item.gross)}</td>
-                          <td className="px-3 py-2">
-                            {item.overdue ? (
-                              <span className="rounded-md bg-red-100 px-2 py-1 text-xs font-medium text-red-700">Überfällig</span>
-                            ) : (
-                              <span className="rounded-md bg-amber-100 px-2 py-1 text-xs font-medium text-amber-700">Offen</span>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="settings" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Finanz-Einstellungen</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+      {activeTab === 'settings' ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Finanz-Einstellungen</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
               <div className="rounded-xl border border-slate-200 p-4">
                 <h3 className="mb-3 text-sm font-semibold text-slate-800">Allgemein</h3>
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -1942,10 +1566,415 @@ Gib ausschließlich strukturierte Daten zurück.`,
               <Button className="bg-[#1e3a5f] hover:bg-[#2d5a8a]" onClick={handleFinanceSettingsSave}>
                 Einstellungen speichern
               </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
+          <div className="space-y-4 xl:col-span-5">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Kunden</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                  <Input
+                    placeholder="Suche nach Name, Kundennummer, E-Mail..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                {isLoading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+                  </div>
+                ) : filteredCustomers.length === 0 ? (
+                  <div className="py-10 text-center text-sm text-slate-500">Keine Kunden gefunden.</div>
+                ) : (
+                  <div className="max-h-[760px] space-y-2 overflow-auto pr-1">
+                    {filteredCustomers.map((customer) => (
+                      <Card
+                        key={customer.id}
+                        className="cursor-pointer border border-slate-200 transition hover:border-slate-300 hover:shadow-sm"
+                        onClick={() => {
+                          setSelectedCustomer(customer);
+                          setView('details');
+                          window.history.pushState({}, '', `${createPageUrl('Customers')}?id=${customer.id}`);
+                        }}
+                      >
+                        <CardContent className="p-4">
+                          <div className="flex items-start gap-3">
+                            <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full ${customer.type === 'business' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>
+                              {customer.type === 'business' ? <Building2 className="h-5 w-5" /> : <UserCircle className="h-5 w-5" />}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate font-semibold text-slate-900">{getCustomerName(customer)}</p>
+                              <p className="text-xs text-slate-500">{customer.customer_number || '-'}</p>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="space-y-4 xl:col-span-7">
+            <Card className="border-slate-200 bg-gradient-to-r from-slate-50 via-white to-slate-100">
+              <CardContent className="space-y-4 p-4">
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+                  <div className="relative md:col-span-2">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    <Input
+                      placeholder={
+                        financePanel === 'drafts'
+                          ? 'Entwürfe suchen (Kunde, Rechnungsnummer, Kundennr.)...'
+                          : 'Rechnungen suchen (Kunde, Rechnungsnummer, Kundennr.)...'
+                      }
+                      value={financeSearch}
+                      onChange={(e) => setFinanceSearch(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Bereich</Label>
+                    <Select
+                      value={financePanel}
+                      onValueChange={(value) => {
+                        setFinancePanel(value);
+                        handleFinanceTabChange('overview', value);
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="invoices">Rechnungen</SelectItem>
+                        <SelectItem value="drafts">Rechnungsentwürfe</SelectItem>
+                        <SelectItem value="receivables">Offene Posten</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex items-end">
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => {
+                        setFinanceSearch('');
+                        setInvoiceStatusFilter('all');
+                      }}
+                    >
+                      Filter zurücksetzen
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+                  <Card className="border-slate-200">
+                    <CardContent className="p-4">
+                      <p className="text-xs text-slate-500">Rechnungen (sichtbar)</p>
+                      <p className="mt-1 text-2xl font-semibold text-slate-900">{invoiceOverview.count}</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="border-slate-200">
+                    <CardContent className="p-4">
+                      <p className="text-xs text-slate-500">Summe Netto</p>
+                      <p className="mt-1 text-xl font-semibold text-slate-900">{formatMoney(invoiceOverview.netTotal)}</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="border-slate-200">
+                    <CardContent className="p-4">
+                      <p className="text-xs text-slate-500">Summe Brutto</p>
+                      <p className="mt-1 text-xl font-semibold text-slate-900">{formatMoney(invoiceOverview.grossTotal)}</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="border-slate-200">
+                    <CardContent className="p-4">
+                      <p className="text-xs text-slate-500">Offen / Bezahlt</p>
+                      <p className="mt-1 text-sm font-semibold text-amber-700">Offen: {formatMoney(invoiceOverview.openGross)}</p>
+                      <p className="text-sm font-semibold text-emerald-700">Bezahlt: {formatMoney(invoiceOverview.paidGross)}</p>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {financePanel === 'invoices' ? (
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                    <div className="space-y-1">
+                      <Label>Statusfilter</Label>
+                      <Select value={invoiceStatusFilter} onValueChange={setInvoiceStatusFilter}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Alle Status</SelectItem>
+                          <SelectItem value="open">Offen</SelectItem>
+                          <SelectItem value="partially_paid">Teilbezahlt</SelectItem>
+                          <SelectItem value="paid">Bezahlt</SelectItem>
+                          <SelectItem value="overdue">Überfällig</SelectItem>
+                          <SelectItem value="cancelled">Storniert</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                ) : null}
+
+                {invoiceActionFeedback.message ? (
+                  <div
+                    className={`rounded-lg border px-3 py-2 text-sm ${
+                      invoiceActionFeedback.type === 'success'
+                        ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                        : 'border-red-200 bg-red-50 text-red-700'
+                    }`}
+                  >
+                    {invoiceActionFeedback.message}
+                  </div>
+                ) : null}
+              </CardContent>
+            </Card>
+
+            {financePanel === 'drafts' ? (
+              <Card>
+                <CardContent className="p-0">
+                  {filteredDrafts.length === 0 ? (
+                    <div className="py-10 text-center text-sm text-slate-500">Keine Rechnungsentwürfe vorhanden.</div>
+                  ) : (
+                    <div className="overflow-auto">
+                      <table className="min-w-full text-sm">
+                        <thead className="bg-slate-100 text-left text-slate-600">
+                          <tr>
+                            <th className="px-3 py-2">Kunde</th>
+                            <th className="px-3 py-2">Rechnungsnr.</th>
+                            <th className="px-3 py-2">Positionen</th>
+                            <th className="px-3 py-2">Zuletzt geändert</th>
+                            <th className="px-3 py-2 text-right">Aktionen</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredDrafts.map((draft) => (
+                            <tr key={draft.id} className="border-t border-slate-200">
+                              <td className="px-3 py-2">{draft.customerLabel || 'Kunde'}</td>
+                              <td className="px-3 py-2">{draft.invoiceMeta?.invoiceNumber || '-'}</td>
+                              <td className="px-3 py-2">{Array.isArray(draft.rows) ? draft.rows.length : 0}</td>
+                              <td className="px-3 py-2">{formatDate(draft.updatedAt || draft.createdAt)}</td>
+                              <td className="px-3 py-2">
+                                <div className="flex justify-end gap-2">
+                                  <Link to={`${createPageUrl('CustomerInvoice')}?id=${draft.id}`}>
+                                    <Button size="sm" variant="outline">Öffnen</Button>
+                                  </Link>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="text-red-600 hover:bg-red-50"
+                                    onClick={() => handleDeleteDraft(draft.id)}
+                                  >
+                                    Löschen
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            ) : null}
+
+            {financePanel === 'invoices' ? (
+              <Card>
+                <CardContent className="p-0">
+                  {filteredInvoices.length === 0 ? (
+                    <div className="py-10 text-center text-sm text-slate-500">Keine Rechnungen vorhanden.</div>
+                  ) : (
+                    <div className="overflow-auto">
+                      <table className="min-w-[1450px] w-full text-sm">
+                        <thead className="bg-slate-100 text-left text-slate-600">
+                          <tr>
+                            <th className="px-3 py-2">Rechnungsnr.</th>
+                            <th className="px-3 py-2">Kunde</th>
+                            <th className="px-3 py-2">Rechnungsdatum</th>
+                            <th className="px-3 py-2">Fällig am</th>
+                            <th className="px-3 py-2">Betrag netto</th>
+                            <th className="px-3 py-2">Betrag brutto</th>
+                            <th className="px-3 py-2">Status</th>
+                            <th className="px-3 py-2">Bezahlt am</th>
+                            <th className="px-3 py-2 text-right">Aktionen</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredInvoices.map((invoice) => {
+                            const currentStatus = invoice.status || 'open';
+                            const isPaid = currentStatus === 'paid';
+                            return (
+                              <tr key={invoice.id} className="border-t border-slate-200 hover:bg-slate-50/70">
+                                <td className="px-3 py-2 font-semibold text-slate-800">{invoice.invoiceMeta?.invoiceNumber || '-'}</td>
+                                <td className="px-3 py-2">{invoice.customerLabel || 'Kunde'}</td>
+                                <td className="px-3 py-2">{formatDateOnly(invoice.invoiceMeta?.invoiceDate || '')}</td>
+                                <td className="px-3 py-2">{format(resolveInvoiceDueDate(invoice), 'dd.MM.yyyy', { locale: de })}</td>
+                                <td className="px-3 py-2 font-medium text-slate-700">{formatMoney(invoice?.totals?.net || 0)}</td>
+                                <td className="px-3 py-2 font-semibold text-slate-900">{formatMoney(invoice?.totals?.gross || 0)}</td>
+                                <td className="px-3 py-2">
+                                  <div className="flex items-center gap-2">
+                                    <select
+                                      className="h-8 rounded-md border border-slate-300 px-2 text-sm"
+                                      value={currentStatus}
+                                      onChange={(event) => handleInvoiceStatusChange(invoice.id, event.target.value)}
+                                    >
+                                      <option value="open">Offen</option>
+                                      <option value="partially_paid">Teilbezahlt</option>
+                                      <option value="paid">Bezahlt</option>
+                                      <option value="overdue">Überfällig</option>
+                                      <option value="cancelled">Storniert</option>
+                                    </select>
+                                    {isPaid ? (
+                                      <span className="rounded-md bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-700">
+                                        Bezahlt
+                                      </span>
+                                    ) : null}
+                                  </div>
+                                </td>
+                                <td className="px-3 py-2">
+                                  {isPaid ? (
+                                    <div className="space-y-1">
+                                      <Input
+                                        type="date"
+                                        className="h-8 w-[150px]"
+                                        value={toDateInputValue(invoice.paidAt)}
+                                        onChange={(event) => handlePaidDateChange(invoice.id, event.target.value)}
+                                      />
+                                      <p className="text-xs text-slate-500">{formatDate(invoice.paidAt)}</p>
+                                    </div>
+                                  ) : (
+                                    <span className="text-slate-400">-</span>
+                                  )}
+                                </td>
+                                <td className="px-3 py-2">
+                                  <div className="flex flex-wrap justify-end gap-2">
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleDownloadInvoicePdf(invoice)}
+                                      disabled={invoicePdfDownloadingId === invoice.id}
+                                    >
+                                      {invoicePdfDownloadingId === invoice.id ? (
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                      ) : (
+                                        <Download className="mr-2 h-4 w-4" />
+                                      )}
+                                      PDF
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                                      onClick={() => handleMarkInvoicePaid(invoice.id)}
+                                      disabled={isPaid}
+                                    >
+                                      <CheckCircle2 className="mr-2 h-4 w-4" />
+                                      Bezahlt
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      className="bg-emerald-600 text-white hover:bg-emerald-700"
+                                      onClick={() => openInvoiceEmailDialog(invoice)}
+                                    >
+                                      <Mail className="mr-2 h-4 w-4" />
+                                      Senden
+                                    </Button>
+                                    <Link to={`${createPageUrl('CustomerInvoice')}?invoiceId=${invoice.id}`}>
+                                      <Button size="sm" variant="outline">Öffnen</Button>
+                                    </Link>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="text-red-600 hover:bg-red-50"
+                                      onClick={() => handleDeleteInvoice(invoice.id)}
+                                    >
+                                      Löschen
+                                    </Button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            ) : null}
+
+            {financePanel === 'receivables' ? (
+              <>
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                  <Card>
+                    <CardContent className="p-4">
+                      <p className="text-xs text-slate-500">Offene Rechnungen</p>
+                      <p className="mt-1 text-2xl font-semibold text-slate-900">{receivablesSummary.openCount}</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="p-4">
+                      <p className="text-xs text-slate-500">Offener Betrag</p>
+                      <p className="mt-1 text-2xl font-semibold text-slate-900">{formatMoney(receivablesSummary.openAmount)}</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="p-4">
+                      <p className="text-xs text-red-600">Überfällig</p>
+                      <p className="mt-1 text-2xl font-semibold text-red-700">{formatMoney(receivablesSummary.overdueAmount)}</p>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                <Card>
+                  <CardContent className="p-0">
+                    {receivables.length === 0 ? (
+                      <div className="py-10 text-center text-sm text-slate-500">Keine offenen Posten.</div>
+                    ) : (
+                      <div className="overflow-auto">
+                        <table className="min-w-full text-sm">
+                          <thead className="bg-slate-100 text-left text-slate-600">
+                            <tr>
+                              <th className="px-3 py-2">Rechnungsnr.</th>
+                              <th className="px-3 py-2">Kunde</th>
+                              <th className="px-3 py-2">Fällig am</th>
+                              <th className="px-3 py-2">Offen</th>
+                              <th className="px-3 py-2">Status</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {receivables.map((item) => (
+                              <tr key={item.id} className="border-t border-slate-200">
+                                <td className="px-3 py-2 font-medium">{item.invoiceMeta?.invoiceNumber || '-'}</td>
+                                <td className="px-3 py-2">{item.customerLabel || 'Kunde'}</td>
+                                <td className="px-3 py-2">{format(item.dueDate, 'dd.MM.yyyy', { locale: de })}</td>
+                                <td className="px-3 py-2">{formatMoney(item.gross)}</td>
+                                <td className="px-3 py-2">
+                                  {item.overdue ? (
+                                    <span className="rounded-md bg-red-100 px-2 py-1 text-xs font-medium text-red-700">Überfällig</span>
+                                  ) : (
+                                    <span className="rounded-md bg-amber-100 px-2 py-1 text-xs font-medium text-amber-700">Offen</span>
+                                  )}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </>
+            ) : null}
+          </div>
+        </div>
+      )}
 
       <Dialog
         open={invoiceEmailDialogOpen}
