@@ -477,17 +477,45 @@ export default function CustomerInvoice() {
         if (raw.startsWith('data:image/jpeg') || raw.startsWith('data:image/jpg')) return 'JPEG';
         return 'PNG';
       };
+      const companyHeader = [issuer.name, issuer.companySuffix].filter(Boolean).join(' ');
+      const logoBox = { x: pageWidth - marginX - 46, y: 10, w: 46, h: 18 };
 
       doc.setFont('helvetica', 'normal');
+      doc.setTextColor(15, 23, 42);
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.text(companyHeader || issuer.name, marginX, 17);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8.8);
+      doc.text(`${issuer.street}, ${issuer.postalCode} ${issuer.city}`, marginX, 22);
+      doc.text(`${issuer.email || '-'} • ${issuer.phone || '-'}`, marginX, 26.2);
+
+      doc.setFillColor(255, 255, 255);
+      doc.rect(logoBox.x, logoBox.y, logoBox.w, logoBox.h, 'F');
       if (logoDataUrl) {
         try {
+          const imageFormat = getImageFormat(logoDataUrl);
+          const properties = doc.getImageProperties(logoDataUrl);
+          const maxW = logoBox.w - 2;
+          const maxH = logoBox.h - 2;
+          const imgRatio = properties.width / properties.height;
+          let drawW = maxW;
+          let drawH = drawW / imgRatio;
+          if (drawH > maxH) {
+            drawH = maxH;
+            drawW = drawH * imgRatio;
+          }
+          const drawX = logoBox.x + (logoBox.w - drawW) / 2;
+          const drawY = logoBox.y + (logoBox.h - drawH) / 2;
           doc.addImage(
             logoDataUrl,
-            getImageFormat(logoDataUrl),
-            pageWidth - marginX - 38,
-            10,
-            38,
-            16
+            imageFormat,
+            drawX,
+            drawY,
+            drawW,
+            drawH,
+            undefined,
+            'FAST'
           );
         } catch (error) {
           doc.setFontSize(16);
@@ -499,14 +527,13 @@ export default function CustomerInvoice() {
       }
 
       doc.setFillColor(30, 58, 95);
-      doc.rect(marginX, 8, contentWidth, 1.3, 'F');
+      doc.rect(marginX, 30, contentWidth, 1.2, 'F');
 
-      doc.setFontSize(8.5);
-      const companyHeader = [issuer.name, issuer.companySuffix].filter(Boolean).join(' ');
+      doc.setFontSize(8.6);
       doc.text(
         `${companyHeader} - ${issuer.street} - ${issuer.postalCode} ${issuer.city}`,
         marginX,
-        35
+        35.5
       );
 
       const customerLines = getCustomerAddressLines(record);
