@@ -423,7 +423,7 @@ Gib ausschließlich strukturierte Daten zurück.`,
     return fullName || invoice?.customerLabel || 'Kunde';
   };
 
-  const buildInvoicePdfForEmail = async (invoice) => {
+  const buildInvoicePdfForEmail = async (invoice, options = {}) => {
     const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
       import('jspdf'),
       import('jspdf-autotable'),
@@ -442,6 +442,10 @@ Gib ausschließlich strukturierte Daten zurück.`,
         profile.paymentTerms || 'Zahlung innerhalb von {days} Tagen ab Rechnungseingang ohne Abzüge.',
       logoDataUrl: profile.logoDataUrl || '',
     };
+    const includeLogo = options.includeLogo !== false;
+    const optimizedLogoDataUrl = includeLogo
+      ? await optimizeImageDataUrl(issuer.logoDataUrl, 920, 0.72)
+      : '';
 
     const rows = Array.isArray(invoice?.rows) ? invoice.rows : [];
     const meta = invoice?.invoiceMeta || {};
@@ -456,7 +460,7 @@ Gib ausschließlich strukturierte Daten zurück.`,
     const vatAmount = Number(invoice?.totals?.vatAmount ?? (net * (vatRate / 100)));
     const gross = Number(invoice?.totals?.gross ?? (net + vatAmount));
 
-    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
     const marginX = 14;
@@ -465,10 +469,10 @@ Gib ausschließlich strukturierte Daten zurück.`,
 
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(15, 23, 42);
-    if (issuer.logoDataUrl) {
+    if (optimizedLogoDataUrl) {
       try {
-        const imageFormat = String(issuer.logoDataUrl || '').toLowerCase().startsWith('data:image/jpeg') ? 'JPEG' : 'PNG';
-        doc.addImage(issuer.logoDataUrl, imageFormat, pageWidth - marginX - 38, 10, 38, 16);
+        const imageFormat = String(optimizedLogoDataUrl || '').toLowerCase().startsWith('data:image/jpeg') ? 'JPEG' : 'PNG';
+        doc.addImage(optimizedLogoDataUrl, imageFormat, pageWidth - marginX - 38, 10, 38, 16, undefined, 'FAST');
       } catch {
         // ignore logo errors for email PDF fallback
       }
@@ -622,6 +626,44 @@ Gib ausschließlich strukturierte Daten zurück.`,
     return btoa(binary);
   };
 
+  const optimizeImageDataUrl = async (dataUrl, maxEdge = 1200, quality = 0.76) => {
+    const source = String(dataUrl || '').trim();
+    if (!source.startsWith('data:image/')) return '';
+    if (typeof window === 'undefined') return source;
+    return await new Promise((resolve) => {
+      const image = new Image();
+      image.onload = () => {
+        try {
+          const width = image.naturalWidth || image.width;
+          const height = image.naturalHeight || image.height;
+          if (!width || !height) {
+            resolve(source);
+            return;
+          }
+          const scale = Math.min(1, maxEdge / Math.max(width, height));
+          const targetWidth = Math.max(1, Math.round(width * scale));
+          const targetHeight = Math.max(1, Math.round(height * scale));
+          const canvas = document.createElement('canvas');
+          canvas.width = targetWidth;
+          canvas.height = targetHeight;
+          const context = canvas.getContext('2d');
+          if (!context) {
+            resolve(source);
+            return;
+          }
+          context.fillStyle = '#ffffff';
+          context.fillRect(0, 0, targetWidth, targetHeight);
+          context.drawImage(image, 0, 0, targetWidth, targetHeight);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        } catch {
+          resolve(source);
+        }
+      };
+      image.onerror = () => resolve(source);
+      image.src = source;
+    });
+  };
+
   const invoiceDrafts = useMemo(() => listInvoiceDrafts(), [financeRefreshTick]);
   const invoices = useMemo(() => listInvoices(), [financeRefreshTick]);
   const invoiceProfile = financeSettings.invoiceProfile || {};
@@ -738,8 +780,22 @@ Gib ausschließlich strukturierte Daten zurück.`,
     setInvoiceEmailSending(true);
     setInvoiceEmailFeedback({ type: '', message: '' });
     try {
-      const { arrayBuffer, fileName } = await buildInvoicePdfForEmail(selectedInvoiceForEmail);
-      const invoicePdfBase64 = arrayBufferToBase64(arrayBuffer);
+      let { arrayBuffer, fileName } = await buildInvoicePdfForEmail(selectedInvoiceForEmail, {
+        includeLogo: true,
+      });
+      let invoicePdfBase64 = arrayBufferToBase64(arrayBuffer);
+      const maxPayloadChars = 3_500_000;
+      if (invoicePdfBase64.length > maxPayloadChars) {
+        const fallback = await buildInvoicePdfForEmail(selectedInvoiceForEmail, {
+          includeLogo: false,
+        });
+        arrayBuffer = fallback.arrayBuffer;
+        fileName = fallback.fileName;
+        invoicePdfBase64 = arrayBufferToBase64(arrayBuffer);
+      }
+      if (invoicePdfBase64.length > maxPayloadChars) {
+        throw new Error('Rechnung zu groß für den E-Mail-Versand. Bitte weniger Positionen je Rechnung verwenden.');
+      }
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData?.session?.access_token;
       if (!token) throw new Error('Nicht angemeldet.');
