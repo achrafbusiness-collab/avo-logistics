@@ -261,11 +261,13 @@ export const buildCustomerInvoicePdf = async ({
   autoTable(doc, {
     startY: tableStartY,
     margin: { left: marginX, right: marginX, bottom: 42 },
-    head: [['Pos.', 'Auftragsnr.', 'Abholadresse', 'Lieferadresse', 'Auftragspreis', 'Betankung (Netto)', 'Gesamtpreis']],
+    head: [['Pos.', 'Datum', 'Kennzeichen', 'Abholadresse', 'Lieferadresse', 'Auftragspreis', 'Betankung (Netto)', 'Gesamtpreis']],
     body: rows.map((row, index) => {
       const fallbackAddresses = splitRouteToAddresses(row.routeDraft || row.route);
       const pickupAddress = (row.pickupAddress || row.pickup_address || fallbackAddresses.pickupAddress || '-').trim();
       const dropoffAddress = (row.dropoffAddress || row.dropoff_address || fallbackAddresses.dropoffAddress || '-').trim();
+      const dateLabel = String(row.dateLabel || '-').trim() || '-';
+      const plateLabel = String(row.plate || row.license_plate || '-').trim() || '-';
       const orderNet = parseMoneyInput(row.orderPriceDraft ?? row.orderPrice);
       const fuelGrossRaw = parseMoneyInput(row.fuelExpensesDraft ?? row.fuelExpenses);
       const fuelGross = finalMeta.includeFuel === false ? 0 : fuelGrossRaw;
@@ -273,7 +275,8 @@ export const buildCustomerInvoicePdf = async ({
       const lineNet = orderNet + fuelNet;
       return [
         String(index + 1),
-        row.orderNumber || '-',
+        dateLabel,
+        plateLabel,
         pickupAddress || '-',
         dropoffAddress || '-',
         formatEuroText(orderNet),
@@ -296,13 +299,14 @@ export const buildCustomerInvoicePdf = async ({
       fontSize: fontSizes.tableHead,
     },
     columnStyles: {
-      0: { cellWidth: 12, halign: 'center' },
-      1: { cellWidth: 24 },
-      2: { cellWidth: 35 },
-      3: { cellWidth: 35 },
-      4: { cellWidth: 26, halign: 'right' },
-      5: { cellWidth: 26, halign: 'right' },
+      0: { cellWidth: 10, halign: 'center' },
+      1: { cellWidth: 18, halign: 'center' },
+      2: { cellWidth: 18, halign: 'center' },
+      3: { cellWidth: 32 },
+      4: { cellWidth: 32 },
+      5: { cellWidth: 24, halign: 'right' },
       6: { cellWidth: 24, halign: 'right' },
+      7: { cellWidth: 24, halign: 'right' },
     },
   });
 
@@ -427,4 +431,3 @@ export const buildCustomerInvoicePdf = async ({
   const arrayBuffer = doc.output('arraybuffer');
   return { arrayBuffer, fileName };
 };
-
