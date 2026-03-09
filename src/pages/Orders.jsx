@@ -141,6 +141,46 @@ const triggerDownload = (href, fileName) => {
   document.body.removeChild(link);
 };
 
+const BILLING_OVERRIDE_PREFIX = 'billing_override::';
+
+const roundCurrency = (value) => {
+  const num = Number(value || 0);
+  if (!Number.isFinite(num)) return 0;
+  return Math.round(num * 100) / 100;
+};
+
+const encodeBillingOverride = (payload) =>
+  `${BILLING_OVERRIDE_PREFIX}${JSON.stringify(payload || {})}`;
+
+const parseBillingOverride = (order) => {
+  const raw = String(order?.status_override_reason || '').trim();
+  if (!raw.startsWith(BILLING_OVERRIDE_PREFIX)) return null;
+  try {
+    const parsed = JSON.parse(raw.slice(BILLING_OVERRIDE_PREFIX.length));
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch {
+    return null;
+  }
+};
+
+const formatBillingOverrideLabel = (override) => {
+  if (!override?.type) return '';
+  if (override.type === 'storno') return 'Storno (nicht berechnet)';
+  if (override.type === 'leerfahrt') {
+    if (override.mode === 'percent') {
+      const percent = Number.parseFloat(override.percent);
+      if (Number.isFinite(percent) && percent >= 0) {
+        return `Leerfahrt (${percent.toLocaleString('de-DE')}%)`;
+      }
+    }
+    if (override.mode === 'flat') {
+      return 'Leerfahrt (pauschal)';
+    }
+    return 'Leerfahrt';
+  }
+  return '';
+};
+
 export default function Orders() {
   const queryClient = useQueryClient();
   const urlParams = new URLSearchParams(window.location.search);
@@ -163,7 +203,12 @@ export default function Orders() {
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [bulkAssignCustomerOpen, setBulkAssignCustomerOpen] = useState(false);
   const [bulkCustomerBillingOpen, setBulkCustomerBillingOpen] = useState(false);
+  const [bulkStornoLeerfahrtOpen, setBulkStornoLeerfahrtOpen] = useState(false);
   const [bulkCustomerId, setBulkCustomerId] = useState('none');
+  const [stornoLeerfahrtType, setStornoLeerfahrtType] = useState('storno');
+  const [leerfahrtCalcMode, setLeerfahrtCalcMode] = useState('percent');
+  const [leerfahrtPercent, setLeerfahrtPercent] = useState('50');
+  const [leerfahrtFlatAmount, setLeerfahrtFlatAmount] = useState('');
   const [invoiceCustomerPickerOpen, setInvoiceCustomerPickerOpen] = useState(false);
   const [invoicePickerCustomerKey, setInvoicePickerCustomerKey] = useState('');
   const [bulkWorking, setBulkWorking] = useState(false);
@@ -885,6 +930,33 @@ export default function Orders() {
   const selectedOrders = filteredOrders.filter((order) => selectedIds.includes(order.id));
   const allSelected = selectedOrders.length > 0 && selectedOrders.length === filteredOrders.length;
   const someSelected = selectedOrders.length > 0 && !allSelected;
+  const selectedOrdersBaseTotal = useMemo(
+    () =>
+      selectedOrders.reduce((sum, order) => {
+        const price = Number.parseFloat(order.driver_price);
+        return sum + (Number.isFinite(price) ? price : 0);
+      }, 0),
+    [selectedOrders]
+  );
+  const stornoLeerfahrtPreviewTotal = useMemo(() => {
+    if (!selectedOrders.length) return 0;
+    if (stornoLeerfahrtType === 'storno') return 0;
+    if (leerfahrtCalcMode === 'flat') {
+      const flatAmount = Number.parseFloat(String(leerfahrtFlatAmount || '').replace(',', '.'));
+      if (!Number.isFinite(flatAmount) || flatAmount < 0) return 0;
+      return roundCurrency(flatAmount * selectedOrders.length);
+    }
+    const percent = Number.parseFloat(String(leerfahrtPercent || '').replace(',', '.'));
+    if (!Number.isFinite(percent) || percent < 0) return 0;
+    return roundCurrency((selectedOrdersBaseTotal * percent) / 100);
+  }, [
+    selectedOrders,
+    selectedOrdersBaseTotal,
+    stornoLeerfahrtType,
+    leerfahrtCalcMode,
+    leerfahrtPercent,
+    leerfahrtFlatAmount,
+  ]);
 
   const customerLookupById = useMemo(() => {
     const map = new Map();
@@ -938,6 +1010,8 @@ export default function Orders() {
       const fuelExpenses = Number.parseFloat(fuelExpensesByOrder[order.id] || 0);
       const orderPriceSafe = Number.isFinite(orderPrice) ? orderPrice : 0;
       const fuelExpensesSafe = Number.isFinite(fuelExpenses) ? fuelExpenses : 0;
+      const billingOverride = parseBillingOverride(order);
+      const billingLabel = formatBillingOverrideLabel(billingOverride);
       const customerKey = getOrderCustomerKey(order);
       const customerLabel = getOrderCustomerLabel(order);
       return {
@@ -945,6 +1019,8 @@ export default function Orders() {
         customerKey,
         customerLabel,
         orderNumber: order.order_number || '-',
+        billingType: billingOverride?.type || '',
+        billingLabel,
         date: orderDate,
         dateLabel: orderDate ? format(orderDate, 'dd.MM.yyyy', { locale: de }) : '-',
         pickupAddress: [order.pickup_address, order.pickup_postal_code, order.pickup_city]
@@ -1020,9 +1096,10 @@ export default function Orders() {
         ['Gesamtbetrag Tank/Auslagen', customerBillingSummary.fuelTotal],
         ['Gesamtsumme', customerBillingSummary.grandTotal],
         [],
-        ['Auftragsnummer', 'Datum', 'Route', 'Fahrzeug', 'Kennzeichen', 'Auftragspreis', 'Auslagen (Tank)', 'Gesamt'],
+        ['Auftragsnummer', 'Art', 'Datum', 'Route', 'Fahrzeug', 'Kennzeichen', 'Auftragspreis', 'Auslagen (Tank)', 'Gesamt'],
         ...customerBillingRows.map((row) => [
           row.orderNumber,
+          row.billingLabel || '-',
           row.dateLabel,
           row.route,
           row.vehicle,
@@ -1032,11 +1109,12 @@ export default function Orders() {
           row.total,
         ]),
         [],
-        ['SUMME', '', '', '', '', customerBillingSummary.orderTotal, customerBillingSummary.fuelTotal, customerBillingSummary.grandTotal],
+        ['SUMME', '', '', '', '', '', customerBillingSummary.orderTotal, customerBillingSummary.fuelTotal, customerBillingSummary.grandTotal],
       ];
 
       const sheet = XLSX.utils.aoa_to_sheet(rows);
       sheet['!cols'] = [
+        { wch: 18 },
         { wch: 18 },
         { wch: 12 },
         { wch: 42 },
@@ -1080,9 +1158,10 @@ export default function Orders() {
 
       autoTable(doc, {
         startY: 88,
-        head: [['Auftragsnr.', 'Datum', 'Route', 'Fahrzeug', 'Kennzeichen', 'Auftragspreis', 'Auslagen (Tank)', 'Gesamt']],
+        head: [['Auftragsnr.', 'Art', 'Datum', 'Route', 'Fahrzeug', 'Kennzeichen', 'Auftragspreis', 'Auslagen (Tank)', 'Gesamt']],
         body: customerBillingRows.map((row) => [
           row.orderNumber,
+          row.billingLabel || '-',
           row.dateLabel,
           row.route,
           row.vehicle,
@@ -1097,6 +1176,7 @@ export default function Orders() {
           '',
           '',
           '',
+          '',
           formatCurrencyValue(customerBillingSummary.orderTotal),
           formatCurrencyValue(customerBillingSummary.fuelTotal),
           formatCurrencyValue(customerBillingSummary.grandTotal),
@@ -1105,14 +1185,15 @@ export default function Orders() {
         headStyles: { fillColor: [30, 58, 95] },
         footStyles: { fillColor: [241, 245, 249], textColor: 31, fontStyle: 'bold' },
         columnStyles: {
-          0: { cellWidth: 72 },
-          1: { cellWidth: 58 },
-          2: { cellWidth: 250 },
-          3: { cellWidth: 95 },
-          4: { cellWidth: 70 },
-          5: { cellWidth: 80, halign: 'right' },
-          6: { cellWidth: 90, halign: 'right' },
-          7: { cellWidth: 80, halign: 'right' },
+          0: { cellWidth: 68 },
+          1: { cellWidth: 88 },
+          2: { cellWidth: 56 },
+          3: { cellWidth: 208 },
+          4: { cellWidth: 82 },
+          5: { cellWidth: 62 },
+          6: { cellWidth: 76, halign: 'right' },
+          7: { cellWidth: 84, halign: 'right' },
+          8: { cellWidth: 76, halign: 'right' },
         },
       });
 
@@ -1134,6 +1215,7 @@ export default function Orders() {
       .map((row) => ({
         id: row.id,
         orderNumber: row.orderNumber,
+        billingLabel: row.billingLabel || '',
         dateLabel: row.dateLabel,
         route: row.route,
         pickupAddress: row.pickupAddress || '',
@@ -1444,29 +1526,79 @@ export default function Orders() {
     }
   };
 
-  const handleBulkCancel = async () => {
+  const handleBulkStornoLeerfahrt = async () => {
     if (!selectedOrders.length) return;
-    const targets = selectedOrders.filter(
-      (order) => order.status !== 'completed' && order.status !== 'cancelled'
-    );
+    const targets = selectedOrders.filter((order) => order.status !== 'completed');
     if (!targets.length) {
-      setBulkError('Keine offenen Aufträge zum Stornieren gefunden.');
+      setBulkError('Keine geeigneten Aufträge gefunden.');
       return;
     }
-    const confirmed = window.confirm('Ausgewählte Aufträge wirklich stornieren?');
-    if (!confirmed) return;
+
+    const percentValue = Number.parseFloat(String(leerfahrtPercent || '').replace(',', '.'));
+    const flatValue = Number.parseFloat(String(leerfahrtFlatAmount || '').replace(',', '.'));
+    if (stornoLeerfahrtType === 'leerfahrt' && leerfahrtCalcMode === 'percent') {
+      if (!Number.isFinite(percentValue) || percentValue < 0) {
+        setBulkError('Bitte einen gültigen Prozentwert für Leerfahrt eingeben.');
+        return;
+      }
+    }
+    if (stornoLeerfahrtType === 'leerfahrt' && leerfahrtCalcMode === 'flat') {
+      if (!Number.isFinite(flatValue) || flatValue < 0) {
+        setBulkError('Bitte einen gültigen Pauschalbetrag für Leerfahrt eingeben.');
+        return;
+      }
+    }
+
     setBulkWorking(true);
     setBulkError('');
     setBulkMessage('');
     try {
       for (const order of targets) {
-        await appClient.entities.Order.update(order.id, { status: 'cancelled' });
+        const originalPrice = Number.parseFloat(order.driver_price);
+        const originalPriceSafe = Number.isFinite(originalPrice) ? originalPrice : 0;
+        let adjustedPrice = 0;
+        let mode = 'none';
+        let percent = null;
+        let flatAmount = null;
+
+        if (stornoLeerfahrtType === 'leerfahrt') {
+          if (leerfahrtCalcMode === 'flat') {
+            mode = 'flat';
+            flatAmount = roundCurrency(flatValue);
+            adjustedPrice = flatAmount;
+          } else {
+            mode = 'percent';
+            percent = roundCurrency(percentValue);
+            adjustedPrice = roundCurrency((originalPriceSafe * percent) / 100);
+          }
+        }
+
+        const billingOverride = {
+          type: stornoLeerfahrtType,
+          mode,
+          percent,
+          flatAmount,
+          originalPrice: roundCurrency(originalPriceSafe),
+          adjustedPrice: roundCurrency(adjustedPrice),
+          updatedAt: new Date().toISOString(),
+        };
+
+        await appClient.entities.Order.update(order.id, {
+          status: 'cancelled',
+          driver_price: adjustedPrice,
+          status_override_reason: encodeBillingOverride(billingOverride),
+        });
       }
-      setBulkMessage('Aufträge wurden storniert.');
+      setBulkMessage(
+        stornoLeerfahrtType === 'storno'
+          ? 'Aufträge wurden als Storno markiert (nicht berechnet).'
+          : 'Aufträge wurden als Leerfahrt markiert und berechnet.'
+      );
       setSelectedIds([]);
+      setBulkStornoLeerfahrtOpen(false);
       queryClient.invalidateQueries({ queryKey: ['orders'] });
     } catch (err) {
-      setBulkError(err?.message || 'Bulk-Stornieren fehlgeschlagen.');
+      setBulkError(err?.message || 'Storno/Leerfahrt konnte nicht gespeichert werden.');
     } finally {
       setBulkWorking(false);
     }
@@ -1972,10 +2104,14 @@ export default function Orders() {
               <Button
                 variant="outline"
                 className="border-red-200 text-red-700 hover:bg-red-50"
-                onClick={handleBulkCancel}
+                onClick={() => {
+                  setBulkError('');
+                  setBulkMessage('');
+                  setBulkStornoLeerfahrtOpen(true);
+                }}
                 disabled={bulkWorking}
               >
-                Storno
+                Storno / Leerfahrt
               </Button>
               <Button
                 variant="destructive"
@@ -2047,11 +2183,16 @@ export default function Orders() {
                   {paginatedOrders.map((order) => {
                     const mainStatus = getMainOrderStatus(order.status);
                     const deliverySubstatuses = getLatestDeliverySubstatus(order);
+                    const billingOverride = parseBillingOverride(order);
+                    const billingLabel = formatBillingOverrideLabel(billingOverride);
+                    const billingType = billingOverride?.type || '';
                     const dueStatus = getDueStatus(order);
                     const isCompleted = order.status === 'completed';
                     const isCancelled = order.status === 'cancelled';
                     const reviewCompleted = Boolean(order.review_completed);
-                    const rowTone = isCancelled
+                    const rowTone = isCancelled && billingType === 'leerfahrt'
+                      ? 'bg-amber-50 border border-amber-200 text-amber-900'
+                      : isCancelled
                       ? 'bg-red-50 border border-red-200 border-dashed text-red-700 line-through decoration-red-400'
                       : isCompleted
                       ? reviewCompleted
@@ -2075,6 +2216,11 @@ export default function Orders() {
                             <p className="text-lg font-semibold text-[#1e3a5f]">
                               {order.order_number}
                             </p>
+                            {billingLabel ? (
+                              <p className="mt-1 inline-flex rounded-md bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
+                                {billingLabel}
+                              </p>
+                            ) : null}
                             <p className="text-sm text-slate-500">{order.license_plate}</p>
                           </div>
                           <div onClick={(event) => event.stopPropagation()}>
@@ -2212,11 +2358,16 @@ export default function Orders() {
                     {paginatedOrders.map((order) => {
                       const mainStatus = getMainOrderStatus(order.status);
                       const deliverySubstatuses = getLatestDeliverySubstatus(order);
+                      const billingOverride = parseBillingOverride(order);
+                      const billingLabel = formatBillingOverrideLabel(billingOverride);
+                      const billingType = billingOverride?.type || '';
                       const dueStatus = getDueStatus(order);
                       const isCompleted = order.status === 'completed';
                       const isCancelled = order.status === 'cancelled';
                       const reviewCompleted = Boolean(order.review_completed);
-                      const rowTone = isCancelled
+                      const rowTone = isCancelled && billingType === 'leerfahrt'
+                        ? 'bg-amber-50 hover:bg-amber-100 border border-amber-200'
+                        : isCancelled
                         ? 'bg-red-50 hover:bg-red-100 border border-red-200 border-dashed text-red-700 line-through decoration-red-400'
                         : isCompleted
                         ? reviewCompleted
@@ -2243,6 +2394,11 @@ export default function Orders() {
                           <TableCell>
                             <div>
                               <p className="font-semibold text-[#1e3a5f]">{order.order_number}</p>
+                              {billingLabel ? (
+                                <p className="mt-1 inline-flex rounded-md bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
+                                  {billingLabel}
+                                </p>
+                              ) : null}
                               <p className="text-sm text-gray-500">{order.license_plate}</p>
                               {latestNotesByOrder[order.id]?.note && (
                                 <div
@@ -2518,6 +2674,103 @@ export default function Orders() {
         </CardContent>
       </Card>
 
+      <Dialog
+        open={bulkStornoLeerfahrtOpen}
+        onOpenChange={(open) => {
+          if (bulkWorking) return;
+          setBulkStornoLeerfahrtOpen(open);
+        }}
+      >
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Storno / Leerfahrt</DialogTitle>
+            <DialogDescription>
+              Lege fest, ob die ausgewählten Aufträge komplett storniert werden oder als Leerfahrt berechnet werden.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-slate-700">Aktion</label>
+              <Select value={stornoLeerfahrtType} onValueChange={setStornoLeerfahrtType}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="storno">Komplett stornieren (nicht berechnen)</SelectItem>
+                  <SelectItem value="leerfahrt">Als Leerfahrt berechnen</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {stornoLeerfahrtType === 'leerfahrt' ? (
+              <>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-slate-700">Berechnungsart</label>
+                  <Select value={leerfahrtCalcMode} onValueChange={setLeerfahrtCalcMode}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="percent">Prozent vom Auftragspreis</SelectItem>
+                      <SelectItem value="flat">Pauschalbetrag</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {leerfahrtCalcMode === 'percent' ? (
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium text-slate-700">Prozent</label>
+                    <Input
+                      value={leerfahrtPercent}
+                      onChange={(event) => setLeerfahrtPercent(event.target.value)}
+                      inputMode="decimal"
+                      placeholder="z. B. 40"
+                    />
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium text-slate-700">Pauschalbetrag (EUR)</label>
+                    <Input
+                      value={leerfahrtFlatAmount}
+                      onChange={(event) => setLeerfahrtFlatAmount(event.target.value)}
+                      inputMode="decimal"
+                      placeholder="z. B. 120,00"
+                    />
+                  </div>
+                )}
+              </>
+            ) : null}
+
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                <p className="text-xs text-slate-500">Ausgewählte Aufträge</p>
+                <p className="font-semibold text-slate-900">{selectedOrders.length}</p>
+              </div>
+              <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                <p className="text-xs text-slate-500">Aktuelle Summe Auftragspreise</p>
+                <p className="font-semibold text-slate-900">{formatCurrencyValue(selectedOrdersBaseTotal)}</p>
+              </div>
+              <div className="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 sm:col-span-2">
+                <p className="text-xs text-emerald-700">Neue Summe nach Speicherung</p>
+                <p className="font-semibold text-emerald-900">{formatCurrencyValue(stornoLeerfahrtPreviewTotal)}</p>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkStornoLeerfahrtOpen(false)} disabled={bulkWorking}>
+              Abbrechen
+            </Button>
+            <Button
+              className="bg-[#1e3a5f] hover:bg-[#2d5a8a]"
+              onClick={handleBulkStornoLeerfahrt}
+              disabled={bulkWorking || selectedOrders.length === 0}
+            >
+              {bulkWorking ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Speichern
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <AlertDialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -2624,6 +2877,7 @@ export default function Orders() {
               <thead className="sticky top-0 z-10 bg-slate-100 text-left text-slate-600">
                 <tr>
                   <th className="px-3 py-2">Auftragsnummer</th>
+                  <th className="px-3 py-2">Art</th>
                   <th className="px-3 py-2">Datum</th>
                   <th className="px-3 py-2">Route</th>
                   <th className="px-3 py-2">Fahrzeug</th>
@@ -2637,6 +2891,7 @@ export default function Orders() {
                 {customerBillingRows.map((row) => (
                   <tr key={row.id} className="border-t border-slate-200">
                     <td className="px-3 py-2">{row.orderNumber}</td>
+                    <td className="px-3 py-2">{row.billingLabel || '-'}</td>
                     <td className="px-3 py-2">{row.dateLabel}</td>
                     <td className="px-3 py-2">{row.route}</td>
                     <td className="px-3 py-2">{row.vehicle}</td>
@@ -2650,7 +2905,7 @@ export default function Orders() {
               <tfoot className="bg-slate-50">
                 <tr className="border-t border-slate-300 font-semibold text-slate-900">
                   <td className="px-3 py-2">SUMME</td>
-                  <td className="px-3 py-2" colSpan={4}></td>
+                  <td className="px-3 py-2" colSpan={5}></td>
                   <td className="px-3 py-2 text-right">{formatCurrencyValue(customerBillingSummary.orderTotal)}</td>
                   <td className="px-3 py-2 text-right">{formatCurrencyValue(customerBillingSummary.fuelTotal)}</td>
                   <td className="px-3 py-2 text-right">{formatCurrencyValue(customerBillingSummary.grandTotal)}</td>

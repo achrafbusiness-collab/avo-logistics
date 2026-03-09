@@ -273,6 +273,7 @@ export default function CustomerInvoice() {
       return {
         id: row.id || `row_${index}`,
         orderNumber: row.orderNumber || '-',
+        billingLabel: String(row.billingLabel || '').trim(),
         dateLabel: row.dateLabel || '',
         routeDraft,
         pickupAddress,
@@ -413,6 +414,7 @@ export default function CustomerInvoice() {
     return rows.map((row) => ({
       id: row.id,
       orderNumber: row.orderNumber,
+      billingLabel: String(row.billingLabel || '').trim(),
       dateLabel: String(row.dateLabel || '').trim(),
       route: String(row.routeDraft || '').trim(),
       routeDraft: String(row.routeDraft || '').trim(),
@@ -773,6 +775,11 @@ export default function CustomerInvoice() {
                         />
                       </td>
                       <td className="min-w-[260px] px-3 py-2">
+                        {row.billingLabel ? (
+                          <p className="mb-2 inline-flex rounded-md bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
+                            {row.billingLabel}
+                          </p>
+                        ) : null}
                         <Textarea
                           value={row.pickupAddress}
                           onChange={(event) => handleRowChange(row.id, 'pickupAddress', event.target.value)}

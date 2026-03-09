@@ -265,6 +265,8 @@ export const buildCustomerInvoicePdf = async ({
     body: rows.map((row, index) => {
       const fallbackAddresses = splitRouteToAddresses(row.routeDraft || row.route);
       const pickupAddress = (row.pickupAddress || row.pickup_address || fallbackAddresses.pickupAddress || '-').trim();
+      const billingLabel = String(row.billingLabel || '').trim();
+      const pickupWithBilling = billingLabel ? `${billingLabel}\n${pickupAddress || '-'}` : (pickupAddress || '-');
       const dropoffAddress = (row.dropoffAddress || row.dropoff_address || fallbackAddresses.dropoffAddress || '-').trim();
       const dateLabel = String(row.dateLabel || '-').trim() || '-';
       const plateLabel = String(row.plate || row.license_plate || '-').trim() || '-';
@@ -277,7 +279,7 @@ export const buildCustomerInvoicePdf = async ({
         String(index + 1),
         dateLabel,
         plateLabel,
-        pickupAddress || '-',
+        pickupWithBilling,
         dropoffAddress || '-',
         formatEuroText(orderNet),
         formatEuroText(fuelNet),
