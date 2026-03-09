@@ -265,17 +265,20 @@ export default function CustomerInvoice() {
 
   const initialRows = useMemo(() => {
     if (!record?.rows || !Array.isArray(record.rows)) return [];
-    return record.rows.map((row) => {
+    return record.rows.map((row, index) => {
       const fallbackAddresses = splitRouteToAddresses(row.routeDraft || row.route || '');
+      const pickupAddress = row.pickupAddress || row.pickup_address || fallbackAddresses.pickupAddress || '';
+      const dropoffAddress = row.dropoffAddress || row.dropoff_address || fallbackAddresses.dropoffAddress || '';
+      const routeDraft = row.routeDraft || row.route || `${pickupAddress || '-'} -> ${dropoffAddress || '-'}`;
       return {
-        id: row.id,
+        id: row.id || `row_${index}`,
         orderNumber: row.orderNumber || '-',
-        dateLabel: row.dateLabel || '-',
-        routeDraft: row.routeDraft || row.route || '-',
-        pickupAddress: row.pickupAddress || row.pickup_address || fallbackAddresses.pickupAddress,
-        dropoffAddress: row.dropoffAddress || row.dropoff_address || fallbackAddresses.dropoffAddress,
+        dateLabel: row.dateLabel || '',
+        routeDraft,
+        pickupAddress,
+        dropoffAddress,
         vehicle: row.vehicle || '-',
-        plate: row.plate || '-',
+        plate: row.plate || row.license_plate || '',
         orderPriceDraft: toMoneyInput(row.orderPriceDraft ?? row.orderPrice),
         fuelExpensesDraft: toMoneyInput(row.fuelExpensesDraft ?? row.fuelExpenses),
       };
@@ -410,13 +413,13 @@ export default function CustomerInvoice() {
     return rows.map((row) => ({
       id: row.id,
       orderNumber: row.orderNumber,
-      dateLabel: row.dateLabel,
-      route: row.routeDraft,
-      routeDraft: row.routeDraft,
-      pickupAddress: row.pickupAddress || '',
-      dropoffAddress: row.dropoffAddress || '',
+      dateLabel: String(row.dateLabel || '').trim(),
+      route: String(row.routeDraft || '').trim(),
+      routeDraft: String(row.routeDraft || '').trim(),
+      pickupAddress: String(row.pickupAddress || '').trim(),
+      dropoffAddress: String(row.dropoffAddress || '').trim(),
       vehicle: row.vehicle,
-      plate: row.plate,
+      plate: String(row.plate || '').trim(),
       orderPrice: parseMoneyInput(row.orderPriceDraft),
       orderPriceDraft: row.orderPriceDraft,
       fuelExpenses: parseMoneyInput(row.fuelExpensesDraft),
@@ -426,8 +429,25 @@ export default function CustomerInvoice() {
 
   const handleRowChange = (rowId, field, value) => {
     setRows((prev) =>
-      prev.map((row) => (row.id === rowId ? { ...row, [field]: value } : row))
+      prev.map((row) => {
+        if (row.id !== rowId) return row;
+        const next = { ...row, [field]: value };
+        if (field === 'pickupAddress' || field === 'dropoffAddress') {
+          const pickup = String(field === 'pickupAddress' ? value : next.pickupAddress || '').trim() || '-';
+          const dropoff = String(field === 'dropoffAddress' ? value : next.dropoffAddress || '').trim() || '-';
+          next.routeDraft = `${pickup} -> ${dropoff}`;
+        }
+        return next;
+      })
     );
+  };
+
+  const handleFuelNetChange = (rowId, value) => {
+    const vatRate = parseMoneyInput(invoiceMeta.vatRate);
+    const fuelNet = parseMoneyInput(value);
+    const grossFactor = vatRate > 0 ? 1 + vatRate / 100 : 1;
+    const grossFuel = fuelNet * grossFactor;
+    handleRowChange(rowId, 'fuelExpensesDraft', toMoneyInput(grossFuel));
   };
 
   const handleMetaChange = (field, value) => {
@@ -583,16 +603,14 @@ export default function CustomerInvoice() {
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
-              {!isInvoice ? (
-                <Button
-                  variant="outline"
-                  onClick={handleSave}
-                  disabled={saving || finalizing}
-                >
-                  {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                  Entwurf speichern
-                </Button>
-              ) : null}
+              <Button
+                variant="outline"
+                onClick={handleSave}
+                disabled={saving || finalizing}
+              >
+                {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                {isInvoice ? 'Speichern' : 'Entwurf speichern'}
+              </Button>
               {!isInvoice ? (
                 <Button
                   className="bg-emerald-600 hover:bg-emerald-700"
@@ -721,15 +739,13 @@ export default function CustomerInvoice() {
               <thead className="sticky top-0 z-10 bg-slate-100 text-left text-slate-600">
                 <tr>
                   <th className="px-3 py-2">Pos.</th>
-                  <th className="px-3 py-2">Auftragsnummer</th>
                   <th className="px-3 py-2">Datum</th>
-                  <th className="px-3 py-2">Beschreibung / Route</th>
-                  <th className="px-3 py-2">Fahrzeug</th>
                   <th className="px-3 py-2">Kennzeichen</th>
-                  <th className="px-3 py-2 text-right">Auftragspreis (Netto)</th>
-                  <th className="px-3 py-2 text-right">Tank (Brutto)</th>
-                  <th className="px-3 py-2 text-right">Tank (Netto)</th>
-                  <th className="px-3 py-2 text-right">Rechnung Netto</th>
+                  <th className="px-3 py-2">Abholadresse</th>
+                  <th className="px-3 py-2">Lieferadresse</th>
+                  <th className="px-3 py-2 text-right">Auftragspreis</th>
+                  <th className="px-3 py-2 text-right">Betankung (Netto)</th>
+                  <th className="px-3 py-2 text-right">Gesamtpreis</th>
                 </tr>
               </thead>
               <tbody>
@@ -742,33 +758,51 @@ export default function CustomerInvoice() {
                   return (
                     <tr key={row.id} className="border-t border-slate-200 align-top">
                       <td className="px-3 py-2">{index + 1}</td>
-                      <td className="px-3 py-2">{row.orderNumber}</td>
-                      <td className="px-3 py-2">{row.dateLabel}</td>
-                      <td className="min-w-[300px] px-3 py-2">
-                        <Textarea
-                          value={row.routeDraft}
-                          onChange={(event) => handleRowChange(row.id, 'routeDraft', event.target.value)}
-                          rows={2}
+                      <td className="min-w-[120px] px-3 py-2">
+                        <Input
+                          value={row.dateLabel}
+                          onChange={(event) => handleRowChange(row.id, 'dateLabel', event.target.value)}
+                          placeholder="dd.MM.yyyy"
                         />
                       </td>
-                      <td className="px-3 py-2">{row.vehicle}</td>
-                      <td className="px-3 py-2">{row.plate}</td>
-                      <td className="min-w-[140px] px-3 py-2">
+                      <td className="min-w-[120px] px-3 py-2">
+                        <Input
+                          value={row.plate}
+                          onChange={(event) => handleRowChange(row.id, 'plate', event.target.value)}
+                          placeholder="Kennzeichen"
+                        />
+                      </td>
+                      <td className="min-w-[260px] px-3 py-2">
+                        <Textarea
+                          value={row.pickupAddress}
+                          onChange={(event) => handleRowChange(row.id, 'pickupAddress', event.target.value)}
+                          rows={2}
+                          placeholder="Abholadresse"
+                        />
+                      </td>
+                      <td className="min-w-[260px] px-3 py-2">
+                        <Textarea
+                          value={row.dropoffAddress}
+                          onChange={(event) => handleRowChange(row.id, 'dropoffAddress', event.target.value)}
+                          rows={2}
+                          placeholder="Lieferadresse"
+                        />
+                      </td>
+                      <td className="min-w-[160px] px-3 py-2">
                         <Input
                           value={row.orderPriceDraft}
                           onChange={(event) => handleRowChange(row.id, 'orderPriceDraft', event.target.value)}
                           inputMode="decimal"
                         />
                       </td>
-                      <td className="min-w-[140px] px-3 py-2">
+                      <td className="min-w-[170px] px-3 py-2">
                         <Input
-                          value={row.fuelExpensesDraft}
-                          onChange={(event) => handleRowChange(row.id, 'fuelExpensesDraft', event.target.value)}
+                          value={toMoneyInput(fuelNet)}
+                          onChange={(event) => handleFuelNetChange(row.id, event.target.value)}
                           inputMode="decimal"
                           disabled={invoiceMeta.includeFuel === false}
                         />
                       </td>
-                      <td className="px-3 py-2 text-right">{formatCurrencyValue(fuelNet)}</td>
                       <td className="px-3 py-2 text-right font-semibold">{formatCurrencyValue(lineNet)}</td>
                     </tr>
                   );
