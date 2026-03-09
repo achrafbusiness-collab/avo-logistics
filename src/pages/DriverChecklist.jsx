@@ -140,7 +140,7 @@ export default function DriverChecklist() {
 
   const { data: checklists = [], isLoading: checklistsLoading } = useQuery({
     queryKey: ['order-checklists', orderId],
-    queryFn: () => appClient.entities.Checklist.filter({ order_id: orderId }),
+    queryFn: () => appClient.entities.Checklist.filter({ order_id: orderId }, '-updated_date', 200),
     enabled: !!orderId,
   });
 
@@ -162,8 +162,17 @@ export default function DriverChecklist() {
     enabled: !!orderId,
   });
 
-  const pickupChecklist = checklists.find(c => c.type === 'pickup');
-  const dropoffChecklist = checklists.find(c => c.type === 'dropoff');
+  const sortByChecklistRecency = (a, b) => {
+    const aTime = new Date(a?.updated_date || a?.datetime || a?.created_date || 0).getTime();
+    const bTime = new Date(b?.updated_date || b?.datetime || b?.created_date || 0).getTime();
+    return bTime - aTime;
+  };
+  const pickupChecklist = [...checklists]
+    .filter((entry) => entry?.type === 'pickup')
+    .sort(sortByChecklistRecency)[0];
+  const dropoffChecklist = [...checklists]
+    .filter((entry) => entry?.type === 'dropoff')
+    .sort(sortByChecklistRecency)[0];
   const editableChecklist = dropoffChecklist || pickupChecklist;
 
   const updateOrderMutation = useMutation({

@@ -352,9 +352,9 @@ export default function Orders() {
     queryKey: ['checklists'],
     queryFn: () =>
       appClient.entities.Checklist.list(
-        '-created_date',
-        1000,
-        'id,order_id,type,completed,datetime,location,location_confirmed,location_reason,expenses,created_date'
+        '-updated_date',
+        5000,
+        'id,order_id,type,completed,datetime,location,location_confirmed,location_reason,expenses,created_date,updated_date'
       ),
   });
 

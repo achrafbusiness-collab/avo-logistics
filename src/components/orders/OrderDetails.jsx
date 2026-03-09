@@ -116,11 +116,22 @@ export default function OrderDetails({
   const [handoffsLoading, setHandoffsLoading] = useState(false);
   const [handoffsError, setHandoffsError] = useState('');
   const docInputRef = useRef(null);
-  const pickupChecklist = checklists.find(c => c.type === 'pickup');
-  const dropoffChecklist = checklists.find(c => c.type === 'dropoff');
+  const sortByChecklistRecency = (a, b) => {
+    const aTime = new Date(a?.updated_date || a?.datetime || a?.created_date || 0).getTime();
+    const bTime = new Date(b?.updated_date || b?.datetime || b?.created_date || 0).getTime();
+    return bTime - aTime;
+  };
+  const pickupChecklist = [...checklists]
+    .filter((entry) => entry?.type === 'pickup')
+    .sort(sortByChecklistRecency)[0];
+  const dropoffChecklist = [...checklists]
+    .filter((entry) => entry?.type === 'dropoff')
+    .sort(sortByChecklistRecency)[0];
   const expensesChecklist = useMemo(() => {
     if (dropoffChecklist?.expenses?.length) return dropoffChecklist;
-    return checklists.find((checklist) => Array.isArray(checklist.expenses) && checklist.expenses.length);
+    return [...checklists]
+      .filter((checklist) => Array.isArray(checklist?.expenses) && checklist.expenses.length)
+      .sort(sortByChecklistRecency)[0];
   }, [checklists, dropoffChecklist]);
   const expenses = Array.isArray(expensesChecklist?.expenses) ? expensesChecklist.expenses : [];
   const protocolChecklistId = dropoffChecklist?.id || pickupChecklist?.id || expensesChecklist?.id || null;
