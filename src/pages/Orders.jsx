@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { appClient } from '@/api/appClient';
+import { supabase } from '@/lib/supabaseClient';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { addDays, format, differenceInCalendarDays, isSameDay } from 'date-fns';
@@ -80,6 +81,45 @@ const MIME_EXTENSION_MAP = {
   'image/gif': 'gif',
   'application/pdf': 'pdf',
   'text/plain': 'txt',
+};
+const CHECKLIST_SELECT_FIELDS = 'id,order_id,type,completed,datetime,location,location_confirmed,location_reason,expenses,created_date,updated_date';
+const CHECKLIST_QUERY_PAGE_SIZE = 1000;
+const CHECKLIST_ORDER_CHUNK_SIZE = 100;
+
+const chunkArray = (items, size) => {
+  const result = [];
+  if (!Array.isArray(items) || size <= 0) return result;
+  for (let i = 0; i < items.length; i += size) {
+    result.push(items.slice(i, i + size));
+  }
+  return result;
+};
+
+const fetchChecklistsForOrderIds = async (orderIds) => {
+  const uniqueOrderIds = [...new Set((orderIds || []).filter(Boolean))];
+  if (!uniqueOrderIds.length) return [];
+  const result = [];
+  const orderChunks = chunkArray(uniqueOrderIds, CHECKLIST_ORDER_CHUNK_SIZE);
+  for (const orderIdChunk of orderChunks) {
+    let from = 0;
+    while (true) {
+      const to = from + CHECKLIST_QUERY_PAGE_SIZE - 1;
+      const { data, error } = await supabase
+        .from('checklists')
+        .select(CHECKLIST_SELECT_FIELDS)
+        .in('order_id', orderIdChunk)
+        .order('updated_date', { ascending: false, nullsFirst: false })
+        .range(from, to);
+      if (error) {
+        throw new Error(error.message || 'Checklist-Abfrage fehlgeschlagen.');
+      }
+      const rows = data || [];
+      result.push(...rows);
+      if (rows.length < CHECKLIST_QUERY_PAGE_SIZE) break;
+      from += CHECKLIST_QUERY_PAGE_SIZE;
+    }
+  }
+  return result;
 };
 
 const sanitizeFileNamePart = (value, maxLength = 60) => {
@@ -362,6 +402,10 @@ export default function Orders() {
     queryKey: ['orders'],
     queryFn: () => appClient.entities.Order.list('-created_date', 500),
   });
+  const orderIdsForChecklistQuery = useMemo(
+    () => [...new Set((orders || []).map((order) => order?.id).filter(Boolean))],
+    [orders]
+  );
 
   const { data: orderNotes = [] } = useQuery({
     queryKey: ['order-notes'],
@@ -374,13 +418,16 @@ export default function Orders() {
   });
 
   const { data: checklists = [] } = useQuery({
-    queryKey: ['checklists'],
-    queryFn: () =>
-      appClient.entities.Checklist.list(
-        '-updated_date',
-        5000,
-        'id,order_id,type,completed,datetime,location,location_confirmed,location_reason,expenses,created_date,updated_date'
-      ),
+    queryKey: ['checklists', orderIdsForChecklistQuery],
+    queryFn: async () => {
+      try {
+        return await fetchChecklistsForOrderIds(orderIdsForChecklistQuery);
+      } catch (error) {
+        console.warn('Checklist-Load fehlgeschlagen', error);
+        return [];
+      }
+    },
+    enabled: orderIdsForChecklistQuery.length > 0,
   });
 
   const { data: drivers = [] } = useQuery({
