@@ -305,29 +305,54 @@ export default function Orders() {
       return;
     }
     const companyKey = currentUser.company_id || currentUser.id || 'global';
-    const storageKey = `avo:fix-intransit-no-driver:v5:${companyKey}`;
-    if (typeof window !== 'undefined' && window.localStorage.getItem(storageKey) === 'done') {
-      setMaintenanceChecked(true);
-      return;
-    }
+    const statusFixStorageKey = `avo:fix-intransit-no-driver:v5:${companyKey}`;
+    const expenseRestoreStorageKey = `avo:restore-checklist-expenses:v1:${companyKey}`;
     let cancelled = false;
-    appClient.maintenance
-      .fixInTransitWithoutDriver()
-      .then((result) => {
-        if (cancelled) return;
-        if (typeof window !== 'undefined') {
-          window.localStorage.setItem(storageKey, 'done');
+    (async () => {
+      try {
+        let needsRefresh = false;
+        if (
+          typeof window !== 'undefined' &&
+          window.localStorage.getItem(statusFixStorageKey) !== 'done'
+        ) {
+          try {
+            const result = await appClient.maintenance.fixInTransitWithoutDriver();
+            if (cancelled) return;
+            window.localStorage.setItem(statusFixStorageKey, 'done');
+            if (result?.updated) {
+              needsRefresh = true;
+            }
+          } catch (error) {
+            console.warn('Status-Korrektur fehlgeschlagen', error);
+          }
         }
-        if (result?.updated) {
+
+        if (
+          typeof window !== 'undefined' &&
+          window.localStorage.getItem(expenseRestoreStorageKey) !== 'done'
+        ) {
+          try {
+            const result = await appClient.maintenance.restoreChecklistExpenses({
+              sinceDays: 180,
+            });
+            if (cancelled) return;
+            window.localStorage.setItem(expenseRestoreStorageKey, 'done');
+            if (result?.updated) {
+              needsRefresh = true;
+            }
+          } catch (error) {
+            console.warn('Auslagen-Wiederherstellung fehlgeschlagen', error);
+          }
+        }
+
+        if (needsRefresh) {
+          queryClient.invalidateQueries({ queryKey: ['checklists'] });
           queryClient.invalidateQueries({ queryKey: ['orders'] });
         }
-      })
-      .catch((error) => {
-        console.warn('Status-Korrektur fehlgeschlagen', error);
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) setMaintenanceChecked(true);
-      });
+      }
+    })();
     return () => {
       cancelled = true;
     };

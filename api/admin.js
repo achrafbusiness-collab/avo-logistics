@@ -6,6 +6,7 @@ import emailImport from "../server/admin/email-import.js";
 import fixIntransitWithoutDriver from "../server/admin/fix-intransit-without-driver.js";
 import inviteUser from "../server/admin/invite-user.js";
 import listCompanies from "../server/admin/list-companies.js";
+import restoreChecklistExpenses from "../server/admin/restore-checklist-expenses.js";
 import sendDriverAssignment from "../server/admin/send-driver-assignment.js";
 import updateCompany from "../server/admin/update-company.js";
 import updateProfile from "../server/admin/update-profile.js";
@@ -19,6 +20,7 @@ const handlers = {
   "fix-intransit-without-driver": fixIntransitWithoutDriver,
   "invite-user": inviteUser,
   "list-companies": listCompanies,
+  "restore-checklist-expenses": restoreChecklistExpenses,
   "send-driver-assignment": sendDriverAssignment,
   "update-company": updateCompany,
   "update-profile": updateProfile,

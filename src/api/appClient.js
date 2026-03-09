@@ -333,6 +333,25 @@ const maintenance = {
     }
     return payload;
   },
+  restoreChecklistExpenses: async ({ orderId = null, dryRun = false, sinceDays = 120 } = {}) => {
+    const token = await getSessionToken();
+    if (!token) {
+      throw new Error('Nicht angemeldet.');
+    }
+    const response = await fetch('/api/admin/restore-checklist-expenses', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ orderId, dryRun, sinceDays }),
+    });
+    const payload = await response.json();
+    if (!response.ok || !payload?.ok) {
+      throw new Error(payload?.error || 'Auslagen-Wiederherstellung fehlgeschlagen.');
+    }
+    return payload;
+  },
 };
 
 const profileDefaults = {
