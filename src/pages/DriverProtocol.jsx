@@ -30,6 +30,11 @@ import PhotoCapture, { REQUIRED_PHOTO_IDS } from '@/components/driver/PhotoCaptu
 import ProtocolWizard from '@/components/driver/ProtocolWizard';
 import { useI18n } from '@/i18n';
 import { getMapboxDistanceKmFromAddresses, reverseGeocode } from '@/utils/mapboxDistance';
+import {
+  buildOrderExpensePoolFromChecklists,
+  isUploadedExpense,
+  mergeExpenseLists,
+} from '@/utils/orderExpenses';
 import { 
   ArrowLeft,
   Loader2,
@@ -564,6 +569,7 @@ export default function DriverProtocol() {
   };
 
   const removeExpense = (index) => {
+    if (isUploadedExpense(formData.expenses?.[index])) return;
     setFormData((prev) => ({
       ...prev,
       expenses: (prev.expenses || []).filter((_, i) => i !== index),
@@ -704,6 +710,17 @@ export default function DriverProtocol() {
     setSubmitError('');
     setSaving(true);
     try {
+      const latestOrderChecklists = await appClient.entities.Checklist.filter(
+        { order_id: orderId },
+        '-updated_date',
+        200
+      );
+      const immutableOrderExpenses = buildOrderExpensePoolFromChecklists(latestOrderChecklists);
+      const mergedExpenses = mergeExpenseLists(
+        immutableOrderExpenses,
+        existingChecklist?.expenses || [],
+        formData.expenses || []
+      );
       const dataToSave = {
         ...formData,
         order_id: orderId,
@@ -712,6 +729,7 @@ export default function DriverProtocol() {
         driver_name: currentDriver?.name,
         kilometer: formData.kilometer ? parseFloat(formData.kilometer) : null,
         fuel_cost: formData.fuel_cost ? parseFloat(formData.fuel_cost) : null,
+        expenses: mergedExpenses,
         completed: true
       };
 
@@ -1605,7 +1623,12 @@ export default function DriverProtocol() {
                           {t('protocol.expenses.itemTitle', { index: index + 1 })}
                         </span>
                         {!isViewOnly && (
-                          <Button size="icon" variant="ghost" onClick={() => removeExpense(index)}>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => removeExpense(index)}
+                            disabled={isUploadedExpense(expense)}
+                          >
                             <X className="w-4 h-4 text-red-500" />
                           </Button>
                         )}

@@ -27,6 +27,7 @@ import {
 import { appClient } from "@/api/appClient";
 import { supabase } from "@/lib/supabaseClient";
 import StatusBadge from '@/components/ui/StatusBadge';
+import { buildOrderExpensePoolFromChecklists } from '@/utils/orderExpenses';
 import { 
   Car, 
   MapPin, 
@@ -127,14 +128,8 @@ export default function OrderDetails({
   const dropoffChecklist = [...checklists]
     .filter((entry) => entry?.type === 'dropoff')
     .sort(sortByChecklistRecency)[0];
-  const expensesChecklist = useMemo(() => {
-    if (dropoffChecklist?.expenses?.length) return dropoffChecklist;
-    return [...checklists]
-      .filter((checklist) => Array.isArray(checklist?.expenses) && checklist.expenses.length)
-      .sort(sortByChecklistRecency)[0];
-  }, [checklists, dropoffChecklist]);
-  const expenses = Array.isArray(expensesChecklist?.expenses) ? expensesChecklist.expenses : [];
-  const protocolChecklistId = dropoffChecklist?.id || pickupChecklist?.id || expensesChecklist?.id || null;
+  const expenses = useMemo(() => buildOrderExpensePoolFromChecklists(checklists), [checklists]);
+  const protocolChecklistId = dropoffChecklist?.id || pickupChecklist?.id || null;
   const [protocolDialogOpen, setProtocolDialogOpen] = useState(false);
   const [expensesDialogOpen, setExpensesDialogOpen] = useState(false);
   const [customerProtocolDialogOpen, setCustomerProtocolDialogOpen] = useState(false);
@@ -854,7 +849,7 @@ export default function OrderDetails({
 
             <Dialog open={expensesDialogOpen} onOpenChange={setExpensesDialogOpen}>
               <DialogTrigger asChild>
-                <Button size="sm" variant="outline" disabled={!expensesChecklist}>
+                <Button size="sm" variant="outline" disabled={expenses.length === 0}>
                   <FileText className="w-4 h-4 mr-2" />
                   Auslagen öffnen
                 </Button>
@@ -918,9 +913,9 @@ export default function OrderDetails({
                   </div>
                 </div>
                 <DialogFooter className="gap-2 sm:justify-start">
-                  {expensesChecklist ? (
+                  {order?.id ? (
                     <a
-                      href={`/expenses-pdf?checklistId=${expensesChecklist.id}&print=1&types=${encodeURIComponent(expenseTypeFilter)}`}
+                      href={`/expenses-pdf?orderId=${encodeURIComponent(order.id)}&print=1&types=${encodeURIComponent(expenseTypeFilter)}`}
                       target="_blank"
                       rel="noopener noreferrer"
                     >
@@ -1839,11 +1834,6 @@ export default function OrderDetails({
                       )}
                     </div>
                   ))}
-                </div>
-              )}
-              {expensesChecklist && (
-                <div className="text-xs text-slate-400">
-                  Quelle: {expensesChecklist.type === 'dropoff' ? 'Übergabeprotokoll' : 'Protokoll'}
                 </div>
               )}
             </CardContent>

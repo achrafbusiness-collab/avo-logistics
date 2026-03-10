@@ -1,7 +1,8 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { appClient } from "@/api/appClient";
+import { buildOrderExpensePoolFromChecklists } from "@/utils/orderExpenses";
 
 const EXPENSE_LABELS = {
   fuel: "Tankbeleg",
@@ -30,6 +31,7 @@ const isImageFile = (expense) => {
 export default function ExpensesPdf() {
   const [params] = useSearchParams();
   const checklistId = params.get("checklistId");
+  const orderIdParam = params.get("orderId");
   const shouldPrint = params.get("print") === "1";
   const typeParam = params.get("types");
   const selectedTypes =
@@ -46,36 +48,52 @@ export default function ExpensesPdf() {
     },
     enabled: !!checklistId,
   });
+  const orderId = orderIdParam || checklist?.order_id || null;
 
   const { data: order } = useQuery({
-    queryKey: ["expenses-order", checklist?.order_id],
+    queryKey: ["expenses-order", orderId],
     queryFn: async () => {
-      if (!checklist?.order_id) return null;
-      const list = await appClient.entities.Order.filter({ id: checklist.order_id });
+      if (!orderId) return null;
+      const list = await appClient.entities.Order.filter({ id: orderId });
       return list[0] || null;
     },
-    enabled: !!checklist?.order_id,
+    enabled: !!orderId,
   });
 
-  const { data: fallbackChecklist } = useQuery({
-    queryKey: ["expenses-checklist-fallback", checklist?.order_id],
+  const { data: orderChecklists = [] } = useQuery({
+    queryKey: ["expenses-order-checklists", orderId],
     queryFn: async () => {
-      if (!checklist?.order_id) return null;
-      const list = await appClient.entities.Checklist.filter({ order_id: checklist.order_id });
-      return list.find((item) => Array.isArray(item.expenses) && item.expenses.length) || null;
+      if (!orderId) return [];
+      return appClient.entities.Checklist.filter({ order_id: orderId }, "-updated_date", 300);
     },
-    enabled: !!checklist?.order_id,
+    enabled: !!orderId,
   });
+  const activeChecklist = useMemo(() => {
+    if (checklist) return checklist;
+    return (
+      [...orderChecklists]
+        .filter((item) => Array.isArray(item?.expenses) && item.expenses.length)
+        .sort((a, b) => {
+          const aTime = new Date(a?.updated_date || a?.datetime || a?.created_date || 0).getTime();
+          const bTime = new Date(b?.updated_date || b?.datetime || b?.created_date || 0).getTime();
+          return bTime - aTime;
+        })[0] || orderChecklists[0] || null
+    );
+  }, [checklist, orderChecklists]);
+  const allExpenses = useMemo(
+    () => buildOrderExpensePoolFromChecklists(orderChecklists),
+    [orderChecklists]
+  );
 
   useEffect(() => {
-    if (!shouldPrint || !checklist || !order) return;
+    if (!shouldPrint || !order || !orderId) return;
     const timeout = setTimeout(() => {
       window.print();
     }, 700);
     return () => clearTimeout(timeout);
-  }, [shouldPrint, checklist, order]);
+  }, [shouldPrint, order, orderId]);
 
-  if (!checklist || !order) {
+  if (!order || !orderId) {
     return (
       <div style={{ padding: 32, fontFamily: "Arial, sans-serif" }}>
         Auslagen werden geladen...
@@ -83,9 +101,6 @@ export default function ExpensesPdf() {
     );
   }
 
-  const activeChecklist =
-    checklist?.expenses?.length ? checklist : fallbackChecklist || checklist;
-  const allExpenses = activeChecklist?.expenses || [];
   const expenses =
     selectedTypes && selectedTypes.length
       ? allExpenses.filter((expense) => selectedTypes.includes(expense?.type))

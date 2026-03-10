@@ -15,6 +15,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import StatusBadge from '@/components/ui/StatusBadge';
 import { useI18n } from '@/i18n';
 import { getMapboxDistanceKmFromAddresses, reverseGeocode } from '@/utils/mapboxDistance';
+import {
+  buildOrderExpensePoolFromChecklists,
+  isUploadedExpense,
+  mergeExpenseLists,
+} from '@/utils/orderExpenses';
 import { 
   ArrowLeft,
   MapPin,
@@ -271,9 +276,10 @@ export default function DriverChecklist() {
 
   useEffect(() => {
     if (editableChecklist?.id) {
-      setPostExpenses(editableChecklist.expenses || []);
+      const orderExpensePool = buildOrderExpensePoolFromChecklists(checklists);
+      setPostExpenses(mergeExpenseLists(orderExpensePool, editableChecklist.expenses || []));
     }
-  }, [editableChecklist?.id]);
+  }, [editableChecklist?.id, checklists]);
 
   const isImageFile = (expense) => {
     const name = expense?.file_name || '';
@@ -298,6 +304,7 @@ export default function DriverChecklist() {
   };
 
   const removePostExpense = (index) => {
+    if (isUploadedExpense(postExpenses[index])) return;
     setPostExpenses((prev) => prev.filter((_, i) => i !== index));
     setPostExpenseUploads((prev) => {
       const next = { ...prev };
@@ -349,9 +356,17 @@ export default function DriverChecklist() {
     setPostExpenseSaving(true);
     setPostExpenseError('');
     try {
+      const latestOrderChecklists = await appClient.entities.Checklist.filter(
+        { order_id: orderId },
+        '-updated_date',
+        200
+      );
+      const immutableOrderExpenses = buildOrderExpensePoolFromChecklists(latestOrderChecklists);
+      const mergedExpenses = mergeExpenseLists(immutableOrderExpenses, postExpenses);
       await appClient.entities.Checklist.update(editableChecklist.id, {
-        expenses: postExpenses,
+        expenses: mergedExpenses,
       });
+      setPostExpenses(mergedExpenses);
       setPostExpenseSaved(true);
       queryClient.invalidateQueries({ queryKey: ['order-checklists', orderId] });
     } catch (error) {
