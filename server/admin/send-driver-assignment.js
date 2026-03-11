@@ -250,6 +250,18 @@ const renderProtocolPdfWithFallback = async ({ siteUrl, checklistId, authToken, 
 
 const waitForMs = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+const isDetachedFrameLikeError = (error) => {
+  const message = String(error?.message || error || "").toLowerCase();
+  return (
+    message.includes("detached frame") ||
+    message.includes("frame was detached") ||
+    message.includes("execution context was destroyed") ||
+    message.includes("cannot find context with specified id") ||
+    message.includes("session closed") ||
+    message.includes("target closed")
+  );
+};
+
 const optimizeProtocolImagesForPdf = async (page, qualityPreset) => {
   await page
     .addStyleTag({
@@ -383,14 +395,13 @@ const createProtocolPdf = async (page, qualityPreset) => {
 const closeBrowserQuietly = async (browser) => {
   if (!browser) return;
   try {
-    await Promise.race([browser.close(), browser.close(), browser.close()]);
+    await Promise.race([browser.close(), waitForMs(5000)]);
   } catch {
     // Ignore close errors so the render error remains visible to the caller.
   }
 };
 
-const generateProtocolPdfFromPage = async ({ siteUrl, checklistId, authToken, quality }) => {
-  const qualityPreset = getProtocolQualityPreset(quality);
+const launchProtocolBrowser = async (qualityPreset) => {
   const [{ default: puppeteer }, chromiumModule] = await Promise.all([
     import("puppeteer-core"),
     import("@sparticuz/chromium"),
@@ -399,7 +410,7 @@ const generateProtocolPdfFromPage = async ({ siteUrl, checklistId, authToken, qu
   chromium.setGraphicsMode = false;
   const executablePath = await chromium.executablePath();
   const headlessMode = "shell";
-  const browser = await puppeteer.launch({
+  return puppeteer.launch({
     args: puppeteer.defaultArgs({
       args: chromium.args,
       headless: headlessMode,
@@ -413,91 +424,122 @@ const generateProtocolPdfFromPage = async ({ siteUrl, checklistId, authToken, qu
     headless: headlessMode,
     ignoreHTTPSErrors: true,
   });
-  try {
-    const page = await browser.newPage();
-    await page.setViewport({
-      width: 1440,
-      height: 2200,
-      deviceScaleFactor: qualityPreset.viewportScale,
-    });
-    // Inject auth before page loads: override fetch so every Supabase proxy
-    // request carries the service-role key and bypasses RLS entirely.
-    // The frontend routes all Supabase calls through /api/supabase-rest and
-    // /api/supabase-auth (same-origin proxy), so we intercept those paths.
-    if (authToken) {
-      await page.evaluateOnNewDocument((token) => {
-        const _origFetch = window.fetch;
-        window.fetch = function (input, init) {
-          const url =
-            typeof input === "string"
-              ? input
-              : input instanceof Request
-              ? input.url
-              : String(input);
-          if (url.includes("/api/supabase-rest") || url.includes("/api/supabase-auth")) {
-            const headers = new Headers(
-              init?.headers ||
-                (input instanceof Request ? input.headers : {})
-            );
-            headers.set("Authorization", "Bearer " + token);
-            headers.set("apikey", token);
-            if (init) {
-              return _origFetch(input, { ...init, headers });
-            }
-            return _origFetch(
-              input instanceof Request ? new Request(input, { headers }) : input,
-              { headers }
-            );
-          }
-          return _origFetch(input, init);
-        };
-      }, authToken);
-    }
-    const url = `${siteUrl.replace(/\/+$/, "")}/protocol-pdf?checklistId=${encodeURIComponent(
-      checklistId
-    )}`;
-    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 120000 });
-    try {
-      await page.waitForFunction(
-        () => {
-          const hasPdf = !!document.querySelector(".pdf-page");
-          const text = String(document.body?.innerText || "");
-          return hasPdf && !text.includes("Protokoll wird geladen");
-        },
-        { timeout: 120000 }
-      );
-      await page.waitForFunction(
-        () => {
-          const images = Array.from(document.querySelectorAll(".pdf-page img"));
-          if (!images.length) return true;
-          return images.every((img) => img.complete && img.naturalWidth > 0);
-        },
-        { timeout: 180000 }
-      );
-      await page.evaluate(async () => {
-        const images = Array.from(document.querySelectorAll(".pdf-page img"));
-        await Promise.all(
-          images.map((img) => {
-            if (typeof img.decode === "function") {
-              return img.decode().catch(() => null);
-            }
-            return Promise.resolve();
-          })
+};
+
+const applyAuthFetchOverride = async (page, authToken) => {
+  if (!authToken) return;
+  await page.evaluateOnNewDocument((token) => {
+    const _origFetch = window.fetch;
+    window.fetch = function (input, init) {
+      const url =
+        typeof input === "string"
+          ? input
+          : input instanceof Request
+          ? input.url
+          : String(input);
+      if (url.includes("/api/supabase-rest") || url.includes("/api/supabase-auth")) {
+        const headers = new Headers(
+          init?.headers || (input instanceof Request ? input.headers : {})
         );
+        headers.set("Authorization", "Bearer " + token);
+        headers.set("apikey", token);
+        if (init) {
+          return _origFetch(input, { ...init, headers });
+        }
+        return _origFetch(
+          input instanceof Request ? new Request(input, { headers }) : input,
+          { headers }
+        );
+      }
+      return _origFetch(input, init);
+    };
+  }, authToken);
+};
+
+const waitForProtocolPageReady = async (page, { waitForImages }) => {
+  await page.waitForSelector(".pdf-page", { timeout: 120000 });
+  await page
+    .waitForFunction(
+      () => {
+        const text = String(document.body?.innerText || "");
+        return !text.includes("Protokoll wird geladen");
+      },
+      { timeout: 120000 }
+    )
+    .catch(() => null);
+
+  if (!waitForImages) return;
+
+  await page.waitForFunction(
+    () => {
+      const images = Array.from(document.querySelectorAll(".pdf-page img"));
+      if (!images.length) return true;
+      return images.every((img) => img.complete && img.naturalWidth > 0);
+    },
+    { timeout: 180000 }
+  );
+  await page.evaluate(async () => {
+    const images = Array.from(document.querySelectorAll(".pdf-page img"));
+    await Promise.all(
+      images.map((img) => {
+        if (typeof img.decode === "function") {
+          return img.decode().catch(() => null);
+        }
+        return Promise.resolve();
+      })
+    );
+  });
+};
+
+const generateProtocolPdfFromPage = async ({ siteUrl, checklistId, authToken, quality }) => {
+  const qualityPreset = getProtocolQualityPreset(quality);
+  const renderPlans = [
+    { id: "full", waitUntil: "domcontentloaded", waitForImages: true, optimizeImages: true },
+    {
+      id: "safe",
+      waitUntil: "networkidle2",
+      waitForImages: false,
+      optimizeImages: false,
+    },
+  ];
+  let lastError = null;
+  const url = `${siteUrl.replace(/\/+$/, "")}/protocol-pdf?checklistId=${encodeURIComponent(
+    checklistId
+  )}`;
+
+  for (const plan of renderPlans) {
+    const browser = await launchProtocolBrowser(qualityPreset);
+    try {
+      const page = await browser.newPage();
+      await page.setViewport({
+        width: 1440,
+        height: 2200,
+        deviceScaleFactor: qualityPreset.viewportScale,
       });
+      await applyAuthFetchOverride(page, authToken);
+      await page.goto(url, { waitUntil: plan.waitUntil, timeout: 120000 });
+      await waitForProtocolPageReady(page, { waitForImages: plan.waitForImages });
+      if (plan.optimizeImages) {
+        await optimizeProtocolImagesForPdf(page, qualityPreset).catch((error) => {
+          if (isDetachedFrameLikeError(error)) {
+            throw error;
+          }
+        });
+      }
+      await waitForMs(plan.id === "safe" ? 300 : qualityPreset.renderDelayMs);
+      await page.emulateMediaType("print");
+      return await createProtocolPdf(page, qualityPreset);
     } catch (error) {
-      const previewText = await page.evaluate(() =>
-        String(document.body?.innerText || "").replace(/\s+/g, " ").slice(0, 240)
-      );
-      throw new Error(`Render timeout. Seite: ${previewText || "leer"}`);
+      lastError = error;
+      if (!isDetachedFrameLikeError(error) && plan.id === "safe") {
+        break;
+      }
+    } finally {
+      await closeBrowserQuietly(browser);
     }
-    await optimizeProtocolImagesForPdf(page, qualityPreset).catch(() => null);
-    await waitForMs(qualityPreset.renderDelayMs);
-    await page.emulateMediaType("print");
-    return await createProtocolPdf(page, qualityPreset);
-  } finally {
-    await closeBrowserQuietly(browser);
   }
+
+  throw lastError || new Error("PDF konnte nicht erstellt werden.");
 };
 
 export default async function handler(req, res) {
