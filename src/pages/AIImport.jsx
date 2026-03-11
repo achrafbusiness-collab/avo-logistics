@@ -40,6 +40,7 @@ export default function AIImport() {
   const [importSuccess, setImportSuccess] = useState(false);
   const [customerEditOpen, setCustomerEditOpen] = useState({});
   const [error, setError] = useState(null);
+  const [fieldErrors, setFieldErrors] = useState({});
   const [calcLoading, setCalcLoading] = useState(false);
   const [calcError, setCalcError] = useState('');
   const [autoAnalyze, setAutoAnalyze] = useState(false);
@@ -197,6 +198,41 @@ export default function AIImport() {
     driver_price: data?.driver_price ?? '',
   });
 
+  const REQUIRED_IMPORT_FIELDS = [
+    { key: 'license_plate', label: 'Kennzeichen' },
+    { key: 'pickup_address', label: 'Abholadresse' },
+    { key: 'pickup_city', label: 'Abholort' },
+    { key: 'pickup_postal_code', label: 'PLZ Abholung' },
+    { key: 'pickup_date', label: 'Abholdatum' },
+    { key: 'dropoff_address', label: 'Zieladresse' },
+    { key: 'dropoff_city', label: 'Zielort' },
+    { key: 'dropoff_postal_code', label: 'PLZ Ziel' },
+    { key: 'dropoff_date', label: 'Lieferdatum' },
+  ];
+
+  const validateCurrentOrder = (order) => {
+    if (!order) return { errors: {}, missingLabels: [] };
+    const errors = {};
+    const missingLabels = [];
+
+    for (const field of REQUIRED_IMPORT_FIELDS) {
+      const value = String(order[field.key] ?? '').trim();
+      if (!value) {
+        errors[field.key] = `${field.label} ist erforderlich.`;
+        missingLabels.push(field.label);
+      }
+    }
+
+    if (order.pickup_date && !/^\d{4}-\d{2}-\d{2}$/.test(String(order.pickup_date).trim())) {
+      errors.pickup_date = 'Abholdatum ist ungültig (YYYY-MM-DD).';
+    }
+    if (order.dropoff_date && !/^\d{4}-\d{2}-\d{2}$/.test(String(order.dropoff_date).trim())) {
+      errors.dropoff_date = 'Lieferdatum ist ungültig (YYYY-MM-DD).';
+    }
+
+    return { errors, missingLabels };
+  };
+
   const analyzeEmail = async () => {
     if (!emailText.trim()) {
       setError('Bitte E-Mail-Text eingeben');
@@ -351,12 +387,23 @@ Gib ausschließlich die strukturierten Daten zurück.`,
     }
   }, [autoAnalyze, emailText]);
 
+  useEffect(() => {
+    setFieldErrors({});
+  }, [selectedOrderIndex]);
+
   const handleConfirm = async () => {
     if (!currentOrder) return;
-    if (!currentOrder.pickup_postal_code || !currentOrder.dropoff_postal_code) {
-      setError('Bitte Abhol- und Ziel-PLZ ausfuellen.');
+    const validation = validateCurrentOrder(currentOrder);
+    if (Object.keys(validation.errors).length > 0) {
+      setFieldErrors(validation.errors);
+      setError(
+        validation.missingLabels.length
+          ? `Bitte Pflichtfelder ausfüllen: ${validation.missingLabels.join(', ')}.`
+          : 'Bitte markierte Felder prüfen.'
+      );
       return;
     }
+    setFieldErrors({});
     let distanceKm = currentOrder.distance_km ? parseFloat(currentOrder.distance_km) : null;
 
     try {
@@ -400,20 +447,27 @@ Gib ausschließlich die strukturierten Daten zurück.`,
       customer_name: resolvedCustomer?.name || orderPayload.customer_name || '',
       customer_email: orderPayload.customer_email || resolvedCustomer?.email || '',
       customer_phone: orderPayload.customer_phone || resolvedCustomer?.phone || '',
+      pickup_date: String(orderPayload.pickup_date || '').trim() || null,
+      dropoff_date: String(orderPayload.dropoff_date || '').trim() || null,
       distance_km: distanceKm,
       driver_price: parsedDriverPrice !== null ? parsedDriverPrice : autoPrice,
     };
 
-    const created = await createOrderMutation.mutateAsync(dataToSave);
-    const nextOrders = extractedOrders.filter((_, index) => index !== selectedOrderIndex);
-    setExtractedOrders(nextOrders);
-    if (!nextOrders.length) {
-      setImportSuccess(true);
-      setSelectedOrderIndex(0);
-      window.location.href = createPageUrl('Orders');
-      return;
+    try {
+      await createOrderMutation.mutateAsync(dataToSave);
+      const nextOrders = extractedOrders.filter((_, index) => index !== selectedOrderIndex);
+      setExtractedOrders(nextOrders);
+      if (!nextOrders.length) {
+        setImportSuccess(true);
+        setSelectedOrderIndex(0);
+        window.location.href = createPageUrl('Orders');
+        return;
+      }
+      setSelectedOrderIndex(Math.min(selectedOrderIndex, nextOrders.length - 1));
+      setError(null);
+    } catch (err) {
+      setError(err?.message || 'Auftrag konnte nicht gespeichert werden.');
     }
-    setSelectedOrderIndex(Math.min(selectedOrderIndex, nextOrders.length - 1));
   };
 
   const handleCancel = () => {
@@ -421,6 +475,8 @@ Gib ausschließlich die strukturierten Daten zurück.`,
     setSelectedOrderIndex(0);
     setEmailText('');
     setImportSuccess(false);
+    setError(null);
+    setFieldErrors({});
   };
 
   const updateExtractedData = (field, value) => {
@@ -429,6 +485,12 @@ Gib ausschließlich die strukturierten Daten zurück.`,
       updated[selectedOrderIndex] = { ...updated[selectedOrderIndex], [field]: value };
       return updated;
     });
+    setFieldErrors((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
   };
 
   const updateCurrentOrder = (updates) => {
@@ -436,6 +498,15 @@ Gib ausschließlich die strukturierten Daten zurück.`,
       const updated = [...prev];
       updated[selectedOrderIndex] = { ...updated[selectedOrderIndex], ...updates };
       return updated;
+    });
+    setFieldErrors((prev) => {
+      const keys = Object.keys(updates || {});
+      if (!keys.some((key) => prev[key])) return prev;
+      const next = { ...prev };
+      keys.forEach((key) => {
+        delete next[key];
+      });
+      return next;
     });
   };
 
@@ -485,6 +556,7 @@ Gib ausschließlich die strukturierten Daten zurück.`,
   const removeOrder = (index) => {
     const nextOrders = extractedOrders.filter((_, idx) => idx !== index);
     setExtractedOrders(nextOrders);
+    setFieldErrors({});
     if (!nextOrders.length) {
       setImportSuccess(false);
       setSelectedOrderIndex(0);
@@ -494,6 +566,9 @@ Gib ausschließlich die strukturierten Daten zurück.`,
   };
 
   const currentOrder = extractedOrders[selectedOrderIndex];
+  const getFieldError = (key) => fieldErrors[key] || '';
+  const getFieldClassName = (key) =>
+    getFieldError(key) ? 'border-red-500 focus-visible:ring-red-500' : '';
   const activeCustomerOption = useMemo(() => {
     if (!currentOrder?.customer_id) return null;
     return customerOptions.find((option) => option.id === currentOrder.customer_id) || null;
@@ -750,7 +825,11 @@ Gib ausschließlich die strukturierten Daten zurück.`,
                         <Input 
                           value={currentOrder.license_plate || ''} 
                           onChange={(e) => updateExtractedData('license_plate', e.target.value)}
+                          className={getFieldClassName('license_plate')}
                         />
+                        {getFieldError('license_plate') ? (
+                          <p className="mt-1 text-xs text-red-600">{getFieldError('license_plate')}</p>
+                        ) : null}
                       </div>
                       <div>
                         <Label>FIN</Label>
@@ -801,29 +880,45 @@ Gib ausschließlich die strukturierten Daten zurück.`,
                             if (postalCode) updateExtractedData('pickup_postal_code', postalCode);
                           }}
                           placeholder="Straße, Hausnummer"
+                          inputClassName={getFieldClassName('pickup_address')}
                         />
+                        {getFieldError('pickup_address') ? (
+                          <p className="mt-1 text-xs text-red-600">{getFieldError('pickup_address')}</p>
+                        ) : null}
                       </div>
                       <div>
                         <Label>Abholort *</Label>
                         <Input 
                           value={currentOrder.pickup_city || ''} 
                           onChange={(e) => updateExtractedData('pickup_city', e.target.value)}
+                          className={getFieldClassName('pickup_city')}
                         />
+                        {getFieldError('pickup_city') ? (
+                          <p className="mt-1 text-xs text-red-600">{getFieldError('pickup_city')}</p>
+                        ) : null}
                       </div>
                       <div>
                         <Label>PLZ Abholung *</Label>
                         <Input 
                           value={currentOrder.pickup_postal_code || ''} 
                           onChange={(e) => updateExtractedData('pickup_postal_code', e.target.value)}
+                          className={getFieldClassName('pickup_postal_code')}
                         />
+                        {getFieldError('pickup_postal_code') ? (
+                          <p className="mt-1 text-xs text-red-600">{getFieldError('pickup_postal_code')}</p>
+                        ) : null}
                       </div>
                       <div>
-                        <Label>Abholdatum</Label>
+                        <Label>Abholdatum *</Label>
                         <Input 
                           type="date"
                           value={currentOrder.pickup_date || ''} 
                           onChange={(e) => updateExtractedData('pickup_date', e.target.value)}
+                          className={getFieldClassName('pickup_date')}
                         />
+                        {getFieldError('pickup_date') ? (
+                          <p className="mt-1 text-xs text-red-600">{getFieldError('pickup_date')}</p>
+                        ) : null}
                       </div>
                       <div>
                         <Label>Abholzeit</Label>
@@ -854,29 +949,45 @@ Gib ausschließlich die strukturierten Daten zurück.`,
                             if (postalCode) updateExtractedData('dropoff_postal_code', postalCode);
                           }}
                           placeholder="Straße, Hausnummer"
+                          inputClassName={getFieldClassName('dropoff_address')}
                         />
+                        {getFieldError('dropoff_address') ? (
+                          <p className="mt-1 text-xs text-red-600">{getFieldError('dropoff_address')}</p>
+                        ) : null}
                       </div>
                       <div>
                         <Label>Zielort *</Label>
                         <Input 
                           value={currentOrder.dropoff_city || ''} 
                           onChange={(e) => updateExtractedData('dropoff_city', e.target.value)}
+                          className={getFieldClassName('dropoff_city')}
                         />
+                        {getFieldError('dropoff_city') ? (
+                          <p className="mt-1 text-xs text-red-600">{getFieldError('dropoff_city')}</p>
+                        ) : null}
                       </div>
                       <div>
                         <Label>PLZ Ziel *</Label>
                         <Input 
                           value={currentOrder.dropoff_postal_code || ''} 
                           onChange={(e) => updateExtractedData('dropoff_postal_code', e.target.value)}
+                          className={getFieldClassName('dropoff_postal_code')}
                         />
+                        {getFieldError('dropoff_postal_code') ? (
+                          <p className="mt-1 text-xs text-red-600">{getFieldError('dropoff_postal_code')}</p>
+                        ) : null}
                       </div>
                       <div>
-                        <Label>Lieferdatum</Label>
+                        <Label>Lieferdatum *</Label>
                         <Input 
                           type="date"
                           value={currentOrder.dropoff_date || ''} 
                           onChange={(e) => updateExtractedData('dropoff_date', e.target.value)}
+                          className={getFieldClassName('dropoff_date')}
                         />
+                        {getFieldError('dropoff_date') ? (
+                          <p className="mt-1 text-xs text-red-600">{getFieldError('dropoff_date')}</p>
+                        ) : null}
                       </div>
                       <div>
                         <Label>Lieferzeit</Label>
