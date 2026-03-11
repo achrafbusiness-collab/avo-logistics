@@ -396,8 +396,13 @@ Gib ausschließlich die strukturierten Daten zurück.`,
     const validation = validateCurrentOrder(currentOrder);
     if (Object.keys(validation.errors).length > 0) {
       setFieldErrors(validation.errors);
+      const missingDateLabels = ['pickup_date', 'dropoff_date']
+        .filter((key) => Boolean(validation.errors[key]))
+        .map((key) => (key === 'pickup_date' ? 'Abholdatum' : 'Lieferdatum'));
       setError(
-        validation.missingLabels.length
+        missingDateLabels.length
+          ? `Datumsfelder sind Pflicht: ${missingDateLabels.join(' und ')} fehlt.`
+          : validation.missingLabels.length
           ? `Bitte Pflichtfelder ausfüllen: ${validation.missingLabels.join(', ')}.`
           : 'Bitte markierte Felder prüfen.'
       );
@@ -447,8 +452,8 @@ Gib ausschließlich die strukturierten Daten zurück.`,
       customer_name: resolvedCustomer?.name || orderPayload.customer_name || '',
       customer_email: orderPayload.customer_email || resolvedCustomer?.email || '',
       customer_phone: orderPayload.customer_phone || resolvedCustomer?.phone || '',
-      pickup_date: String(orderPayload.pickup_date || '').trim() || null,
-      dropoff_date: String(orderPayload.dropoff_date || '').trim() || null,
+      pickup_date: String(orderPayload.pickup_date || '').trim(),
+      dropoff_date: String(orderPayload.dropoff_date || '').trim(),
       distance_km: distanceKm,
       driver_price: parsedDriverPrice !== null ? parsedDriverPrice : autoPrice,
     };
@@ -915,6 +920,7 @@ Gib ausschließlich die strukturierten Daten zurück.`,
                           value={currentOrder.pickup_date || ''} 
                           onChange={(e) => updateExtractedData('pickup_date', e.target.value)}
                           className={getFieldClassName('pickup_date')}
+                          required
                         />
                         {getFieldError('pickup_date') ? (
                           <p className="mt-1 text-xs text-red-600">{getFieldError('pickup_date')}</p>
@@ -984,6 +990,7 @@ Gib ausschließlich die strukturierten Daten zurück.`,
                           value={currentOrder.dropoff_date || ''} 
                           onChange={(e) => updateExtractedData('dropoff_date', e.target.value)}
                           className={getFieldClassName('dropoff_date')}
+                          required
                         />
                         {getFieldError('dropoff_date') ? (
                           <p className="mt-1 text-xs text-red-600">{getFieldError('dropoff_date')}</p>
