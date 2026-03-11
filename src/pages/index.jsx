@@ -133,11 +133,16 @@ function PagesContent() {
     const isDriverLicenseRoute = normalizedPath === '/driver-license';
     const isProtocolPdfRoute = normalizedPath === '/protocol-pdf';
     const isExpensesPdfRoute = normalizedPath === '/expenses-pdf';
+    const isPublicPrintRoute = isChecklistPdfRoute || isProtocolPdfRoute || isExpensesPdfRoute;
     const currentPage = _getCurrentPage(location.pathname);
     const [currentUser, setCurrentUser] = useState(null);
-    const [authChecked, setAuthChecked] = useState(false);
+    const [authChecked, setAuthChecked] = useState(isPublicPrintRoute);
 
     useEffect(() => {
+        if (isPublicPrintRoute) {
+            setAuthChecked(true);
+            return () => {};
+        }
         let isMounted = true;
         const loadUser = async () => {
             const user = await appClient.auth.getCurrentUser();
@@ -150,11 +155,7 @@ function PagesContent() {
         return () => {
             isMounted = false;
         };
-    }, [normalizedPath]);
-
-    if (!authChecked) {
-        return null;
-    }
+    }, [normalizedPath, isPublicPrintRoute]);
 
     if (isChecklistPdfRoute) {
         return (
@@ -181,6 +182,10 @@ function PagesContent() {
                 <Route path="*" element={<Navigate to="/login" replace />} />
             </Routes>
         );
+    }
+
+    if (!authChecked) {
+        return null;
     }
 
     if (!currentUser) {

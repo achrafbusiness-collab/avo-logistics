@@ -494,10 +494,10 @@ const waitForProtocolPageReady = async (page, { waitForImages }) => {
 const generateProtocolPdfFromPage = async ({ siteUrl, checklistId, authToken, quality }) => {
   const qualityPreset = getProtocolQualityPreset(quality);
   const renderPlans = [
-    { id: "full", waitUntil: "domcontentloaded", waitForImages: true, optimizeImages: true },
+    { id: "full", waitUntil: "load", waitForImages: true, optimizeImages: true },
     {
       id: "safe",
-      waitUntil: "networkidle2",
+      waitUntil: "domcontentloaded",
       waitForImages: false,
       optimizeImages: false,
     },
@@ -507,35 +507,43 @@ const generateProtocolPdfFromPage = async ({ siteUrl, checklistId, authToken, qu
     checklistId
   )}`;
 
-  for (const plan of renderPlans) {
-    const browser = await launchProtocolBrowser(qualityPreset);
-    try {
-      const page = await browser.newPage();
-      await page.setViewport({
-        width: 1440,
-        height: 2200,
-        deviceScaleFactor: qualityPreset.viewportScale,
-      });
-      await applyAuthFetchOverride(page, authToken);
-      await page.goto(url, { waitUntil: plan.waitUntil, timeout: 120000 });
-      await waitForProtocolPageReady(page, { waitForImages: plan.waitForImages });
-      if (plan.optimizeImages) {
-        await optimizeProtocolImagesForPdf(page, qualityPreset).catch((error) => {
-          if (isDetachedFrameLikeError(error)) {
-            throw error;
-          }
+  const MAX_CYCLES = 3;
+  for (let cycle = 0; cycle < MAX_CYCLES; cycle += 1) {
+    for (const plan of renderPlans) {
+      const browser = await launchProtocolBrowser(qualityPreset);
+      try {
+        const page = await browser.newPage();
+        await page.setViewport({
+          width: 1440,
+          height: 2200,
+          deviceScaleFactor: qualityPreset.viewportScale,
         });
+        await applyAuthFetchOverride(page, authToken);
+        await page.goto(url, { waitUntil: plan.waitUntil, timeout: 120000 });
+        await waitForProtocolPageReady(page, { waitForImages: plan.waitForImages });
+        if (plan.optimizeImages) {
+          await optimizeProtocolImagesForPdf(page, qualityPreset).catch((error) => {
+            if (isDetachedFrameLikeError(error)) {
+              throw error;
+            }
+          });
+        }
+        await waitForMs(plan.id === "safe" ? 300 : qualityPreset.renderDelayMs);
+        await page.emulateMediaType("print");
+        return await createProtocolPdf(page, qualityPreset);
+      } catch (error) {
+        lastError = error;
+        const detached = isDetachedFrameLikeError(error);
+        const isLastAttempt = cycle >= MAX_CYCLES - 1 && plan.id === "safe";
+        if (!detached && plan.id === "safe") {
+          break;
+        }
+        if (detached && !isLastAttempt) {
+          await waitForMs(250);
+        }
+      } finally {
+        await closeBrowserQuietly(browser);
       }
-      await waitForMs(plan.id === "safe" ? 300 : qualityPreset.renderDelayMs);
-      await page.emulateMediaType("print");
-      return await createProtocolPdf(page, qualityPreset);
-    } catch (error) {
-      lastError = error;
-      if (!isDetachedFrameLikeError(error) && plan.id === "safe") {
-        break;
-      }
-    } finally {
-      await closeBrowserQuietly(browser);
     }
   }
 
