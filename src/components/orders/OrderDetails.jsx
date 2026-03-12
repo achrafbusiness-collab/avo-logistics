@@ -1238,12 +1238,27 @@ export default function OrderDetails({
                       <SelectValue placeholder="Fahrer auswählen..." />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="none">Kein Fahrer</SelectItem>
+                      <SelectItem value="none" className="avo-driver-item">
+                        <div className="flex items-center gap-2.5 py-0.5">
+                          <span className="avo-driver-avatar" style={{ backgroundColor: '#94a3b8' }}>–</span>
+                          <span className="text-gray-500">Kein Fahrer</span>
+                        </div>
+                      </SelectItem>
                       {drivers.map((driver) => {
                         const name = `${driver.first_name || ''} ${driver.last_name || ''}`.trim();
+                        const initials = name
+                          ? name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
+                          : (driver.email?.[0] || 'F').toUpperCase();
+                        const AVATAR_COLORS = ['#1e3a5f','#0f6b4f','#7c3aed','#b45309','#0e7490','#be123c','#1d4ed8'];
+                        const colorIdx = [...(driver.id || 'x')].reduce((a, c) => a + c.charCodeAt(0), 0) % AVATAR_COLORS.length;
                         return (
-                          <SelectItem key={driver.id} value={driver.id}>
-                            {name || driver.email || 'Fahrer'}
+                          <SelectItem key={driver.id} value={driver.id} className="avo-driver-item">
+                            <div className="flex items-center gap-2.5 py-0.5">
+                              <span className="avo-driver-avatar" style={{ backgroundColor: AVATAR_COLORS[colorIdx] }}>
+                                {initials}
+                              </span>
+                              <span>{name || driver.email || 'Fahrer'}</span>
+                            </div>
                           </SelectItem>
                         );
                       })}
