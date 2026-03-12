@@ -147,6 +147,10 @@ export default function DriverForm({ driver, onSave, onCancel }) {
 
   const handleFileUpload = async (field, file) => {
     if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      window.alert(`Datei zu groß (${(file.size / 1024 / 1024).toFixed(1)} MB). Maximal 10 MB erlaubt.`);
+      return;
+    }
     setUploading(prev => ({ ...prev, [field]: true }));
     try {
       const { file_url } = await appClient.integrations.Core.UploadFile({ file });
@@ -259,7 +263,7 @@ export default function DriverForm({ driver, onSave, onCancel }) {
               <Upload className="w-5 h-5 text-gray-400" />
             )}
             <span className="text-sm text-gray-500">
-              {uploading[field] ? 'Hochladen...' : 'Klicken zum Hochladen'}
+              {uploading[field] ? 'Hochladen...' : 'Klicken zum Hochladen (max. 10 MB)'}
             </span>
             <input 
               type="file"

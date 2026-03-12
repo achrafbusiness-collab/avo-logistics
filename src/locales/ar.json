@@ -136,6 +136,10 @@
     "createdBy": "تم الإبلاغ بواسطة {{name}}",
     "acceptedBy": "تم التأكيد بواسطة {{name}}",
     "acceptRequired": "يرجى تأكيد التسليم الوسيط للمتابعة.",
+    "expensesPromptTitle": "هل تريد رفع المصاريف الآن؟",
+    "expensesPromptBody": "هل تريد رفع إيصالات الوقود أو التذاكر أو التاكسي أو الرسوم أو البروتوكولات الإضافية الآن؟",
+    "expensesPromptConfirm": "رفع المصاريف",
+    "expensesPromptLater": "لاحقاً",
     "errors": {
       "noGps": "GPS غير متاح على هذا الجهاز.",
       "reverseGeocode": "تعذر تحديد العنوان.",

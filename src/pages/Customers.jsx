@@ -531,18 +531,18 @@ Gib ausschließlich strukturierte Daten zurück.`,
       .filter(Boolean);
     const cityMatch = officeCityRaw.match(/^(\d{4,5})\s+(.+)$/);
     const defaults = {
-      name: 'AVO LOGISTICS',
-      street: 'Collenbachstraße 1',
-      postalCode: '40476',
-      city: 'Düsseldorf',
-      country: 'Deutschland',
-      phone: '+49 17624273014',
-      email: 'info@avo-logistics.de',
-      web: 'www.avo-logistics.de',
-      taxNumber: '10350222746',
-      vatId: 'DE361070222',
-      bankName: 'Stadtsparkasse Düsseldorf',
-      iban: 'DE98 3005 0110 1009 0619 02',
+      name: '',
+      street: '',
+      postalCode: '',
+      city: '',
+      country: '',
+      phone: '',
+      email: '',
+      web: '',
+      taxNumber: '',
+      vatId: '',
+      bankName: '',
+      iban: '',
       bic: '',
       owner: '',
     };
@@ -910,6 +910,11 @@ Gib ausschließlich strukturierte Daten zurück.`,
   const handleLogoUpload = async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      window.alert(`Logo zu groß (${(file.size / 1024 / 1024).toFixed(1)} MB). Maximal 5 MB erlaubt.`);
+      event.target.value = '';
+      return;
+    }
     setLogoUploading(true);
     try {
       const dataUrl = await new Promise((resolve, reject) => {
@@ -1659,7 +1664,7 @@ Gib ausschließlich strukturierte Daten zurück.`,
                     />
                   </div>
                   <div className="space-y-2 md:col-span-2">
-                    <Label>Logo (oben rechts auf Rechnung)</Label>
+                    <Label>Logo (oben rechts auf Rechnung, max. 5 MB)</Label>
                     <div className="flex flex-wrap items-center gap-2">
                       <Input
                         type="file"

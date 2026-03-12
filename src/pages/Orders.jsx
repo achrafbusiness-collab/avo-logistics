@@ -61,7 +61,9 @@ import {
   ArrowLeft,
   Loader2,
   Mail,
-  Download
+  Download,
+  Trash2,
+  RotateCcw,
 } from 'lucide-react';
 
 const DELIVERY_MAIN_STATUS = 'in_transit';
@@ -402,7 +404,30 @@ export default function Orders() {
 
   const { data: orders = [], isLoading } = useQuery({
     queryKey: ['orders'],
-    queryFn: () => appClient.entities.Order.list('-created_date', 500),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('orders')
+        .select('*')
+        .is('deleted_at', null)
+        .order('created_date', { ascending: false })
+        .limit(500);
+      if (error) return [];
+      return data || [];
+    },
+  });
+
+  const { data: trashedOrders = [] } = useQuery({
+    queryKey: ['orders-trashed'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('orders')
+        .select('*')
+        .not('deleted_at', 'is', null)
+        .order('deleted_at', { ascending: false })
+        .limit(200);
+      if (error) return [];
+      return data || [];
+    },
   });
   const orderIdsForChecklistQuery = useMemo(
     () => [...new Set((orders || []).map((order) => order?.id).filter(Boolean))],
@@ -636,12 +661,28 @@ export default function Orders() {
   };
 
   const deleteMutation = useMutation({
-    mutationFn: (id) => appClient.entities.Order.delete(id),
+    mutationFn: (id) => appClient.entities.Order.update(id, { deleted_at: new Date().toISOString() }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['orders'] });
+      queryClient.invalidateQueries({ queryKey: ['orders-trashed'] });
       setView('list');
       setSelectedOrder(null);
       setDeleteConfirmOpen(false);
+    },
+  });
+
+  const restoreOrderMutation = useMutation({
+    mutationFn: (id) => appClient.entities.Order.update(id, { deleted_at: null }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      queryClient.invalidateQueries({ queryKey: ['orders-trashed'] });
+    },
+  });
+
+  const permanentDeleteMutation = useMutation({
+    mutationFn: (id) => appClient.entities.Order.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['orders-trashed'] });
     },
   });
 
@@ -1365,12 +1406,14 @@ export default function Orders() {
     setBulkError('');
     setBulkMessage('');
     try {
+      const now = new Date().toISOString();
       for (const id of selectedIds) {
-        await appClient.entities.Order.delete(id);
+        await appClient.entities.Order.update(id, { deleted_at: now });
       }
-      setBulkMessage('Aufträge wurden gelöscht.');
+      setBulkMessage('Aufträge wurden in den Papierkorb verschoben.');
       setSelectedIds([]);
       queryClient.invalidateQueries({ queryKey: ['orders'] });
+      queryClient.invalidateQueries({ queryKey: ['orders-trashed'] });
       setBulkDeleteOpen(false);
     } catch (err) {
       setBulkError(err?.message || 'Bulk-Löschen fehlgeschlagen.');
@@ -1827,10 +1870,9 @@ export default function Orders() {
         <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Auftrag löschen?</AlertDialogTitle>
+              <AlertDialogTitle>Auftrag in den Papierkorb verschieben?</AlertDialogTitle>
               <AlertDialogDescription>
-                Möchtest du den Auftrag {selectedOrder.order_number} wirklich löschen? 
-                Diese Aktion kann nicht rückgängig gemacht werden.
+                Der Auftrag {selectedOrder.order_number} wird in den Papierkorb verschoben und nach 30 Tagen automatisch gelöscht. Du kannst ihn jederzeit wiederherstellen.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -1839,7 +1881,7 @@ export default function Orders() {
                 className="bg-red-600 hover:bg-red-700"
                 onClick={() => deleteMutation.mutate(selectedOrder.id)}
               >
-                Löschen
+                In Papierkorb
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
@@ -1912,9 +1954,104 @@ export default function Orders() {
         >
           Abgeschlossene Aufträge ({completedOrdersCount})
         </Button>
+        {trashedOrders.length > 0 && (
+          <Button
+            variant={listMode === 'trash' ? 'default' : 'outline'}
+            className={listMode === 'trash' ? 'bg-red-600 hover:bg-red-700' : 'text-red-600 border-red-200 hover:bg-red-50'}
+            onClick={() => handleListModeChange('trash')}
+          >
+            <Trash2 className="w-4 h-4 mr-1" />
+            Papierkorb ({trashedOrders.length})
+          </Button>
+        )}
       </div>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      {listMode === 'trash' && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Trash2 className="w-5 h-5 text-red-500" />
+              Papierkorb
+              <span className="text-sm font-normal text-gray-500">
+                — Aufträge werden nach 30 Tagen automatisch gelöscht
+              </span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {trashedOrders.length === 0 ? (
+              <p className="text-gray-500 text-center py-8">Der Papierkorb ist leer.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Auftragsnr.</TableHead>
+                      <TableHead>Kennzeichen</TableHead>
+                      <TableHead>Von → Nach</TableHead>
+                      <TableHead>Gelöscht am</TableHead>
+                      <TableHead>Verbleibend</TableHead>
+                      <TableHead className="text-right">Aktionen</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {trashedOrders.map((order) => {
+                      const deletedAt = new Date(order.deleted_at);
+                      const expiresAt = addDays(deletedAt, 30);
+                      const daysLeft = Math.max(0, differenceInCalendarDays(expiresAt, new Date()));
+                      return (
+                        <TableRow key={order.id}>
+                          <TableCell className="font-medium">{order.order_number || '-'}</TableCell>
+                          <TableCell>{order.license_plate || '-'}</TableCell>
+                          <TableCell className="text-sm text-gray-600">
+                            {order.pickup_city || '-'} → {order.dropoff_city || '-'}
+                          </TableCell>
+                          <TableCell className="text-sm text-gray-500">
+                            {format(deletedAt, 'dd.MM.yyyy', { locale: de })}
+                          </TableCell>
+                          <TableCell>
+                            <span className={`text-sm font-medium ${daysLeft <= 7 ? 'text-red-600' : daysLeft <= 14 ? 'text-amber-600' : 'text-gray-600'}`}>
+                              {daysLeft} {daysLeft === 1 ? 'Tag' : 'Tage'}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-emerald-600 border-emerald-200 hover:bg-emerald-50"
+                                onClick={() => restoreOrderMutation.mutate(order.id)}
+                                disabled={restoreOrderMutation.isPending}
+                              >
+                                <RotateCcw className="w-3.5 h-3.5 mr-1" />
+                                Wiederherstellen
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-red-600 border-red-200 hover:bg-red-50"
+                                onClick={() => {
+                                  if (window.confirm(`Auftrag ${order.order_number || ''} endgültig löschen? Diese Aktion kann nicht rückgängig gemacht werden.`)) {
+                                    permanentDeleteMutation.mutate(order.id);
+                                  }
+                                }}
+                                disabled={permanentDeleteMutation.isPending}
+                              >
+                                Endgültig löschen
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {listMode !== 'trash' && <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Card>
           <CardContent className="p-4">
             <p className="text-xs uppercase tracking-wide text-slate-500">Offen</p>
@@ -1939,8 +2076,9 @@ export default function Orders() {
             <p className="text-2xl font-semibold text-red-600">{summaryCounts.overdue}</p>
           </CardContent>
         </Card>
-      </div>
+      </div>}
 
+      {listMode !== 'trash' && <>
       {/* Filters */}
       <Card>
         <CardContent className="p-4 space-y-4">
@@ -2848,9 +2986,9 @@ export default function Orders() {
       <AlertDialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Aufträge löschen?</AlertDialogTitle>
+            <AlertDialogTitle>Aufträge in den Papierkorb verschieben?</AlertDialogTitle>
             <AlertDialogDescription>
-              Möchtest du die ausgewählten Aufträge wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.
+              Die ausgewählten Aufträge werden in den Papierkorb verschoben und nach 30 Tagen automatisch gelöscht. Du kannst sie jederzeit wiederherstellen.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -3052,6 +3190,7 @@ export default function Orders() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      </>}
     </div>
   );
 }

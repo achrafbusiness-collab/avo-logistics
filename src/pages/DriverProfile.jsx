@@ -309,6 +309,10 @@ export default function DriverProfile() {
 
   const handleDocumentUpload = async (field, file) => {
     if (!driver?.id || !file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      setUploadErrors((prev) => ({ ...prev, [field]: `Datei zu groß (${(file.size / 1024 / 1024).toFixed(1)} MB). Maximal 10 MB erlaubt.` }));
+      return;
+    }
     setUploadErrors((prev) => ({ ...prev, [field]: "" }));
     setUploadingDocs((prev) => ({ ...prev, [field]: true }));
     try {

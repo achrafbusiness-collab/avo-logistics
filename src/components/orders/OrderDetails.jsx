@@ -398,8 +398,15 @@ export default function OrderDetails({
     }
   };
 
+  const MAX_FILE_SIZE_MB = 10;
+  const MAX_FILE_SIZE = MAX_FILE_SIZE_MB * 1024 * 1024;
+
   const handleDocFile = async (file) => {
     if (!file || !order?.id) return;
+    if (file.size > MAX_FILE_SIZE) {
+      setDocsError(`Datei zu groß (${(file.size / 1024 / 1024).toFixed(1)} MB). Maximal ${MAX_FILE_SIZE_MB} MB erlaubt.`);
+      return;
+    }
     if (!order?.company_id) {
       setDocsError('Unternehmen fehlt am Auftrag. Bitte Auftrag neu laden.');
       return;
@@ -1664,7 +1671,7 @@ export default function OrderDetails({
             <CardContent className="space-y-3">
               {canManageDocs && (
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="text-sm text-gray-500">PDF, JPG/PNG oder DOCX</p>
+                  <p className="text-sm text-gray-500">PDF, JPG/PNG oder DOCX (max. {MAX_FILE_SIZE_MB} MB)</p>
                   <div className="flex items-center gap-2">
                     <input
                       ref={docInputRef}
