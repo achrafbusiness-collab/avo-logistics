@@ -605,7 +605,6 @@ export default function Dashboard() {
       </Card>
 
       {/* Stats Grid */}
-      <div className="rounded-2xl bg-[#0B0F19] p-4 -mx-2">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard 
           title="Aktive Fahrer aktuell" 
@@ -639,7 +638,6 @@ export default function Dashboard() {
           subtext="Sofort prüfen"
           onClick={() => navigate(`${createPageUrl('Orders')}?list=active&due=overdue`)}
         />
-      </div>
       </div>
 
       <Card className="border border-slate-200/80 bg-white/90 shadow-[0_20px_40px_-30px_rgba(15,23,42,0.6)]">
