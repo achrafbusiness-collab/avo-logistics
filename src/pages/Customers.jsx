@@ -449,6 +449,73 @@ Gib ausschließlich strukturierte Daten zurück.`,
     return fullName || invoice?.customerLabel || 'Kunde';
   };
 
+  const getInvoiceStatusMeta = (status) => {
+    const normalized = status || 'open';
+    if (normalized === 'paid') {
+      return {
+        label: 'Bezahlt',
+        badgeClass: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+        rowClass: 'bg-emerald-50/40',
+      };
+    }
+    if (normalized === 'partially_paid') {
+      return {
+        label: 'Teilbezahlt',
+        badgeClass: 'bg-blue-100 text-blue-700 border-blue-200',
+        rowClass: 'bg-blue-50/40',
+      };
+    }
+    if (normalized === 'overdue') {
+      return {
+        label: 'Überfällig',
+        badgeClass: 'bg-red-100 text-red-700 border-red-200',
+        rowClass: 'bg-red-50/30',
+      };
+    }
+    if (normalized === 'cancelled') {
+      return {
+        label: 'Storniert',
+        badgeClass: 'bg-slate-200 text-slate-700 border-slate-300',
+        rowClass: 'bg-slate-100/70',
+      };
+    }
+    return {
+      label: 'Offen',
+      badgeClass: 'bg-amber-100 text-amber-700 border-amber-200',
+      rowClass: 'bg-amber-50/30',
+    };
+  };
+
+  const getInvoiceDueMeta = (invoice) => {
+    const dueDate = resolveInvoiceDueDate(invoice);
+    const now = new Date();
+    const dueTs = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate()).getTime();
+    const nowTs = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const dayDiff = Math.round((dueTs - nowTs) / 86400000);
+    if (dayDiff < 0) {
+      return {
+        dueDate,
+        dayDiff,
+        text: `${Math.abs(dayDiff)} Tage überfällig`,
+        className: 'text-red-700',
+      };
+    }
+    if (dayDiff === 0) {
+      return {
+        dueDate,
+        dayDiff,
+        text: 'Heute fällig',
+        className: 'text-amber-700',
+      };
+    }
+    return {
+      dueDate,
+      dayDiff,
+      text: `Fällig in ${dayDiff} Tagen`,
+      className: 'text-slate-500',
+    };
+  };
+
   const resolveInvoiceIssuer = () => {
     const profile = financeSettings.invoiceProfile || {};
     const officeAddress = String(appSettings?.office_address || '').trim();
@@ -551,7 +618,7 @@ Gib ausschließlich strukturierte Daten zurück.`,
     });
   }, [invoiceDrafts, financeSearch]);
 
-  const filteredInvoices = useMemo(() => {
+  const invoiceSearchMatches = useMemo(() => {
     const term = financeSearch.trim().toLowerCase();
     return [...invoices]
       .filter((invoice) => {
@@ -563,12 +630,48 @@ Gib ausschließlich strukturierte Daten zurück.`,
           .filter(Boolean)
           .join(' ')
           .toLowerCase();
-        const termMatch = !term || hay.includes(term);
-        const statusMatch = invoiceStatusFilter === 'all' || (invoice.status || 'open') === invoiceStatusFilter;
-        return termMatch && statusMatch;
+        return !term || hay.includes(term);
       })
       .sort((a, b) => getInvoiceSortTimestamp(b) - getInvoiceSortTimestamp(a));
-  }, [invoices, financeSearch, invoiceStatusFilter]);
+  }, [invoices, financeSearch]);
+
+  const filteredInvoices = useMemo(() => {
+    return invoiceSearchMatches.filter((invoice) => {
+      const status = invoice.status || 'open';
+      if (invoiceStatusFilter === 'all') return true;
+      if (invoiceStatusFilter === 'overdue') {
+        if (status === 'overdue') return true;
+        if (status === 'paid' || status === 'cancelled') return false;
+        const dueDate = resolveInvoiceDueDate(invoice);
+        const dueTs = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate()).getTime();
+        const now = new Date();
+        const nowTs = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+        return dueTs < nowTs;
+      }
+      return status === invoiceStatusFilter;
+    });
+  }, [invoiceSearchMatches, invoiceStatusFilter, financeSettings.defaultPaymentDays]);
+
+  const invoiceStatusCounts = useMemo(() => {
+    return invoiceSearchMatches.reduce(
+      (acc, invoice) => {
+        const status = invoice.status || 'open';
+        const dueDate = resolveInvoiceDueDate(invoice);
+        const dueTs = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate()).getTime();
+        const now = new Date();
+        const nowTs = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+        const overdueByDate = !['paid', 'cancelled'].includes(status) && dueTs < nowTs;
+        if (overdueByDate || status === 'overdue') acc.overdue += 1;
+        else if (status === 'paid') acc.paid += 1;
+        else if (status === 'partially_paid') acc.partiallyPaid += 1;
+        else if (status === 'cancelled') acc.cancelled += 1;
+        else acc.open += 1;
+        acc.all += 1;
+        return acc;
+      },
+      { all: 0, open: 0, overdue: 0, paid: 0, partiallyPaid: 0, cancelled: 0 }
+    );
+  }, [invoiceSearchMatches, financeSettings.defaultPaymentDays]);
 
   const invoiceOverview = useMemo(() => {
     const visible = filteredInvoices;
@@ -580,14 +683,28 @@ Gib ausschließlich strukturierte Daten zurück.`,
     const openGross = visible
       .filter((invoice) => !['paid', 'cancelled'].includes(invoice.status || 'open'))
       .reduce((sum, invoice) => sum + Number(invoice?.totals?.gross || 0), 0);
+    const openCount = visible.filter((invoice) => !['paid', 'cancelled'].includes(invoice.status || 'open')).length;
+    const paidCount = visible.filter((invoice) => (invoice.status || 'open') === 'paid').length;
+    const overdueCount = visible.filter((invoice) => {
+      const status = invoice.status || 'open';
+      if (status === 'cancelled' || status === 'paid') return false;
+      const dueDate = resolveInvoiceDueDate(invoice);
+      const dueTs = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate()).getTime();
+      const now = new Date();
+      const nowTs = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+      return dueTs < nowTs || status === 'overdue';
+    }).length;
     return {
       count: visible.length,
       netTotal,
       grossTotal,
       paidGross,
       openGross,
+      openCount,
+      paidCount,
+      overdueCount,
     };
-  }, [filteredInvoices]);
+  }, [filteredInvoices, financeSettings.defaultPaymentDays]);
 
   const receivables = useMemo(() => {
     return invoices
@@ -1623,7 +1740,7 @@ Gib ausschließlich strukturierte Daten zurück.`,
           </div>
 
           <div className="space-y-4 xl:col-span-7">
-            <Card className="border-slate-200 bg-gradient-to-r from-slate-50 via-white to-slate-100">
+            <Card className="border-slate-200 bg-white shadow-sm">
               <CardContent className="space-y-4 p-4">
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
                   <div className="relative md:col-span-2">
@@ -1636,7 +1753,7 @@ Gib ausschließlich strukturierte Daten zurück.`,
                       }
                       value={financeSearch}
                       onChange={(e) => setFinanceSearch(e.target.value)}
-                      className="pl-10"
+                      className="border-slate-300 bg-white pl-10"
                     />
                   </div>
                   <div className="space-y-1">
@@ -1648,7 +1765,7 @@ Gib ausschließlich strukturierte Daten zurück.`,
                         handleFinanceTabChange('overview', value);
                       }}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className="border-slate-300 bg-white">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -1661,7 +1778,7 @@ Gib ausschließlich strukturierte Daten zurück.`,
                   <div className="flex items-end">
                     <Button
                       variant="outline"
-                      className="w-full"
+                      className="w-full border-slate-300"
                       onClick={() => {
                         setFinanceSearch('');
                         setInvoiceStatusFilter('all');
@@ -1672,51 +1789,105 @@ Gib ausschließlich strukturierte Daten zurück.`,
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
-                  <Card className="border-slate-200">
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
+                  <Card className="border-slate-200 bg-slate-50/80">
                     <CardContent className="p-4">
                       <p className="text-xs text-slate-500">Rechnungen (sichtbar)</p>
                       <p className="mt-1 text-2xl font-semibold text-slate-900">{invoiceOverview.count}</p>
                     </CardContent>
                   </Card>
-                  <Card className="border-slate-200">
+                  <Card className="border-slate-200 bg-slate-50/80">
                     <CardContent className="p-4">
                       <p className="text-xs text-slate-500">Summe Netto</p>
                       <p className="mt-1 text-xl font-semibold text-slate-900">{formatMoney(invoiceOverview.netTotal)}</p>
                     </CardContent>
                   </Card>
-                  <Card className="border-slate-200">
+                  <Card className="border-slate-200 bg-slate-50/80">
                     <CardContent className="p-4">
                       <p className="text-xs text-slate-500">Summe Brutto</p>
                       <p className="mt-1 text-xl font-semibold text-slate-900">{formatMoney(invoiceOverview.grossTotal)}</p>
                     </CardContent>
                   </Card>
-                  <Card className="border-slate-200">
+                  <Card className="border-amber-200 bg-amber-50/80">
                     <CardContent className="p-4">
-                      <p className="text-xs text-slate-500">Offen / Bezahlt</p>
-                      <p className="mt-1 text-sm font-semibold text-amber-700">Offen: {formatMoney(invoiceOverview.openGross)}</p>
-                      <p className="text-sm font-semibold text-emerald-700">Bezahlt: {formatMoney(invoiceOverview.paidGross)}</p>
+                      <p className="text-xs text-amber-700">Offen</p>
+                      <p className="mt-1 text-xl font-semibold text-amber-800">{invoiceOverview.openCount}</p>
+                      <p className="text-xs font-medium text-amber-700">{formatMoney(invoiceOverview.openGross)}</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="border-emerald-200 bg-emerald-50/80">
+                    <CardContent className="p-4">
+                      <p className="text-xs text-emerald-700">Bezahlt</p>
+                      <p className="mt-1 text-xl font-semibold text-emerald-800">{invoiceOverview.paidCount}</p>
+                      <p className="text-xs font-medium text-emerald-700">{formatMoney(invoiceOverview.paidGross)}</p>
                     </CardContent>
                   </Card>
                 </div>
 
                 {financePanel === 'invoices' ? (
-                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                    <div className="space-y-1">
-                      <Label>Statusfilter</Label>
-                      <Select value={invoiceStatusFilter} onValueChange={setInvoiceStatusFilter}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">Alle Status</SelectItem>
-                          <SelectItem value="open">Offen</SelectItem>
-                          <SelectItem value="partially_paid">Teilbezahlt</SelectItem>
-                          <SelectItem value="paid">Bezahlt</SelectItem>
-                          <SelectItem value="overdue">Überfällig</SelectItem>
-                          <SelectItem value="cancelled">Storniert</SelectItem>
-                        </SelectContent>
-                      </Select>
+                  <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant={invoiceStatusFilter === 'all' ? 'default' : 'outline'}
+                        className={invoiceStatusFilter === 'all' ? 'bg-slate-800 hover:bg-slate-700' : 'border-slate-300'}
+                        onClick={() => setInvoiceStatusFilter('all')}
+                      >
+                        Alle ({invoiceStatusCounts.all})
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant={invoiceStatusFilter === 'open' ? 'default' : 'outline'}
+                        className={invoiceStatusFilter === 'open' ? 'bg-amber-600 hover:bg-amber-500 text-white' : 'border-amber-300 text-amber-700 hover:bg-amber-50'}
+                        onClick={() => setInvoiceStatusFilter('open')}
+                      >
+                        Offen ({invoiceStatusCounts.open})
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant={invoiceStatusFilter === 'overdue' ? 'default' : 'outline'}
+                        className={invoiceStatusFilter === 'overdue' ? 'bg-red-600 hover:bg-red-500 text-white' : 'border-red-300 text-red-700 hover:bg-red-50'}
+                        onClick={() => setInvoiceStatusFilter('overdue')}
+                      >
+                        Überfällig ({invoiceStatusCounts.overdue})
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant={invoiceStatusFilter === 'partially_paid' ? 'default' : 'outline'}
+                        className={invoiceStatusFilter === 'partially_paid' ? 'bg-blue-600 hover:bg-blue-500 text-white' : 'border-blue-300 text-blue-700 hover:bg-blue-50'}
+                        onClick={() => setInvoiceStatusFilter('partially_paid')}
+                      >
+                        Teilbezahlt ({invoiceStatusCounts.partiallyPaid})
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant={invoiceStatusFilter === 'paid' ? 'default' : 'outline'}
+                        className={invoiceStatusFilter === 'paid' ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'border-emerald-300 text-emerald-700 hover:bg-emerald-50'}
+                        onClick={() => setInvoiceStatusFilter('paid')}
+                      >
+                        Bezahlt ({invoiceStatusCounts.paid})
+                      </Button>
+                    </div>
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                      <div className="space-y-1">
+                        <Label>Statusfilter</Label>
+                        <Select value={invoiceStatusFilter} onValueChange={setInvoiceStatusFilter}>
+                          <SelectTrigger className="border-slate-300 bg-white">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">Alle Status</SelectItem>
+                            <SelectItem value="open">Offen</SelectItem>
+                            <SelectItem value="partially_paid">Teilbezahlt</SelectItem>
+                            <SelectItem value="paid">Bezahlt</SelectItem>
+                            <SelectItem value="overdue">Überfällig</SelectItem>
+                            <SelectItem value="cancelled">Storniert</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm">
+                        <p className="font-semibold text-red-700">Überfällige Rechnungen: {invoiceOverview.overdueCount}</p>
+                      </div>
                     </div>
                   </div>
                 ) : null}
@@ -1736,30 +1907,30 @@ Gib ausschließlich strukturierte Daten zurück.`,
             </Card>
 
             {financePanel === 'drafts' ? (
-              <Card>
+              <Card className="border-slate-200 shadow-sm">
                 <CardContent className="p-0">
                   {filteredDrafts.length === 0 ? (
                     <div className="py-10 text-center text-sm text-slate-500">Keine Rechnungsentwürfe vorhanden.</div>
                   ) : (
-                    <div className="overflow-auto">
+                    <div className="max-h-[760px] overflow-auto rounded-xl">
                       <table className="min-w-full text-sm">
-                        <thead className="bg-slate-100 text-left text-slate-600">
+                        <thead className="sticky top-0 z-10 bg-slate-100 text-left text-slate-700">
                           <tr>
-                            <th className="px-3 py-2">Kunde</th>
-                            <th className="px-3 py-2">Rechnungsnr.</th>
-                            <th className="px-3 py-2">Positionen</th>
-                            <th className="px-3 py-2">Zuletzt geändert</th>
-                            <th className="px-3 py-2 text-right">Aktionen</th>
+                            <th className="px-4 py-3">Kunde</th>
+                            <th className="px-4 py-3">Rechnungsnr.</th>
+                            <th className="px-4 py-3">Positionen</th>
+                            <th className="px-4 py-3">Zuletzt geändert</th>
+                            <th className="px-4 py-3 text-right">Aktionen</th>
                           </tr>
                         </thead>
                         <tbody>
                           {filteredDrafts.map((draft) => (
-                            <tr key={draft.id} className="border-t border-slate-200">
-                              <td className="px-3 py-2">{draft.customerLabel || 'Kunde'}</td>
-                              <td className="px-3 py-2">{draft.invoiceMeta?.invoiceNumber || '-'}</td>
-                              <td className="px-3 py-2">{Array.isArray(draft.rows) ? draft.rows.length : 0}</td>
-                              <td className="px-3 py-2">{formatDate(draft.updatedAt || draft.createdAt)}</td>
-                              <td className="px-3 py-2">
+                            <tr key={draft.id} className="border-t border-slate-200 hover:bg-slate-50/70">
+                              <td className="px-4 py-3">{draft.customerLabel || 'Kunde'}</td>
+                              <td className="px-4 py-3 font-semibold text-slate-800">{draft.invoiceMeta?.invoiceNumber || '-'}</td>
+                              <td className="px-4 py-3">{Array.isArray(draft.rows) ? draft.rows.length : 0}</td>
+                              <td className="px-4 py-3">{formatDate(draft.updatedAt || draft.createdAt)}</td>
+                              <td className="px-4 py-3">
                                 <div className="flex justify-end gap-2">
                                   <Link to={`${createPageUrl('CustomerInvoice')}?id=${draft.id}`}>
                                     <Button size="sm" variant="outline">Öffnen</Button>
@@ -1785,42 +1956,61 @@ Gib ausschließlich strukturierte Daten zurück.`,
             ) : null}
 
             {financePanel === 'invoices' ? (
-              <Card>
+              <Card className="border-slate-200 shadow-sm">
                 <CardContent className="p-0">
                   {filteredInvoices.length === 0 ? (
                     <div className="py-10 text-center text-sm text-slate-500">Keine Rechnungen vorhanden.</div>
                   ) : (
-                    <div className="overflow-auto">
-                      <table className="min-w-[1450px] w-full text-sm">
-                        <thead className="bg-slate-100 text-left text-slate-600">
+                    <div className="max-h-[760px] overflow-auto rounded-xl">
+                      <table className="min-w-[1600px] w-full text-sm">
+                        <thead className="sticky top-0 z-10 bg-slate-100 text-left text-slate-700">
                           <tr>
-                            <th className="px-3 py-2">Rechnungsnr.</th>
-                            <th className="px-3 py-2">Kunde</th>
-                            <th className="px-3 py-2">Rechnungsdatum</th>
-                            <th className="px-3 py-2">Fällig am</th>
-                            <th className="px-3 py-2">Betrag netto</th>
-                            <th className="px-3 py-2">Betrag brutto</th>
-                            <th className="px-3 py-2">Status</th>
-                            <th className="px-3 py-2">Bezahlt am</th>
-                            <th className="px-3 py-2 text-right">Aktionen</th>
+                            <th className="px-4 py-3">Rechnungsnr.</th>
+                            <th className="px-4 py-3">Kunde</th>
+                            <th className="px-4 py-3">Rechnungsdatum</th>
+                            <th className="px-4 py-3">Fälligkeit</th>
+                            <th className="px-4 py-3">Betrag netto</th>
+                            <th className="px-4 py-3">Betrag brutto</th>
+                            <th className="px-4 py-3">Status</th>
+                            <th className="px-4 py-3">Bezahlt am</th>
+                            <th className="px-4 py-3 text-right">Aktionen</th>
                           </tr>
                         </thead>
                         <tbody>
                           {filteredInvoices.map((invoice) => {
                             const currentStatus = invoice.status || 'open';
+                            const statusMeta = getInvoiceStatusMeta(currentStatus);
                             const isPaid = currentStatus === 'paid';
+                            const dueMeta = getInvoiceDueMeta(invoice);
+                            const dueStateLabel =
+                              dueMeta.dayDiff < 0 && !['paid', 'cancelled'].includes(currentStatus)
+                                ? 'Überfällig'
+                                : statusMeta.label;
                             return (
-                              <tr key={invoice.id} className="border-t border-slate-200 hover:bg-slate-50/70">
-                                <td className="px-3 py-2 font-semibold text-slate-800">{invoice.invoiceMeta?.invoiceNumber || '-'}</td>
-                                <td className="px-3 py-2">{invoice.customerLabel || 'Kunde'}</td>
-                                <td className="px-3 py-2">{formatDateOnly(invoice.invoiceMeta?.invoiceDate || '')}</td>
-                                <td className="px-3 py-2">{format(resolveInvoiceDueDate(invoice), 'dd.MM.yyyy', { locale: de })}</td>
-                                <td className="px-3 py-2 font-medium text-slate-700">{formatMoney(invoice?.totals?.net || 0)}</td>
-                                <td className="px-3 py-2 font-semibold text-slate-900">{formatMoney(invoice?.totals?.gross || 0)}</td>
-                                <td className="px-3 py-2">
-                                  <div className="flex items-center gap-2">
+                              <tr key={invoice.id} className={`border-t border-slate-200 align-top hover:bg-slate-50/70 ${statusMeta.rowClass}`}>
+                                <td className="px-4 py-3 font-semibold text-slate-800">
+                                  {invoice.invoiceMeta?.invoiceNumber || '-'}
+                                </td>
+                                <td className="px-4 py-3">
+                                  <p className="font-medium text-slate-800">{invoice.customerLabel || 'Kunde'}</p>
+                                  <p className="text-xs text-slate-500">{invoice.customer?.customer_number || '-'}</p>
+                                </td>
+                                <td className="px-4 py-3 font-medium text-slate-700">
+                                  {formatDateOnly(invoice.invoiceMeta?.invoiceDate || '')}
+                                </td>
+                                <td className="px-4 py-3">
+                                  <p className="font-medium text-slate-800">{format(dueMeta.dueDate, 'dd.MM.yyyy', { locale: de })}</p>
+                                  <p className={`text-xs ${dueMeta.className}`}>{dueMeta.text}</p>
+                                </td>
+                                <td className="px-4 py-3 font-medium text-slate-700">{formatMoney(invoice?.totals?.net || 0)}</td>
+                                <td className="px-4 py-3 font-semibold text-slate-900">{formatMoney(invoice?.totals?.gross || 0)}</td>
+                                <td className="px-4 py-3">
+                                  <div className="space-y-2">
+                                    <span className={`inline-flex rounded-md border px-2 py-1 text-xs font-semibold ${statusMeta.badgeClass}`}>
+                                      {dueStateLabel}
+                                    </span>
                                     <select
-                                      className="h-8 rounded-md border border-slate-300 px-2 text-sm"
+                                      className="h-8 w-[170px] rounded-md border border-slate-300 bg-white px-2 text-sm"
                                       value={currentStatus}
                                       onChange={(event) => handleInvoiceStatusChange(invoice.id, event.target.value)}
                                     >
@@ -1830,19 +2020,14 @@ Gib ausschließlich strukturierte Daten zurück.`,
                                       <option value="overdue">Überfällig</option>
                                       <option value="cancelled">Storniert</option>
                                     </select>
-                                    {isPaid ? (
-                                      <span className="rounded-md bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-700">
-                                        Bezahlt
-                                      </span>
-                                    ) : null}
                                   </div>
                                 </td>
-                                <td className="px-3 py-2">
+                                <td className="px-4 py-3">
                                   {isPaid ? (
                                     <div className="space-y-1">
                                       <Input
                                         type="date"
-                                        className="h-8 w-[150px]"
+                                        className="h-8 w-[160px] bg-white"
                                         value={toDateInputValue(invoice.paidAt)}
                                         onChange={(event) => handlePaidDateChange(invoice.id, event.target.value)}
                                       />
@@ -1852,11 +2037,12 @@ Gib ausschließlich strukturierte Daten zurück.`,
                                     <span className="text-slate-400">-</span>
                                   )}
                                 </td>
-                                <td className="px-3 py-2">
+                                <td className="px-4 py-3">
                                   <div className="flex flex-wrap justify-end gap-2">
                                     <Button
                                       size="sm"
                                       variant="outline"
+                                      className="border-slate-300 bg-white"
                                       onClick={() => handleDownloadInvoicePdf(invoice)}
                                       disabled={invoicePdfDownloadingId === invoice.id}
                                     >
@@ -1870,7 +2056,7 @@ Gib ausschließlich strukturierte Daten zurück.`,
                                     <Button
                                       size="sm"
                                       variant="outline"
-                                      className="border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                                      className="border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50"
                                       onClick={() => handleMarkInvoicePaid(invoice.id)}
                                       disabled={isPaid}
                                     >
@@ -1886,12 +2072,12 @@ Gib ausschließlich strukturierte Daten zurück.`,
                                       Senden
                                     </Button>
                                     <Link to={`${createPageUrl('CustomerInvoice')}?invoiceId=${invoice.id}`}>
-                                      <Button size="sm" variant="outline">Öffnen</Button>
+                                      <Button size="sm" variant="outline" className="border-slate-300 bg-white">Öffnen</Button>
                                     </Link>
                                     <Button
                                       size="sm"
                                       variant="outline"
-                                      className="text-red-600 hover:bg-red-50"
+                                      className="border-red-200 bg-white text-red-600 hover:bg-red-50"
                                       onClick={() => handleDeleteInvoice(invoice.id)}
                                     >
                                       Löschen
@@ -1912,19 +2098,19 @@ Gib ausschließlich strukturierte Daten zurück.`,
             {financePanel === 'receivables' ? (
               <>
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                  <Card>
+                  <Card className="border-slate-200 bg-slate-50/80">
                     <CardContent className="p-4">
                       <p className="text-xs text-slate-500">Offene Rechnungen</p>
                       <p className="mt-1 text-2xl font-semibold text-slate-900">{receivablesSummary.openCount}</p>
                     </CardContent>
                   </Card>
-                  <Card>
+                  <Card className="border-amber-200 bg-amber-50/80">
                     <CardContent className="p-4">
-                      <p className="text-xs text-slate-500">Offener Betrag</p>
-                      <p className="mt-1 text-2xl font-semibold text-slate-900">{formatMoney(receivablesSummary.openAmount)}</p>
+                      <p className="text-xs text-amber-700">Offener Betrag</p>
+                      <p className="mt-1 text-2xl font-semibold text-amber-800">{formatMoney(receivablesSummary.openAmount)}</p>
                     </CardContent>
                   </Card>
-                  <Card>
+                  <Card className="border-red-200 bg-red-50/80">
                     <CardContent className="p-4">
                       <p className="text-xs text-red-600">Überfällig</p>
                       <p className="mt-1 text-2xl font-semibold text-red-700">{formatMoney(receivablesSummary.overdueAmount)}</p>
@@ -1932,35 +2118,45 @@ Gib ausschließlich strukturierte Daten zurück.`,
                   </Card>
                 </div>
 
-                <Card>
+                <Card className="border-slate-200 shadow-sm">
                   <CardContent className="p-0">
                     {receivables.length === 0 ? (
                       <div className="py-10 text-center text-sm text-slate-500">Keine offenen Posten.</div>
                     ) : (
-                      <div className="overflow-auto">
+                      <div className="max-h-[760px] overflow-auto rounded-xl">
                         <table className="min-w-full text-sm">
-                          <thead className="bg-slate-100 text-left text-slate-600">
+                          <thead className="sticky top-0 z-10 bg-slate-100 text-left text-slate-700">
                             <tr>
-                              <th className="px-3 py-2">Rechnungsnr.</th>
-                              <th className="px-3 py-2">Kunde</th>
-                              <th className="px-3 py-2">Fällig am</th>
-                              <th className="px-3 py-2">Offen</th>
-                              <th className="px-3 py-2">Status</th>
+                              <th className="px-4 py-3">Rechnungsnr.</th>
+                              <th className="px-4 py-3">Kunde</th>
+                              <th className="px-4 py-3">Fällig am</th>
+                              <th className="px-4 py-3">Offen</th>
+                              <th className="px-4 py-3">Status</th>
+                              <th className="px-4 py-3 text-right">Aktion</th>
                             </tr>
                           </thead>
                           <tbody>
-                            {receivables.map((item) => (
-                              <tr key={item.id} className="border-t border-slate-200">
-                                <td className="px-3 py-2 font-medium">{item.invoiceMeta?.invoiceNumber || '-'}</td>
-                                <td className="px-3 py-2">{item.customerLabel || 'Kunde'}</td>
-                                <td className="px-3 py-2">{format(item.dueDate, 'dd.MM.yyyy', { locale: de })}</td>
-                                <td className="px-3 py-2">{formatMoney(item.gross)}</td>
-                                <td className="px-3 py-2">
+                            {[...receivables]
+                              .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime())
+                              .map((item) => (
+                              <tr key={item.id} className={`border-t border-slate-200 hover:bg-slate-50/70 ${item.overdue ? 'bg-red-50/30' : 'bg-amber-50/20'}`}>
+                                <td className="px-4 py-3 font-semibold text-slate-800">{item.invoiceMeta?.invoiceNumber || '-'}</td>
+                                <td className="px-4 py-3">{item.customerLabel || 'Kunde'}</td>
+                                <td className="px-4 py-3">{format(item.dueDate, 'dd.MM.yyyy', { locale: de })}</td>
+                                <td className="px-4 py-3 font-semibold text-slate-900">{formatMoney(item.gross)}</td>
+                                <td className="px-4 py-3">
                                   {item.overdue ? (
                                     <span className="rounded-md bg-red-100 px-2 py-1 text-xs font-medium text-red-700">Überfällig</span>
                                   ) : (
                                     <span className="rounded-md bg-amber-100 px-2 py-1 text-xs font-medium text-amber-700">Offen</span>
                                   )}
+                                </td>
+                                <td className="px-4 py-3 text-right">
+                                  <Link to={`${createPageUrl('CustomerInvoice')}?invoiceId=${item.id}`}>
+                                    <Button size="sm" variant="outline" className="border-slate-300 bg-white">
+                                      Öffnen
+                                    </Button>
+                                  </Link>
                                 </td>
                               </tr>
                             ))}
