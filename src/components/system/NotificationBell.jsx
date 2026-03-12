@@ -21,7 +21,7 @@ const DONE_STATUSES = new Set([
   'approved',
 ]);
 
-export default function NotificationBell({ darkMode }) {
+export default function NotificationBell() {
   const today = new Date().toISOString().split('T')[0];
 
   const { data: orders = [] } = useQuery({
@@ -48,7 +48,7 @@ export default function NotificationBell({ darkMode }) {
         <Button
           variant="ghost"
           size="sm"
-          className={`relative ${darkMode ? 'text-slate-200 hover:bg-slate-800' : ''}`}
+          className="relative"
           aria-label="Benachrichtigungen"
         >
           <Bell className="h-4 w-4" />

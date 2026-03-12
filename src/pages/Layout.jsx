@@ -13,8 +13,6 @@ import {
   LogOut,
   User,
   ChevronDown,
-  Moon,
-  Sun,
   LifeBuoy,
   Settings,
   ShieldCheck,
@@ -53,23 +51,12 @@ export default function Layout({ children, currentPageName }) {
   const location = useLocation();
   const mainRef = useRef(null);
   const { t, dir } = useI18n();
-  const [darkMode, setDarkMode] = useState(() => {
-    const saved = localStorage.getItem('avo-dark-mode');
-    return saved ? JSON.parse(saved) : true;
-  });
-
   useEffect(() => {
     loadUser();
+    // Ensure dark mode is fully removed
+    document.documentElement.classList.remove('dark');
+    localStorage.removeItem('avo-dark-mode');
   }, []);
-
-  useEffect(() => {
-    localStorage.setItem('avo-dark-mode', JSON.stringify(darkMode));
-    if (darkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }, [darkMode]);
 
   useEffect(() => {
     if (isDriver) return;
@@ -133,7 +120,7 @@ export default function Layout({ children, currentPageName }) {
     return (
       <div
         dir={dir}
-        className={`min-h-screen driver-layout ${darkMode ? 'bg-gray-950' : 'bg-gray-50'} ${dir === 'rtl' ? 'rtl' : 'ltr'}`}
+        className={`min-h-screen driver-layout bg-gray-50 ${dir === 'rtl' ? 'rtl' : 'ltr'}`}
       >
         <style>{`
           :root {
@@ -144,7 +131,7 @@ export default function Layout({ children, currentPageName }) {
         `}</style>
         
         {/* Driver Header */}
-        <header className={`${darkMode ? 'bg-gray-900' : 'bg-[#1e3a5f]'} text-white px-4 py-3 flex items-center justify-between sticky top-0 z-50`}>
+        <header className="bg-[#1e3a5f] text-white px-4 py-3 flex items-center justify-between sticky top-0 z-50">
           <div className="flex items-center gap-3">
             <Truck className="w-6 h-6" />
             <span className="font-semibold text-lg">{t('nav.driverPortal')}</span>
@@ -224,10 +211,10 @@ export default function Layout({ children, currentPageName }) {
       `}
       >
         <div className="flex h-full flex-col">
-          <div className={`flex items-center justify-between p-4 border-b ${darkMode ? 'border-slate-800' : 'border-white/10'}`}>
+          <div className="flex items-center justify-between p-4 border-b border-white/10">
             <div>
               <p className="text-lg font-semibold uppercase tracking-[0.18em] text-blue-200">AVO SYSTEMS</p>
-              <p className={`text-[11px] mt-1 ${darkMode ? 'text-slate-400' : 'text-white/70'}`}>
+              <p className="text-[11px] mt-1 text-white/70">
                 Ihr KI-automatisiertes System für Fahrzeugüberführung
               </p>
             </div>
@@ -236,7 +223,7 @@ export default function Layout({ children, currentPageName }) {
                 setSidebarOpen(false);
                 setSidebarHover(false);
               }}
-              className={`lg:hidden p-1 rounded ${darkMode ? 'hover:bg-slate-800' : 'hover:bg-white/10'}`}
+              className="lg:hidden p-1 rounded hover:bg-white/10"
             >
               <X className="w-5 h-5" />
             </button>
@@ -255,9 +242,9 @@ export default function Layout({ children, currentPageName }) {
                   }}
                   className={`
                     flex items-center gap-3 px-4 py-3 rounded-lg transition-all
-                    ${isActive 
-                      ? darkMode ? 'bg-slate-800 text-white' : 'bg-white/20 text-white'
-                      : darkMode ? 'text-slate-300 hover:bg-slate-800 hover:text-white' : 'text-white/70 hover:bg-white/10 hover:text-white'}
+                    ${isActive
+                      ? 'bg-white/20 text-white'
+                      : 'text-white/70 hover:bg-white/10 hover:text-white'}
                   `}
                 >
                   <item.icon className="w-5 h-5" />
@@ -268,18 +255,18 @@ export default function Layout({ children, currentPageName }) {
           </nav>
 
           {user && (
-            <div className={`p-4 border-t ${darkMode ? 'border-slate-800' : 'border-white/10'}`}>
+            <div className="p-4 border-t border-white/10">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${darkMode ? 'hover:bg-slate-800' : 'hover:bg-white/10'}`}>
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${darkMode ? 'bg-slate-800' : 'bg-white/20'}`}>
+                  <button className="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all hover:bg-white/10">
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center bg-white/20">
                       <User className="w-4 h-4" />
                     </div>
                     <div className="flex-1 text-left">
                       <p className="text-sm font-medium truncate" title={user.full_name || 'Admin'}>{user.full_name || 'Admin'}</p>
-                      <p className={`text-xs truncate ${darkMode ? 'text-slate-400' : 'text-white/60'}`} title={user.email}>{user.email}</p>
+                      <p className="text-xs truncate text-white/60" title={user.email}>{user.email}</p>
                     </div>
-                    <ChevronDown className={`w-4 h-4 ${darkMode ? 'text-slate-400' : 'text-white/60'}`} />
+                    <ChevronDown className="w-4 h-4 text-white/60" />
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
@@ -315,20 +302,16 @@ export default function Layout({ children, currentPageName }) {
         }`}
       >
         {/* Top Bar */}
-        <header className={`border-b px-4 py-3 flex items-center justify-between lg:px-6 ${
-          darkMode
-            ? 'bg-gradient-to-r from-[#0f1e35] via-[#1e3a5f] to-[#152d4a] border-[#1e3a5f]/60 backdrop-blur'
-            : 'bg-white/90 border-slate-200 backdrop-blur'
-        }`}>
+        <header className="border-b px-4 py-3 flex items-center justify-between lg:px-6 bg-white/90 border-slate-200 backdrop-blur">
           <button 
             onClick={() => {
               setSidebarOpen((prev) => !prev);
               setSidebarHover(false);
             }}
-            className={`p-2 rounded-lg ${darkMode ? 'hover:bg-white/10' : 'hover:bg-gray-100'}`}
+            className="p-2 rounded-lg hover:bg-gray-100"
             aria-label="Navigation öffnen"
           >
-            <Menu className={`w-5 h-5 ${darkMode ? 'text-white' : ''}`} />
+            <Menu className="w-5 h-5" />
           </button>
           
           <div className="flex-1 lg:flex-none" />
@@ -342,35 +325,17 @@ export default function Layout({ children, currentPageName }) {
                 const e = new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true });
                 document.dispatchEvent(e);
               }}
-              className={`hidden sm:flex items-center gap-2 text-xs ${darkMode ? 'text-blue-200 hover:bg-white/10 border-white/20' : 'text-slate-500 border-slate-200'} border rounded-lg px-3 py-1.5`}
+              className="hidden sm:flex items-center gap-2 text-xs text-slate-500 border border-slate-200 rounded-lg px-3 py-1.5"
               aria-label="Globale Suche öffnen (Strg+K)"
             >
               <Search className="w-3.5 h-3.5" />
               <span>Suchen…</span>
-              <kbd className={`font-mono text-[10px] px-1 py-0.5 rounded ${darkMode ? 'bg-white/15 text-white' : 'bg-slate-100'}`}>⌘K</kbd>
+              <kbd className="font-mono text-[10px] px-1 py-0.5 rounded bg-slate-100">⌘K</kbd>
             </Button>
 
-            <NotificationBell darkMode={darkMode} />
+            <NotificationBell />
 
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setDarkMode(!darkMode)}
-              className={darkMode ? 'text-blue-100 hover:bg-white/10' : ''}
-            >
-              {darkMode ? (
-                <>
-                  <Sun className="w-4 h-4 mr-2" />
-                  <span className="hidden md:inline">Hell</span>
-                </>
-              ) : (
-                <>
-                  <Moon className="w-4 h-4 mr-2" />
-                  <span className="hidden md:inline">Dunkel</span>
-                </>
-              )}
-            </Button>
-            <span className={`text-sm hidden lg:block ${darkMode ? 'text-blue-200' : 'text-gray-500'}`}>
+            <span className="text-sm hidden lg:block text-gray-500">
               {new Date().toLocaleDateString('de-DE', {
                 weekday: 'long',
                 day: 'numeric',
