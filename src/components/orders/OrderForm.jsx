@@ -129,6 +129,7 @@ export default function OrderForm({ order, onSave, onCancel, currentUser }) {
         driver_price: formatPrice(order.driver_price),
       });
       setPriceAuto(false);
+      prevCustomerIdRef.current = order.customer_id || '';
     } else {
       setFormData(prev => ({
         ...prev,
@@ -244,14 +245,13 @@ export default function OrderForm({ order, onSave, onCancel, currentUser }) {
     if (!customer) return;
     const computedPrice = getPriceForDistance(customer.price_list, distance);
     if (computedPrice === null || computedPrice === undefined) return;
-    if (formData.driver_price === '' || priceAuto) {
+    if (priceAuto) {
       const nextValue = String(computedPrice);
       if (nextValue !== formData.driver_price) {
         setFormData((prev) => ({ ...prev, driver_price: nextValue }));
       }
-      setPriceAuto(true);
     }
-  }, [formData.customer_id, formData.distance_km, customerOptions, priceAuto, formData.driver_price]);
+  }, [formData.customer_id, formData.distance_km, customerOptions, priceAuto]);
 
   const distanceKey = useMemo(() => {
     const pickupKey = [formData.pickup_address, formData.pickup_postal_code, formData.pickup_city]
