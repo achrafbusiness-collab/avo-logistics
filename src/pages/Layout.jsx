@@ -17,6 +17,8 @@ import {
   Settings,
   ShieldCheck,
   Search,
+  Moon,
+  Sun,
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import {
@@ -51,12 +53,18 @@ export default function Layout({ children, currentPageName }) {
   const location = useLocation();
   const mainRef = useRef(null);
   const { t, dir } = useI18n();
+  const [darkMode, setDarkMode] = useState(() => {
+    const saved = localStorage.getItem('avo-dark-mode');
+    return saved ? JSON.parse(saved) : false;
+  });
+
   useEffect(() => {
     loadUser();
-    // Ensure dark mode is fully removed
-    document.documentElement.classList.remove('dark');
-    localStorage.removeItem('avo-dark-mode');
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem('avo-dark-mode', JSON.stringify(darkMode));
+  }, [darkMode]);
 
   useEffect(() => {
     if (isDriver) return;
@@ -302,16 +310,16 @@ export default function Layout({ children, currentPageName }) {
         }`}
       >
         {/* Top Bar */}
-        <header className="border-b px-6 py-4 flex items-center justify-between lg:px-8 bg-[#0a1628] border-[#0a1628]">
+        <header className={`border-b px-6 py-4 flex items-center justify-between lg:px-8 ${darkMode ? 'bg-[#0a1628] border-[#0a1628]' : 'bg-white border-slate-200'}`}>
           <button
             onClick={() => {
               setSidebarOpen((prev) => !prev);
               setSidebarHover(false);
             }}
-            className="p-2 rounded-lg hover:bg-white/10"
+            className={`p-2 rounded-lg ${darkMode ? 'hover:bg-white/10' : 'hover:bg-gray-100'}`}
             aria-label="Navigation öffnen"
           >
-            <Menu className="w-5 h-5 text-white" />
+            <Menu className={`w-5 h-5 ${darkMode ? 'text-white' : 'text-slate-700'}`} />
           </button>
 
           <div className="flex-1 lg:flex-none" />
@@ -325,17 +333,22 @@ export default function Layout({ children, currentPageName }) {
                 const e = new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true });
                 document.dispatchEvent(e);
               }}
-              className="hidden sm:flex items-center gap-2 text-xs text-white/70 border border-white/20 rounded-lg px-3 py-1.5 hover:bg-white/10"
+              className={`hidden sm:flex items-center gap-2 text-xs border rounded-lg px-3 py-1.5 ${darkMode ? 'text-white/70 border-white/20 hover:bg-white/10' : 'text-slate-500 border-slate-200 hover:bg-gray-100'}`}
               aria-label="Globale Suche öffnen (Strg+K)"
             >
               <Search className="w-3.5 h-3.5" />
               <span>Suchen…</span>
-              <kbd className="font-mono text-[10px] px-1 py-0.5 rounded bg-white/15 text-white">⌘K</kbd>
+              <kbd className={`font-mono text-[10px] px-1 py-0.5 rounded ${darkMode ? 'bg-white/15 text-white' : 'bg-slate-100 text-slate-500'}`}>⌘K</kbd>
             </Button>
 
             <NotificationBell />
 
-            <span className="text-sm hidden lg:block text-white/60">
+            <Button variant="ghost" size="sm" onClick={() => setDarkMode(!darkMode)}
+              className={darkMode ? 'text-white/70 hover:bg-white/10 hover:text-white' : 'text-slate-500 hover:bg-gray-100'}>
+              {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </Button>
+
+            <span className={`text-sm hidden lg:block ${darkMode ? 'text-white/60' : 'text-gray-500'}`}>
               {new Date().toLocaleDateString('de-DE', {
                 weekday: 'long',
                 day: 'numeric',
@@ -349,9 +362,9 @@ export default function Layout({ children, currentPageName }) {
         {/* Page Content */}
         <main
           ref={mainRef}
-          className="flex-1 p-4 lg:p-6 overflow-auto bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950"
+          className={`flex-1 p-4 lg:p-6 overflow-auto ${darkMode ? 'bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950' : 'bg-slate-100'}`}
         >
-          <div className="avo-page-content min-h-full p-5 lg:p-8">
+          <div className={`avo-page-content min-h-full p-5 lg:p-8 ${darkMode ? '' : 'rounded-[28px] bg-white shadow-[0_30px_60px_-40px_rgba(15,23,42,0.15)]'}`}>
             {children}
           </div>
         </main>
