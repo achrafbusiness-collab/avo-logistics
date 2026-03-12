@@ -1687,7 +1687,7 @@ Gib ausschließlich strukturierte Daten zurück.`,
         </Card>
       ) : (
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
-          <div className="space-y-4 xl:col-span-5">
+          <div className="space-y-4 xl:col-span-4">
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base">Kunden</CardTitle>
@@ -1739,7 +1739,7 @@ Gib ausschließlich strukturierte Daten zurück.`,
             </Card>
           </div>
 
-          <div className="space-y-4 xl:col-span-7">
+          <div className="space-y-4 xl:col-span-8">
             <Card className="border-slate-200 bg-white shadow-sm">
               <CardContent className="space-y-4 p-4">
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
@@ -1961,19 +1961,19 @@ Gib ausschließlich strukturierte Daten zurück.`,
                   {filteredInvoices.length === 0 ? (
                     <div className="py-10 text-center text-sm text-slate-500">Keine Rechnungen vorhanden.</div>
                   ) : (
-                    <div className="max-h-[760px] overflow-auto rounded-xl">
-                      <table className="min-w-[1600px] w-full text-sm">
+                    <div className="max-h-[760px] overflow-y-auto rounded-xl">
+                      <table className="w-full table-fixed text-sm">
                         <thead className="sticky top-0 z-10 bg-slate-100 text-left text-slate-700">
                           <tr>
-                            <th className="px-4 py-3">Rechnungsnr.</th>
-                            <th className="px-4 py-3">Kunde</th>
-                            <th className="px-4 py-3">Rechnungsdatum</th>
-                            <th className="px-4 py-3">Fälligkeit</th>
-                            <th className="px-4 py-3">Betrag netto</th>
-                            <th className="px-4 py-3">Betrag brutto</th>
-                            <th className="px-4 py-3">Status</th>
-                            <th className="px-4 py-3">Bezahlt am</th>
-                            <th className="px-4 py-3 text-right">Aktionen</th>
+                            <th className="w-[11%] px-3 py-3">Rechnungsnr.</th>
+                            <th className="w-[15%] px-3 py-3">Kunde</th>
+                            <th className="w-[9%] px-3 py-3">Rechnungsdatum</th>
+                            <th className="w-[11%] px-3 py-3">Fälligkeit</th>
+                            <th className="w-[9%] px-3 py-3">Betrag netto</th>
+                            <th className="w-[9%] px-3 py-3">Betrag brutto</th>
+                            <th className="w-[12%] px-3 py-3">Status</th>
+                            <th className="w-[10%] px-3 py-3">Bezahlt am</th>
+                            <th className="w-[14%] px-3 py-3 text-right">Aktionen</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -1988,29 +1988,29 @@ Gib ausschließlich strukturierte Daten zurück.`,
                                 : statusMeta.label;
                             return (
                               <tr key={invoice.id} className={`border-t border-slate-200 align-top hover:bg-slate-50/70 ${statusMeta.rowClass}`}>
-                                <td className="px-4 py-3 font-semibold text-slate-800">
+                                <td className="px-3 py-3 font-semibold text-slate-800">
                                   {invoice.invoiceMeta?.invoiceNumber || '-'}
                                 </td>
-                                <td className="px-4 py-3">
+                                <td className="px-3 py-3">
                                   <p className="font-medium text-slate-800">{invoice.customerLabel || 'Kunde'}</p>
                                   <p className="text-xs text-slate-500">{invoice.customer?.customer_number || '-'}</p>
                                 </td>
-                                <td className="px-4 py-3 font-medium text-slate-700">
+                                <td className="px-3 py-3 font-medium text-slate-700">
                                   {formatDateOnly(invoice.invoiceMeta?.invoiceDate || '')}
                                 </td>
-                                <td className="px-4 py-3">
+                                <td className="px-3 py-3">
                                   <p className="font-medium text-slate-800">{format(dueMeta.dueDate, 'dd.MM.yyyy', { locale: de })}</p>
                                   <p className={`text-xs ${dueMeta.className}`}>{dueMeta.text}</p>
                                 </td>
-                                <td className="px-4 py-3 font-medium text-slate-700">{formatMoney(invoice?.totals?.net || 0)}</td>
-                                <td className="px-4 py-3 font-semibold text-slate-900">{formatMoney(invoice?.totals?.gross || 0)}</td>
-                                <td className="px-4 py-3">
+                                <td className="px-3 py-3 font-medium text-slate-700">{formatMoney(invoice?.totals?.net || 0)}</td>
+                                <td className="px-3 py-3 font-semibold text-slate-900">{formatMoney(invoice?.totals?.gross || 0)}</td>
+                                <td className="px-3 py-3">
                                   <div className="space-y-2">
                                     <span className={`inline-flex rounded-md border px-2 py-1 text-xs font-semibold ${statusMeta.badgeClass}`}>
                                       {dueStateLabel}
                                     </span>
                                     <select
-                                      className="h-8 w-[170px] rounded-md border border-slate-300 bg-white px-2 text-sm"
+                                      className="h-8 w-full rounded-md border border-slate-300 bg-white px-2 text-sm"
                                       value={currentStatus}
                                       onChange={(event) => handleInvoiceStatusChange(invoice.id, event.target.value)}
                                     >
@@ -2022,12 +2022,12 @@ Gib ausschließlich strukturierte Daten zurück.`,
                                     </select>
                                   </div>
                                 </td>
-                                <td className="px-4 py-3">
+                                <td className="px-3 py-3">
                                   {isPaid ? (
                                     <div className="space-y-1">
                                       <Input
                                         type="date"
-                                        className="h-8 w-[160px] bg-white"
+                                        className="h-8 w-full bg-white"
                                         value={toDateInputValue(invoice.paidAt)}
                                         onChange={(event) => handlePaidDateChange(invoice.id, event.target.value)}
                                       />
@@ -2037,7 +2037,7 @@ Gib ausschließlich strukturierte Daten zurück.`,
                                     <span className="text-slate-400">-</span>
                                   )}
                                 </td>
-                                <td className="px-4 py-3">
+                                <td className="px-3 py-3">
                                   <div className="flex flex-wrap justify-end gap-2">
                                     <Button
                                       size="sm"
