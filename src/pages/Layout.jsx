@@ -302,20 +302,20 @@ export default function Layout({ children, currentPageName }) {
         }`}
       >
         {/* Top Bar */}
-        <header className="border-b px-4 py-3 flex items-center justify-between lg:px-6 bg-white/90 border-slate-200 backdrop-blur">
-          <button 
+        <header className="border-b px-4 py-3 flex items-center justify-between lg:px-6 bg-black border-black">
+          <button
             onClick={() => {
               setSidebarOpen((prev) => !prev);
               setSidebarHover(false);
             }}
-            className="p-2 rounded-lg hover:bg-gray-100"
+            className="p-2 rounded-lg hover:bg-white/10"
             aria-label="Navigation öffnen"
           >
-            <Menu className="w-5 h-5" />
+            <Menu className="w-5 h-5 text-white" />
           </button>
-          
+
           <div className="flex-1 lg:flex-none" />
-          
+
           <div className="flex items-center gap-2">
             {/* Global search hint button */}
             <Button
@@ -325,17 +325,17 @@ export default function Layout({ children, currentPageName }) {
                 const e = new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true });
                 document.dispatchEvent(e);
               }}
-              className="hidden sm:flex items-center gap-2 text-xs text-slate-500 border border-slate-200 rounded-lg px-3 py-1.5"
+              className="hidden sm:flex items-center gap-2 text-xs text-white/70 border border-white/20 rounded-lg px-3 py-1.5 hover:bg-white/10"
               aria-label="Globale Suche öffnen (Strg+K)"
             >
               <Search className="w-3.5 h-3.5" />
               <span>Suchen…</span>
-              <kbd className="font-mono text-[10px] px-1 py-0.5 rounded bg-slate-100">⌘K</kbd>
+              <kbd className="font-mono text-[10px] px-1 py-0.5 rounded bg-white/15 text-white">⌘K</kbd>
             </Button>
 
             <NotificationBell />
 
-            <span className="text-sm hidden lg:block text-gray-500">
+            <span className="text-sm hidden lg:block text-white/60">
               {new Date().toLocaleDateString('de-DE', {
                 weekday: 'long',
                 day: 'numeric',
