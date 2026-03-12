@@ -1,6 +1,7 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { createPageUrl } from "@/utils";
+import { Sentry } from "@/lib/sentry";
 
 export default class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -13,7 +14,7 @@ export default class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, info) {
-    console.error("UI crashed", error, info);
+    Sentry.captureException(error, { extra: { componentStack: info?.componentStack } });
   }
 
   handleReload = () => {

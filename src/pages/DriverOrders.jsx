@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { appClient } from '@/api/appClient';
 import { supabase } from '@/lib/supabaseClient';
+import { useRealtimeSync } from '@/hooks/useRealtimeSync';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { Card, CardContent } from "@/components/ui/card";
@@ -48,6 +49,7 @@ const fetchDriverJokes = async () => {
 
 export default function DriverOrders() {
   const { t, formatDate } = useI18n();
+  useRealtimeSync('orders', ['driver-orders']);
   const [user, setUser] = useState(null);
   const [activeTab, setActiveTab] = useState('active');
   const [motivationIndex, setMotivationIndex] = useState(0);

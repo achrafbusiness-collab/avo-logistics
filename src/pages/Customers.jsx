@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { appClient } from '@/api/appClient';
+import { CardListSkeleton } from "@/components/ui/page-skeletons";
 import { createPageUrl } from '@/utils';
 import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
@@ -2113,8 +2114,8 @@ Gib ausschließlich strukturierte Daten zurück.`,
 
                   {/* Customer Cards */}
                   {isLoading ? (
-                    <div className="flex items-center justify-center py-10">
-                      <Loader2 className="h-6 w-6 animate-spin text-slate-300" />
+                    <div className="p-3">
+                      <CardListSkeleton cards={4} />
                     </div>
                   ) : filteredCustomers.length === 0 ? (
                     <div className="py-10 text-center text-sm text-slate-400">Keine Kunden gefunden.</div>

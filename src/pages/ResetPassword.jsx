@@ -1,9 +1,19 @@
 import React, { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { passwordWithConfirmSchema, emailSchema } from "@/lib/schemas";
 import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Form,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormMessage,
+} from "@/components/ui/form";
 import { Lock, Loader2, Mail } from "lucide-react";
 import { Link } from "react-router-dom";
 
@@ -15,21 +25,7 @@ const getPublicResetUrl = () => {
   return `${window.location.origin}/reset-password`;
 };
 
-const validatePassword = (value) => {
-  const hasUpper = /[A-Z]/.test(value);
-  const hasLower = /[a-z]/.test(value);
-  const hasNumber = /[0-9]/.test(value);
-  const hasSpecial = /[^A-Za-z0-9]/.test(value);
-  if (!value || value.length < 8 || !hasUpper || !hasLower || !hasNumber || !hasSpecial) {
-    return "Passwort muss mindestens 8 Zeichen haben und Großbuchstaben, Kleinbuchstaben, Zahl und Sonderzeichen enthalten.";
-  }
-  return "";
-};
-
 export default function ResetPassword() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirm, setConfirm] = useState("");
   const [hasSession, setHasSession] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [sending, setSending] = useState(false);
@@ -37,13 +33,23 @@ export default function ResetPassword() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
+  const emailForm = useForm({
+    resolver: zodResolver(emailSchema),
+    defaultValues: { email: "" },
+  });
+
+  const passwordForm = useForm({
+    resolver: zodResolver(passwordWithConfirmSchema),
+    defaultValues: { password: "", confirm: "" },
+  });
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search || "");
     const queryEmail = params.get("email") || "";
     const token = params.get("token") || "";
     const type = params.get("type") || "";
     if (queryEmail) {
-      setEmail((prev) => prev || queryEmail);
+      emailForm.setValue("email", queryEmail);
     }
 
     const loadSession = async () => {
@@ -51,7 +57,7 @@ export default function ResetPassword() {
       const session = data?.session || null;
       setHasSession(!!session);
       if (session?.user?.email) {
-        setEmail((prev) => prev || session.user.email || "");
+        emailForm.setValue("email", (prev) => prev || session.user.email || "");
       }
     };
 
@@ -139,13 +145,9 @@ export default function ResetPassword() {
     }
   };
 
-  const handleSendReset = async () => {
+  const handleSendReset = async (data) => {
     setError("");
     setMessage("");
-    if (!email.trim()) {
-      setError("Bitte E-Mail-Adresse eingeben.");
-      return;
-    }
     setSending(true);
     try {
       const response = await fetch("/api/admin/invite-user", {
@@ -154,7 +156,7 @@ export default function ResetPassword() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          email: email.trim(),
+          email: data.email.trim(),
           purpose: "recovery",
           redirectTo: getPublicResetUrl(),
         }),
@@ -176,22 +178,12 @@ export default function ResetPassword() {
     }
   };
 
-  const handleSetPassword = async (event) => {
-    event.preventDefault();
+  const handleSetPassword = async (data) => {
     setError("");
     setMessage("");
-    const validation = validatePassword(password);
-    if (validation) {
-      setError(validation);
-      return;
-    }
-    if (password !== confirm) {
-      setError("Passwörter stimmen nicht überein.");
-      return;
-    }
     setSaving(true);
     try {
-      await supabase.auth.updateUser({ password });
+      await supabase.auth.updateUser({ password: data.password });
       await activateProfile();
       setMessage("Passwort gespeichert. Bitte jetzt einloggen.");
       await supabase.auth.signOut();
@@ -234,61 +226,72 @@ export default function ResetPassword() {
               Link wird geprüft...
             </div>
           ) : hasSession ? (
-            <form onSubmit={handleSetPassword} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="new-password">Neues Passwort</Label>
-                <Input
-                  id="new-password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Mindestens 8 Zeichen"
-                  required
+            <Form {...passwordForm}>
+              <form onSubmit={passwordForm.handleSubmit(handleSetPassword)} className="space-y-4">
+                <FormField
+                  control={passwordForm.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Neues Passwort</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="password" placeholder="Mindestens 8 Zeichen" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="confirm-password">Neues Passwort bestätigen</Label>
-                <Input
-                  id="confirm-password"
-                  type="password"
-                  value={confirm}
-                  onChange={(e) => setConfirm(e.target.value)}
-                  required
+                <FormField
+                  control={passwordForm.control}
+                  name="confirm"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Neues Passwort bestätigen</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="password" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-              </div>
-              <Button
-                type="submit"
-                className="w-full bg-[#1e3a5f] hover:bg-[#2d5a8a]"
-                disabled={saving}
-              >
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Speichern"}
-              </Button>
-            </form>
+                <Button
+                  type="submit"
+                  className="w-full bg-[#1e3a5f] hover:bg-[#2d5a8a]"
+                  disabled={saving}
+                >
+                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Speichern"}
+                </Button>
+              </form>
+            </Form>
           ) : (
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="forgot-email">E-Mail Adresse</Label>
-                <Input
-                  id="forgot-email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="name@firma.de"
+            <Form {...emailForm}>
+              <form onSubmit={emailForm.handleSubmit(handleSendReset)} className="space-y-4">
+                <FormField
+                  control={emailForm.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>E-Mail Adresse</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="email" placeholder="name@firma.de" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-              </div>
-              <Button
-                type="button"
-                className="w-full bg-[#1e3a5f] hover:bg-[#2d5a8a]"
-                onClick={handleSendReset}
-                disabled={sending}
-              >
-                {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4 mr-2" />}
-                Reset-Link senden
-              </Button>
-              <p className="text-xs text-slate-500">
-                Der Reset-Link wird vom Admin freigegeben. Bitte Disponenten kontaktieren.
-              </p>
-            </div>
+                <Button
+                  type="submit"
+                  className="w-full bg-[#1e3a5f] hover:bg-[#2d5a8a]"
+                  disabled={sending}
+                >
+                  {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4 mr-2" />}
+                  Reset-Link senden
+                </Button>
+                <p className="text-xs text-slate-500">
+                  Der Reset-Link wird vom Admin freigegeben. Bitte Disponenten kontaktieren.
+                </p>
+              </form>
+            </Form>
           )}
         </CardContent>
       </Card>

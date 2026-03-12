@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { appClient } from '@/api/appClient';
+import { TableSkeleton } from "@/components/ui/page-skeletons";
 import { supabase } from '@/lib/supabaseClient';
+import { useRealtimeSync } from '@/hooks/useRealtimeSync';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { addDays, format, differenceInCalendarDays, isSameDay } from 'date-fns';
@@ -227,6 +229,7 @@ const formatBillingOverrideLabel = (override) => {
 export default function Orders() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  useRealtimeSync('orders', ['orders', 'orders-trashed']);
   const urlParams = new URLSearchParams(window.location.search);
   
   const [view, setView] = useState('list'); // list, form, details
@@ -2355,8 +2358,8 @@ export default function Orders() {
       <Card>
         <CardContent className="p-0">
           {isLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+            <div className="p-4">
+              <TableSkeleton rows={10} cols={6} />
             </div>
           ) : filteredOrders.length === 0 ? (
             <div className="text-center py-12">

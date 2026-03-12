@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { appClient } from '@/api/appClient';
+import { Skeleton } from "@/components/ui/skeleton";
 import { Link, useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import {
@@ -737,7 +738,7 @@ export default function Dashboard() {
             {ordersLoading ? (
               <div className="space-y-4">
                 {[1, 2, 3].map(i => (
-                  <div key={i} className="h-16 bg-slate-100 rounded-lg animate-pulse" />
+                  <Skeleton key={i} className="h-16 w-full" />
                 ))}
               </div>
             ) : orders.length === 0 ? (
@@ -930,7 +931,7 @@ export default function Dashboard() {
               {checklistsLoading ? (
                 <div className="space-y-3">
                   {[1, 2, 3].map(i => (
-                    <div key={i} className="h-12 bg-gray-100 rounded animate-pulse" />
+                    <Skeleton key={i} className="h-12 w-full" />
                   ))}
                 </div>
               ) : recentChecklists.length === 0 ? (

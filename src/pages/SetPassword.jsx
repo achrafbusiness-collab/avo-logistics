@@ -1,20 +1,33 @@
 import React, { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { passwordWithConfirmSchema } from "@/lib/schemas";
 import { supabase } from "@/lib/supabaseClient";
 import { appClient } from "@/api/appClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Form,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormMessage,
+} from "@/components/ui/form";
 import { Lock, Loader2 } from "lucide-react";
 import { createPageUrl } from "@/utils";
 
 export default function SetPassword() {
   const [hasSession, setHasSession] = useState(false);
-  const [password, setPassword] = useState("");
-  const [confirm, setConfirm] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
+
+  const form = useForm({
+    resolver: zodResolver(passwordWithConfirmSchema),
+    defaultValues: { password: "", confirm: "" },
+  });
 
   const sendWelcomeEmail = async () => {
     const { data } = await supabase.auth.getSession();
@@ -42,26 +55,11 @@ export default function SetPassword() {
     return () => listener.subscription.unsubscribe();
   }, []);
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
+  const onSubmit = async (data) => {
     setError("");
-    const hasUpper = /[A-Z]/.test(password);
-    const hasLower = /[a-z]/.test(password);
-    const hasNumber = /[0-9]/.test(password);
-    const hasSpecial = /[^A-Za-z0-9]/.test(password);
-    if (!password || password.length < 8 || !hasUpper || !hasLower || !hasNumber || !hasSpecial) {
-      setError(
-        "Passwort muss mindestens 8 Zeichen haben und Großbuchstaben, Kleinbuchstaben, Zahl und Sonderzeichen enthalten."
-      );
-      return;
-    }
-    if (password !== confirm) {
-      setError("Passwörter stimmen nicht überein.");
-      return;
-    }
     setSaving(true);
     try {
-      await appClient.auth.updatePassword({ password });
+      await appClient.auth.updatePassword({ password: data.password });
       const { data: sessionData } = await supabase.auth.getSession();
       const sessionUser = sessionData?.session?.user;
       if (sessionUser?.id) {
@@ -128,41 +126,48 @@ export default function SetPassword() {
               Passwort wurde gesetzt. Du wirst weitergeleitet...
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="password">Neues Passwort</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Mindestens 8 Zeichen"
-                  required
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Neues Passwort</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="password" placeholder="Mindestens 8 Zeichen" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="confirm">Passwort bestätigen</Label>
-                <Input
-                  id="confirm"
-                  type="password"
-                  value={confirm}
-                  onChange={(e) => setConfirm(e.target.value)}
-                  required
+                <FormField
+                  control={form.control}
+                  name="confirm"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Passwort bestätigen</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="password" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-              </div>
-              {error && (
-                <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                  {error}
-                </div>
-              )}
-              <Button
-                type="submit"
-                className="w-full bg-[#1e3a5f] hover:bg-[#2d5a8a]"
-                disabled={saving}
-              >
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Passwort speichern"}
-              </Button>
-            </form>
+                {error && (
+                  <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                    {error}
+                  </div>
+                )}
+                <Button
+                  type="submit"
+                  className="w-full bg-[#1e3a5f] hover:bg-[#2d5a8a]"
+                  disabled={saving}
+                >
+                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Passwort speichern"}
+                </Button>
+              </form>
+            </Form>
           )}
         </CardContent>
       </Card>

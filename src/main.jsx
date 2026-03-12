@@ -4,7 +4,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import App from '@/App.jsx'
 import '@/index.css'
 import { initSystemLogger } from '@/lib/systemLog'
+import { initSentry } from '@/lib/sentry'
 import { I18nProvider } from '@/i18n'
+
+initSentry()
 
 const queryClient = new QueryClient({
   defaultOptions: {

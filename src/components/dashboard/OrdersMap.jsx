@@ -1,7 +1,17 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import mapboxgl from "mapbox-gl";
-import "mapbox-gl/dist/mapbox-gl.css";
 import { AlertTriangle, MapPin } from "lucide-react";
+
+// mapbox-gl is loaded dynamically on first map render
+let mapboxglModule = null;
+const loadMapbox = async () => {
+  if (mapboxglModule) return mapboxglModule;
+  const [mod] = await Promise.all([
+    import("mapbox-gl"),
+    import("mapbox-gl/dist/mapbox-gl.css"),
+  ]);
+  mapboxglModule = mod.default;
+  return mapboxglModule;
+};
 
 const GEOCODE_CACHE_KEY = "avo:mapbox-geocode-cache";
 const ROUTE_CACHE_KEY = "avo:mapbox-route-cache";
@@ -91,6 +101,7 @@ export default function OrdersMap({
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
   const popupRef = useRef(null);
+  const mapboxRef = useRef(null);
   const [mapReady, setMapReady] = useState(false);
   const [routes, setRoutes] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -110,6 +121,11 @@ export default function OrdersMap({
     if (!token || mapRef.current || !mapContainerRef.current) {
       return;
     }
+
+    let cancelled = false;
+    loadMapbox().then((mapboxgl) => {
+      if (cancelled || mapRef.current || !mapContainerRef.current) return;
+      mapboxRef.current = mapboxgl;
 
     mapboxgl.accessToken = token;
     const map = new mapboxgl.Map({
@@ -263,11 +279,14 @@ export default function OrdersMap({
 
     map.on("load", handleLoad);
     mapRef.current = map;
+    });
 
     return () => {
-      map.off("load", handleLoad);
-      map.remove();
-      mapRef.current = null;
+      cancelled = true;
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+      }
     };
   }, [token]);
 
@@ -561,6 +580,8 @@ export default function OrdersMap({
   useEffect(() => {
     if (!mapReady || !mapRef.current || !pointsData.features.length) return;
     const map = mapRef.current;
+    const mapboxgl = mapboxRef.current;
+    if (!mapboxgl) return;
     const bounds = new mapboxgl.LngLatBounds();
     pointsData.features.forEach((feature) => {
       bounds.extend(feature.geometry.coordinates);
@@ -626,6 +647,8 @@ export default function OrdersMap({
         if (popupRef.current) {
           popupRef.current.remove();
         }
+        const mapboxgl = mapboxRef.current;
+        if (!mapboxgl) return;
         popupRef.current = new mapboxgl.Popup({ offset: 12 })
           .setLngLat(feature.geometry.coordinates)
           .setHTML(popupHtml)

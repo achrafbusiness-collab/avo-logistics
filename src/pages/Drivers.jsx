@@ -1,9 +1,11 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { appClient } from '@/api/appClient';
+import { CardListSkeleton } from "@/components/ui/page-skeletons";
+import { useRealtimeSync } from '@/hooks/useRealtimeSync';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
-import * as XLSX from 'xlsx';
+// xlsx is loaded dynamically in downloadBillingAsExcel()
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -45,6 +47,7 @@ import { createPageUrl } from '@/utils';
 
 export default function Drivers() {
   const queryClient = useQueryClient();
+  useRealtimeSync('drivers', ['drivers']);
   const urlParams = new URLSearchParams(window.location.search);
 
   const isImageUrl = (value) => {
@@ -316,7 +319,8 @@ export default function Drivers() {
     setBillingResults(results);
   };
 
-  const downloadBillingAsExcel = () => {
+  const downloadBillingAsExcel = async () => {
+    const XLSX = await import('xlsx').then(m => m.default ?? m);
     const workbook = XLSX.utils.book_new();
     const usedSheetNames = new Set();
     const dateRangeLabel = formatDateRangeForLabel();
@@ -976,9 +980,7 @@ export default function Drivers() {
 
       {/* Driver Cards */}
       {isLoading ? (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
-        </div>
+        <CardListSkeleton cards={6} />
       ) : filteredDrivers.length === 0 ? (
         <Card>
           <CardContent className="text-center py-12">

@@ -1,10 +1,20 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { loginSchema } from '@/lib/schemas';
 import { appClient } from '@/api/appClient';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Form,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormMessage,
+} from '@/components/ui/form';
 import { Loader2, Lock, Mail, ArrowLeft } from 'lucide-react';
 import { useI18n } from '@/i18n';
 
@@ -18,15 +28,13 @@ export default function LoginPortal({
   hintText,
 }) {
   const { t } = useI18n();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const form = useForm({
+    resolver: zodResolver(loginSchema),
+    defaultValues: { email: '', password: '' },
+  });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [resetSent, setResetSent] = useState(false);
-  const publicSiteUrl = (import.meta.env.VITE_PUBLIC_SITE_URL || '').trim();
-  const resetRedirect = publicSiteUrl
-    ? `${publicSiteUrl.replace(/\/$/, '')}/reset-password`
-    : `${window.location.origin}/reset-password`;
 
   useEffect(() => {
     const loadUser = async () => {
@@ -38,13 +46,12 @@ export default function LoginPortal({
     loadUser();
   }, [successRedirect]);
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
+  const onSubmit = async (data) => {
     setError('');
     setResetSent(false);
     setSubmitting(true);
     try {
-      const user = await appClient.auth.login({ email, password });
+      const user = await appClient.auth.login({ email: data.email, password: data.password });
       if (user?.must_reset_password) {
         window.location.href = "/reset-password";
         return;
@@ -59,7 +66,7 @@ export default function LoginPortal({
 
   const handleReset = async () => {
     setError('');
-    const targetEmail = email.trim();
+    const targetEmail = form.getValues('email').trim();
     const query = targetEmail ? `?email=${encodeURIComponent(targetEmail)}` : '';
     window.location.href = `/reset-password${query}`;
   };
@@ -101,56 +108,62 @@ export default function LoginPortal({
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="portal-email">{t('login.labels.email')}</Label>
-                  <Input
-                    id="portal-email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder={emailPlaceholder}
-                    required
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{t('login.labels.email')}</FormLabel>
+                        <FormControl>
+                          <Input {...field} type="email" placeholder={emailPlaceholder} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
                   />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="portal-password">{t('login.labels.password')}</Label>
-                  <Input
-                    id="portal-password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder={t('login.passwordPlaceholder')}
-                    required
+                  <FormField
+                    control={form.control}
+                    name="password"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{t('login.labels.password')}</FormLabel>
+                        <FormControl>
+                          <Input {...field} type="password" placeholder={t('login.passwordPlaceholder')} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
                   />
-                </div>
-                {error && (
-                  <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                    {error}
-                  </div>
-                )}
-                {resetSent && (
-                  <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-                    {t('login.resetSent')}
-                  </div>
-                )}
-                <Button
-                  type="submit"
-                  className="w-full bg-[#1e3a5f] hover:bg-[#2d5a8a]"
-                  disabled={submitting}
-                >
-                  {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : t('login.actions.signIn')}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full"
-                  onClick={handleReset}
-                >
-                  <Mail className="w-4 h-4 mr-2" />
-                  {t('login.actions.forgotPassword')}
-                </Button>
-              </form>
+                  {error && (
+                    <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                      {error}
+                    </div>
+                  )}
+                  {resetSent && (
+                    <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+                      {t('login.resetSent')}
+                    </div>
+                  )}
+                  <Button
+                    type="submit"
+                    className="w-full bg-[#1e3a5f] hover:bg-[#2d5a8a]"
+                    disabled={submitting}
+                  >
+                    {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : t('login.actions.signIn')}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    onClick={handleReset}
+                  >
+                    <Mail className="w-4 h-4 mr-2" />
+                    {t('login.actions.forgotPassword')}
+                  </Button>
+                </form>
+              </Form>
 
               <div className="mt-6 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
                 <p className="font-semibold text-slate-700">{hintTitle}</p>
