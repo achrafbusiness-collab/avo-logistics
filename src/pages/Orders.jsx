@@ -1266,8 +1266,8 @@ export default function Orders() {
       doc.text('Kundenabrechnung', 40, 36);
       doc.setFontSize(10);
       doc.text(`Kunde: ${customerBillingSummary.customerLabel}`, 40, 56);
-      doc.text(`Anzahl Auftraege: ${customerBillingSummary.orderCount}`, 40, 72);
-      doc.text(`Gesamtbetrag Auftraege: ${formatCurrencyValue(customerBillingSummary.orderTotal)}`, 320, 56);
+      doc.text(`Anzahl Aufträge: ${customerBillingSummary.orderCount}`, 40, 72);
+      doc.text(`Gesamtbetrag Aufträge: ${formatCurrencyValue(customerBillingSummary.orderTotal)}`, 320, 56);
       doc.text(`Gesamtbetrag Tank/Auslagen: ${formatCurrencyValue(customerBillingSummary.fuelTotal)}`, 320, 72);
       doc.text(`Gesamtsumme: ${formatCurrencyValue(customerBillingSummary.grandTotal)}`, 610, 72);
 
