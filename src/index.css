@@ -230,3 +230,96 @@ button:focus-visible {
     width: calc(100% / 0.3);
   }
 }
+
+/* ── Dark mode content overrides ── */
+
+/* Text colors: dark → light */
+.avo-dark .text-slate-900 { color: #f1f5f9 !important; }
+.avo-dark .text-slate-800 { color: #e2e8f0 !important; }
+.avo-dark .text-slate-700 { color: #cbd5e1 !important; }
+.avo-dark .text-slate-600 { color: #94a3b8 !important; }
+.avo-dark .text-gray-900  { color: #f1f5f9 !important; }
+.avo-dark .text-gray-800  { color: #e2e8f0 !important; }
+.avo-dark .text-gray-700  { color: #cbd5e1 !important; }
+.avo-dark .text-gray-600  { color: #94a3b8 !important; }
+.avo-dark .text-gray-500  { color: #94a3b8 !important; }
+.avo-dark .text-black      { color: #f1f5f9 !important; }
+
+/* Headings within [#1e3a5f] brand color → lighter */
+.avo-dark .text-\[\#1e3a5f\] { color: #93c5fd !important; }
+.avo-dark .text-\[\#0f172a\] { color: #e2e8f0 !important; }
+
+/* Backgrounds: white/light cards → dark cards */
+.avo-dark .bg-white       { background-color: rgba(30, 41, 59, 0.7) !important; }
+.avo-dark .bg-white\/90   { background-color: rgba(30, 41, 59, 0.65) !important; }
+.avo-dark .bg-slate-50    { background-color: rgba(30, 41, 59, 0.5) !important; }
+.avo-dark .bg-slate-100   { background-color: rgba(30, 41, 59, 0.4) !important; }
+.avo-dark .bg-gray-50     { background-color: rgba(30, 41, 59, 0.5) !important; }
+.avo-dark .bg-gray-100    { background-color: rgba(30, 41, 59, 0.4) !important; }
+
+/* Borders: light → subtle dark */
+.avo-dark .border-slate-200  { border-color: rgba(148, 163, 184, 0.2) !important; }
+.avo-dark .border-slate-200\/80 { border-color: rgba(148, 163, 184, 0.15) !important; }
+.avo-dark .border-slate-300  { border-color: rgba(148, 163, 184, 0.25) !important; }
+.avo-dark .border-gray-200   { border-color: rgba(148, 163, 184, 0.2) !important; }
+.avo-dark .border-gray-300   { border-color: rgba(148, 163, 184, 0.25) !important; }
+
+/* Input fields */
+.avo-dark input,
+.avo-dark textarea,
+.avo-dark select {
+  background-color: rgba(15, 23, 42, 0.6) !important;
+  color: #e2e8f0 !important;
+  border-color: rgba(148, 163, 184, 0.25) !important;
+}
+.avo-dark input::placeholder,
+.avo-dark textarea::placeholder {
+  color: #64748b !important;
+}
+
+/* shadcn Card component */
+.avo-dark [class*="rounded"][class*="border"][class*="bg-white"] {
+  background-color: rgba(30, 41, 59, 0.7) !important;
+  border-color: rgba(148, 163, 184, 0.15) !important;
+}
+
+/* Select trigger / dropdown */
+.avo-dark [data-radix-select-trigger],
+.avo-dark button[role="combobox"] {
+  background-color: rgba(15, 23, 42, 0.6) !important;
+  color: #e2e8f0 !important;
+  border-color: rgba(148, 163, 184, 0.25) !important;
+}
+
+/* Status badges / pills keep their colors */
+.avo-dark .bg-green-50  { background-color: rgba(22, 101, 52, 0.3) !important; }
+.avo-dark .bg-green-100 { background-color: rgba(22, 101, 52, 0.3) !important; }
+.avo-dark .bg-red-50    { background-color: rgba(153, 27, 27, 0.3) !important; }
+.avo-dark .bg-red-100   { background-color: rgba(153, 27, 27, 0.3) !important; }
+.avo-dark .bg-yellow-50 { background-color: rgba(133, 77, 14, 0.3) !important; }
+.avo-dark .bg-yellow-100 { background-color: rgba(133, 77, 14, 0.3) !important; }
+.avo-dark .bg-blue-50   { background-color: rgba(30, 58, 95, 0.4) !important; }
+.avo-dark .bg-blue-100  { background-color: rgba(30, 58, 95, 0.4) !important; }
+.avo-dark .bg-emerald-50 { background-color: rgba(6, 78, 59, 0.3) !important; }
+.avo-dark .bg-orange-50  { background-color: rgba(154, 52, 18, 0.3) !important; }
+
+/* Skeleton loading pulse */
+.avo-dark .animate-pulse { background-color: rgba(148, 163, 184, 0.15) !important; }
+
+/* Tabs */
+.avo-dark [role="tablist"] {
+  background-color: rgba(15, 23, 42, 0.5) !important;
+}
+.avo-dark [role="tab"][data-state="active"] {
+  background-color: rgba(30, 41, 59, 0.8) !important;
+  color: #f1f5f9 !important;
+}
+.avo-dark [role="tab"] {
+  color: #94a3b8 !important;
+}
+
+/* Hover states */
+.avo-dark .hover\:bg-gray-100:hover  { background-color: rgba(51, 65, 85, 0.5) !important; }
+.avo-dark .hover\:bg-slate-100:hover { background-color: rgba(51, 65, 85, 0.5) !important; }
+.avo-dark .hover\:bg-gray-50:hover   { background-color: rgba(51, 65, 85, 0.4) !important; }
+.avo-dark .hover\:bg-slate-50:hover  { background-color: rgba(51, 65, 85, 0.4) !important; }
