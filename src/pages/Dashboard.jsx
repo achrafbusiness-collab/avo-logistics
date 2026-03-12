@@ -889,7 +889,7 @@ export default function Dashboard() {
                       <div key={checklist.id} className="flex items-center gap-3 text-sm">
                         <div className={`w-2 h-2 rounded-full ${checklist.type === 'pickup' ? 'bg-blue-500' : 'bg-green-500'}`} />
                         <div className="flex-1 min-w-0">
-                          <p className="font-medium truncate">{checklist.order_number}</p>
+                          <p className="font-medium truncate" title={checklist.order_number}>{checklist.order_number}</p>
                           <p className="text-gray-500 text-xs">
                             {checklist.driver_name} • {checklist.type === 'pickup' ? 'Abholung' : 'Abgabe'}
                           </p>

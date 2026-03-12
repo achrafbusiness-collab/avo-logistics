@@ -1692,7 +1692,7 @@ Gib ausschließlich strukturierte Daten zurück.`,
           </CardContent>
         </Card>
       ) : (
-        <div className="flex gap-4 items-start">
+        <div className="flex flex-col lg:flex-row gap-4 items-start">
 
           {/* ── MAIN FINANCE AREA ── */}
           <div className="flex-1 min-w-0 space-y-4">
@@ -1799,8 +1799,8 @@ Gib ausschließlich strukturierte Daten zurück.`,
                     <p className="text-sm text-slate-400">Keine Rechnungsentwürfe vorhanden.</p>
                   </div>
                 ) : (
-                  <div className="max-h-[760px] overflow-auto">
-                    <table className="w-full text-sm">
+                  <div className="max-h-[760px] overflow-auto overflow-x-auto">
+                    <table className="w-full min-w-[600px] text-sm">
                       <thead>
                         <tr className="bg-[#1e3a5f] text-white text-xs uppercase tracking-wide">
                           <th className="px-4 py-3.5 text-left font-semibold">Kunde</th>
@@ -1854,8 +1854,8 @@ Gib ausschließlich strukturierte Daten zurück.`,
                     <p className="text-sm text-slate-400">Keine Rechnungen vorhanden.</p>
                   </div>
                 ) : (
-                  <div className="max-h-[760px] overflow-y-auto">
-                    <table className="w-full table-fixed text-sm">
+                  <div className="max-h-[760px] overflow-auto">
+                    <table className="w-full min-w-[700px] table-fixed text-sm">
                       <thead className="sticky top-0 z-10">
                         <tr className="bg-[#1e3a5f] text-white text-xs uppercase tracking-wide">
                           <th className="w-[11%] px-3 py-3.5 text-left font-semibold">Rechnungsnr.</th>
@@ -2018,7 +2018,7 @@ Gib ausschließlich strukturierte Daten zurück.`,
                     </div>
                   ) : (
                     <div className="max-h-[760px] overflow-auto">
-                      <table className="w-full text-sm">
+                      <table className="w-full min-w-[500px] text-sm">
                         <thead>
                           <tr className="bg-[#1e3a5f] text-white text-xs uppercase tracking-wide">
                             <th className="px-4 py-3.5 text-left font-semibold">Rechnungsnr.</th>
@@ -2065,7 +2065,7 @@ Gib ausschließlich strukturierte Daten zurück.`,
           </div>
 
           {/* ── RIGHT SIDEBAR – Customers ── */}
-          <div className={`flex-shrink-0 relative transition-all duration-300 ease-in-out ${customerSidebarOpen ? 'w-72' : 'w-12'}`}>
+          <div className={`hidden lg:block flex-shrink-0 relative transition-all duration-300 ease-in-out ${customerSidebarOpen ? 'w-72' : 'w-12'}`}>
             <div className="sticky top-4">
 
               {/* Toggle Button */}

@@ -157,6 +157,65 @@ button:focus-visible {
   }
 }
 
+/* ── Dark mode overrides for admin page content ── */
+.dark .avo-page-content {
+  color: rgb(226 232 240); /* slate-200 */
+}
+.dark .avo-page-content .bg-white,
+.dark .avo-page-content .bg-slate-50,
+.dark .avo-page-content .bg-gray-50 {
+  background-color: rgb(30 41 59) !important; /* slate-800 */
+}
+.dark .avo-page-content .bg-slate-100,
+.dark .avo-page-content .bg-gray-100 {
+  background-color: rgb(15 23 42) !important; /* slate-950 */
+}
+.dark .avo-page-content .border-slate-200,
+.dark .avo-page-content .border-gray-200,
+.dark .avo-page-content .border-slate-100,
+.dark .avo-page-content .border-gray-100 {
+  border-color: rgb(51 65 85) !important; /* slate-700 */
+}
+.dark .avo-page-content .text-gray-900,
+.dark .avo-page-content .text-slate-900 {
+  color: rgb(241 245 249) !important; /* slate-100 */
+}
+.dark .avo-page-content .text-gray-700,
+.dark .avo-page-content .text-slate-700 {
+  color: rgb(203 213 225) !important; /* slate-300 */
+}
+.dark .avo-page-content .text-gray-600,
+.dark .avo-page-content .text-slate-600 {
+  color: rgb(148 163 184) !important; /* slate-400 */
+}
+.dark .avo-page-content .text-gray-500,
+.dark .avo-page-content .text-slate-500 {
+  color: rgb(100 116 139) !important; /* slate-500 */
+}
+.dark .avo-page-content .text-gray-400,
+.dark .avo-page-content .text-slate-400 {
+  color: rgb(71 85 105) !important; /* slate-600 */
+}
+.dark .avo-page-content input,
+.dark .avo-page-content select,
+.dark .avo-page-content textarea {
+  background-color: rgb(15 23 42) !important;
+  color: rgb(226 232 240) !important;
+  border-color: rgb(51 65 85) !important;
+}
+.dark .avo-page-content table tr:nth-child(even) {
+  background-color: rgb(15 23 42) !important;
+}
+.dark .avo-page-content table tr:nth-child(odd):not(thead tr) {
+  background-color: rgb(30 41 59) !important;
+}
+.dark .avo-page-content table td {
+  border-color: rgb(51 65 85) !important;
+}
+.dark .avo-page-content .divide-y > * {
+  border-color: rgb(51 65 85) !important;
+}
+
 .driver-layout[dir="rtl"] .driver-bottom-nav {
   flex-direction: row-reverse;
 }

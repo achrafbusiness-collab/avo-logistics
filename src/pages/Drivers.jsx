@@ -1037,10 +1037,10 @@ export default function Drivers() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <h3 className="font-semibold truncate">{getDriverFullName(driver)}</h3>
+                        <h3 className="font-semibold truncate" title={getDriverFullName(driver)}>{getDriverFullName(driver)}</h3>
                         <StatusBadge status={driver.status} size="sm" />
                       </div>
-                      <p className="text-sm text-gray-500 truncate">{driver.email}</p>
+                      <p className="text-sm text-gray-500 truncate" title={driver.email}>{driver.email}</p>
                       <p className="text-sm text-gray-500">{driver.phone}</p>
                     </div>
                   </div>

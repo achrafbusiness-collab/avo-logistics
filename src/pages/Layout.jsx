@@ -149,7 +149,7 @@ export default function Layout({ children, currentPageName }) {
           {user && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="text-white hover:bg-white/10">
+                <Button variant="ghost" className="text-white hover:bg-white/10" aria-label="Benutzerkonto">
                   <User className="w-5 h-5 mr-2" />
                   {user.full_name || user.email}
                   <ChevronDown className="w-4 h-4 ml-2" />
@@ -272,8 +272,8 @@ export default function Layout({ children, currentPageName }) {
                       <User className="w-4 h-4" />
                     </div>
                     <div className="flex-1 text-left">
-                      <p className="text-sm font-medium truncate">{user.full_name || 'Admin'}</p>
-                      <p className={`text-xs truncate ${darkMode ? 'text-slate-400' : 'text-white/60'}`}>{user.email}</p>
+                      <p className="text-sm font-medium truncate" title={user.full_name || 'Admin'}>{user.full_name || 'Admin'}</p>
+                      <p className={`text-xs truncate ${darkMode ? 'text-slate-400' : 'text-white/60'}`} title={user.email}>{user.email}</p>
                     </div>
                     <ChevronDown className={`w-4 h-4 ${darkMode ? 'text-slate-400' : 'text-white/60'}`} />
                   </button>
@@ -320,6 +320,7 @@ export default function Layout({ children, currentPageName }) {
               setSidebarHover(false);
             }}
             className={`p-2 rounded-lg ${darkMode ? 'hover:bg-slate-800' : 'hover:bg-gray-100'}`}
+            aria-label="Navigation öffnen"
           >
             <Menu className={`w-5 h-5 ${darkMode ? 'text-slate-200' : ''}`} />
           </button>
@@ -361,7 +362,7 @@ export default function Layout({ children, currentPageName }) {
           ref={mainRef}
           className="flex-1 p-4 lg:p-6 overflow-auto bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950"
         >
-          <div className="min-h-full rounded-[28px] bg-gradient-to-br from-white via-slate-50 to-blue-50/70 p-5 lg:p-8 shadow-[0_30px_60px_-40px_rgba(15,23,42,0.8)]">
+          <div className="avo-page-content min-h-full rounded-[28px] bg-gradient-to-br from-white via-slate-50 to-blue-50/70 dark:from-slate-900 dark:via-slate-900 dark:to-slate-900 p-5 lg:p-8 shadow-[0_30px_60px_-40px_rgba(15,23,42,0.8)]">
             {children}
           </div>
         </main>
