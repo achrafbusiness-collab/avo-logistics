@@ -302,7 +302,7 @@ export default function Layout({ children, currentPageName }) {
         }`}
       >
         {/* Top Bar */}
-        <header className="border-b px-6 py-4 flex items-center justify-between lg:px-8 bg-[#1e3a5f] border-[#1e3a5f]">
+        <header className="border-b px-6 py-4 flex items-center justify-between lg:px-8 bg-[#0a1628] border-[#0a1628]">
           <button
             onClick={() => {
               setSidebarOpen((prev) => !prev);
