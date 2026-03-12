@@ -373,14 +373,14 @@ export default function TeamAVO() {
       });
       const payload = await response.json();
       if (!response.ok || !payload?.ok) {
-        throw new Error(payload?.error || "Loeschen fehlgeschlagen.");
+        throw new Error(payload?.error || "Löschen fehlgeschlagen.");
       }
       setProfiles((prev) => prev.filter((item) => item.id !== selectedProfile.id));
       setMessage("Profil wurde geloescht.");
       setDeleteConfirmOpen(false);
       await refreshProfiles();
     } catch (err) {
-      setError(err?.message || "Loeschen fehlgeschlagen.");
+      setError(err?.message || "Löschen fehlgeschlagen.");
     } finally {
       setSaving(false);
     }
@@ -619,7 +619,7 @@ export default function TeamAVO() {
               onClick={() => setDeleteConfirmOpen(true)}
             >
               <Trash2 className="h-4 w-4 mr-2" />
-              Konto loeschen
+              Konto löschen
             </Button>
             <Button
               type="button"
@@ -767,7 +767,7 @@ export default function TeamAVO() {
       <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Konto wirklich loeschen?</AlertDialogTitle>
+            <AlertDialogTitle>Konto wirklich löschen?</AlertDialogTitle>
             <AlertDialogDescription>
               Das Profil und der Login-Zugang werden dauerhaft entfernt. Diese Aktion kann nicht rueckgaengig gemacht werden.
             </AlertDialogDescription>
@@ -778,7 +778,7 @@ export default function TeamAVO() {
               className="bg-red-600 hover:bg-red-700"
               onClick={handleDelete}
             >
-              Endgueltig loeschen
+              Endgültig löschen
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
