@@ -111,37 +111,38 @@ button:focus-visible {
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
   .dark {
-    --background: 0 0% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 0 0% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 0 0% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 0 0% 9%;
-    --secondary: 0 0% 14.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 14.9%;
-    --muted-foreground: 0 0% 63.9%;
-    --accent: 0 0% 14.9%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
+    /* Only the page body background changes — everything else stays light */
+    --background: 0 0% 100%;
+    --foreground: 0 0% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 3.9%;
+    --primary: 0 0% 9%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 0 0% 96.1%;
+    --secondary-foreground: 0 0% 9%;
+    --muted: 0 0% 96.1%;
+    --muted-foreground: 0 0% 45.1%;
+    --accent: 0 0% 96.1%;
+    --accent-foreground: 0 0% 9%;
+    --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 14.9%;
-    --input: 0 0% 14.9%;
-    --ring: 0 0% 83.1%;
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
+    --border: 0 0% 89.8%;
+    --input: 0 0% 89.8%;
+    --ring: 0 0% 3.9%;
+    --chart-1: 12 76% 61%;
+    --chart-2: 173 58% 39%;
+    --chart-3: 197 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
 }
@@ -155,133 +156,6 @@ button:focus-visible {
   body {
     @apply bg-background text-foreground;
   }
-}
-
-/* ── Dark mode overrides for admin page content ── */
-
-/* Base text color for the whole content area */
-.dark .avo-page-content {
-  color: rgb(226 232 240); /* slate-200 */
-}
-
-/* ── Backgrounds ── */
-.dark .avo-page-content .bg-white,
-.dark .avo-page-content .bg-slate-50,
-.dark .avo-page-content .bg-gray-50 {
-  background-color: rgb(30 41 59) !important; /* slate-800 */
-}
-.dark .avo-page-content .bg-slate-100,
-.dark .avo-page-content .bg-gray-100,
-.dark .avo-page-content .bg-gray-200 {
-  background-color: rgb(15 23 42) !important; /* slate-950 */
-}
-
-/* Colored light backgrounds → muted dark equivalents */
-.dark .avo-page-content .bg-blue-50  { background-color: rgb(23 37 84 / 0.5) !important; }
-.dark .avo-page-content .bg-blue-100 { background-color: rgb(23 37 84 / 0.7) !important; }
-.dark .avo-page-content .bg-emerald-50  { background-color: rgb(6 47 39 / 0.5) !important; }
-.dark .avo-page-content .bg-emerald-100 { background-color: rgb(6 47 39 / 0.7) !important; }
-.dark .avo-page-content .bg-amber-50  { background-color: rgb(78 45 0 / 0.5) !important; }
-.dark .avo-page-content .bg-amber-100 { background-color: rgb(78 45 0 / 0.7) !important; }
-.dark .avo-page-content .bg-red-50  { background-color: rgb(69 10 10 / 0.5) !important; }
-.dark .avo-page-content .bg-red-100 { background-color: rgb(69 10 10 / 0.7) !important; }
-.dark .avo-page-content .bg-yellow-50  { background-color: rgb(66 32 6 / 0.5) !important; }
-.dark .avo-page-content .bg-green-50   { background-color: rgb(5 46 22 / 0.5) !important; }
-.dark .avo-page-content .bg-purple-50  { background-color: rgb(46 16 101 / 0.4) !important; }
-
-/* ── Borders ── */
-.dark .avo-page-content .border-slate-200,
-.dark .avo-page-content .border-slate-100,
-.dark .avo-page-content .border-slate-300,
-.dark .avo-page-content .border-gray-200,
-.dark .avo-page-content .border-gray-100,
-.dark .avo-page-content .border-gray-300 {
-  border-color: rgb(51 65 85) !important; /* slate-700 */
-}
-.dark .avo-page-content .border-blue-200  { border-color: rgb(37 99 235 / 0.4) !important; }
-.dark .avo-page-content .border-emerald-200 { border-color: rgb(5 150 105 / 0.4) !important; }
-.dark .avo-page-content .border-amber-200 { border-color: rgb(217 119 6 / 0.4) !important; }
-.dark .avo-page-content .border-red-200   { border-color: rgb(220 38 38 / 0.4) !important; }
-
-/* ── Text colours — lighter = higher contrast on dark bg ── */
-.dark .avo-page-content .text-black,
-.dark .avo-page-content .text-gray-900,
-.dark .avo-page-content .text-slate-900,
-.dark .avo-page-content .text-gray-800,
-.dark .avo-page-content .text-slate-800 {
-  color: rgb(241 245 249) !important; /* slate-100 */
-}
-.dark .avo-page-content .text-gray-700,
-.dark .avo-page-content .text-slate-700 {
-  color: rgb(203 213 225) !important; /* slate-300 */
-}
-.dark .avo-page-content .text-gray-600,
-.dark .avo-page-content .text-slate-600 {
-  color: rgb(148 163 184) !important; /* slate-400 */
-}
-.dark .avo-page-content .text-gray-500,
-.dark .avo-page-content .text-slate-500 {
-  color: rgb(148 163 184) !important; /* slate-400 — readable on dark bg */
-}
-.dark .avo-page-content .text-gray-400,
-.dark .avo-page-content .text-slate-400 {
-  color: rgb(100 116 139) !important; /* slate-500 — subtle but visible */
-}
-
-/* Coloured text — keep saturated but ensure enough lightness */
-.dark .avo-page-content .text-blue-600,
-.dark .avo-page-content .text-blue-700  { color: rgb(96 165 250) !important; }  /* blue-400 */
-.dark .avo-page-content .text-blue-800  { color: rgb(147 197 253) !important; }  /* blue-300 */
-.dark .avo-page-content .text-emerald-600,
-.dark .avo-page-content .text-emerald-700,
-.dark .avo-page-content .text-emerald-800 { color: rgb(52 211 153) !important; } /* emerald-400 */
-.dark .avo-page-content .text-amber-700,
-.dark .avo-page-content .text-amber-800  { color: rgb(251 191 36) !important; }  /* amber-400 */
-.dark .avo-page-content .text-red-600,
-.dark .avo-page-content .text-red-700    { color: rgb(248 113 113) !important; } /* red-400 */
-
-/* ── Inputs / selects / textareas ── */
-.dark .avo-page-content input:not([type="checkbox"]):not([type="radio"]),
-.dark .avo-page-content select,
-.dark .avo-page-content textarea {
-  background-color: rgb(15 23 42) !important;
-  color: rgb(226 232 240) !important;
-  border-color: rgb(51 65 85) !important;
-}
-.dark .avo-page-content input::placeholder,
-.dark .avo-page-content textarea::placeholder {
-  color: rgb(100 116 139) !important;
-}
-
-/* ── Tables ── */
-.dark .avo-page-content table tbody tr:nth-child(even) {
-  background-color: rgb(15 23 42) !important;
-}
-.dark .avo-page-content table tbody tr:nth-child(odd) {
-  background-color: rgb(30 41 59) !important;
-}
-.dark .avo-page-content table td,
-.dark .avo-page-content table th:not(.bg-\[#1e3a5f\]) {
-  border-color: rgb(51 65 85) !important;
-}
-
-/* ── Dividers ── */
-.dark .avo-page-content .divide-y > *,
-.dark .avo-page-content .divide-slate-200 > *,
-.dark .avo-page-content .divide-gray-200 > * {
-  border-color: rgb(51 65 85) !important;
-}
-
-/* ── Shadows — lighten the white glow ── */
-.dark .avo-page-content .shadow-sm,
-.dark .avo-page-content .shadow {
-  --tw-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.4), 0 1px 2px -1px rgb(0 0 0 / 0.4) !important;
-}
-
-/* ── Hover states ── */
-.dark .avo-page-content .hover\:bg-slate-50:hover,
-.dark .avo-page-content .hover\:bg-gray-50:hover {
-  background-color: rgb(51 65 85) !important;
 }
 
 /* ── Micro-interaction animations ── */
