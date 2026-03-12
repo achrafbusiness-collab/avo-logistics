@@ -55,7 +55,7 @@ export default function Layout({ children, currentPageName }) {
   const { t, dir } = useI18n();
   const [darkMode, setDarkMode] = useState(() => {
     const saved = localStorage.getItem('avo-dark-mode');
-    return saved ? JSON.parse(saved) : false;
+    return saved !== null ? JSON.parse(saved) : true;
   });
 
   useEffect(() => {
