@@ -3,9 +3,9 @@ import { useQuery } from '@tanstack/react-query';
 import { appClient } from '@/api/appClient';
 import { Link, useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
-import { 
-  Truck, 
-  Users, 
+import {
+  Truck,
+  Users,
   ArrowRight,
   AlertCircle,
   Route,
@@ -13,6 +13,7 @@ import {
   Settings,
   BarChart3,
   CheckCircle2,
+  User,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -478,6 +479,60 @@ export default function Dashboard() {
   );
 
   const statisticsUrl = createPageUrl('Statistics');
+
+  // Empty state when system has no data yet
+  const isEmpty = !ordersLoading && !driversLoading && orders.length === 0 && drivers.length === 0;
+  if (isEmpty) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4 py-12 space-y-8">
+        <div className="relative">
+          <div className="absolute -inset-4 rounded-full bg-blue-500/10 blur-2xl" />
+          <div className="relative flex h-20 w-20 items-center justify-center rounded-3xl bg-slate-950 shadow-lg">
+            <Truck className="h-9 w-9 text-blue-400" />
+          </div>
+        </div>
+        <div className="space-y-2">
+          <h2 className="text-2xl font-semibold text-slate-900">Willkommen bei AVO SYSTEMS</h2>
+          <p className="text-slate-500 max-w-sm mx-auto text-sm">
+            Ihr System ist eingerichtet. Legen Sie jetzt Ihre ersten Daten an — es dauert nur wenige Minuten.
+          </p>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full max-w-2xl">
+          {[
+            {
+              icon: Settings,
+              title: '1. Einstellungen',
+              desc: 'Firmenname, Bankdaten & Rechnungsdetails hinterlegen',
+              href: createPageUrl('AppConnection'),
+              color: 'bg-slate-100 text-slate-700',
+            },
+            {
+              icon: Users,
+              title: '2. Fahrer anlegen',
+              desc: 'Fahrer-Team aufbauen & Zugänge vergeben',
+              href: createPageUrl('Drivers') + '?new=true',
+              color: 'bg-blue-50 text-blue-700',
+            },
+            {
+              icon: Truck,
+              title: '3. Ersten Auftrag',
+              desc: 'Fahrzeugüberführung anlegen & Fahrer zuweisen',
+              href: createPageUrl('Orders') + '?new=true',
+              color: 'bg-slate-950 text-white',
+            },
+          ].map(({ icon: Icon, title, desc, href, color }) => (
+            <Link key={title} to={href}>
+              <div className={`rounded-2xl p-5 text-left cursor-pointer hover:scale-105 transition-transform ${color} border border-black/5 shadow-sm`}>
+                <Icon className="h-6 w-6 mb-3" />
+                <p className="font-semibold text-sm">{title}</p>
+                <p className="text-xs mt-1 opacity-70">{desc}</p>
+              </div>
+            </Link>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

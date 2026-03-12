@@ -3,11 +3,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { appClient } from '@/api/appClient';
-import { 
-  LayoutDashboard, 
+import {
+  LayoutDashboard,
   BarChart3,
-  Truck, 
-  Users, 
+  Truck,
+  Users,
   Menu,
   X,
   LogOut,
@@ -17,7 +17,8 @@ import {
   Sun,
   LifeBuoy,
   Settings,
-  ShieldCheck
+  ShieldCheck,
+  Search,
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import {
@@ -28,6 +29,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { hasPageAccess } from "@/lib/accessControl";
 import { useI18n } from "@/i18n";
+import CommandPalette from "@/components/system/CommandPalette";
+import NotificationBell from "@/components/system/NotificationBell";
+import OnboardingTour from "@/components/system/OnboardingTour";
 
 // Admin pages (full sidebar)
 const adminPages = [
@@ -327,7 +331,25 @@ export default function Layout({ children, currentPageName }) {
           
           <div className="flex-1 lg:flex-none" />
           
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            {/* Global search hint button */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                const e = new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true });
+                document.dispatchEvent(e);
+              }}
+              className={`hidden sm:flex items-center gap-2 text-xs ${darkMode ? 'text-slate-400 hover:bg-slate-800 border-slate-700' : 'text-slate-500 border-slate-200'} border rounded-lg px-3 py-1.5`}
+              aria-label="Globale Suche öffnen (Strg+K)"
+            >
+              <Search className="w-3.5 h-3.5" />
+              <span>Suchen…</span>
+              <kbd className={`font-mono text-[10px] px-1 py-0.5 rounded ${darkMode ? 'bg-slate-700' : 'bg-slate-100'}`}>⌘K</kbd>
+            </Button>
+
+            <NotificationBell darkMode={darkMode} />
+
             <Button
               variant="ghost"
               size="sm"
@@ -337,21 +359,21 @@ export default function Layout({ children, currentPageName }) {
               {darkMode ? (
                 <>
                   <Sun className="w-4 h-4 mr-2" />
-                  Hell
+                  <span className="hidden md:inline">Hell</span>
                 </>
               ) : (
                 <>
                   <Moon className="w-4 h-4 mr-2" />
-                  Dunkel
+                  <span className="hidden md:inline">Dunkel</span>
                 </>
               )}
             </Button>
-            <span className={`text-sm hidden sm:block ${darkMode ? 'text-slate-400' : 'text-gray-500'}`}>
-              {new Date().toLocaleDateString('de-DE', { 
-                weekday: 'long', 
-                day: 'numeric', 
-                month: 'long', 
-                year: 'numeric' 
+            <span className={`text-sm hidden lg:block ${darkMode ? 'text-slate-400' : 'text-gray-500'}`}>
+              {new Date().toLocaleDateString('de-DE', {
+                weekday: 'long',
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
               })}
             </span>
           </div>
@@ -367,6 +389,10 @@ export default function Layout({ children, currentPageName }) {
           </div>
         </main>
       </div>
+
+      {/* Global features */}
+      <CommandPalette />
+      <OnboardingTour />
     </div>
   );
 }
