@@ -158,26 +158,57 @@ button:focus-visible {
 }
 
 /* ── Dark mode overrides for admin page content ── */
+
+/* Base text color for the whole content area */
 .dark .avo-page-content {
   color: rgb(226 232 240); /* slate-200 */
 }
+
+/* ── Backgrounds ── */
 .dark .avo-page-content .bg-white,
 .dark .avo-page-content .bg-slate-50,
 .dark .avo-page-content .bg-gray-50 {
   background-color: rgb(30 41 59) !important; /* slate-800 */
 }
 .dark .avo-page-content .bg-slate-100,
-.dark .avo-page-content .bg-gray-100 {
+.dark .avo-page-content .bg-gray-100,
+.dark .avo-page-content .bg-gray-200 {
   background-color: rgb(15 23 42) !important; /* slate-950 */
 }
+
+/* Colored light backgrounds → muted dark equivalents */
+.dark .avo-page-content .bg-blue-50  { background-color: rgb(23 37 84 / 0.5) !important; }
+.dark .avo-page-content .bg-blue-100 { background-color: rgb(23 37 84 / 0.7) !important; }
+.dark .avo-page-content .bg-emerald-50  { background-color: rgb(6 47 39 / 0.5) !important; }
+.dark .avo-page-content .bg-emerald-100 { background-color: rgb(6 47 39 / 0.7) !important; }
+.dark .avo-page-content .bg-amber-50  { background-color: rgb(78 45 0 / 0.5) !important; }
+.dark .avo-page-content .bg-amber-100 { background-color: rgb(78 45 0 / 0.7) !important; }
+.dark .avo-page-content .bg-red-50  { background-color: rgb(69 10 10 / 0.5) !important; }
+.dark .avo-page-content .bg-red-100 { background-color: rgb(69 10 10 / 0.7) !important; }
+.dark .avo-page-content .bg-yellow-50  { background-color: rgb(66 32 6 / 0.5) !important; }
+.dark .avo-page-content .bg-green-50   { background-color: rgb(5 46 22 / 0.5) !important; }
+.dark .avo-page-content .bg-purple-50  { background-color: rgb(46 16 101 / 0.4) !important; }
+
+/* ── Borders ── */
 .dark .avo-page-content .border-slate-200,
-.dark .avo-page-content .border-gray-200,
 .dark .avo-page-content .border-slate-100,
-.dark .avo-page-content .border-gray-100 {
+.dark .avo-page-content .border-slate-300,
+.dark .avo-page-content .border-gray-200,
+.dark .avo-page-content .border-gray-100,
+.dark .avo-page-content .border-gray-300 {
   border-color: rgb(51 65 85) !important; /* slate-700 */
 }
+.dark .avo-page-content .border-blue-200  { border-color: rgb(37 99 235 / 0.4) !important; }
+.dark .avo-page-content .border-emerald-200 { border-color: rgb(5 150 105 / 0.4) !important; }
+.dark .avo-page-content .border-amber-200 { border-color: rgb(217 119 6 / 0.4) !important; }
+.dark .avo-page-content .border-red-200   { border-color: rgb(220 38 38 / 0.4) !important; }
+
+/* ── Text colours — lighter = higher contrast on dark bg ── */
+.dark .avo-page-content .text-black,
 .dark .avo-page-content .text-gray-900,
-.dark .avo-page-content .text-slate-900 {
+.dark .avo-page-content .text-slate-900,
+.dark .avo-page-content .text-gray-800,
+.dark .avo-page-content .text-slate-800 {
   color: rgb(241 245 249) !important; /* slate-100 */
 }
 .dark .avo-page-content .text-gray-700,
@@ -190,30 +221,67 @@ button:focus-visible {
 }
 .dark .avo-page-content .text-gray-500,
 .dark .avo-page-content .text-slate-500 {
-  color: rgb(100 116 139) !important; /* slate-500 */
+  color: rgb(148 163 184) !important; /* slate-400 — readable on dark bg */
 }
 .dark .avo-page-content .text-gray-400,
 .dark .avo-page-content .text-slate-400 {
-  color: rgb(71 85 105) !important; /* slate-600 */
+  color: rgb(100 116 139) !important; /* slate-500 — subtle but visible */
 }
-.dark .avo-page-content input,
+
+/* Coloured text — keep saturated but ensure enough lightness */
+.dark .avo-page-content .text-blue-600,
+.dark .avo-page-content .text-blue-700  { color: rgb(96 165 250) !important; }  /* blue-400 */
+.dark .avo-page-content .text-blue-800  { color: rgb(147 197 253) !important; }  /* blue-300 */
+.dark .avo-page-content .text-emerald-600,
+.dark .avo-page-content .text-emerald-700,
+.dark .avo-page-content .text-emerald-800 { color: rgb(52 211 153) !important; } /* emerald-400 */
+.dark .avo-page-content .text-amber-700,
+.dark .avo-page-content .text-amber-800  { color: rgb(251 191 36) !important; }  /* amber-400 */
+.dark .avo-page-content .text-red-600,
+.dark .avo-page-content .text-red-700    { color: rgb(248 113 113) !important; } /* red-400 */
+
+/* ── Inputs / selects / textareas ── */
+.dark .avo-page-content input:not([type="checkbox"]):not([type="radio"]),
 .dark .avo-page-content select,
 .dark .avo-page-content textarea {
   background-color: rgb(15 23 42) !important;
   color: rgb(226 232 240) !important;
   border-color: rgb(51 65 85) !important;
 }
-.dark .avo-page-content table tr:nth-child(even) {
+.dark .avo-page-content input::placeholder,
+.dark .avo-page-content textarea::placeholder {
+  color: rgb(100 116 139) !important;
+}
+
+/* ── Tables ── */
+.dark .avo-page-content table tbody tr:nth-child(even) {
   background-color: rgb(15 23 42) !important;
 }
-.dark .avo-page-content table tr:nth-child(odd):not(thead tr) {
+.dark .avo-page-content table tbody tr:nth-child(odd) {
   background-color: rgb(30 41 59) !important;
 }
-.dark .avo-page-content table td {
+.dark .avo-page-content table td,
+.dark .avo-page-content table th:not(.bg-\[#1e3a5f\]) {
   border-color: rgb(51 65 85) !important;
 }
-.dark .avo-page-content .divide-y > * {
+
+/* ── Dividers ── */
+.dark .avo-page-content .divide-y > *,
+.dark .avo-page-content .divide-slate-200 > *,
+.dark .avo-page-content .divide-gray-200 > * {
   border-color: rgb(51 65 85) !important;
+}
+
+/* ── Shadows — lighten the white glow ── */
+.dark .avo-page-content .shadow-sm,
+.dark .avo-page-content .shadow {
+  --tw-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.4), 0 1px 2px -1px rgb(0 0 0 / 0.4) !important;
+}
+
+/* ── Hover states ── */
+.dark .avo-page-content .hover\:bg-slate-50:hover,
+.dark .avo-page-content .hover\:bg-gray-50:hover {
+  background-color: rgb(51 65 85) !important;
 }
 
 .driver-layout[dir="rtl"] .driver-bottom-nav {
