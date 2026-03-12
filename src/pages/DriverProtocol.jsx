@@ -170,8 +170,8 @@ export default function DriverProtocol() {
     try {
       const currentUser = await appClient.auth.me();
       setUser(currentUser);
-    } catch (e) {
-      console.log('Not logged in');
+    } catch {
+      // Not logged in
     }
   };
 
@@ -214,8 +214,7 @@ export default function DriverProtocol() {
         .eq('id', orderId)
         .maybeSingle();
       if (error) {
-        console.error('Supabase driver order error:', error.message);
-        return null;
+        throw new Error(error.message);
       }
       return data || null;
     },
@@ -543,7 +542,6 @@ export default function DriverProtocol() {
         return { ...prev, damages, photos: [...photos, damagePhoto] };
       });
     } catch (error) {
-      console.error('Damage photo upload failed', error);
       setSubmitError(t('protocol.errors.damagePhotoMissing'));
     } finally {
       setDamageUploads(prev => ({ ...prev, [index]: false }));
@@ -597,7 +595,6 @@ export default function DriverProtocol() {
         return { ...prev, expenses };
       });
     } catch (error) {
-      console.error('Expense upload failed', error);
       setSubmitError(t('protocol.expenses.uploadError'));
     } finally {
       setExpenseUploads((prev) => ({ ...prev, [index]: false }));

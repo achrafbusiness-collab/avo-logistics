@@ -63,7 +63,7 @@ export default function DriverOrders() {
       const currentUser = await appClient.auth.me();
       setUser(currentUser);
     } catch {
-      console.log('Not logged in');
+      // Not logged in
     }
   };
 
@@ -102,8 +102,7 @@ export default function DriverOrders() {
         .eq('assigned_driver_id', currentDriver.id)
         .order('created_date', { ascending: false });
       if (error) {
-        console.error('Supabase driver orders error:', error.message);
-        return [];
+        throw new Error(error.message);
       }
       return data || [];
     },

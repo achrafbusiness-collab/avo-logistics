@@ -50,6 +50,7 @@ import OrderDetails from '@/components/orders/OrderDetails';
 import { getPriceForDistance } from '@/utils/priceList';
 import { getMapboxDistanceKm } from '@/utils/mapboxDistance';
 import { upsertInvoiceDraft } from '@/utils/invoiceStorage';
+import { useToast } from "@/components/ui/use-toast";
 import { 
   Plus, 
   Search, 
@@ -223,6 +224,7 @@ const formatBillingOverrideLabel = (override) => {
 
 export default function Orders() {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   const urlParams = new URLSearchParams(window.location.search);
   
   const [view, setView] = useState('list'); // list, form, details
@@ -362,8 +364,8 @@ export default function Orders() {
             if (result?.updated) {
               needsRefresh = true;
             }
-          } catch (error) {
-            console.warn('Status-Korrektur fehlgeschlagen', error);
+          } catch {
+            // Background maintenance – silent fail
           }
         }
 
@@ -380,8 +382,8 @@ export default function Orders() {
             if (result?.updated) {
               needsRefresh = true;
             }
-          } catch (error) {
-            console.warn('Auslagen-Wiederherstellung fehlgeschlagen', error);
+          } catch {
+            // Background maintenance – silent fail
           }
         }
 
@@ -422,8 +424,8 @@ export default function Orders() {
     queryFn: async () => {
       try {
         return await fetchChecklistsForOrderIds(orderIdsForChecklistQuery);
-      } catch (error) {
-        console.warn('Checklist-Load fehlgeschlagen', error);
+      } catch {
+        toast({ title: 'Checklisten konnten nicht geladen werden', description: 'Bitte Seite neu laden.', variant: 'destructive' });
         return [];
       }
     },
@@ -727,8 +729,8 @@ export default function Orders() {
   const notifyDriverAssignment = async (orderId) => {
     try {
       await appClient.notifications.sendDriverAssignment({ orderId });
-    } catch (error) {
-      console.warn('Fahrer-Benachrichtigung fehlgeschlagen', error);
+    } catch {
+      toast({ title: 'Benachrichtigung fehlgeschlagen', description: 'Fahrer konnte nicht benachrichtigt werden.', variant: 'destructive' });
     }
   };
 
@@ -1554,8 +1556,8 @@ export default function Orders() {
             if (distanceKm !== null && distanceKm !== undefined) {
               computedDistance = distanceKm;
             }
-          } catch (error) {
-            console.warn('Strecke konnte nicht berechnet werden', error);
+          } catch {
+            // Distance calculation failed – proceed without distance
           }
         }
 
@@ -1756,7 +1758,7 @@ export default function Orders() {
       await appClient.entities.Order.update(orderId, { review_completed: true });
       queryClient.invalidateQueries({ queryKey: ['orders'] });
     } catch (err) {
-      console.error('Auftrag prüfen fehlgeschlagen:', err?.message || err);
+      toast({ title: 'Fehler', description: err?.message || 'Auftrag konnte nicht als geprüft markiert werden.', variant: 'destructive' });
     } finally {
       setReviewSaving((prev) => ({ ...prev, [orderId]: false }));
     }

@@ -104,8 +104,8 @@ export default function Layout({ children, currentPageName }) {
       setUser(currentUser);
       // Driver role uses the minimal layout.
       setIsDriver(currentUser.role === 'driver');
-    } catch (e) {
-      console.log('Not logged in');
+    } catch {
+      // Not logged in – user stays on login page
     }
   };
 

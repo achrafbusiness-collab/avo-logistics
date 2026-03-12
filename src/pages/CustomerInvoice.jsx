@@ -40,7 +40,7 @@ const DEFAULT_ISSUER = {
   accountNumber: '',
   blz: '',
   iban: 'DE98 3005 0110 1009 0619 02',
-  bic: 'DUSSDEDDXXX',
+  bic: '',
   defaultContactPerson: 'Achraf Bolakhrif',
   paymentTerms: 'Zahlung innerhalb von {days} Tagen ab Rechnungseingang ohne Abzüge.',
 };

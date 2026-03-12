@@ -78,8 +78,8 @@ export default function DriverChecklist() {
     try {
       const currentUser = await appClient.auth.me();
       setUser(currentUser);
-    } catch (e) {
-      console.log('Not logged in');
+    } catch {
+      // Not logged in
     }
   };
 
@@ -135,8 +135,7 @@ export default function DriverChecklist() {
         .eq('id', orderId)
         .maybeSingle();
       if (error) {
-        console.error('Supabase driver order error:', error.message);
-        return null;
+        throw new Error(error.message);
       }
       return data || null;
     },

@@ -543,8 +543,8 @@ Gib ausschließlich strukturierte Daten zurück.`,
       vatId: 'DE361070222',
       bankName: 'Stadtsparkasse Düsseldorf',
       iban: 'DE98 3005 0110 1009 0619 02',
-      bic: 'DUSSDEDDXXX',
-      owner: 'Achraf Bolakhrif',
+      bic: '',
+      owner: '',
     };
     return {
       name: profile.companyName || appSettings?.company_name || defaults.name,
