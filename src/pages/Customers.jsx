@@ -1740,7 +1740,7 @@ Gib ausschließlich strukturierte Daten zurück.`,
                   value={financePanel}
                   onValueChange={(value) => { setFinancePanel(value); handleFinanceTabChange('overview', value); }}
                 >
-                  <SelectTrigger className="w-[190px] border-slate-200">
+                  <SelectTrigger className="w-[190px] border-slate-200 bg-white text-slate-900">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
