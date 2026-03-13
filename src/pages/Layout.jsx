@@ -128,7 +128,7 @@ export default function Layout({ children, currentPageName }) {
     return (
       <div
         dir={dir}
-        className={`min-h-screen driver-layout bg-gray-50 ${dir === 'rtl' ? 'rtl' : 'ltr'}`}
+        className={`min-h-screen driver-layout bg-gradient-to-b from-slate-50 via-gray-50 to-slate-100 ${dir === 'rtl' ? 'rtl' : 'ltr'}`}
       >
         <style>{`
           :root {
@@ -137,22 +137,21 @@ export default function Layout({ children, currentPageName }) {
             --accent: #3b82f6;
           }
         `}</style>
-        
+
         {/* Driver Header */}
-        <header className="bg-[#1e3a5f] text-white px-4 py-3 flex items-center justify-between sticky top-0 z-50">
+        <header className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 backdrop-blur-xl text-white px-4 py-3 flex items-center justify-between sticky top-0 z-50 border-b border-white/10 shadow-lg shadow-black/20">
           <div className="flex items-center gap-3">
-            <Truck className="w-6 h-6" />
-            <span className="font-semibold text-lg">{t('nav.driverPortal')}</span>
+            <img src="/logo.png" alt="TransferFleet" className="h-8 w-auto" />
           </div>
-          
+
           {user && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="text-white hover:bg-white/10" aria-label="Benutzerkonto">
-                  <User className="w-5 h-5 mr-2" />
-                  {user.full_name || user.email}
-                  <ChevronDown className="w-4 h-4 ml-2" />
-                </Button>
+                <button className="flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-white text-sm transition-colors hover:bg-white/20" aria-label="Benutzerkonto">
+                  <User className="w-4 h-4" />
+                  <span className="truncate max-w-[120px]">{user.full_name || user.email}</span>
+                  <ChevronDown className="w-3.5 h-3.5 opacity-70" />
+                </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={handleLogout}>
@@ -164,29 +163,33 @@ export default function Layout({ children, currentPageName }) {
           )}
         </header>
 
-        <main className="pb-20">
+        <main className="pb-28">
           {children}
         </main>
 
         {/* Bottom Navigation for Driver */}
         {!['DriverProtocol', 'DriverChecklist'].includes(currentPageName) && (
-          <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-3 py-2 flex justify-between z-50 driver-bottom-nav">
-            {driverPages.map((item) => {
-              const isActive = currentPageName === item.page;
-              return (
-                <Link
-                  key={item.page}
-                  to={createPageUrl(item.page)}
-                  className={`driver-nav-item flex flex-col items-center flex-1 py-2 px-2 rounded-xl ${
-                    isActive ? 'text-[#1e3a5f] bg-blue-50' : 'text-gray-500'
-                  }`}
-                >
-                  <item.icon className="w-5 h-5" />
-                  <span className="text-[11px] mt-1">{item.name}</span>
-                </Link>
-              );
-            })}
-          </nav>
+          <div className="fixed bottom-0 left-0 right-0 p-3 z-50">
+            <nav className="mx-auto max-w-md rounded-2xl bg-white/95 backdrop-blur-xl shadow-2xl shadow-black/15 border border-gray-200/50 px-2 py-2 flex justify-between driver-bottom-nav">
+              {driverPages.map((item) => {
+                const isActive = currentPageName === item.page;
+                return (
+                  <Link
+                    key={item.page}
+                    to={createPageUrl(item.page)}
+                    className={`driver-nav-item flex flex-col items-center flex-1 rounded-xl px-4 py-2 transition-all ${
+                      isActive
+                        ? 'text-white bg-gradient-to-r from-cyan-500 to-blue-500 shadow-md shadow-cyan-500/25'
+                        : 'text-gray-400 hover:text-gray-600'
+                    }`}
+                  >
+                    <item.icon className="w-5 h-5" />
+                    <span className="text-[10px] font-medium mt-0.5">{item.name}</span>
+                  </Link>
+                );
+              })}
+            </nav>
+          </div>
         )}
       </div>
     );
