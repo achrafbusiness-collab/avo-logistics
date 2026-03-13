@@ -292,23 +292,37 @@ Ihr TransferFleet Team`;
   </table>
 </div>`;
 
-    let emailSent = false;
+    // SMTP-Settings aus bestehender Company lesen (Owner/Admin-SMTP)
+    const { data: existingSettings } = await supabaseAdmin
+      .from("app_settings")
+      .select("smtp_host, smtp_port, smtp_user, smtp_pass, smtp_secure, email_sender_name, email_sender_address")
+      .not("smtp_host", "is", null)
+      .not("smtp_user", "is", null)
+      .order("created_date", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
     const smtp = {
-      host: smtpHost,
-      port: smtpPort,
-      user: smtpUser,
-      pass: smtpPass,
-      secure: smtpSecure,
-      from: smtpFrom,
+      host: existingSettings?.smtp_host || smtpHost,
+      port: existingSettings?.smtp_port ? Number(existingSettings.smtp_port) : smtpPort,
+      user: existingSettings?.smtp_user || smtpUser,
+      pass: existingSettings?.smtp_pass || smtpPass,
+      secure: existingSettings?.smtp_secure != null
+        ? String(existingSettings.smtp_secure).toLowerCase() === "true"
+        : smtpSecure,
     };
 
+    const senderAddress = existingSettings?.email_sender_address || smtp.user || smtpFrom;
+    const senderName = existingSettings?.email_sender_name || "TransferFleet";
+
+    let emailSent = false;
     try {
       emailSent = await sendEmail({
         to: normalizedEmail,
         subject,
         text,
         html,
-        from: `TransferFleet <noreply@avo-logistics.app>`,
+        from: `${senderName} <${senderAddress}>`,
         smtp,
       });
     } catch (err) {
