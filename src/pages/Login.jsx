@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { Link, Navigate } from 'react-router-dom';
 import { appClient } from '@/api/appClient';
 import { createPageUrl } from '@/utils';
 import { Button } from '@/components/ui/button';
@@ -7,15 +7,21 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Truck, Users, Briefcase } from 'lucide-react';
 
 export default function Login() {
+  const [redirect, setRedirect] = useState(null);
+
   useEffect(() => {
     const loadUser = async () => {
       const user = await appClient.auth.getCurrentUser();
       if (user) {
-        window.location.href = createPageUrl('Dashboard');
+        setRedirect(user.role === 'driver' ? '/DriverOrders' : '/Dashboard');
       }
     };
     loadUser();
   }, []);
+
+  if (redirect) {
+    return <Navigate to={redirect} replace />;
+  }
 
   return (
     <div className="min-h-screen bg-slate-950 text-white">

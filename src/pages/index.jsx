@@ -140,6 +140,11 @@ function PagesContent() {
     }
 
     if (isLoginRoute || isResetRoute || isSetPasswordRoute || isDriverAccessRoute || isDriverLicenseRoute || isProtocolPdfRoute || isExpensesPdfRoute) {
+        // If user is already logged in and on a login page, redirect to app
+        if (isLoginRoute && authChecked && currentUser) {
+            const target = currentUser.role === 'driver' ? '/DriverOrders' : '/Dashboard';
+            return <Navigate to={target} replace />;
+        }
         return (
             <Suspense fallback={<PageFallback />}>
                 <Routes>
