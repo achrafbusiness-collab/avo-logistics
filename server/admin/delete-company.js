@@ -121,10 +121,14 @@ export default async function handler(req, res) {
 
     const profileIds = (companyProfiles || []).map((profile) => profile.id);
 
+    // Delete all dependent data in correct order (children before parents)
+    await supabaseAdmin.from("audit_logs").delete().eq("company_id", company_id);
+    await supabaseAdmin.from("order_notes").delete().eq("company_id", company_id);
+    await supabaseAdmin.from("driver_documents").delete().eq("company_id", company_id);
+    await supabaseAdmin.from("checklists").delete().eq("company_id", company_id);
     await supabaseAdmin.from("orders").delete().eq("company_id", company_id);
     await supabaseAdmin.from("drivers").delete().eq("company_id", company_id);
     await supabaseAdmin.from("customers").delete().eq("company_id", company_id);
-    await supabaseAdmin.from("checklists").delete().eq("company_id", company_id);
     await supabaseAdmin.from("app_settings").delete().eq("company_id", company_id);
     await supabaseAdmin.from("profiles").delete().eq("company_id", company_id);
 
