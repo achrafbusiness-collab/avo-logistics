@@ -26,13 +26,27 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   User,
   Save,
   X,
   Loader2,
   Upload,
   FileText,
-  CreditCard
+  CreditCard,
+  CheckCircle2,
+  Copy,
+  Mail,
+  Phone,
+  Key,
+  Link2,
+  ExternalLink,
+  AlertCircle,
 } from 'lucide-react';
 
 const driverSchema = z.object({
@@ -104,7 +118,15 @@ export default function DriverForm({ driver, onSave, onCancel }) {
   const [resetMessage, setResetMessage] = useState('');
   const [resetError, setResetError] = useState('');
   const [formError, setFormError] = useState('');
+  const [showResultDialog, setShowResultDialog] = useState(false);
+  const [copiedField, setCopiedField] = useState('');
   const baseInviteUrl = (import.meta.env.VITE_PUBLIC_SITE_URL || '').trim() || window.location.origin;
+
+  const copyToClipboard = (text, field) => {
+    navigator.clipboard?.writeText(text || '');
+    setCopiedField(field);
+    setTimeout(() => setCopiedField(''), 2000);
+  };
 
   useEffect(() => {
     form.reset(buildFormValues(driver));
@@ -222,6 +244,7 @@ export default function DriverForm({ driver, onSave, onCancel }) {
           return;
         }
         setLoginResult(result.data || null);
+        setShowResultDialog(true);
       }
     } catch (error) {
       setLoginError(error?.message || 'Speichern fehlgeschlagen.');
@@ -514,118 +537,173 @@ export default function DriverForm({ driver, onSave, onCancel }) {
               </div>
             )}
 
-            {!driver && (
-              <>
-                <Separator />
-                <div className="space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                  <div>
-                    <h3 className="font-semibold text-[#1e3a5f]">Einladung & Passwort</h3>
-                    <p className="text-sm text-gray-500">
-                      Beim Speichern wird automatisch eine E-Mail mit dem Passwort-Link gesendet.
-                    </p>
-                  </div>
-                  {loginError && (
-                    <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                      {loginError}
-                    </div>
-                  )}
-                  {loginResult && (
-                    <div className="space-y-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-                      <p>Einladungs-E-Mail wurde verarbeitet.</p>
-                      {loginResult.tempPassword && (
-                        <div className="flex items-center gap-2">
-                          <Input value={loginResult.tempPassword} readOnly />
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() =>
-                              navigator.clipboard?.writeText(loginResult.tempPassword || '')
-                            }
-                          >
-                            Passwort kopieren
-                          </Button>
-                        </div>
-                      )}
-                      {loginResult.loginUrl && (
-                        <div className="flex items-center gap-2">
-                          <Input value={loginResult.loginUrl} readOnly />
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => navigator.clipboard?.writeText(loginResult.loginUrl || '')}
-                          >
-                            Link kopieren
-                          </Button>
-                        </div>
-                      )}
-                      {!loginResult.emailSent && loginResult.resetLink && (
-                        <div className="flex items-center gap-2">
-                          <Input value={loginResult.resetLink} readOnly />
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => navigator.clipboard?.writeText(loginResult.resetLink || '')}
-                          >
-                            Reset-Link kopieren
-                          </Button>
-                        </div>
-                      )}
-                      {!loginResult.emailSent && (
-                        <p className="text-xs text-emerald-700">
-                          {loginResult.emailError
-                            ? `E-Mail konnte nicht gesendet werden: ${loginResult.emailError}`
-                            : "E-Mail konnte nicht gesendet werden. Bitte Link manuell weitergeben."}
-                        </p>
-                      )}
-                      <p className="text-xs text-emerald-700">
-                        Status bleibt auf Bearbeitung bis der Fahrer sein Passwort gesetzt hat.
-                      </p>
-                      <div className="flex flex-wrap gap-2">
-                        <Button type="button" variant="outline" onClick={onCancel}>
-                          Zur Liste
-                        </Button>
-                        {createdDriverId && (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => {
-                              window.location.href = `/drivers?id=${createdDriverId}`;
-                            }}
-                          >
-                            Profil anzeigen
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                  {!driver && createdDriverId && !loginResult && !loginCreating && (
-                    <div className="space-y-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
-                      <p>Profil wurde gespeichert.</p>
-                      <p>Die Einladungs-E-Mail wird gesendet...</p>
-                      <div className="flex flex-wrap gap-2">
-                        <Button type="button" variant="outline" onClick={onCancel}>
-                          Zur Liste
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => {
-                            window.location.href = `/drivers?id=${createdDriverId}`;
-                          }}
-                        >
-                          Profil anzeigen
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                  {loginCreating && (
-                    <div className="text-sm text-gray-500">
-                      Login-Daten werden erstellt…
-                    </div>
-                  )}
-                </div>
-              </>
+            {!driver && loginError && (
+              <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                {loginError}
+              </div>
             )}
+
+            {/* Success Dialog after creating a new driver */}
+            <Dialog open={showResultDialog} onOpenChange={setShowResultDialog}>
+              <DialogContent className="sm:max-w-lg">
+                <DialogHeader>
+                  <div className="mx-auto mb-2 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100">
+                    <CheckCircle2 className="h-8 w-8 text-emerald-600" />
+                  </div>
+                  <DialogTitle className="text-center text-xl">
+                    Fahrer erfolgreich angelegt!
+                  </DialogTitle>
+                </DialogHeader>
+
+                <div className="space-y-4 mt-2">
+                  {/* Driver Info */}
+                  <div className="rounded-xl bg-slate-50 border border-slate-200 p-4 space-y-3">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Fahrer-Informationen</p>
+                    <div className="grid gap-2">
+                      <div className="flex items-center gap-3">
+                        <User className="w-4 h-4 text-slate-400" />
+                        <span className="text-sm font-medium text-slate-700">
+                          {form.getValues('first_name')} {form.getValues('last_name')}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <Mail className="w-4 h-4 text-slate-400" />
+                        <span className="text-sm text-slate-700">{form.getValues('email')}</span>
+                      </div>
+                      {form.getValues('phone') && (
+                        <div className="flex items-center gap-3">
+                          <Phone className="w-4 h-4 text-slate-400" />
+                          <span className="text-sm text-slate-700">{form.getValues('phone')}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Login Credentials */}
+                  {loginResult && (
+                    <div className="rounded-xl bg-blue-50 border border-blue-200 p-4 space-y-3">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-blue-400">Zugangsdaten</p>
+
+                      {loginResult.tempPassword && (
+                        <div className="space-y-1">
+                          <p className="text-xs text-slate-500">Temporäres Passwort</p>
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1 rounded-lg bg-white border border-blue-200 px-3 py-2 font-mono text-sm font-bold text-blue-700 tracking-wider">
+                              {loginResult.tempPassword}
+                            </div>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="shrink-0"
+                              onClick={() => copyToClipboard(loginResult.tempPassword, 'password')}
+                            >
+                              {copiedField === 'password' ? <CheckCircle2 className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+
+                      {loginResult.loginUrl && (
+                        <div className="space-y-1">
+                          <p className="text-xs text-slate-500">Login-URL</p>
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1 rounded-lg bg-white border border-blue-200 px-3 py-2 text-xs text-blue-600 truncate">
+                              {loginResult.loginUrl}
+                            </div>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="shrink-0"
+                              onClick={() => copyToClipboard(loginResult.loginUrl, 'loginUrl')}
+                            >
+                              {copiedField === 'loginUrl' ? <CheckCircle2 className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+
+                      {!loginResult.emailSent && loginResult.resetLink && (
+                        <div className="space-y-1">
+                          <p className="text-xs text-slate-500">Passwort-Reset-Link</p>
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1 rounded-lg bg-white border border-blue-200 px-3 py-2 text-xs text-blue-600 truncate">
+                              {loginResult.resetLink}
+                            </div>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="shrink-0"
+                              onClick={() => copyToClipboard(loginResult.resetLink, 'resetLink')}
+                            >
+                              {copiedField === 'resetLink' ? <CheckCircle2 className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Email Status */}
+                  <div className={`rounded-xl border p-3 text-sm flex items-center gap-3 ${
+                    loginResult?.emailSent
+                      ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                      : 'bg-amber-50 border-amber-200 text-amber-700'
+                  }`}>
+                    {loginResult?.emailSent ? (
+                      <>
+                        <Mail className="w-5 h-5 flex-shrink-0" />
+                        <span>Einladungs-E-Mail wurde erfolgreich an <strong>{form.getValues('email')}</strong> gesendet.</span>
+                      </>
+                    ) : (
+                      <>
+                        <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                        <span>
+                          {loginResult?.emailError
+                            ? `E-Mail konnte nicht gesendet werden: ${loginResult.emailError}`
+                            : 'E-Mail konnte nicht gesendet werden. Bitte Zugangsdaten manuell weitergeben.'}
+                        </span>
+                      </>
+                    )}
+                  </div>
+
+                  <p className="text-xs text-center text-slate-400">
+                    Status bleibt auf „Bearbeitung" bis der Fahrer sein Passwort gesetzt hat.
+                  </p>
+
+                  {/* Actions */}
+                  <div className="flex gap-3 pt-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => {
+                        setShowResultDialog(false);
+                        onCancel();
+                      }}
+                    >
+                      Zur Liste
+                    </Button>
+                    {createdDriverId && (
+                      <Button
+                        type="button"
+                        className="flex-1 bg-[#1e3a5f] hover:bg-[#2d5a8a]"
+                        onClick={() => {
+                          setShowResultDialog(false);
+                          window.location.href = `/drivers?id=${createdDriverId}`;
+                        }}
+                      >
+                        <ExternalLink className="w-4 h-4 mr-2" />
+                        Profil öffnen
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
 
             <Separator />
 
