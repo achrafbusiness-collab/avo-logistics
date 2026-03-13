@@ -346,7 +346,7 @@ export default function DriverOrders() {
         <div className="relative z-10 flex h-full flex-col justify-between gap-8">
           <div className="flex items-center justify-between">
             <img
-              src="/logo.png"
+              src="/logo-dark.png"
               alt="TransferFleet"
               className="h-20 w-auto rounded-xl bg-white/95 p-2 shadow-lg md:h-24"
             />

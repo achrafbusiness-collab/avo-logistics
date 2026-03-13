@@ -81,7 +81,7 @@ export default function LoginPortal({
           <div className="w-full max-w-xl space-y-4 text-center">
             <div className="mx-auto flex items-center justify-center rounded-3xl bg-white p-6 shadow-2xl ring-1 ring-slate-200/70">
               <img
-                src="/logo.png"
+                src="/logo-dark.png"
                 alt={t('login.logoAlt')}
                 className="h-28 w-auto object-contain drop-shadow-sm sm:h-36"
               />
