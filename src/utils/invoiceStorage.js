@@ -2,6 +2,24 @@ const DRAFTS_KEY = 'tf:finance:invoice-drafts:v1';
 const INVOICES_KEY = 'tf:finance:invoices:v1';
 const SETTINGS_KEY = 'tf:finance:settings:v1';
 
+// Migrate data from old avo: keys to new tf: keys (one-time)
+if (typeof window !== 'undefined') {
+  const migrations = [
+    ['avo:finance:invoice-drafts:v1', DRAFTS_KEY],
+    ['avo:finance:invoices:v1', INVOICES_KEY],
+    ['avo:finance:settings:v1', SETTINGS_KEY],
+  ];
+  for (const [oldKey, newKey] of migrations) {
+    const oldData = window.localStorage.getItem(oldKey);
+    if (oldData && !window.localStorage.getItem(newKey)) {
+      window.localStorage.setItem(newKey, oldData);
+    }
+    if (oldData) {
+      window.localStorage.removeItem(oldKey);
+    }
+  }
+}
+
 const DEFAULT_FINANCE_SETTINGS = {
   invoicePrefix: 'AV',
   defaultVatRate: 19,
