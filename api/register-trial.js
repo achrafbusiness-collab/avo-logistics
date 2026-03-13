@@ -308,7 +308,7 @@ Ihr TransferFleet Team`;
         subject,
         text,
         html,
-        from: `TransferFleet <${smtpFrom || smtpUser}>`,
+        from: `TransferFleet <noreply@avo-logistics.app>`,
         smtp,
       });
     } catch (err) {
