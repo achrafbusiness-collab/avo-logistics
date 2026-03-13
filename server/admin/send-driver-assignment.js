@@ -175,7 +175,7 @@ const resolvePublicSiteUrl = (req) => {
     .split(",")[0]
     .trim();
   const forwardedHost =
-    req?.headers?.["x-forwarded-host"] || req?.headers?.host || "avo-logistics.app";
+    req?.headers?.["x-forwarded-host"] || req?.headers?.host || "transferfleet.de";
   return `${forwardedProto}://${String(forwardedHost).replace(/\/+$/, "")}`;
 };
 
@@ -620,7 +620,7 @@ export default async function handler(req, res) {
     const replyTo = settings?.support_email || undefined;
     const brandPrimary = "#1e3a5f";
     const brandSecondary = "#2d5a8a";
-    const logoUrl = resolvePublicSiteUrl(req) ? `${resolvePublicSiteUrl(req)}/logo.png` : "";
+    const logoUrl = resolvePublicSiteUrl(req) ? `${resolvePublicSiteUrl(req)}/logo-dark.png` : "";
 
     if (sendCustomerInvoiceBinary) {
       if (!canSendEmail(resolvedSmtp)) {
@@ -653,7 +653,7 @@ export default async function handler(req, res) {
       }
 
       const subject = `Rechnung ${numberFromHeader || "-"}`;
-      const companyName = settings?.company_name || "AVO Logistics";
+      const companyName = settings?.company_name || "TransferFleet";
       const contact = resolveInvoiceContactDetails({
         contactPersonValue: contactPersonFromHeader,
         contactEmailValue: contactEmailFromHeader,
@@ -781,17 +781,17 @@ ${contactHtmlBlock}
         res.status(400).json({ ok: false, error: "SMTP ist nicht konfiguriert." });
         return;
       }
-      const subject = "AVO Test-E-Mail";
+      const subject = "TransferFleet Test-E-Mail";
       const text = `Hallo,
 
-dies ist eine Test-E-Mail aus deinem AVO System.
+dies ist eine Test-E-Mail aus deinem TransferFleet System.
 
 Absender: ${fromAddress}
 Unternehmen: ${settings?.company_name || "-"}
 
 Wenn du diese E-Mail erhalten hast, ist SMTP korrekt eingerichtet.`;
       const html = `<p>Hallo,</p>
-<p>dies ist eine Test-E-Mail aus deinem AVO System.</p>
+<p>dies ist eine Test-E-Mail aus deinem TransferFleet System.</p>
 <ul>
   <li><strong>Absender:</strong> ${fromAddress}</li>
   <li><strong>Unternehmen:</strong> ${settings?.company_name || "-"}</li>
@@ -825,7 +825,7 @@ Wenn du diese E-Mail erhalten hast, ist SMTP korrekt eingerichtet.`;
         res.status(400).json({ ok: false, error: "SMTP ist nicht konfiguriert." });
         return;
       }
-      const companyName = settings?.company_name || "AVO Logistics";
+      const companyName = settings?.company_name || "TransferFleet";
       const subject = `Herzlich willkommen bei ${companyName}`;
       const text = `Hallo,
 
@@ -834,7 +834,7 @@ herzlich willkommen bei ${companyName}! Dein Konto ist jetzt aktiv.
 Du kannst ab sofort:
 - Aufträge anlegen und verwalten
 - Fahrer und Kunden einsehen
-- AI Import und AVO AI nutzen
+- AI Import und TransferFleet AI nutzen
 - Team und Einstellungen verwalten
 
 Admin Controlling ist nur für System-Admins sichtbar.
@@ -874,7 +874,7 @@ ${companyName}`;
             <ul style="padding-left:18px; margin:0 0 16px; font-size:14px; color:#0f172a;">
               <li>Aufträge anlegen und verwalten</li>
               <li>Fahrer und Kunden einsehen</li>
-              <li>AI Import und AVO AI nutzen</li>
+              <li>AI Import und TransferFleet AI nutzen</li>
               <li>Team und Einstellungen verwalten</li>
             </ul>
             <p style="margin:0 0 12px; font-size:13px; color:#64748b;">
@@ -993,7 +993,7 @@ ${companyName}`;
       }
 
       const subject = `Rechnung ${invoiceNumber || "-"}`;
-      const companyName = settings?.company_name || "AVO Logistics";
+      const companyName = settings?.company_name || "TransferFleet";
       const customerLabel = String(customerName || "Kunde").trim();
       const contact = resolveInvoiceContactDetails({
         contactPersonValue: customerContactPerson,
@@ -1160,7 +1160,7 @@ ${contactHtmlBlock}
         res.status(400).json({ ok: false, error: "Kein Protokoll für den Auftrag vorhanden." });
         return;
       }
-      const companyName = settings?.company_name || "AVO Logistics";
+      const companyName = settings?.company_name || "TransferFleet";
       const vehicleLabel = [order.vehicle_brand, order.vehicle_model].filter(Boolean).join(" ") || "-";
       const pickupLine = formatAddress([
         order.pickup_address,
@@ -1292,7 +1292,7 @@ ${companyName}`;
       return;
     }
 
-    const signatureName = senderName || settings?.company_name || "AVO Logistics";
+    const signatureName = senderName || settings?.company_name || "TransferFleet";
     const subject = `Auftragsbestätigung – Auftrag ${order.order_number || ""} zugewiesen`;
     const text = `Hallo ${order.assigned_driver_name || "Fahrer"},
 
@@ -1326,7 +1326,7 @@ Bei Fragen kontaktiere bitte deinen Disponenten.`;
         <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
           <tr>
             <td style="text-align:left;">
-              ${logoUrl ? `<img src="${logoUrl}" alt="AVO Logistics" style="height:48px; display:block; border-radius:8px;" />` : ''}
+              ${logoUrl ? `<img src="${logoUrl}" alt="TransferFleet" style="height:48px; display:block; border-radius:8px;" />` : ''}
             </td>
             <td style="text-align:right; font-size:12px; color:${brandSecondary}; font-weight:600;">
               Auftragsbestätigung
@@ -1396,7 +1396,7 @@ Bei Fragen kontaktiere bitte deinen Disponenten.`;
     </tr>
     <tr>
       <td style="padding:16px 20px; text-align:center; font-size:11px; color:#94a3b8;">
-        AVO Logistics • Automatische Systembenachrichtigung
+        TransferFleet • Automatische Systembenachrichtigung
       </td>
     </tr>
   </table>

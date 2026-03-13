@@ -41,7 +41,7 @@ const adminPages = [
   { name: 'Fahrer', icon: Users, page: 'Drivers' },
   { name: 'Kunden & Finanzen', icon: User, page: 'Customers' },
   { name: 'App & Einstellungen', icon: Settings, page: 'AppConnection' },
-  { name: 'Team', icon: Users, page: 'TeamAVO' },
+  { name: 'Team', icon: Users, page: 'TeamTransferFleet' },
   { name: 'Admin Controlling', icon: ShieldCheck, page: 'AdminControlling' },
 ];
 
@@ -54,7 +54,7 @@ export default function Layout({ children, currentPageName }) {
   const mainRef = useRef(null);
   const { t, dir } = useI18n();
   const [darkMode, setDarkMode] = useState(() => {
-    const saved = localStorage.getItem('avo-dark-mode');
+    const saved = localStorage.getItem('tf-dark-mode');
     return saved !== null ? JSON.parse(saved) : true;
   });
 
@@ -63,7 +63,7 @@ export default function Layout({ children, currentPageName }) {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('avo-dark-mode', JSON.stringify(darkMode));
+    localStorage.setItem('tf-dark-mode', JSON.stringify(darkMode));
   }, [darkMode]);
 
   useEffect(() => {
@@ -221,7 +221,7 @@ export default function Layout({ children, currentPageName }) {
         <div className="flex h-full flex-col">
           <div className="flex items-center justify-between p-4 border-b border-white/10">
             <div>
-              <p className="text-lg font-semibold uppercase tracking-[0.18em] text-blue-200">AVO SYSTEMS</p>
+              <p className="text-lg font-semibold uppercase tracking-[0.18em] text-blue-200">TRANSFERFLEET</p>
               <p className="text-[11px] mt-1 text-white/70">
                 Ihr KI-automatisiertes System für Fahrzeugüberführung
               </p>
@@ -364,7 +364,17 @@ export default function Layout({ children, currentPageName }) {
           ref={mainRef}
           className={`flex-1 p-4 lg:p-6 overflow-auto ${darkMode ? 'bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950' : 'bg-slate-100'}`}
         >
-          <div className={`avo-page-content min-h-full p-5 lg:p-8 ${darkMode ? 'avo-dark' : 'rounded-[28px] bg-white shadow-[0_30px_60px_-40px_rgba(15,23,42,0.15)]'}`}>
+          {user?.trialStatus?.isTrial && !user?.trialStatus?.isExpired && (
+            <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-cyan-500/20 bg-cyan-500/10 px-4 py-3 text-sm">
+              <span className="text-cyan-700 dark:text-cyan-300">
+                ✦ Testphase — noch <strong>{user.trialStatus.daysLeft}</strong> {user.trialStatus.daysLeft === 1 ? 'Tag' : 'Tage'} verbleibend
+              </span>
+              <a href="mailto:info@transferfleet.de?subject=TransferFleet%20Upgrade" className="rounded-md bg-cyan-600 px-3 py-1 text-xs font-semibold text-white hover:bg-cyan-700 transition-colors">
+                Jetzt upgraden
+              </a>
+            </div>
+          )}
+          <div className={`tf-page-content min-h-full p-5 lg:p-8 ${darkMode ? 'tf-dark' : 'rounded-[28px] bg-white shadow-[0_30px_60px_-40px_rgba(15,23,42,0.15)]'}`}>
             {children}
           </div>
         </main>

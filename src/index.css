@@ -126,50 +126,50 @@ button:focus-visible {
 /* ── Micro-interaction animations ── */
 
 /* Copy button pop: scale up briefly when copy succeeds */
-@keyframes avo-copy-pop-kf {
+@keyframes tf-copy-pop-kf {
   0%   { transform: scale(1); }
   35%  { transform: scale(1.35); }
   65%  { transform: scale(0.9); }
   100% { transform: scale(1); }
 }
-.avo-copy-pop {
-  animation: avo-copy-pop-kf 0.28s ease-out forwards;
+.tf-copy-pop {
+  animation: tf-copy-pop-kf 0.28s ease-out forwards;
 }
 
 /* Floating "Kopiert!" / success badge slides up then fades */
-@keyframes avo-badge-in-kf {
+@keyframes tf-badge-in-kf {
   0%   { opacity: 0; transform: translateX(-50%) translateY(6px) scale(0.85); }
   20%  { opacity: 1; transform: translateX(-50%) translateY(-2px) scale(1.05); }
   70%  { opacity: 1; transform: translateX(-50%) translateY(0)    scale(1); }
   100% { opacity: 0; transform: translateX(-50%) translateY(-5px) scale(0.9); }
 }
-.avo-badge-in {
-  animation: avo-badge-in-kf 1.4s ease-in-out forwards;
+.tf-badge-in {
+  animation: tf-badge-in-kf 1.4s ease-in-out forwards;
 }
 
 /* Driver avatar pop-in when newly assigned */
-@keyframes avo-driver-pop-kf {
+@keyframes tf-driver-pop-kf {
   0%   { transform: scale(0.6); opacity: 0.4; }
   55%  { transform: scale(1.15); opacity: 1; }
   80%  { transform: scale(0.95); }
   100% { transform: scale(1); }
 }
-.avo-driver-pop {
-  animation: avo-driver-pop-kf 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+.tf-driver-pop {
+  animation: tf-driver-pop-kf 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
 
 /* Green pulse ring around the checkmark icon */
-@keyframes avo-success-ring-kf {
+@keyframes tf-success-ring-kf {
   0%   { box-shadow: 0 0 0 0   rgb(34 197 94 / 0.6); }
   60%  { box-shadow: 0 0 0 6px rgb(34 197 94 / 0); }
   100% { box-shadow: 0 0 0 0   rgb(34 197 94 / 0); }
 }
-.avo-success-ring {
-  animation: avo-success-ring-kf 1.2s ease-out forwards;
+.tf-success-ring {
+  animation: tf-success-ring-kf 1.2s ease-out forwards;
 }
 
 /* ── Driver picker: avatar + hover slide animation ── */
-.avo-driver-avatar {
+.tf-driver-avatar {
   width: 26px;
   height: 26px;
   border-radius: 50%;
@@ -184,27 +184,27 @@ button:focus-visible {
               box-shadow 0.18s ease;
 }
 
-[data-radix-select-item].avo-driver-item {
+[data-radix-select-item].tf-driver-item {
   transition: background 0.14s ease, padding-left 0.16s ease, color 0.12s ease;
   border-radius: 6px !important;
 }
 
-[data-radix-select-item].avo-driver-item[data-highlighted] {
+[data-radix-select-item].tf-driver-item[data-highlighted] {
   background-color: #e8effa !important;
   color: #1e3a5f !important;
   padding-left: 20px !important;
 }
 
-[data-radix-select-item].avo-driver-item[data-highlighted] .avo-driver-avatar {
+[data-radix-select-item].tf-driver-item[data-highlighted] .tf-driver-avatar {
   transform: scale(1.25);
   box-shadow: 0 2px 8px rgba(30, 58, 95, 0.35);
 }
 
 /* General interactive button press */
-.avo-interactive {
+.tf-interactive {
   transition: transform 0.1s ease, box-shadow 0.1s ease;
 }
-.avo-interactive:active {
+.tf-interactive:active {
   transform: scale(0.95);
 }
 
@@ -234,92 +234,92 @@ button:focus-visible {
 /* ── Dark mode content overrides ── */
 
 /* Text colors: dark → light */
-.avo-dark .text-slate-900 { color: #f1f5f9 !important; }
-.avo-dark .text-slate-800 { color: #e2e8f0 !important; }
-.avo-dark .text-slate-700 { color: #cbd5e1 !important; }
-.avo-dark .text-slate-600 { color: #94a3b8 !important; }
-.avo-dark .text-gray-900  { color: #f1f5f9 !important; }
-.avo-dark .text-gray-800  { color: #e2e8f0 !important; }
-.avo-dark .text-gray-700  { color: #cbd5e1 !important; }
-.avo-dark .text-gray-600  { color: #94a3b8 !important; }
-.avo-dark .text-gray-500  { color: #94a3b8 !important; }
-.avo-dark .text-black      { color: #f1f5f9 !important; }
+.tf-dark .text-slate-900 { color: #f1f5f9 !important; }
+.tf-dark .text-slate-800 { color: #e2e8f0 !important; }
+.tf-dark .text-slate-700 { color: #cbd5e1 !important; }
+.tf-dark .text-slate-600 { color: #94a3b8 !important; }
+.tf-dark .text-gray-900  { color: #f1f5f9 !important; }
+.tf-dark .text-gray-800  { color: #e2e8f0 !important; }
+.tf-dark .text-gray-700  { color: #cbd5e1 !important; }
+.tf-dark .text-gray-600  { color: #94a3b8 !important; }
+.tf-dark .text-gray-500  { color: #94a3b8 !important; }
+.tf-dark .text-black      { color: #f1f5f9 !important; }
 
 /* Headings within [#1e3a5f] brand color → lighter */
-.avo-dark .text-\[\#1e3a5f\] { color: #93c5fd !important; }
-.avo-dark .text-\[\#0f172a\] { color: #e2e8f0 !important; }
+.tf-dark .text-\[\#1e3a5f\] { color: #93c5fd !important; }
+.tf-dark .text-\[\#0f172a\] { color: #e2e8f0 !important; }
 
 /* Backgrounds: white/light cards → dark cards */
-.avo-dark .bg-white       { background-color: rgba(30, 41, 59, 0.7) !important; }
-.avo-dark .bg-white\/90   { background-color: rgba(30, 41, 59, 0.65) !important; }
-.avo-dark .bg-slate-50    { background-color: rgba(30, 41, 59, 0.5) !important; }
-.avo-dark .bg-slate-100   { background-color: rgba(30, 41, 59, 0.4) !important; }
-.avo-dark .bg-gray-50     { background-color: rgba(30, 41, 59, 0.5) !important; }
-.avo-dark .bg-gray-100    { background-color: rgba(30, 41, 59, 0.4) !important; }
+.tf-dark .bg-white       { background-color: rgba(30, 41, 59, 0.7) !important; }
+.tf-dark .bg-white\/90   { background-color: rgba(30, 41, 59, 0.65) !important; }
+.tf-dark .bg-slate-50    { background-color: rgba(30, 41, 59, 0.5) !important; }
+.tf-dark .bg-slate-100   { background-color: rgba(30, 41, 59, 0.4) !important; }
+.tf-dark .bg-gray-50     { background-color: rgba(30, 41, 59, 0.5) !important; }
+.tf-dark .bg-gray-100    { background-color: rgba(30, 41, 59, 0.4) !important; }
 
 /* Borders: light → subtle dark */
-.avo-dark .border-slate-200  { border-color: rgba(148, 163, 184, 0.2) !important; }
-.avo-dark .border-slate-200\/80 { border-color: rgba(148, 163, 184, 0.15) !important; }
-.avo-dark .border-slate-300  { border-color: rgba(148, 163, 184, 0.25) !important; }
-.avo-dark .border-gray-200   { border-color: rgba(148, 163, 184, 0.2) !important; }
-.avo-dark .border-gray-300   { border-color: rgba(148, 163, 184, 0.25) !important; }
+.tf-dark .border-slate-200  { border-color: rgba(148, 163, 184, 0.2) !important; }
+.tf-dark .border-slate-200\/80 { border-color: rgba(148, 163, 184, 0.15) !important; }
+.tf-dark .border-slate-300  { border-color: rgba(148, 163, 184, 0.25) !important; }
+.tf-dark .border-gray-200   { border-color: rgba(148, 163, 184, 0.2) !important; }
+.tf-dark .border-gray-300   { border-color: rgba(148, 163, 184, 0.25) !important; }
 
 /* Input fields */
-.avo-dark input,
-.avo-dark textarea,
-.avo-dark select {
+.tf-dark input,
+.tf-dark textarea,
+.tf-dark select {
   background-color: rgba(15, 23, 42, 0.6) !important;
   color: #e2e8f0 !important;
   border-color: rgba(148, 163, 184, 0.25) !important;
 }
-.avo-dark input::placeholder,
-.avo-dark textarea::placeholder {
+.tf-dark input::placeholder,
+.tf-dark textarea::placeholder {
   color: #64748b !important;
 }
 
 /* shadcn Card component */
-.avo-dark [class*="rounded"][class*="border"][class*="bg-white"] {
+.tf-dark [class*="rounded"][class*="border"][class*="bg-white"] {
   background-color: rgba(30, 41, 59, 0.7) !important;
   border-color: rgba(148, 163, 184, 0.15) !important;
 }
 
 /* Select trigger / dropdown */
-.avo-dark [data-radix-select-trigger],
-.avo-dark button[role="combobox"] {
+.tf-dark [data-radix-select-trigger],
+.tf-dark button[role="combobox"] {
   background-color: rgba(15, 23, 42, 0.6) !important;
   color: #e2e8f0 !important;
   border-color: rgba(148, 163, 184, 0.25) !important;
 }
 
 /* Status badges / pills keep their colors */
-.avo-dark .bg-green-50  { background-color: rgba(22, 101, 52, 0.3) !important; }
-.avo-dark .bg-green-100 { background-color: rgba(22, 101, 52, 0.3) !important; }
-.avo-dark .bg-red-50    { background-color: rgba(153, 27, 27, 0.3) !important; }
-.avo-dark .bg-red-100   { background-color: rgba(153, 27, 27, 0.3) !important; }
-.avo-dark .bg-yellow-50 { background-color: rgba(133, 77, 14, 0.3) !important; }
-.avo-dark .bg-yellow-100 { background-color: rgba(133, 77, 14, 0.3) !important; }
-.avo-dark .bg-blue-50   { background-color: rgba(30, 58, 95, 0.4) !important; }
-.avo-dark .bg-blue-100  { background-color: rgba(30, 58, 95, 0.4) !important; }
-.avo-dark .bg-emerald-50 { background-color: rgba(6, 78, 59, 0.3) !important; }
-.avo-dark .bg-orange-50  { background-color: rgba(154, 52, 18, 0.3) !important; }
+.tf-dark .bg-green-50  { background-color: rgba(22, 101, 52, 0.3) !important; }
+.tf-dark .bg-green-100 { background-color: rgba(22, 101, 52, 0.3) !important; }
+.tf-dark .bg-red-50    { background-color: rgba(153, 27, 27, 0.3) !important; }
+.tf-dark .bg-red-100   { background-color: rgba(153, 27, 27, 0.3) !important; }
+.tf-dark .bg-yellow-50 { background-color: rgba(133, 77, 14, 0.3) !important; }
+.tf-dark .bg-yellow-100 { background-color: rgba(133, 77, 14, 0.3) !important; }
+.tf-dark .bg-blue-50   { background-color: rgba(30, 58, 95, 0.4) !important; }
+.tf-dark .bg-blue-100  { background-color: rgba(30, 58, 95, 0.4) !important; }
+.tf-dark .bg-emerald-50 { background-color: rgba(6, 78, 59, 0.3) !important; }
+.tf-dark .bg-orange-50  { background-color: rgba(154, 52, 18, 0.3) !important; }
 
 /* Skeleton loading pulse */
-.avo-dark .animate-pulse { background-color: rgba(148, 163, 184, 0.15) !important; }
+.tf-dark .animate-pulse { background-color: rgba(148, 163, 184, 0.15) !important; }
 
 /* Tabs */
-.avo-dark [role="tablist"] {
+.tf-dark [role="tablist"] {
   background-color: rgba(15, 23, 42, 0.5) !important;
 }
-.avo-dark [role="tab"][data-state="active"] {
+.tf-dark [role="tab"][data-state="active"] {
   background-color: rgba(30, 41, 59, 0.8) !important;
   color: #f1f5f9 !important;
 }
-.avo-dark [role="tab"] {
+.tf-dark [role="tab"] {
   color: #94a3b8 !important;
 }
 
 /* Hover states */
-.avo-dark .hover\:bg-gray-100:hover  { background-color: rgba(51, 65, 85, 0.5) !important; }
-.avo-dark .hover\:bg-slate-100:hover { background-color: rgba(51, 65, 85, 0.5) !important; }
-.avo-dark .hover\:bg-gray-50:hover   { background-color: rgba(51, 65, 85, 0.4) !important; }
-.avo-dark .hover\:bg-slate-50:hover  { background-color: rgba(51, 65, 85, 0.4) !important; }
+.tf-dark .hover\:bg-gray-100:hover  { background-color: rgba(51, 65, 85, 0.5) !important; }
+.tf-dark .hover\:bg-slate-100:hover { background-color: rgba(51, 65, 85, 0.5) !important; }
+.tf-dark .hover\:bg-gray-50:hover   { background-color: rgba(51, 65, 85, 0.4) !important; }
+.tf-dark .hover\:bg-slate-50:hover  { background-color: rgba(51, 65, 85, 0.4) !important; }

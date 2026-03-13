@@ -1,6 +1,6 @@
 {
   "app": {
-    "name": "AVO Logistics"
+    "name": "TransferFleet"
   },
   "common": {
     "back": "Zurück",
@@ -21,7 +21,7 @@
     "logout": "Abmelden"
   },
   "login": {
-    "logoAlt": "AVO SYSTEMS",
+    "logoAlt": "TransferFleet",
     "actions": {
       "switchPortal": "Portal wechseln",
       "signIn": "Einloggen",
@@ -44,7 +44,7 @@
       "title": "Fahrer-Portal",
       "subtitle": "Bitte melde dich an, um deine Aufträge zu sehen und Protokolle zu erstellen.",
       "cardTitle": "Fahrer-Login",
-      "emailPlaceholder": "fahrer@avo-logistics.app"
+      "emailPlaceholder": "fahrer@transferfleet.de"
     }
   },
   "status": {
@@ -110,7 +110,7 @@
   },
   "handoff": {
     "title": "Zwischenabgabe & Shuttle",
-    "successTitle": "Zwischenabgabe erfolgreich durchgeführt. Preis wird von Team AVO bearbeitet und dann wird in kurzem auf der Profilseite zu sehen.",
+    "successTitle": "Zwischenabgabe erfolgreich durchgeführt. Preis wird von Team TransferFleet bearbeitet und dann wird in kurzem auf der Profilseite zu sehen.",
     "pendingTitle": "Zwischenabgabe wartet auf Bestätigung.",
     "pendingByYou": "Zwischenabgabe gespeichert.",
     "accept": "Übernahme bestätigen",
@@ -220,7 +220,7 @@
     "request": {
       "button": "Abrechnung Anfrage senden",
       "title": "Zusatzabrechnung anfragen",
-      "description": "Beschreibe hier zusätzliche Leistungen ohne Tour. Die Anfrage wird mit heutigem Datum gesendet und kann von Team AVO bestätigt oder abgelehnt werden.",
+      "description": "Beschreibe hier zusätzliche Leistungen ohne Tour. Die Anfrage wird mit heutigem Datum gesendet und kann von Team TransferFleet bestätigt oder abgelehnt werden.",
       "label": "Beschreibung",
       "placeholder": "z.B. Fahrzeug-Aufbereitung, Zusatzfahrt ohne Tour, Sonderleistung...",
       "send": "Anfrage senden",

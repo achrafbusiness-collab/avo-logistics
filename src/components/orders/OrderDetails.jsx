@@ -562,7 +562,7 @@ export default function OrderDetails({
                   onClick={() => handleCopyValue(copyKey || label, copyValue)}
                   className={`rounded-md p-1 transition-all duration-150 active:scale-90 ${
                     isCopied
-                      ? 'bg-emerald-100 text-emerald-600 avo-copy-pop'
+                      ? 'bg-emerald-100 text-emerald-600 tf-copy-pop'
                       : 'text-slate-400 hover:bg-slate-100 hover:text-[#1e3a5f]'
                   }`}
                   title={isCopied ? 'Kopiert!' : `${label} kopieren`}
@@ -572,7 +572,7 @@ export default function OrderDetails({
                     : <Copy className="h-4 w-4" />}
                 </button>
                 {isCopied && (
-                  <span className="avo-badge-in pointer-events-none absolute -top-7 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-emerald-600 px-2 py-0.5 text-[10px] font-semibold text-white shadow-sm">
+                  <span className="tf-badge-in pointer-events-none absolute -top-7 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-emerald-600 px-2 py-0.5 text-[10px] font-semibold text-white shadow-sm">
                     Kopiert!
                   </span>
                 )}
@@ -1238,9 +1238,9 @@ export default function OrderDetails({
                       <SelectValue placeholder="Fahrer auswählen..." />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="none" className="avo-driver-item">
+                      <SelectItem value="none" className="tf-driver-item">
                         <div className="flex items-center gap-2.5 py-0.5">
-                          <span className="avo-driver-avatar" style={{ backgroundColor: '#94a3b8' }}>–</span>
+                          <span className="tf-driver-avatar" style={{ backgroundColor: '#94a3b8' }}>–</span>
                           <span className="text-gray-500">Kein Fahrer</span>
                         </div>
                       </SelectItem>
@@ -1252,9 +1252,9 @@ export default function OrderDetails({
                         const AVATAR_COLORS = ['#1e3a5f','#0f6b4f','#7c3aed','#b45309','#0e7490','#be123c','#1d4ed8'];
                         const colorIdx = [...(driver.id || 'x')].reduce((a, c) => a + c.charCodeAt(0), 0) % AVATAR_COLORS.length;
                         return (
-                          <SelectItem key={driver.id} value={driver.id} className="avo-driver-item">
+                          <SelectItem key={driver.id} value={driver.id} className="tf-driver-item">
                             <div className="flex items-center gap-2.5 py-0.5">
-                              <span className="avo-driver-avatar" style={{ backgroundColor: AVATAR_COLORS[colorIdx] }}>
+                              <span className="tf-driver-avatar" style={{ backgroundColor: AVATAR_COLORS[colorIdx] }}>
                                 {initials}
                               </span>
                               <span>{name || driver.email || 'Fahrer'}</span>
@@ -1274,10 +1274,10 @@ export default function OrderDetails({
               </div>
               {order.assigned_driver_id ? (
                 <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 bg-[#1e3a5f] text-white rounded-full flex items-center justify-center font-semibold relative ${assignSuccess ? 'avo-driver-pop' : ''}`}>
+                  <div className={`w-10 h-10 bg-[#1e3a5f] text-white rounded-full flex items-center justify-center font-semibold relative ${assignSuccess ? 'tf-driver-pop' : ''}`}>
                     {order.assigned_driver_name?.charAt(0) || 'F'}
                     {assignSuccess && (
-                      <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 avo-success-ring">
+                      <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 tf-success-ring">
                         <UserCheck className="h-2.5 w-2.5 text-white" />
                       </span>
                     )}
@@ -1285,7 +1285,7 @@ export default function OrderDetails({
                   <div>
                     <p className="font-medium">{order.assigned_driver_name}</p>
                     {assignSuccess ? (
-                      <p className="avo-badge-in text-xs font-semibold text-emerald-600">✓ Erfolgreich zugewiesen</p>
+                      <p className="tf-badge-in text-xs font-semibold text-emerald-600">✓ Erfolgreich zugewiesen</p>
                     ) : (
                       <Link
                         to={createPageUrl('Drivers') + `?id=${order.assigned_driver_id}`}

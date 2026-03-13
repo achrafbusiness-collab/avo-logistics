@@ -71,7 +71,7 @@ const buildProfileForm = (profile) => ({
 const filterTeamProfiles = (items) =>
   (items || []).filter((profile) => profile.role !== "driver");
 
-export default function TeamAVO() {
+export default function TeamTransferFleet() {
   const [currentUser, setCurrentUser] = useState(null);
   const [profiles, setProfiles] = useState([]);
   const [selectedId, setSelectedId] = useState("");
@@ -399,7 +399,7 @@ export default function TeamAVO() {
       <div className="rounded-2xl bg-gradient-to-br from-[#1e3a5f] via-[#1e3a5f] to-[#2d5a8a] px-6 py-5 text-white shadow-lg">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="space-y-2">
-            <p className="text-xs uppercase tracking-[0.35em] text-blue-100">AVO SYSTEM</p>
+            <p className="text-xs uppercase tracking-[0.35em] text-blue-100">TRANSFERFLEET SYSTEM</p>
             <h1 className="text-2xl font-semibold flex items-center gap-2">
               <Users className="h-6 w-6" />
               Team & Zugriffe

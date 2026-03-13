@@ -217,7 +217,7 @@ export default function CustomerInvoice() {
 
   useEffect(() => {
     if (!legacyDraftId || draftId || invoiceId || typeof window === 'undefined') return;
-    const raw = window.sessionStorage.getItem(`avo:customer-invoice-draft:${legacyDraftId}`);
+    const raw = window.sessionStorage.getItem(`tf:customer-invoice-draft:${legacyDraftId}`);
     if (!raw) return;
     try {
       const parsed = JSON.parse(raw);
@@ -227,7 +227,7 @@ export default function CustomerInvoice() {
         id: newDraftId,
         status: 'draft',
       });
-      window.sessionStorage.removeItem(`avo:customer-invoice-draft:${legacyDraftId}`);
+      window.sessionStorage.removeItem(`tf:customer-invoice-draft:${legacyDraftId}`);
       navigate(`${createPageUrl('CustomerInvoice')}?id=${encodeURIComponent(newDraftId)}`, {
         replace: true,
       });

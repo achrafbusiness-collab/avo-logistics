@@ -1,6 +1,6 @@
 {
-  "name": "AVO System",
-  "short_name": "AVO",
+  "name": "TransferFleet",
+  "short_name": "TransferFleet",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

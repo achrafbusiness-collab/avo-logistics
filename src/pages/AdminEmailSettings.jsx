@@ -189,7 +189,7 @@ export default function AdminEmailSettings() {
             <Input
               value={settings.email_sender_name}
               onChange={(e) => setSettings({ ...settings, email_sender_name: e.target.value })}
-              placeholder="AVO Logistics"
+              placeholder="TransferFleet"
             />
           </div>
           <div>

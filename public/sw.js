@@ -1,4 +1,4 @@
-const CACHE_NAME = "avo-system-v2";
+const CACHE_NAME = "tf-system-v2";
 const PRECACHE_ASSETS = [
   "/",
   "/index.html",

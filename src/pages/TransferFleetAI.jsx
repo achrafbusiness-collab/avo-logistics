@@ -17,20 +17,20 @@ import {
   Sun
 } from 'lucide-react';
 
-export default function AVOAI() {
+export default function TransferFleetAI() {
   const [messages, setMessages] = useState([
-    { role: 'assistant', content: 'Hallo! Ich bin AVO AI, dein Analyse‑Assistent für AVO Logistics. Ich kann alle Aufträge, Fahrer, Kunden und Protokolle auswerten und dir Antworten liefern.\n\n✅ Nur Lesen/Analysieren – ich führe keine Aktionen aus.\n\nFrag mich z. B.:\n• Welche Aufträge haben Auslagen?\n• Wer ist der häufigste Fahrer letzte Woche?\n• Welche Stadt hatte die meisten Lieferungen?\n• Liste alle Kennzeichen heute\n\nWie kann ich dir helfen?' }
+    { role: 'assistant', content: 'Hallo! Ich bin TransferFleet AI, dein Analyse‑Assistent für TransferFleet Logistics. Ich kann alle Aufträge, Fahrer, Kunden und Protokolle auswerten und dir Antworten liefern.\n\n✅ Nur Lesen/Analysieren – ich führe keine Aktionen aus.\n\nFrag mich z. B.:\n• Welche Aufträge haben Auslagen?\n• Wer ist der häufigste Fahrer letzte Woche?\n• Welche Stadt hatte die meisten Lieferungen?\n• Liste alle Kennzeichen heute\n\nWie kann ich dir helfen?' }
   ]);
   const [input, setInput] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [darkMode, setDarkMode] = useState(() => {
-    const saved = localStorage.getItem('avoai-dark-mode');
+    const saved = localStorage.getItem('tf-ai-dark-mode');
     return saved ? JSON.parse(saved) : false;
   });
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
-    localStorage.setItem('avoai-dark-mode', JSON.stringify(darkMode));
+    localStorage.setItem('tf-ai-dark-mode', JSON.stringify(darkMode));
   }, [darkMode]);
 
   const { data: orders = [] } = useQuery({
@@ -271,7 +271,7 @@ export default function AVOAI() {
       }
 
       const conversationHistory = messages.slice(-6).map((m) =>
-        `${m.role === 'user' ? 'Nutzer' : 'AVO AI'}: ${m.content}`
+        `${m.role === 'user' ? 'Nutzer' : 'TransferFleet AI'}: ${m.content}`
       ).join('\n\n');
 
       const orderSnapshot = orders.slice(0, 200).map((order) => ({
@@ -295,7 +295,7 @@ export default function AVOAI() {
       }));
 
       const result = await appClient.integrations.Core.InvokeLLM({
-        prompt: `Du bist AVO AI, der Analyse‑Assistent für das AVO Logistics System. Du darfst KEINE Aktionen ausführen (nur lesen/analysieren).
+        prompt: `Du bist TransferFleet AI, der Analyse‑Assistent für das TransferFleet Logistics System. Du darfst KEINE Aktionen ausführen (nur lesen/analysieren).
 
 Verfügbare Daten (Auszug):
 Aufträge: ${orders.length}
@@ -340,7 +340,7 @@ Antwort-Regeln:
 
   const clearChat = () => {
     setMessages([
-      { role: 'assistant', content: 'Hallo! Ich bin AVO AI (Analyse‑Modus). Wie kann ich dir helfen?' }
+      { role: 'assistant', content: 'Hallo! Ich bin TransferFleet AI (Analyse‑Modus). Wie kann ich dir helfen?' }
     ]);
   };
 
@@ -350,7 +350,7 @@ Antwort-Regeln:
         <div>
           <h1 className={`text-2xl font-bold flex items-center gap-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
             <Sparkles className="w-6 h-6 text-purple-600" />
-            AVO AI
+            TransferFleet AI
           </h1>
           <p className={darkMode ? 'text-gray-400' : 'text-gray-500'}>Analyse‑Assistent (nur Lesen)</p>
         </div>
@@ -433,7 +433,7 @@ Antwort-Regeln:
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder="Frage AVO AI etwas... (z.B. 'Welche Aufträge haben Auslagen?' oder 'Top Kunde letzte Woche')"
+              placeholder="Frage TransferFleet AI etwas... (z.B. 'Welche Aufträge haben Auslagen?' oder 'Top Kunde letzte Woche')"
               className={`min-h-[60px] resize-none ${
                 darkMode ? 'bg-gray-800 border-gray-700 text-white placeholder:text-gray-500' : ''
               }`}

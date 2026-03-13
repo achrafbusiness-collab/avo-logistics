@@ -281,7 +281,7 @@ export default function Statistics() {
 
   const targetStorageKey = useMemo(() => {
     const companyKey = currentUser?.company_id || currentUser?.id || 'global';
-    return `avo:monthly-profit-target:${companyKey}:${targetMonth}`;
+    return `tf:monthly-profit-target:${companyKey}:${targetMonth}`;
   }, [currentUser, targetMonth]);
 
   useEffect(() => {
@@ -664,7 +664,7 @@ export default function Statistics() {
         <div className="absolute -left-20 -bottom-20 h-56 w-56 rounded-full bg-blue-600/20 blur-3xl" />
         <div className="relative flex flex-wrap items-center justify-between gap-4 p-6 md:p-8">
           <div>
-            <p className="text-xs uppercase tracking-[0.35em] text-blue-200">AVO SYSTEM</p>
+            <p className="text-xs uppercase tracking-[0.35em] text-blue-200">TRANSFERFLEET</p>
             <h1 className="mt-2 text-3xl font-semibold tracking-tight">Statistik</h1>
             <p className="text-sm text-slate-300">Umsatz, Fahrer-Kosten und Gewinn pro Zeitraum</p>
             <p className="text-xs text-slate-400">

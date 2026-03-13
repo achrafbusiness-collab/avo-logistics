@@ -211,10 +211,10 @@ export default async function handler(req, res) {
 
     const origin = req.headers.origin || "";
     const loginUrl = login_url || `${origin}/login/executive`;
-    const subject = "Dein AVO System Zugang";
+    const subject = "Dein TransferFleet System Zugang";
     const text = `Hallo ${owner_full_name},
 
-du hast einen neuen AVO System Mandanten erhalten: ${company_name}
+du hast einen neuen TransferFleet System Mandanten erhalten: ${company_name}
 
 Login: ${loginUrl}
 E-Mail: ${owner_email}
@@ -223,7 +223,7 @@ Temporäres Passwort: ${tempPassword}
 Nach dem ersten Login musst du dein Passwort ändern.
 `;
     const html = `<p>Hallo ${owner_full_name},</p>
-<p>du hast einen neuen AVO System Mandanten erhalten: <strong>${company_name}</strong></p>
+<p>du hast einen neuen TransferFleet System Mandanten erhalten: <strong>${company_name}</strong></p>
 <p><strong>Login:</strong> <a href="${loginUrl}">${loginUrl}</a></p>
 <p><strong>E-Mail:</strong> ${owner_email}<br/>
 <strong>Temporäres Passwort:</strong> ${tempPassword}</p>

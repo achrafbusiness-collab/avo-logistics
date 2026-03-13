@@ -26,7 +26,7 @@ const DriverPriceRequests = lazy(() => import("./DriverPriceRequests"));
 const AdminControlling = lazy(() => import("./AdminControlling"));
 const AIImport = lazy(() => import("./AIImport"));
 const EmailAIImport = lazy(() => import("./EmailAIImport"));
-const AVOAI = lazy(() => import("./AVOAI"));
+const TransferFleetAI = lazy(() => import("./TransferFleetAI"));
 const Login = lazy(() => import("./Login"));
 const LoginDriver = lazy(() => import("./LoginDriver"));
 const LoginStaff = lazy(() => import("./LoginStaff"));
@@ -34,7 +34,7 @@ const LoginExecutive = lazy(() => import("./LoginExecutive"));
 const DriverAccess = lazy(() => import("./DriverAccess"));
 const DriverLicensePublic = lazy(() => import("./DriverLicensePublic"));
 const ResetPassword = lazy(() => import("./ResetPassword"));
-const TeamAVO = lazy(() => import("./TeamAVO"));
+const TeamTransferFleet = lazy(() => import("./TeamTransferFleet"));
 const AccessDenied = lazy(() => import("./AccessDenied"));
 const Terminal = lazy(() => import("./Terminal"));
 const SystemVermietung = lazy(() => import("./SystemVermietung"));
@@ -61,8 +61,8 @@ const PAGE_NAMES = [
     'AdminEmailSettings',
     'AIImport',
     'EmailAIImport',
-    'AVOAI',
-    'TeamAVO',
+    'TransferFleetAI',
+    'TeamTransferFleet',
     'Terminal',
     'SystemVermietung',
     'Verlauf',
@@ -236,9 +236,9 @@ function PagesContent() {
 
                     <Route path="/EmailAIImport" element={<EmailAIImport />} />
 
-                    <Route path="/AVOAI" element={<AVOAI />} />
+                    <Route path="/TransferFleetAI" element={<TransferFleetAI />} />
 
-                    <Route path="/TeamAVO" element={<TeamAVO />} />
+                    <Route path="/TeamTransferFleet" element={<TeamTransferFleet />} />
 
                     <Route path="/Terminal" element={<Terminal />} />
 

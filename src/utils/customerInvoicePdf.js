@@ -142,7 +142,7 @@ export const buildCustomerInvoicePdf = async ({
     return String(value);
   };
 
-  const logoDataUrl = issuer.logoDataUrl || (await loadImageAsDataUrl('/logo.png'));
+  const logoDataUrl = issuer.logoDataUrl || (await loadImageAsDataUrl('/logo-dark.png'));
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();

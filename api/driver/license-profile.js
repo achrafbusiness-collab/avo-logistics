@@ -145,7 +145,7 @@ export default async function handler(req, res) {
         verifiedAt: new Date().toISOString(),
         company: {
           id: payload.company_id,
-          name: settings?.company_name || "AVO Logistics",
+          name: settings?.company_name || "TransferFleet",
           supportPhone: settings?.support_phone || "",
           supportEmail: settings?.support_email || "",
         },
@@ -163,7 +163,7 @@ export default async function handler(req, res) {
             settings?.delivery_legal_text ||
             settings?.legal_text ||
             `${driverName} ist heute berechtigt, Fahrzeuge im Auftrag von ${
-              settings?.company_name || "AVO Logistics"
+              settings?.company_name || "TransferFleet"
             } zu überführen.`,
           powerOfAttorney: powerOfAttorney
             ? {

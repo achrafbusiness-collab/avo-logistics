@@ -684,7 +684,13 @@ alter table public.companies
   add column if not exists contact_name text,
   add column if not exists contact_email text,
   add column if not exists contact_phone text,
-  add column if not exists is_active boolean default true;
+  add column if not exists is_active boolean default true,
+  add column if not exists account_type text default 'paying',
+  add column if not exists trial_started_at timestamptz,
+  add column if not exists trial_expires_at timestamptz;
+
+-- Bestehende Unternehmen als 'paying' markieren (sind ja bereits Kunden):
+update public.companies set account_type = 'paying' where account_type is null;
 
 -- Erstes Unternehmen anlegen (ersetze die E-Mail)
 insert into public.companies (name, owner_user_id)

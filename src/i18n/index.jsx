@@ -64,13 +64,13 @@ const interpolate = (template, vars) => {
 
 export function I18nProvider({ children }) {
   const [language, setLanguageState] = useState(() => {
-    const stored = typeof window !== "undefined" ? window.localStorage.getItem("avo-driver-language") : null;
+    const stored = typeof window !== "undefined" ? window.localStorage.getItem("tf-driver-language") : null;
     return normalizeLanguage(stored) || FALLBACK_LANGUAGE;
   });
 
   useEffect(() => {
     document.documentElement.setAttribute("lang", LOCALE_MAP[language] || language);
-    window.localStorage.setItem("avo-driver-language", language);
+    window.localStorage.setItem("tf-driver-language", language);
   }, [language]);
 
   useEffect(() => {

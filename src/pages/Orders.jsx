@@ -352,8 +352,8 @@ export default function Orders() {
       return;
     }
     const companyKey = currentUser.company_id || currentUser.id || 'global';
-    const statusFixStorageKey = `avo:fix-intransit-no-driver:v5:${companyKey}`;
-    const expenseRestoreStorageKey = `avo:restore-checklist-expenses:v1:${companyKey}`;
+    const statusFixStorageKey = `tf:fix-intransit-no-driver:v5:${companyKey}`;
+    const expenseRestoreStorageKey = `tf:restore-checklist-expenses:v1:${companyKey}`;
     let cancelled = false;
     (async () => {
       try {

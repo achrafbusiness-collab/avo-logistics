@@ -381,7 +381,27 @@ const getProfile = async (userId) => {
   return data;
 };
 
-const buildUser = (authUser, profile) => {
+const getCompanyTrialStatus = async (companyId) => {
+  if (!companyId) return null;
+  try {
+    const { data, error } = await supabase
+      .from('companies')
+      .select('account_type, trial_started_at, trial_expires_at')
+      .eq('id', companyId)
+      .maybeSingle();
+    if (error || !data) return null;
+    if (data.account_type !== 'trial') return { isTrial: false, isExpired: false };
+    const now = new Date();
+    const expires = data.trial_expires_at ? new Date(data.trial_expires_at) : null;
+    const isExpired = expires ? now > expires : false;
+    const daysLeft = expires ? Math.max(0, Math.ceil((expires - now) / (1000 * 60 * 60 * 24))) : 0;
+    return { isTrial: true, isExpired, daysLeft, trialExpiresAt: data.trial_expires_at };
+  } catch {
+    return null;
+  }
+};
+
+const buildUser = (authUser, profile, trialStatus) => {
   if (!authUser) return null;
   const safeProfile = profile || {};
   return {
@@ -391,6 +411,7 @@ const buildUser = (authUser, profile) => {
     role: safeProfile.role || profileDefaults.role,
     permissions: safeProfile.permissions || profileDefaults.permissions,
     ...safeProfile,
+    ...(trialStatus ? { trialStatus } : {}),
   };
 };
 
@@ -406,7 +427,8 @@ const auth = {
     const active = await ensureActiveProfile(profile);
     if (!active) return null;
     const role = await resolveEffectiveRole(user, profile);
-    return buildUser(user, { ...profile, role });
+    const trialStatus = await getCompanyTrialStatus(profile?.company_id);
+    return buildUser(user, { ...profile, role }, trialStatus);
   },
   me: async () => {
     const user = await getAuthUser();
@@ -415,7 +437,8 @@ const auth = {
     const active = await ensureActiveProfile(profile);
     if (!active) return null;
     const role = await resolveEffectiveRole(user, profile);
-    return buildUser(user, { ...profile, role });
+    const trialStatus = await getCompanyTrialStatus(profile?.company_id);
+    return buildUser(user, { ...profile, role }, trialStatus);
   },
   login: async ({ email, password }) => {
     const { data, error } = await supabase.auth.signInWithPassword({
@@ -438,7 +461,12 @@ const auth = {
         .eq('email', data.user.email)
         .eq('status', 'pending');
     }
-    return buildUser(data.user, { ...profile, role: effectiveRole });
+    const trialStatus = await getCompanyTrialStatus(profile?.company_id);
+    if (trialStatus?.isTrial && trialStatus?.isExpired) {
+      await supabase.auth.signOut();
+      throw new Error('Ihre 14-tägige Testphase ist abgelaufen. Bitte kontaktieren Sie uns für ein Upgrade.');
+    }
+    return buildUser(data.user, { ...profile, role: effectiveRole }, trialStatus);
   },
   logout: async () => {
     const { error } = await supabase.auth.signOut();

@@ -25,7 +25,7 @@ const PROVIDER_PRESETS = {
   other: { host: "", port: "993", secure: true },
 };
 
-const PREFILL_KEY = "avo:ai-import-prefill";
+const PREFILL_KEY = "tf:ai-import-prefill";
 
 export default function EmailAIImport() {
   const navigate = useNavigate();

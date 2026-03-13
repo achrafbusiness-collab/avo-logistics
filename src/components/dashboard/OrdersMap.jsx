@@ -13,8 +13,8 @@ const loadMapbox = async () => {
   return mapboxglModule;
 };
 
-const GEOCODE_CACHE_KEY = "avo:mapbox-geocode-cache";
-const ROUTE_CACHE_KEY = "avo:mapbox-route-cache";
+const GEOCODE_CACHE_KEY = "tf:mapbox-geocode-cache";
+const ROUTE_CACHE_KEY = "tf:mapbox-route-cache";
 
 const memoryCache = {
   geocode: {},

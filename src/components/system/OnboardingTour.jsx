@@ -5,7 +5,7 @@ import { Truck, Users, User, Settings, CheckCircle2, ChevronRight } from 'lucide
 
 const STEPS = [
   {
-    title: 'Willkommen bei AVO SYSTEMS',
+    title: 'Willkommen bei TransferFleet',
     description:
       'Ihr KI-automatisiertes System für Fahrzeugüberführung. Diese kurze Tour zeigt Ihnen die wichtigsten Bereiche — dauert weniger als eine Minute.',
     icon: CheckCircle2,
@@ -46,7 +46,7 @@ export default function OnboardingTour() {
   const [step, setStep] = useState(0);
 
   useEffect(() => {
-    const done = localStorage.getItem('avo-onboarding-done');
+    const done = localStorage.getItem('tf-onboarding-done');
     if (!done) {
       const timer = setTimeout(() => setOpen(true), 1200);
       return () => clearTimeout(timer);
@@ -54,7 +54,7 @@ export default function OnboardingTour() {
   }, []);
 
   const handleClose = () => {
-    localStorage.setItem('avo-onboarding-done', '1');
+    localStorage.setItem('tf-onboarding-done', '1');
     setOpen(false);
   };
 

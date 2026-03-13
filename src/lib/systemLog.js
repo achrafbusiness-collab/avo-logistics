@@ -1,4 +1,4 @@
-const STORAGE_KEY = 'avo-system-logs';
+const STORAGE_KEY = 'tf-system-logs';
 const MAX_LOGS = 500;
 const listeners = new Set();
 let logs = [];

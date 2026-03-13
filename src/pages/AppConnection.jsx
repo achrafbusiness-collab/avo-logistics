@@ -27,7 +27,7 @@ export default function AppConnection() {
   const driverUrl = baseUrl ? `${baseUrl}/DriverOrders` : '';
   const driverLoginUrl = baseUrl ? `${baseUrl}/driver` : '';
   const defaultSettings = {
-    company_name: 'AVO Logistics',
+    company_name: 'TransferFleet',
     support_phone: '',
     support_email: '',
     emergency_phone: '',
@@ -454,7 +454,7 @@ export default function AppConnection() {
             <h4 className="font-semibold text-blue-900 mb-2">📱 App-Link für Fahrer</h4>
             <p className="text-sm text-blue-800 mb-3">
               Verwenden Sie die URL Ihrer eigenen Installation. Für eine eigene Domain wie
-              "app.avo-logistics.app" registrieren Sie die Domain und verknuepfen Sie diese
+              "app.transferfleet.de" registrieren Sie die Domain und verknuepfen Sie diese
               mit Ihrem Hosting-Anbieter.
             </p>
             {driverUrl && (

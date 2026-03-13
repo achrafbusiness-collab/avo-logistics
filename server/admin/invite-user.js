@@ -156,7 +156,7 @@ export default async function handler(req, res) {
     }
 
     const normalizedPublicUrl =
-      normalizePublicUrl(publicSiteUrl) || "https://avo-logistics.app";
+      normalizePublicUrl(publicSiteUrl) || "https://transferfleet.de";
     const effectiveRedirect =
       normalizedPublicUrl
         ? `${normalizedPublicUrl}/reset-password`
@@ -241,7 +241,7 @@ export default async function handler(req, res) {
         .update({ must_reset_password: true, updated_at: new Date().toISOString() })
         .eq("email", email);
 
-      const companyName = settings?.company_name || "AVO Logistics";
+      const companyName = settings?.company_name || "TransferFleet";
       const senderName = settings?.email_sender_name || companyName;
       const senderAddress = settings?.email_sender_address || "";
       const resolvedSmtp = {
@@ -265,7 +265,7 @@ export default async function handler(req, res) {
       const replyTo = settings?.support_email || undefined;
       const brandPrimary = "#1e3a5f";
       const brandSecondary = "#2d5a8a";
-      const logoUrl = normalizedPublicUrl ? `${normalizedPublicUrl}/logo.png` : "";
+      const logoUrl = normalizedPublicUrl ? `${normalizedPublicUrl}/logo-dark.png` : "";
 
       const subject = `Passwort zurücksetzen – ${companyName}`;
       const text = `Hallo,
@@ -410,7 +410,7 @@ ${actionLink}
       await supabaseAdmin.from("profiles").upsert(profileData);
     }
 
-    const companyName = settings?.company_name || "AVO Logistics";
+    const companyName = settings?.company_name || "TransferFleet";
     const senderName = settings?.email_sender_name || companyName;
     const senderAddress = settings?.email_sender_address || "";
     const resolvedSmtp = {
@@ -434,7 +434,7 @@ ${actionLink}
     const replyTo = settings?.support_email || undefined;
     const brandPrimary = "#1e3a5f";
     const brandSecondary = "#2d5a8a";
-    const logoUrl = normalizedPublicUrl ? `${normalizedPublicUrl}/logo.png` : "";
+    const logoUrl = normalizedPublicUrl ? `${normalizedPublicUrl}/logo-dark.png` : "";
 
     const subject = `Dein ${companyName} Zugang`;
     const text = `Hallo ${profile?.full_name || ""},

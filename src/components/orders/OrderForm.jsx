@@ -371,7 +371,7 @@ export default function OrderForm({ order, onSave, onCancel, currentUser }) {
               />
               {!order && (
                 <p className="mt-1 text-xs text-gray-500">
-                  Wird beim Speichern automatisch vergeben (z. B. AVO-2025-00001).
+                  Wird beim Speichern automatisch vergeben (z. B. TF-2025-00001).
                 </p>
               )}
             </div>

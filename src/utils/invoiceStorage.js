@@ -1,6 +1,6 @@
-const DRAFTS_KEY = 'avo:finance:invoice-drafts:v1';
-const INVOICES_KEY = 'avo:finance:invoices:v1';
-const SETTINGS_KEY = 'avo:finance:settings:v1';
+const DRAFTS_KEY = 'tf:finance:invoice-drafts:v1';
+const INVOICES_KEY = 'tf:finance:invoices:v1';
+const SETTINGS_KEY = 'tf:finance:settings:v1';
 
 const DEFAULT_FINANCE_SETTINGS = {
   invoicePrefix: 'AV',

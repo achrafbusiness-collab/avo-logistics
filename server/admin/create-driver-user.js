@@ -277,7 +277,7 @@ export default async function handler(req, res) {
       .maybeSingle();
 
     const normalizedPublicUrl =
-      normalizePublicUrl(publicSiteUrl) || "https://avo-logistics.app";
+      normalizePublicUrl(publicSiteUrl) || "https://transferfleet.de";
     const effectiveRedirect = `${normalizedPublicUrl}/reset-password`;
     const loginUrl = login_url || `${normalizedPublicUrl}/login/driver`;
 
@@ -298,7 +298,7 @@ export default async function handler(req, res) {
     });
     const actionLink = appLink || ensureRedirect(rawActionLink, effectiveRedirect);
 
-    const companyName = settings?.company_name || "AVO Logistics";
+    const companyName = settings?.company_name || "TransferFleet";
     const senderName = settings?.email_sender_name || companyName;
     const senderAddress = settings?.email_sender_address || "";
     const resolvedSmtp = {
@@ -322,7 +322,7 @@ export default async function handler(req, res) {
     const replyTo = settings?.support_email || undefined;
     const brandPrimary = "#1e3a5f";
     const brandSecondary = "#2d5a8a";
-    const logoUrl = normalizedPublicUrl ? `${normalizedPublicUrl}/logo.png` : "";
+    const logoUrl = normalizedPublicUrl ? `${normalizedPublicUrl}/logo-dark.png` : "";
 
     const subject = `Willkommen bei ${companyName}`;
     const text = `Hallo ${profile?.full_name || "Fahrer"},

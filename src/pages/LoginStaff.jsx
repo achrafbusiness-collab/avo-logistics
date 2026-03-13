@@ -9,9 +9,9 @@ export default function LoginStaff() {
       subtitle="Für Disposition, Aufträge, Kunden und Fahrer‑Management."
       cardTitle="Mitarbeiter‑Login"
       successRedirect={createPageUrl('Dashboard')}
-      emailPlaceholder="mitarbeiter@avo-logistics.app"
+      emailPlaceholder="mitarbeiter@transferfleet.de"
       hintTitle="Hinweis"
-      hintText="Zugriffe werden zentral über Team AVO verwaltet."
+      hintText="Zugriffe werden zentral über Team TransferFleet verwaltet."
     />
   );
 }

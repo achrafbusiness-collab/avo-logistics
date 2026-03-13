@@ -28,7 +28,7 @@ import {
 } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 
-const PREFILL_KEY = 'avo:ai-import-prefill';
+const PREFILL_KEY = 'tf:ai-import-prefill';
 
 export default function AIImport() {
   const queryClient = useQueryClient();
@@ -781,7 +781,7 @@ Gib ausschließlich die strukturierten Daten zurück.`,
                           placeholder="Wird automatisch vergeben"
                         />
                         <p className="mt-1 text-xs text-gray-500">
-                          Leer lassen für automatische Vergabe (AVO-YYYY-xxxxx).
+                          Leer lassen für automatische Vergabe (TF-YYYY-xxxxx).
                         </p>
                       </div>
                       <div>

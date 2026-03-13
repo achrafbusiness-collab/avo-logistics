@@ -285,7 +285,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     const companyKey = currentUser?.company_id || currentUser?.id || 'global';
-    const storageKey = `avo:monthly-profit-target:${companyKey}:${targetMonthKey}`;
+    const storageKey = `tf:monthly-profit-target:${companyKey}:${targetMonthKey}`;
     if (typeof window === 'undefined') return;
     const saved = window.localStorage.getItem(storageKey);
     setProfitTargetSaved(saved || '');
@@ -493,7 +493,7 @@ export default function Dashboard() {
           </div>
         </div>
         <div className="space-y-2">
-          <h2 className="text-2xl font-semibold text-slate-900">Willkommen bei AVO SYSTEMS</h2>
+          <h2 className="text-2xl font-semibold text-slate-900">Willkommen bei TransferFleet</h2>
           <p className="text-slate-500 max-w-sm mx-auto text-sm">
             Ihr System ist eingerichtet. Legen Sie jetzt Ihre ersten Daten an — es dauert nur wenige Minuten.
           </p>
@@ -544,7 +544,7 @@ export default function Dashboard() {
         <div className="relative flex flex-col gap-6 p-6 md:p-8">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <p className="text-xs uppercase tracking-[0.35em] text-blue-200">AVO SYSTEM</p>
+              <p className="text-xs uppercase tracking-[0.35em] text-blue-200">TRANSFERFLEET</p>
               <h1 className="text-3xl font-semibold tracking-tight mt-2">Dashboard</h1>
               <p className="text-sm text-slate-300">Übersicht aller Aktivitäten, Aufträge und Routen</p>
             </div>

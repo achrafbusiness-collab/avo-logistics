@@ -444,7 +444,7 @@ export default function ProtocolPdf() {
 
       <div className="pdf-page pdf-protocol-page">
         <div className="pdf-header">
-          <img className="pdf-logo" src="/logo.png" alt="AVO Logistics" />
+          <img className="pdf-logo" src="/logo-dark.png" alt="TransferFleet" />
           <div className="pdf-title">
             <h1>FAHRZEUGPROTOKOLL</h1>
             <div className="pdf-subtitle">{orderNumber} • {order.license_plate || "-"}</div>

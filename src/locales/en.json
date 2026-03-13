@@ -1,6 +1,6 @@
 {
   "app": {
-    "name": "AVO Logistics"
+    "name": "TransferFleet"
   },
   "common": {
     "back": "Back",
@@ -21,7 +21,7 @@
     "logout": "Sign out"
   },
   "login": {
-    "logoAlt": "AVO SYSTEMS",
+    "logoAlt": "TransferFleet",
     "actions": {
       "switchPortal": "Switch portal",
       "signIn": "Sign in",
@@ -44,7 +44,7 @@
       "title": "Driver Portal",
       "subtitle": "Please sign in to see your orders and create protocols.",
       "cardTitle": "Driver Login",
-      "emailPlaceholder": "driver@avo-logistics.app"
+      "emailPlaceholder": "driver@transferfleet.de"
     }
   },
   "status": {
@@ -110,7 +110,7 @@
   },
   "handoff": {
     "title": "Handoff & Shuttle",
-    "successTitle": "Handoff completed. Pricing will be handled by Team AVO and will appear on the profile shortly.",
+    "successTitle": "Handoff completed. Pricing will be handled by Team TransferFleet and will appear on the profile shortly.",
     "pendingTitle": "Handoff is waiting for confirmation.",
     "pendingByYou": "Handoff saved.",
     "accept": "Confirm takeover",
@@ -220,7 +220,7 @@
     "request": {
       "button": "Send billing request",
       "title": "Request extra billing",
-      "description": "Describe additional work that was done without a tour. The request is sent with today's date and can be approved or rejected by Team AVO.",
+      "description": "Describe additional work that was done without a tour. The request is sent with today's date and can be approved or rejected by Team TransferFleet.",
       "label": "Description",
       "placeholder": "e.g. vehicle prep, extra task without a tour, special service...",
       "send": "Send request",

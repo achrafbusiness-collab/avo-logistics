@@ -36,7 +36,7 @@ export default class ErrorBoundary extends React.Component {
           <h1 className="text-lg font-semibold text-[#1e3a5f]">Seite konnte nicht geladen werden</h1>
           <p className="mt-2 text-sm text-slate-600">
             Bitte Seite neu laden. Wenn der Fehler bleibt, prüfen Sie die Supabase CORS-Einstellungen
-            für avo-logistics.app.
+            für transferfleet.de.
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
             <Button className="bg-[#1e3a5f] hover:bg-[#2d5a8a]" onClick={this.handleReload}>

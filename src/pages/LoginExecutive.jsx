@@ -9,7 +9,7 @@ export default function LoginExecutive() {
       subtitle="Finanzen, Abrechnung und Gesamtübersicht auf einen Blick."
       cardTitle="Executive‑Login"
       successRedirect={createPageUrl('Dashboard')}
-      emailPlaceholder="buchhaltung@avo-logistics.app"
+      emailPlaceholder="buchhaltung@transferfleet.de"
       hintTitle="Hinweis"
       hintText="Bitte sichere E‑Mail und starkes Passwort verwenden."
     />

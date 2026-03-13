@@ -79,7 +79,7 @@ export default async function handler(req, res) {
       body.text = {
         format: {
           type: "json_schema",
-          name: "avo_ai_response",
+          name: "transferfleet_ai_response",
           schema: response_json_schema,
           strict: false,
         },

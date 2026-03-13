@@ -28,12 +28,12 @@ export default function Login() {
             <div className="mx-auto flex items-center justify-center rounded-3xl bg-white p-6 shadow-2xl ring-1 ring-slate-200/70">
               <img
                 src="/logo.png"
-                alt="AVO SYSTEMS"
+                alt="TRANSFERFLEET"
                 className="h-36 w-auto object-contain drop-shadow-sm sm:h-44"
               />
             </div>
             <h1 className="text-4xl font-semibold tracking-tight text-white lg:text-5xl">
-              AVO SYSTEMS Zugang
+              TRANSFERFLEET Zugang
             </h1>
             <p className="text-base text-white/70">
               Bitte wähle dein Portal, um dich anzumelden.

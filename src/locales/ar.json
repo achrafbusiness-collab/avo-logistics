@@ -1,6 +1,6 @@
 {
   "app": {
-    "name": "AVO Logistics"
+    "name": "TransferFleet"
   },
   "common": {
     "back": "رجوع",
@@ -21,7 +21,7 @@
     "logout": "تسجيل الخروج"
   },
   "login": {
-    "logoAlt": "AVO SYSTEMS",
+    "logoAlt": "TransferFleet",
     "actions": {
       "switchPortal": "تغيير البوابة",
       "signIn": "تسجيل الدخول",
@@ -44,7 +44,7 @@
       "title": "بوابة السائق",
       "subtitle": "سجّل الدخول لرؤية الطلبات وإنشاء البروتوكولات.",
       "cardTitle": "تسجيل دخول السائق",
-      "emailPlaceholder": "driver@avo-logistics.app"
+      "emailPlaceholder": "driver@transferfleet.de"
     }
   },
   "status": {
@@ -110,7 +110,7 @@
   },
   "handoff": {
     "title": "تسليم وسيط وشَتّل",
-    "successTitle": "تم تنفيذ التسليم الوسيط. سيتم تحديد السعر من فريق AVO وسيظهر قريبًا في الملف الشخصي.",
+    "successTitle": "تم تنفيذ التسليم الوسيط. سيتم تحديد السعر من فريق TransferFleet وسيظهر قريبًا في الملف الشخصي.",
     "pendingTitle": "التسليم الوسيط بانتظار التأكيد.",
     "pendingByYou": "تم حفظ التسليم الوسيط.",
     "accept": "تأكيد الاستلام",
@@ -220,7 +220,7 @@
     "request": {
       "button": "إرسال طلب محاسبة",
       "title": "طلب محاسبة إضافية",
-      "description": "اكتب هنا أي أعمال إضافية تمت بدون رحلة. يتم إرسال الطلب بتاريخ اليوم ويمكن لفريق AVO قبوله أو رفضه.",
+      "description": "اكتب هنا أي أعمال إضافية تمت بدون رحلة. يتم إرسال الطلب بتاريخ اليوم ويمكن لفريق TransferFleet قبوله أو رفضه.",
       "label": "الوصف",
       "placeholder": "مثال: تجهيز مركبة، مهمة إضافية بدون رحلة، خدمة خاصة...",
       "send": "إرسال الطلب",

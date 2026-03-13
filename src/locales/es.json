@@ -1,6 +1,6 @@
 {
   "app": {
-    "name": "AVO Logistics"
+    "name": "TransferFleet"
   },
   "common": {
     "back": "Atrás",
@@ -21,7 +21,7 @@
     "logout": "Cerrar sesión"
   },
   "login": {
-    "logoAlt": "AVO SYSTEMS",
+    "logoAlt": "TransferFleet",
     "actions": {
       "switchPortal": "Cambiar portal",
       "signIn": "Iniciar sesión",
@@ -44,7 +44,7 @@
       "title": "Portal del conductor",
       "subtitle": "Inicia sesión para ver tus pedidos y crear protocolos.",
       "cardTitle": "Acceso de conductor",
-      "emailPlaceholder": "conductor@avo-logistics.app"
+      "emailPlaceholder": "conductor@transferfleet.de"
     }
   },
   "status": {
@@ -110,7 +110,7 @@
   },
   "handoff": {
     "title": "Entrega intermedia y shuttle",
-    "successTitle": "Entrega intermedia realizada. El precio lo gestionará el equipo AVO y se mostrará pronto en el perfil.",
+    "successTitle": "Entrega intermedia realizada. El precio lo gestionará el equipo TransferFleet y se mostrará pronto en el perfil.",
     "pendingTitle": "La entrega intermedia está pendiente de confirmación.",
     "pendingByYou": "Entrega intermedia guardada.",
     "accept": "Confirmar recepción",
@@ -220,7 +220,7 @@
     "request": {
       "button": "Enviar solicitud de facturación",
       "title": "Solicitar facturación adicional",
-      "description": "Describe trabajos adicionales hechos sin una ruta. La solicitud se envía con la fecha de hoy y Team AVO puede aprobarla o rechazarla.",
+      "description": "Describe trabajos adicionales hechos sin una ruta. La solicitud se envía con la fecha de hoy y Team TransferFleet puede aprobarla o rechazarla.",
       "label": "Descripción",
       "placeholder": "p. ej. preparación del vehículo, tarea extra sin ruta, servicio especial...",
       "send": "Enviar solicitud",
