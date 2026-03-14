@@ -1029,9 +1029,9 @@ export default function OrderDetails({
                     </div>
                     Abholung
                   </h4>
-                  <p className="font-medium">{order.pickup_address}</p>
+                  <p className="font-medium text-gray-900">{order.pickup_address || '–'}</p>
                   <p className="text-sm text-gray-600">
-                    {[order.pickup_postal_code, order.pickup_city].filter(Boolean).join(' ')}
+                    {[order.pickup_postal_code, order.pickup_city].filter(Boolean).join(' ') || '–'}
                   </p>
                   {pickupChecklist?.location_confirmed === false && (
                     <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 p-2 text-sm text-amber-900">
@@ -1070,9 +1070,9 @@ export default function OrderDetails({
                     </div>
                     Abgabe
                   </h4>
-                  <p className="font-medium">{order.dropoff_address}</p>
+                  <p className="font-medium text-gray-900">{order.dropoff_address || '–'}</p>
                   <p className="text-sm text-gray-600">
-                    {[order.dropoff_postal_code, order.dropoff_city].filter(Boolean).join(' ')}
+                    {[order.dropoff_postal_code, order.dropoff_city].filter(Boolean).join(' ') || '–'}
                   </p>
                   {dropoffChecklist?.location_confirmed === false && (
                     <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 p-2 text-sm text-amber-900">
