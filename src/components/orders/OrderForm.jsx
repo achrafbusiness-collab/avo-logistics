@@ -18,11 +18,12 @@ import { Separator } from "@/components/ui/separator";
 import StatusBadge from "@/components/ui/StatusBadge";
 import { getMapboxDistanceKm } from "@/utils/mapboxDistance";
 import { getPriceForDistance } from "@/utils/priceList";
-import { 
-  Car, 
-  MapPin, 
-  Calendar, 
-  User, 
+import CustomerSelect from "@/components/ui/customer-select";
+import {
+  Car,
+  MapPin,
+  Calendar,
+  User,
   Save,
   X,
   Loader2
@@ -113,6 +114,7 @@ export default function OrderForm({ order, onSave, onCancel, currentUser }) {
         id: customer.id,
         name,
         label,
+        type: customer.type || 'private',
         number: customer.customer_number || '',
         email: customer.email || '',
         phone: customer.phone || '',
@@ -392,17 +394,32 @@ export default function OrderForm({ order, onSave, onCancel, currentUser }) {
             </div>
             <div>
               <Label>Kunde</Label>
-              <Input
-                list="order-customer-options"
-                value={formData.customer_name}
-                onChange={(e) => handleCustomerInputChange(e.target.value)}
-                placeholder="Kunde eingeben oder auswählen..."
+              <CustomerSelect
+                customers={customerOptions}
+                value={formData.customer_id}
+                showPrice
+                distanceKm={formData.distance_km}
+                onChange={(customer) => {
+                  if (customer) {
+                    setFormData((prev) => ({
+                      ...prev,
+                      customer_id: customer.id,
+                      customer_name: customer.name,
+                      customer_email: customer.email || '',
+                      customer_phone: customer.phone || '',
+                    }));
+                    setPriceAuto(true);
+                  } else {
+                    setFormData((prev) => ({
+                      ...prev,
+                      customer_id: '',
+                      customer_name: '',
+                      customer_email: '',
+                      customer_phone: '',
+                    }));
+                  }
+                }}
               />
-              <datalist id="order-customer-options">
-                {customerOptions.map((option) => (
-                  <option key={option.id} value={option.label} />
-                ))}
-              </datalist>
             </div>
             <div>
               <Label>Strecke (km)</Label>

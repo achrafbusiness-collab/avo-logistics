@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import AddressAutocomplete from "@/components/ui/address-autocomplete";
+import CustomerSelect from "@/components/ui/customer-select";
 import {
   Select,
   SelectContent,
@@ -80,6 +81,7 @@ export default function AIImport() {
         id: customer.id,
         name,
         label,
+        type: customer.type || 'private',
         number: customer.customer_number || '',
         email: customer.email || '',
         phone: customer.phone || '',
@@ -1044,21 +1046,39 @@ Gib ausschließlich die strukturierten Daten zurück.`,
                         </div>
                       ) : (
                         <div>
-                          <Label>{isCustomerLinked ? 'Kunde ändern' : 'Neuer Kunde'}</Label>
-                          <Input
-                            list="import-customer-options"
-                            value={currentOrder.customer_name || ""}
-                            onChange={(e) => handleCustomerNameChange(e.target.value)}
-                            placeholder="Kunde eingeben oder auswählen..."
+                          <Label>{isCustomerLinked ? 'Kunde ändern' : 'Kunde zuordnen'}</Label>
+                          <CustomerSelect
+                            customers={customerOptions}
+                            value={currentOrder.customer_id || ''}
+                            showPrice
+                            distanceKm={currentOrder.distance_km}
+                            onChange={(customer) => {
+                              if (customer) {
+                                updateCurrentOrder({
+                                  customer_id: customer.id,
+                                  customer_name: customer.name,
+                                  customer_email: customer.email || '',
+                                  customer_phone: customer.phone || '',
+                                  _customerResolved: true,
+                                  _customerMatchType: 'manual',
+                                  _priceAuto: true,
+                                });
+                                setCustomerEditOpen((prev) => ({ ...prev, [selectedOrderIndex]: false }));
+                              } else {
+                                updateCurrentOrder({
+                                  customer_id: '',
+                                  customer_name: '',
+                                  customer_phone: '',
+                                  customer_email: '',
+                                  _customerResolved: true,
+                                  _customerMatchType: 'manual',
+                                });
+                              }
+                            }}
                           />
-                          <datalist id="import-customer-options">
-                            {customerOptions.map((option) => (
-                              <option key={option.id} value={option.label} />
-                            ))}
-                          </datalist>
-                          {!isCustomerLinked && (
+                          {!isCustomerLinked && !currentOrder.customer_id && (
                             <p className="mt-1 text-xs text-amber-600">
-                              Kein bestehender Kunde erkannt. Bitte auswählen oder neuen Namen eingeben.
+                              Kein bestehender Kunde erkannt. Bitte auswählen.
                             </p>
                           )}
                         </div>
