@@ -66,7 +66,7 @@ export default function AIImport() {
 
   const { data: drivers = [] } = useQuery({
     queryKey: ['drivers'],
-    queryFn: () => appClient.entities.Driver.list(),
+    queryFn: () => appClient.entities.Driver.filter({ status: 'active' }, '-created_date', 500),
   });
 
   const { data: customers = [] } = useQuery({
@@ -1147,7 +1147,7 @@ Gib ausschließlich die strukturierten Daten zurück.`,
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="none">Kein Fahrer</SelectItem>
-                            {drivers.filter(d => d.status === 'active').map(driver => (
+                            {drivers.map(driver => (
                               <SelectItem key={driver.id} value={driver.id}>
                                 {`${driver.first_name || ''} ${driver.last_name || ''}`.trim() || 'Unbekannt'} ({driver.phone})
                               </SelectItem>
