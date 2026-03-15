@@ -38,6 +38,7 @@ const TeamTransferFleet = lazy(() => import("./TeamTransferFleet"));
 const AccessDenied = lazy(() => import("./AccessDenied"));
 const Terminal = lazy(() => import("./Terminal"));
 const SystemVermietung = lazy(() => import("./SystemVermietung"));
+const Upgrade = lazy(() => import("./Upgrade"));
 const Verlauf = lazy(() => import("./Verlauf"));
 const AdminEmailSettings = lazy(() => import("./AdminEmailSettings"));
 const ProtocolPdf = lazy(() => import("./ProtocolPdf"));
@@ -66,6 +67,7 @@ const PAGE_NAMES = [
     'Terminal',
     'SystemVermietung',
     'Verlauf',
+    'Upgrade',
 ];
 
 function PageFallback() {
@@ -248,6 +250,8 @@ function PagesContent() {
                     <Route path="/Terminal" element={<Terminal />} />
 
                     <Route path="/SystemVermietung" element={<SystemVermietung />} />
+
+                    <Route path="/Upgrade" element={<Upgrade />} />
 
                     <Route path="/verlauf" element={<Verlauf />} />
 

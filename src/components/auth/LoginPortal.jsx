@@ -58,7 +58,11 @@ export default function LoginPortal({
       }
       window.location.href = successRedirect;
     } catch (err) {
-      setError(err?.message || t('login.errors.loginFailed'));
+      if (err?.trialExpired) {
+        setError('trial_expired');
+      } else {
+        setError(err?.message || t('login.errors.loginFailed'));
+      }
     } finally {
       setSubmitting(false);
     }
@@ -136,9 +140,21 @@ export default function LoginPortal({
                       </FormItem>
                     )}
                   />
-                  {error && (
+                  {error && error !== 'trial_expired' && (
                     <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
                       {error}
+                    </div>
+                  )}
+                  {error === 'trial_expired' && (
+                    <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm space-y-2">
+                      <p className="font-semibold text-amber-800">Ihre 14-tägige Testphase ist abgelaufen.</p>
+                      <p className="text-amber-700">Ihre Daten sind sicher gespeichert. Upgraden Sie jetzt, um TransferFleet weiter zu nutzen.</p>
+                      <a
+                        href="https://app.transferfleet.de/Upgrade"
+                        className="inline-block mt-1 bg-gradient-to-r from-[#1e3a5f] to-[#2d5a8a] text-white px-4 py-2 rounded-lg text-xs font-semibold hover:opacity-90 transition-opacity"
+                      >
+                        Jetzt upgraden →
+                      </a>
                     </div>
                   )}
                   {resetSent && (

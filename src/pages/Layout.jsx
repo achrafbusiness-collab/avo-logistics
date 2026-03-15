@@ -32,6 +32,7 @@ import { useI18n } from "@/i18n";
 import CommandPalette from "@/components/system/CommandPalette";
 import NotificationBell from "@/components/system/NotificationBell";
 import OnboardingTour from "@/components/system/OnboardingTour";
+import TrialBanner from "@/components/system/TrialBanner";
 
 // Admin pages (full sidebar)
 const adminPages = [
@@ -367,16 +368,7 @@ export default function Layout({ children, currentPageName }) {
           ref={mainRef}
           className={`flex-1 p-4 lg:p-6 overflow-auto ${darkMode ? 'bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950' : 'bg-slate-100'}`}
         >
-          {user?.trialStatus?.isTrial && !user?.trialStatus?.isExpired && (
-            <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-cyan-500/20 bg-cyan-500/10 px-4 py-3 text-sm">
-              <span className="text-cyan-700 dark:text-cyan-300">
-                ✦ Testphase — noch <strong>{user.trialStatus.daysLeft}</strong> {user.trialStatus.daysLeft === 1 ? 'Tag' : 'Tage'} verbleibend
-              </span>
-              <a href="mailto:info@transferfleet.de?subject=TransferFleet%20Upgrade" className="rounded-md bg-cyan-600 px-3 py-1 text-xs font-semibold text-white hover:bg-cyan-700 transition-colors">
-                Jetzt upgraden
-              </a>
-            </div>
-          )}
+          <TrialBanner trialStatus={user?.trialStatus} />
           <div className={`tf-page-content min-h-full p-5 lg:p-8 ${darkMode ? 'tf-dark' : 'rounded-[28px] bg-white shadow-[0_30px_60px_-40px_rgba(15,23,42,0.15)]'}`}>
             {children}
           </div>

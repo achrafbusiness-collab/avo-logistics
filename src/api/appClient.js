@@ -464,7 +464,9 @@ const auth = {
     const trialStatus = await getCompanyTrialStatus(profile?.company_id);
     if (trialStatus?.isTrial && trialStatus?.isExpired) {
       await supabase.auth.signOut();
-      throw new Error('Ihre 14-tägige Testphase ist abgelaufen. Bitte kontaktieren Sie uns für ein Upgrade.');
+      const err = new Error('Ihre 14-tägige Testphase ist abgelaufen.');
+      err.trialExpired = true;
+      throw err;
     }
     return buildUser(data.user, { ...profile, role: effectiveRole }, trialStatus);
   },
