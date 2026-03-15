@@ -1423,22 +1423,13 @@ Gib ausschließlich strukturierte Daten zurück.`,
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {activeTab === 'settings' ? (
-            <Button
-              variant="outline"
-              onClick={() => handleFinanceTabChange('overview', financePanel)}
-            >
-              Zur Übersicht
-            </Button>
-          ) : (
-            <Button
-              variant="outline"
-              onClick={() => handleFinanceTabChange('settings')}
-            >
-              <Settings className="mr-2 h-4 w-4" />
-              Einstellungen
-            </Button>
-          )}
+          <Button
+            variant="outline"
+            onClick={() => { window.location.href = '/Settings?tab=billing'; }}
+          >
+            <Settings className="mr-2 h-4 w-4" />
+            Einstellungen
+          </Button>
           <Button
             className="bg-[#1e3a5f] hover:bg-[#2d5a8a]"
             onClick={() => {

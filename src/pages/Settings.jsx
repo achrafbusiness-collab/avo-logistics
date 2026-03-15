@@ -94,6 +94,7 @@ export default function Settings() {
     };
   });
   const [logoUploading, setLogoUploading] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
 
   // --- SMTP Test ---
   const [testEmail, setTestEmail] = useState('');
@@ -388,8 +389,68 @@ export default function Settings() {
                 <h2 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
                   <CreditCard className="w-5 h-5 text-[#1e3a5f]" /> Rechnungsprofil
                 </h2>
-                <p className="text-sm text-slate-500 mt-1">Diese Daten erscheinen auf Ihren Rechnungen.</p>
+                <p className="text-sm text-slate-500 mt-1">Diese Daten erscheinen auf Ihren Rechnungen. Felder mit * sind Pflicht.</p>
               </div>
+              <Button variant="outline" size="sm" onClick={() => setShowPreview(!showPreview)}>
+                {showPreview ? 'Vorschau schließen' : 'Rechnungsvorschau anzeigen'}
+              </Button>
+
+              {showPreview && (
+                <div className="rounded-lg border-2 border-slate-200 bg-white p-6 text-sm space-y-4 shadow-inner">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      {billing.logoDataUrl && <img src={billing.logoDataUrl} alt="Logo" className="h-10 mb-2" />}
+                      <p className="font-bold text-base">{billing.companyName || 'Firmenname'}{billing.companySuffix ? ` ${billing.companySuffix}` : ''}</p>
+                      <p className="text-slate-500 text-xs">{billing.street || 'Straße'}</p>
+                      <p className="text-slate-500 text-xs">{billing.postalCode || 'PLZ'} {billing.city || 'Stadt'}</p>
+                      {billing.phone && <p className="text-slate-500 text-xs">Tel: {billing.phone}</p>}
+                      {billing.email && <p className="text-slate-500 text-xs">{billing.email}</p>}
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold text-lg text-[#1e3a5f]">RECHNUNG</p>
+                      <p className="text-xs text-slate-400">Nr. {billing.invoicePrefix || 'TF'}-{billing.nextInvoiceNumber || '1000'}</p>
+                      <p className="text-xs text-slate-400">Datum: {new Date().toLocaleDateString('de-DE')}</p>
+                      <p className="text-xs text-slate-400">MwSt: {billing.defaultVatRate || 19}%</p>
+                    </div>
+                  </div>
+                  <div className="border-t pt-3 mt-3">
+                    <div className="flex justify-between text-xs text-slate-500 mb-2 font-medium">
+                      <span>Position</span><span>Betrag</span>
+                    </div>
+                    <div className="flex justify-between text-xs py-1 border-b border-slate-100">
+                      <span>Fahrzeugüberführung B-XX 1234 (Berlin → München)</span><span>150,00 €</span>
+                    </div>
+                    <div className="flex justify-between text-xs py-1 border-b border-slate-100">
+                      <span>Fahrzeugüberführung M-YY 5678 (München → Hamburg)</span><span>220,00 €</span>
+                    </div>
+                    <div className="flex justify-between text-xs pt-2 font-medium">
+                      <span>Netto</span><span>370,00 €</span>
+                    </div>
+                    <div className="flex justify-between text-xs text-slate-500">
+                      <span>MwSt. {billing.defaultVatRate || 19}%</span><span>{(370 * (billing.defaultVatRate || 19) / 100).toFixed(2)} €</span>
+                    </div>
+                    <div className="flex justify-between text-sm font-bold pt-1 border-t mt-1">
+                      <span>Gesamt</span><span>{(370 * (1 + (billing.defaultVatRate || 19) / 100)).toFixed(2)} €</span>
+                    </div>
+                  </div>
+                  <div className="border-t pt-3 text-[10px] text-slate-400 grid grid-cols-3 gap-4">
+                    <div>
+                      {billing.taxNumber && <p>St-Nr: {billing.taxNumber}</p>}
+                      {billing.vatId && <p>USt-ID: {billing.vatId}</p>}
+                      {billing.owner && <p>GF: {billing.owner}</p>}
+                    </div>
+                    <div>
+                      {billing.bankName && <p>{billing.bankName}</p>}
+                      {billing.iban && <p>IBAN: {billing.iban}</p>}
+                      {billing.bic && <p>BIC: {billing.bic}</p>}
+                    </div>
+                    <div>
+                      {billing.website && <p>{billing.website}</p>}
+                      <p>Zahlungsziel: {billing.defaultPaymentDays || 14} Tage</p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Logo */}
               <div className="flex items-center gap-4">
@@ -416,7 +477,7 @@ export default function Settings() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label>Firmenname (Rechnung)</Label>
+                  <Label>Firmenname (Rechnung) *</Label>
                   <Input value={billing.companyName || ''} onChange={(e) => setBilling((p) => ({ ...p, companyName: e.target.value }))} />
                 </div>
                 <div>
@@ -432,16 +493,16 @@ export default function Settings() {
                   <Input value={billing.legalForm || ''} onChange={(e) => setBilling((p) => ({ ...p, legalForm: e.target.value }))} placeholder="z.B. Einzelunternehmen" />
                 </div>
                 <div>
-                  <Label>Straße</Label>
+                  <Label>Straße *</Label>
                   <Input value={billing.street || ''} onChange={(e) => setBilling((p) => ({ ...p, street: e.target.value }))} />
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <Label>PLZ</Label>
+                    <Label>PLZ *</Label>
                     <Input value={billing.postalCode || ''} onChange={(e) => setBilling((p) => ({ ...p, postalCode: e.target.value }))} />
                   </div>
                   <div>
-                    <Label>Stadt</Label>
+                    <Label>Stadt *</Label>
                     <Input value={billing.city || ''} onChange={(e) => setBilling((p) => ({ ...p, city: e.target.value }))} />
                   </div>
                 </div>
@@ -467,7 +528,7 @@ export default function Settings() {
               <h3 className="font-semibold text-slate-700">Steuer & Bank</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label>Steuernummer</Label>
+                  <Label>Steuernummer *</Label>
                   <Input value={billing.taxNumber || ''} onChange={(e) => setBilling((p) => ({ ...p, taxNumber: e.target.value }))} />
                 </div>
                 <div>
@@ -479,7 +540,7 @@ export default function Settings() {
                   <Input value={billing.bankName || ''} onChange={(e) => setBilling((p) => ({ ...p, bankName: e.target.value }))} />
                 </div>
                 <div>
-                  <Label>IBAN</Label>
+                  <Label>IBAN *</Label>
                   <Input value={billing.iban || ''} onChange={(e) => setBilling((p) => ({ ...p, iban: e.target.value }))} placeholder="DE..." />
                 </div>
                 <div>

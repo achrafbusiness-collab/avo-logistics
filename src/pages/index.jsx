@@ -206,7 +206,7 @@ function PagesContent() {
                         <Route path="/" element={<Navigate to={createPageUrl('Dashboard')} replace />} />
 
 
-                    <Route path="/AppConnection" element={<AppConnection />} />
+                    <Route path="/AppConnection" element={<Navigate to="/Settings" replace />} />
 
                     <Route path="/Checklists" element={<Navigate to={createPageUrl('Orders')} replace />} />
 
