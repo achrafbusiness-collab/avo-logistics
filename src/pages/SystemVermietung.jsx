@@ -173,7 +173,6 @@ export default function SystemVermietung() {
       const days = getTrialDaysLeft(c.trial_expires_at);
       return days !== null && days <= 0;
     });
-    const totalRevenue = companies.reduce((sum, c) => sum + (c.total_revenue || 0), 0);
     const totalDrivers = companies.reduce((sum, c) => sum + (c.driver_count || 0), 0);
     const monthlyRecurring = paying.reduce((sum, c) => {
       const price = c.price_per_driver ?? 30;
@@ -185,7 +184,6 @@ export default function SystemVermietung() {
       trial: trial.length,
       trialActive: trialActive.length,
       trialExpired: trialExpired.length,
-      totalRevenue,
       totalDrivers,
       monthlyRecurring,
     };
@@ -460,39 +458,26 @@ export default function SystemVermietung() {
     }
   };
 
-  // Monthly revenue chart data for selected company
-  const monthlyChartData = useMemo(() => {
-    if (!selectedCompany?.monthly_revenue) return [];
-    const months = [];
-    const now = new Date();
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-      const label = d.toLocaleDateString("de-DE", { month: "short", year: "2-digit" });
-      months.push({ key, label, value: selectedCompany.monthly_revenue[key] || 0 });
-    }
-    return months;
-  }, [selectedCompany]);
-
-  const maxMonthlyRevenue = useMemo(() => {
-    return Math.max(...monthlyChartData.map((m) => m.value), 1);
-  }, [monthlyChartData]);
-
   const handleExportCSV = () => {
     if (!companies.length) return;
-    const headers = ["Firma", "Typ", "Status", "Umsatz (EUR)", "Aufträge", "Mitarbeiter", "Fahrer", "Letzte Aktivität", "Trial bis", "E-Mail"];
-    const rows = companies.map((c) => [
-      c.name || "",
-      c.account_type === "trial" ? "Trial" : "Zahlend",
-      c.is_active ? "Aktiv" : "Inaktiv",
-      (c.total_revenue || 0).toFixed(2),
-      c.order_count || 0,
-      c.employee_count || 0,
-      c.driver_count || 0,
-      c.last_activity ? new Date(c.last_activity).toLocaleDateString("de-DE") : "–",
-      c.account_type === "trial" && c.trial_expires_at ? new Date(c.trial_expires_at).toLocaleDateString("de-DE") : "–",
-      c.owner_profile?.email || c.contact_email || "",
-    ]);
+    const headers = ["Firma", "Typ", "Status", "€/Fahrer", "Fahrer", "Monatskosten", "Mitarbeiter", "Aufträge", "Letzte Aktivität", "Trial bis", "E-Mail"];
+    const rows = companies.map((c) => {
+      const pricePerDriver = c.price_per_driver ?? 30;
+      const monthlyCost = c.account_type !== "trial" ? (c.driver_count || 0) * pricePerDriver : 0;
+      return [
+        c.name || "",
+        c.account_type === "trial" ? "Trial" : "Zahlend",
+        c.is_active ? "Aktiv" : "Inaktiv",
+        pricePerDriver,
+        c.driver_count || 0,
+        monthlyCost.toFixed(2),
+        c.employee_count || 0,
+        c.order_count || 0,
+        c.last_activity ? new Date(c.last_activity).toLocaleDateString("de-DE") : "–",
+        c.account_type === "trial" && c.trial_expires_at ? new Date(c.trial_expires_at).toLocaleDateString("de-DE") : "–",
+        c.owner_profile?.email || c.contact_email || "",
+      ];
+    });
     const csv = [headers.join(";"), ...rows.map((r) => r.join(";"))].join("\n");
     const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
@@ -761,12 +746,8 @@ export default function SystemVermietung() {
                       </div>
                       <div className="mt-1 flex items-center gap-3 text-xs text-slate-500 flex-wrap">
                         <span className="flex items-center gap-1">
-                          <TrendingUp className="h-3 w-3" />
-                          {(company.total_revenue || 0).toLocaleString("de-DE", { maximumFractionDigits: 0 })} €
-                        </span>
-                        <span className="flex items-center gap-1">
                           <Users className="h-3 w-3" />
-                          {company.profiles?.length ?? 0}
+                          {company.profiles?.length ?? 0} Profile
                         </span>
                         {company.last_activity && (
                           <span className="flex items-center gap-1">
@@ -831,9 +812,6 @@ export default function SystemVermietung() {
                       </span>
                       <span>
                         Aufträge: <strong className="text-slate-900">{selectedCompany?.order_count ?? 0}</strong>
-                      </span>
-                      <span>
-                        Umsatz: <strong className="text-emerald-600">{(selectedCompany?.total_revenue || 0).toLocaleString("de-DE", { maximumFractionDigits: 2 })} €</strong>
                       </span>
                       {selectedCompany?.last_activity && (
                         <span>
@@ -1029,27 +1007,6 @@ export default function SystemVermietung() {
                       {!selectedCompany?.profiles?.length && <p className="text-xs text-slate-400">Keine Profile vorhanden.</p>}
                     </div>
                   </div>
-
-                  {/* Monats-Umsatz Chart */}
-                  {monthlyChartData.some((m) => m.value > 0) && (
-                    <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm">
-                      <p className="font-semibold text-slate-700 mb-3">Umsatzentwicklung (6 Monate)</p>
-                      <div className="flex items-end gap-2 h-32">
-                        {monthlyChartData.map((month) => (
-                          <div key={month.key} className="flex-1 flex flex-col items-center gap-1">
-                            <span className="text-[10px] text-slate-500 font-medium">
-                              {month.value > 0 ? `${Math.round(month.value)}€` : ""}
-                            </span>
-                            <div
-                              className="w-full rounded-t-md bg-gradient-to-t from-[#1e3a5f] to-[#2d5a8a] transition-all min-h-[2px]"
-                              style={{ height: `${Math.max((month.value / maxMonthlyRevenue) * 100, 2)}%` }}
-                            />
-                            <span className="text-[10px] text-slate-400">{month.label}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
 
                   {/* Notizen */}
                   <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm">
