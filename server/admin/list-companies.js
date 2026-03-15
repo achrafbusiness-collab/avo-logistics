@@ -117,6 +117,18 @@ export default async function handler(req, res) {
       return;
     }
 
+    // Revenue per company (sum of driver_price from orders)
+    const { data: orderStats, error: orderStatsError } = await supabaseAdmin
+      .from("orders")
+      .select("company_id, driver_price, created_date")
+      .in("company_id", ids)
+      .is("deleted_at", null);
+
+    if (orderStatsError) {
+      res.status(500).json({ ok: false, error: orderStatsError.message });
+      return;
+    }
+
     const ownersByCompany = (ownerProfiles || []).reduce((acc, profile) => {
       if (!acc[profile.company_id]) {
         acc[profile.company_id] = profile;
@@ -140,6 +152,24 @@ export default async function handler(req, res) {
       return acc;
     }, {});
 
+    // Aggregate order stats per company
+    const revenueByCompany = {};
+    const lastActivityByCompany = {};
+    const orderCountByCompany = {};
+    for (const order of orderStats || []) {
+      const cid = order.company_id;
+      if (!cid) continue;
+      const price = parseFloat(order.driver_price);
+      if (Number.isFinite(price)) {
+        revenueByCompany[cid] = (revenueByCompany[cid] || 0) + price;
+      }
+      orderCountByCompany[cid] = (orderCountByCompany[cid] || 0) + 1;
+      const created = order.created_date ? new Date(order.created_date).getTime() : 0;
+      if (created > (lastActivityByCompany[cid] || 0)) {
+        lastActivityByCompany[cid] = created;
+      }
+    }
+
     const result = (companies || []).map((company) => ({
       ...company,
       owner_profile: ownersByCompany[company.id] || null,
@@ -148,6 +178,11 @@ export default async function handler(req, res) {
         (profile) => profile.role !== "driver"
       ).length,
       driver_count: (driversByCompany[company.id] || []).length,
+      total_revenue: revenueByCompany[company.id] || 0,
+      order_count: orderCountByCompany[company.id] || 0,
+      last_activity: lastActivityByCompany[company.id]
+        ? new Date(lastActivityByCompany[company.id]).toISOString()
+        : null,
     }));
 
     res.status(200).json({ ok: true, data: result });

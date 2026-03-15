@@ -329,6 +329,39 @@ Ihr TransferFleet Team`;
       emailSent = false;
     }
 
+    // Admin-Benachrichtigung bei neuer Registrierung
+    const adminNotifyEmail = process.env.ADMIN_NOTIFICATION_EMAIL || "info@transferfleet.de";
+    try {
+      await sendEmail({
+        to: adminNotifyEmail,
+        subject: `Neue Trial-Registrierung: ${companyName}`,
+        text: `Neuer Trial-Kunde:\n\nFirma: ${companyName}\nName: ${fullName}\nE-Mail: ${normalizedEmail}\nTelefon: ${phone || "-"}\nTrial bis: ${trialEndFormatted}`,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 500px;">
+            <div style="background: linear-gradient(135deg, #1e3a5f, #2d5a8a); padding: 20px; border-radius: 10px 10px 0 0;">
+              <h2 style="color: #fff; margin: 0; font-size: 18px;">Neue Trial-Registrierung</h2>
+            </div>
+            <div style="padding: 20px; border: 1px solid #e5e7eb; border-top: 0; border-radius: 0 0 10px 10px;">
+              <table style="width: 100%; border-collapse: collapse;">
+                <tr><td style="padding: 6px 0; color: #666;">Firma</td><td style="padding: 6px 0; font-weight: bold;">${companyName}</td></tr>
+                <tr><td style="padding: 6px 0; color: #666;">Name</td><td style="padding: 6px 0; font-weight: bold;">${fullName}</td></tr>
+                <tr><td style="padding: 6px 0; color: #666;">E-Mail</td><td style="padding: 6px 0; font-weight: bold;">${normalizedEmail}</td></tr>
+                <tr><td style="padding: 6px 0; color: #666;">Telefon</td><td style="padding: 6px 0; font-weight: bold;">${phone || "-"}</td></tr>
+                <tr><td style="padding: 6px 0; color: #666;">Trial bis</td><td style="padding: 6px 0; font-weight: bold;">${trialEndFormatted}</td></tr>
+              </table>
+              <div style="margin-top: 16px;">
+                <a href="https://app.transferfleet.de/SystemVermietung" style="background: #1e3a5f; color: #fff; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 13px;">Im Dashboard ansehen →</a>
+              </div>
+            </div>
+          </div>
+        `,
+        from: `TransferFleet System <${senderAddress}>`,
+        smtp,
+      });
+    } catch {
+      // Admin-Notification ist optional
+    }
+
     res.status(200).json({
       ok: true,
       data: {

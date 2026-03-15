@@ -18,6 +18,10 @@ import {
   Zap,
   Calendar,
   Shield,
+  TrendingUp,
+  Download,
+  CalendarPlus,
+  Activity,
 } from "lucide-react";
 import { appClient } from "@/api/appClient";
 
@@ -81,6 +85,7 @@ export default function SystemVermietung() {
   const [deleteError, setDeleteError] = useState("");
   const [activeTab, setActiveTab] = useState("all");
   const [upgradingCompany, setUpgradingCompany] = useState(false);
+  const [extendingTrial, setExtendingTrial] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -163,12 +168,14 @@ export default function SystemVermietung() {
       const days = getTrialDaysLeft(c.trial_expires_at);
       return days !== null && days <= 0;
     });
+    const totalRevenue = companies.reduce((sum, c) => sum + (c.total_revenue || 0), 0);
     return {
       total: companies.length,
       paying: paying.length,
       trial: trial.length,
       trialActive: trialActive.length,
       trialExpired: trialExpired.length,
+      totalRevenue,
     };
   }, [companies]);
 
@@ -313,6 +320,71 @@ export default function SystemVermietung() {
     }
   };
 
+  const handleExtendTrial = async (extraDays = 7) => {
+    if (!companyForm.id || !companyForm.trial_expires_at) return;
+    setExtendingTrial(true);
+    setCompanyError("");
+    setCompanyMessage("");
+    try {
+      const token = await getAuthToken();
+      if (!token) throw new Error("Nicht angemeldet.");
+      const currentExpiry = new Date(companyForm.trial_expires_at);
+      const now = new Date();
+      const base = currentExpiry > now ? currentExpiry : now;
+      const newExpiry = new Date(base);
+      newExpiry.setDate(newExpiry.getDate() + extraDays);
+      const response = await fetch("/api/admin/update-company", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          company_id: companyForm.id,
+          updates: {
+            account_type: "trial",
+            trial_expires_at: newExpiry.toISOString(),
+          },
+        }),
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload?.ok) {
+        throw new Error(payload?.error || "Verlängerung fehlgeschlagen.");
+      }
+      setCompanyMessage(`Trial um ${extraDays} Tage verlängert (bis ${newExpiry.toLocaleDateString("de-DE")}).`);
+      await fetchCompanies(selectedCompanyId);
+    } catch (err) {
+      setCompanyError(err?.message || "Verlängerung fehlgeschlagen.");
+    } finally {
+      setExtendingTrial(false);
+    }
+  };
+
+  const handleExportCSV = () => {
+    if (!companies.length) return;
+    const headers = ["Firma", "Typ", "Status", "Umsatz (EUR)", "Aufträge", "Mitarbeiter", "Fahrer", "Letzte Aktivität", "Trial bis", "E-Mail"];
+    const rows = companies.map((c) => [
+      c.name || "",
+      c.account_type === "trial" ? "Trial" : "Zahlend",
+      c.is_active ? "Aktiv" : "Inaktiv",
+      (c.total_revenue || 0).toFixed(2),
+      c.order_count || 0,
+      c.employee_count || 0,
+      c.driver_count || 0,
+      c.last_activity ? new Date(c.last_activity).toLocaleDateString("de-DE") : "–",
+      c.account_type === "trial" && c.trial_expires_at ? new Date(c.trial_expires_at).toLocaleDateString("de-DE") : "–",
+      c.owner_profile?.email || c.contact_email || "",
+    ]);
+    const csv = [headers.join(";"), ...rows.map((r) => r.join(";"))].join("\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `mandanten-export-${new Date().toISOString().split("T")[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const handleDeleteCompany = async () => {
     if (!companyForm.id) return;
     setDeleteMessage("");
@@ -385,7 +457,7 @@ export default function SystemVermietung() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
         <Card className="cursor-pointer hover:border-slate-300 transition-colors" onClick={() => setActiveTab("all")}>
           <CardContent className="p-4 text-center">
             <Building2 className="mx-auto mb-2 h-6 w-6 text-[#1e3a5f]" />
@@ -412,6 +484,15 @@ export default function SystemVermietung() {
             <AlertCircle className="mx-auto mb-2 h-6 w-6 text-red-500" />
             <p className="text-2xl font-bold text-red-500">{stats.trialExpired}</p>
             <p className="text-xs text-slate-500">Trial abgelaufen</p>
+          </CardContent>
+        </Card>
+        <Card className="hover:border-emerald-300 transition-colors">
+          <CardContent className="p-4 text-center">
+            <TrendingUp className="mx-auto mb-2 h-6 w-6 text-emerald-600" />
+            <p className="text-2xl font-bold text-emerald-600">
+              {stats.totalRevenue.toLocaleString("de-DE", { minimumFractionDigits: 0, maximumFractionDigits: 0 })} €
+            </p>
+            <p className="text-xs text-slate-500">Gesamtumsatz</p>
           </CardContent>
         </Card>
       </div>
@@ -468,8 +549,13 @@ export default function SystemVermietung() {
       {/* Mandanten-Liste */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-3">
             <CardTitle>Mandanten</CardTitle>
+            <div className="flex items-center gap-3">
+              <Button variant="outline" size="sm" onClick={handleExportCSV} disabled={!companies.length}>
+                <Download className="h-3.5 w-3.5 mr-1.5" />
+                CSV Export
+              </Button>
             <div className="flex gap-1 rounded-lg bg-slate-100 p-1">
               {[
                 { key: "all", label: "Alle", count: stats.total },
@@ -488,6 +574,7 @@ export default function SystemVermietung() {
                   {tab.label} ({tab.count})
                 </button>
               ))}
+            </div>
             </div>
           </div>
         </CardHeader>
@@ -542,18 +629,27 @@ export default function SystemVermietung() {
                           </span>
                         )}
                       </div>
-                      <div className="mt-1 flex items-center gap-3 text-xs text-slate-500">
+                      <div className="mt-1 flex items-center gap-3 text-xs text-slate-500 flex-wrap">
+                        <span className="flex items-center gap-1">
+                          <TrendingUp className="h-3 w-3" />
+                          {(company.total_revenue || 0).toLocaleString("de-DE", { maximumFractionDigits: 0 })} €
+                        </span>
                         <span className="flex items-center gap-1">
                           <Users className="h-3 w-3" />
-                          {company.profiles?.length ?? 0} Profile
+                          {company.profiles?.length ?? 0}
                         </span>
+                        {company.last_activity && (
+                          <span className="flex items-center gap-1">
+                            <Activity className="h-3 w-3" />
+                            {formatDate(company.last_activity)}
+                          </span>
+                        )}
                         {isTrial && daysLeft !== null && !isExpired && (
                           <span className="flex items-center gap-1">
                             <Calendar className="h-3 w-3" />
                             bis {formatDate(company.trial_expires_at)}
                           </span>
                         )}
-                        <span>{company.is_active ? "Aktiv" : "Inaktiv"}</span>
                       </div>
                     </button>
                   );
@@ -603,9 +699,25 @@ export default function SystemVermietung() {
                       <span>
                         Fahrer: <strong className="text-slate-900">{selectedCompany?.driver_count ?? 0}</strong>
                       </span>
+                      <span>
+                        Aufträge: <strong className="text-slate-900">{selectedCompany?.order_count ?? 0}</strong>
+                      </span>
+                      <span>
+                        Umsatz: <strong className="text-emerald-600">{(selectedCompany?.total_revenue || 0).toLocaleString("de-DE", { maximumFractionDigits: 2 })} €</strong>
+                      </span>
+                      {selectedCompany?.last_activity && (
+                        <span>
+                          Letzte Aktivität: <strong className="text-slate-900">{formatDate(selectedCompany.last_activity)}</strong>
+                        </span>
+                      )}
+                      {!selectedCompany?.last_activity && (
+                        <span className="text-amber-600">
+                          Noch keine Aktivität
+                        </span>
+                      )}
                     </div>
                     {companyForm.account_type === "trial" && (
-                      <div className="mt-3">
+                      <div className="mt-3 flex flex-wrap gap-2">
                         <Button
                           size="sm"
                           onClick={handleUpgradeToPayng}
@@ -618,6 +730,28 @@ export default function SystemVermietung() {
                             <Zap className="mr-2 h-3.5 w-3.5" />
                           )}
                           Auf "Zahlend" upgraden
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleExtendTrial(7)}
+                          disabled={extendingTrial}
+                        >
+                          {extendingTrial ? (
+                            <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <CalendarPlus className="mr-2 h-3.5 w-3.5" />
+                          )}
+                          +7 Tage verlängern
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleExtendTrial(14)}
+                          disabled={extendingTrial}
+                        >
+                          <CalendarPlus className="mr-2 h-3.5 w-3.5" />
+                          +14 Tage
                         </Button>
                       </div>
                     )}
