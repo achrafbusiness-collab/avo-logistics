@@ -477,10 +477,26 @@ const auth = {
     return buildUser(data.user, { ...profile, role: effectiveRole }, trialStatus);
   },
   logout: async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      console.error('Logout failed, clearing local session.', error.message);
+    try {
+      await supabase.auth.signOut({ scope: 'global' });
+    } catch {
+      // Fallback
+    }
+    try {
       await supabase.auth.signOut({ scope: 'local' });
+    } catch {
+      // Fallback
+    }
+    // LocalStorage komplett bereinigen
+    if (typeof window !== 'undefined') {
+      const keysToRemove = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && (key.startsWith('sb-') || key.includes('supabase'))) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach((key) => localStorage.removeItem(key));
     }
   },
   resetPassword: async ({ email, redirectTo }) => {
