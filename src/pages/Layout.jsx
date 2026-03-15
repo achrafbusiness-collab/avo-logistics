@@ -41,7 +41,7 @@ const adminPages = [
   { name: 'Aufträge', icon: Truck, page: 'Orders' },
   { name: 'Fahrer', icon: Users, page: 'Drivers' },
   { name: 'Kunden & Finanzen', icon: User, page: 'Customers' },
-  { name: 'App & Einstellungen', icon: Settings, page: 'AppConnection' },
+  { name: 'Einstellungen', icon: Settings, page: 'Settings' },
   { name: 'Team', icon: Users, page: 'TeamTransferFleet' },
   { name: 'Admin Controlling', icon: ShieldCheck, page: 'AdminControlling' },
 ];
