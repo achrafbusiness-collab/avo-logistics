@@ -69,6 +69,14 @@ export default function SystemBilling() {
   const [creditNote, setCreditNote] = useState("");
   const [creatingCredit, setCreatingCredit] = useState(false);
 
+  // Dialoge
+  const [emailDialog, setEmailDialog] = useState(null); // { invoice, type: 'send' | 'reminder' }
+  const [emailDialogAddress, setEmailDialogAddress] = useState("");
+  const [paidDialog, setPaidDialog] = useState(null); // invoice
+  const [paidDate, setPaidDate] = useState("");
+  const [paidAmount, setPaidAmount] = useState("");
+  const [paidPartial, setPaidPartial] = useState(false);
+
   useEffect(() => {
     loadAll();
   }, []);
@@ -262,8 +270,28 @@ export default function SystemBilling() {
     }
   };
 
-  const handleMarkPaid = async (invoiceId) => {
-    await supabase.from("system_invoices").update({ status: "paid", paid_at: new Date().toISOString() }).eq("id", invoiceId);
+  const openPaidDialog = (inv) => {
+    setPaidDialog(inv);
+    setPaidDate(new Date().toISOString().split("T")[0]);
+    setPaidAmount(String(inv.gross_amount || 0));
+    setPaidPartial(false);
+  };
+
+  const handleMarkPaid = async () => {
+    if (!paidDialog) return;
+    const amount = parseFloat(paidAmount) || 0;
+    const isPartial = paidPartial && amount < (paidDialog.gross_amount || 0);
+    const remaining = isPartial ? (paidDialog.gross_amount || 0) - amount : 0;
+
+    await supabase.from("system_invoices").update({
+      status: isPartial ? "partial" : "paid",
+      paid_at: paidDate ? `${paidDate}T12:00:00Z` : new Date().toISOString(),
+      notes: isPartial
+        ? `Teilzahlung: ${formatCurrency(amount)} am ${formatDate(paidDate)}. Offen: ${formatCurrency(remaining)}.${paidDialog.notes ? `\n${paidDialog.notes}` : ""}`
+        : paidDialog.notes || "",
+    }).eq("id", paidDialog.id);
+
+    setPaidDialog(null);
     await loadAll();
   };
 
@@ -396,15 +424,21 @@ export default function SystemBilling() {
     doc.save(`${inv.invoice_number}.pdf`);
   };
 
-  // --- Email senden ---
-  const handleSendEmail = async (inv) => {
+  const openEmailDialog = (inv, type = "send") => {
     const company = companies.find((c) => c.id === inv.company_id);
-    const email = company?.contact_email || company?.owner_profile?.email;
-    if (!email) {
-      alert("Keine E-Mail-Adresse für diesen Mandanten hinterlegt.");
-      return;
-    }
-    if (!window.confirm(`Rechnung ${inv.invoice_number} an ${email} senden?`)) return;
+    const defaultEmail = company?.contact_email || company?.owner_profile?.email || "";
+    setEmailDialog({ invoice: inv, type });
+    setEmailDialogAddress(defaultEmail);
+  };
+
+  // --- Email senden ---
+  const handleSendEmail = async () => {
+    if (!emailDialog) return;
+    const inv = emailDialog.invoice;
+    const email = emailDialogAddress.trim();
+    if (!email) { alert("Bitte E-Mail-Adresse eingeben."); return; }
+    const type = emailDialog.type;
+    setEmailDialog(null);
     setSendingEmail((prev) => ({ ...prev, [inv.id]: true }));
     try {
       const doc = generateInvoicePdf(inv);
@@ -433,11 +467,12 @@ export default function SystemBilling() {
   };
 
   // --- Zahlungserinnerung ---
-  const handleSendReminder = async (inv) => {
-    const company = companies.find((c) => c.id === inv.company_id);
-    const email = company?.contact_email || company?.owner_profile?.email;
-    if (!email) { alert("Keine E-Mail-Adresse hinterlegt."); return; }
-    if (!window.confirm(`Zahlungserinnerung für ${inv.invoice_number} an ${email} senden?`)) return;
+  const handleSendReminder = async () => {
+    if (!emailDialog || emailDialog.type !== "reminder") return;
+    const inv = emailDialog.invoice;
+    const email = emailDialogAddress.trim();
+    if (!email) { alert("Bitte E-Mail-Adresse eingeben."); return; }
+    setEmailDialog(null);
     setSendingEmail((prev) => ({ ...prev, [`rem-${inv.id}`]: true }));
     try {
       const token = (await supabase.auth.getSession()).data?.session?.access_token;
@@ -725,7 +760,13 @@ export default function SystemBilling() {
                         {inv.invoice_type === "credit_note" ? (
                           <span className="rounded-full bg-purple-100 px-2.5 py-0.5 text-[10px] font-semibold text-purple-700">Gutschrift</span>
                         ) : inv.status === "paid" ? (
-                          <span className="rounded-full bg-green-100 px-2.5 py-0.5 text-[10px] font-semibold text-green-700">Bezahlt</span>
+                          <span className="rounded-full bg-green-100 px-2.5 py-0.5 text-[10px] font-semibold text-green-700">
+                            Bezahlt{inv.paid_at ? ` (${formatDate(inv.paid_at)})` : ""}
+                          </span>
+                        ) : inv.status === "partial" ? (
+                          <span className="rounded-full bg-blue-100 px-2.5 py-0.5 text-[10px] font-semibold text-blue-700">
+                            Teilzahlung
+                          </span>
                         ) : (
                           <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-[10px] font-semibold text-amber-700">
                             Offen{inv.reminder_count > 0 ? ` (${inv.reminder_count}× erinnert)` : ""}
@@ -735,15 +776,15 @@ export default function SystemBilling() {
                           <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => handleDownloadPdf(inv)} title="PDF herunterladen">
                             <Download className="w-3 h-3" />
                           </Button>
-                          <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => handleSendEmail(inv)} disabled={sendingEmail[inv.id]} title="Per E-Mail senden">
+                          <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => openEmailDialog(inv, "send")} disabled={sendingEmail[inv.id]} title="Per E-Mail senden">
                             {sendingEmail[inv.id] ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
                           </Button>
                           {inv.status !== "paid" && inv.invoice_type !== "credit_note" && (
                             <>
-                              <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => handleMarkPaid(inv.id)}>
+                              <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => openPaidDialog(inv)}>
                                 <CheckCircle2 className="w-3 h-3 mr-1" /> Bezahlt
                               </Button>
-                              <Button size="sm" variant="outline" className="text-xs h-7 text-amber-600" onClick={() => handleSendReminder(inv)} disabled={sendingEmail[`rem-${inv.id}`]} title="Zahlungserinnerung">
+                              <Button size="sm" variant="outline" className="text-xs h-7 text-amber-600" onClick={() => openEmailDialog(inv, "reminder")} disabled={sendingEmail[`rem-${inv.id}`]} title="Zahlungserinnerung">
                                 {sendingEmail[`rem-${inv.id}`] ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
                               </Button>
                               <Button size="sm" variant="outline" className="text-xs h-7 text-purple-600" onClick={() => { setCreditDialogInvoice(inv); setCreditAmount(String(inv.net_amount || 0)); }} title="Gutschrift erstellen">
@@ -772,6 +813,108 @@ export default function SystemBilling() {
               </CardContent>
             </Card>
           )}
+        </div>
+      )}
+
+      {/* === E-MAIL DIALOG === */}
+      {emailDialog && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <CardTitle className="text-lg">
+                {emailDialog.type === "reminder" ? "Zahlungserinnerung senden" : "Rechnung per E-Mail senden"}
+              </CardTitle>
+              <p className="text-sm text-slate-500">
+                {emailDialog.invoice.invoice_number} — {emailDialog.invoice.company_name} — {formatCurrency(emailDialog.invoice.gross_amount)}
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label>E-Mail-Adresse *</Label>
+                <Input
+                  type="email"
+                  value={emailDialogAddress}
+                  onChange={(e) => setEmailDialogAddress(e.target.value)}
+                  placeholder="email@firma.de"
+                />
+                <p className="text-xs text-slate-500 mt-1">
+                  Standard-Adresse des Mandanten. Sie können eine andere Adresse eingeben.
+                </p>
+              </div>
+              <div className="flex gap-2 justify-end">
+                <Button variant="outline" onClick={() => setEmailDialog(null)}>Abbrechen</Button>
+                <Button
+                  onClick={emailDialog.type === "reminder" ? handleSendReminder : handleSendEmail}
+                  className="bg-[#1e3a5f] hover:bg-[#2d5a8a]"
+                >
+                  <Send className="w-4 h-4 mr-2" />
+                  {emailDialog.type === "reminder" ? "Erinnerung senden" : "Rechnung senden"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* === BEZAHLT DIALOG === */}
+      {paidDialog && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <CardTitle className="text-lg">Zahlung erfassen</CardTitle>
+              <p className="text-sm text-slate-500">
+                {paidDialog.invoice_number} — {paidDialog.company_name} — {formatCurrency(paidDialog.gross_amount)}
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label>Zahlungsdatum *</Label>
+                <Input
+                  type="date"
+                  value={paidDate}
+                  onChange={(e) => setPaidDate(e.target.value)}
+                />
+              </div>
+              <div className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  id="partial-check"
+                  checked={paidPartial}
+                  onChange={(e) => {
+                    setPaidPartial(e.target.checked);
+                    if (!e.target.checked) setPaidAmount(String(paidDialog.gross_amount || 0));
+                  }}
+                />
+                <Label htmlFor="partial-check" className="cursor-pointer">Teilzahlung (nicht vollständig bezahlt)</Label>
+              </div>
+              {paidPartial && (
+                <div>
+                  <Label>Gezahlter Betrag (EUR) *</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={paidAmount}
+                    onChange={(e) => setPaidAmount(e.target.value)}
+                  />
+                  <div className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm">
+                    <p className="text-amber-800">
+                      Gezahlt: <strong>{formatCurrency(parseFloat(paidAmount) || 0)}</strong>
+                    </p>
+                    <p className="text-amber-700">
+                      Noch offen: <strong>{formatCurrency(Math.max(0, (paidDialog.gross_amount || 0) - (parseFloat(paidAmount) || 0)))}</strong>
+                    </p>
+                  </div>
+                </div>
+              )}
+              <div className="flex gap-2 justify-end">
+                <Button variant="outline" onClick={() => setPaidDialog(null)}>Abbrechen</Button>
+                <Button onClick={handleMarkPaid} className="bg-green-600 hover:bg-green-700 text-white">
+                  <CheckCircle2 className="w-4 h-4 mr-2" />
+                  {paidPartial ? "Teilzahlung erfassen" : "Als bezahlt markieren"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       )}
 
