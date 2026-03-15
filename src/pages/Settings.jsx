@@ -12,14 +12,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import {
-  Building2, Save, Loader2, CheckCircle2, Mail, Server, Phone,
-  FileText, Shield, Upload, Send, AlertCircle, CreditCard, Image,
+  Building2, Save, Loader2, CheckCircle2, Server, Phone,
+  FileText, AlertCircle, CreditCard, Image,
 } from 'lucide-react';
 
 const TABS = [
   { key: 'company', label: 'Firma', icon: Building2 },
   { key: 'billing', label: 'Rechnungsprofil', icon: CreditCard },
-  { key: 'email', label: 'E-Mail (SMTP)', icon: Mail },
   { key: 'imap', label: 'E-Mail Import (IMAP)', icon: Server },
   { key: 'legal', label: 'Rechtstexte', icon: FileText },
 ];
@@ -517,58 +516,6 @@ export default function Settings() {
                 <Label>Zahlungsbedingungen</Label>
                 <Textarea value={billing.paymentTerms || ''} onChange={(e) => setBilling((p) => ({ ...p, paymentTerms: e.target.value }))} rows={2} placeholder="Zahlung innerhalb von {days} Tagen..." />
               </div>
-            </div>
-          )}
-
-          {/* === E-MAIL SMTP === */}
-          {activeTab === 'email' && (
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
-                  <Mail className="w-5 h-5 text-[#1e3a5f]" /> E-Mail Versand (SMTP)
-                </h2>
-                <p className="text-sm text-slate-500 mt-1">Wird für Fahrer-Benachrichtigungen, Rechnungen und Einladungen verwendet.</p>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label>Absender-Name</Label>
-                  <Input value={smtp.email_sender_name} onChange={(e) => setSmtp((p) => ({ ...p, email_sender_name: e.target.value }))} placeholder="TransferFleet" />
-                </div>
-                <div>
-                  <Label>Absender-E-Mail</Label>
-                  <Input type="email" value={smtp.email_sender_address} onChange={(e) => setSmtp((p) => ({ ...p, email_sender_address: e.target.value }))} placeholder="noreply@firma.de" />
-                </div>
-                <div>
-                  <Label>SMTP Host</Label>
-                  <Input value={smtp.smtp_host} onChange={(e) => setSmtp((p) => ({ ...p, smtp_host: e.target.value }))} placeholder="smtp.ionos.de" />
-                </div>
-                <div>
-                  <Label>SMTP Port</Label>
-                  <Input type="number" value={smtp.smtp_port} onChange={(e) => handleSmtpPortChange(e.target.value)} placeholder="465" />
-                </div>
-                <div>
-                  <Label>SMTP Benutzer</Label>
-                  <Input value={smtp.smtp_user} onChange={(e) => setSmtp((p) => ({ ...p, smtp_user: e.target.value }))} />
-                </div>
-                <div>
-                  <Label>SMTP Passwort</Label>
-                  <Input type="password" value={smtp.smtp_pass} onChange={(e) => setSmtp((p) => ({ ...p, smtp_pass: e.target.value }))} />
-                </div>
-                <div className="flex items-center gap-3">
-                  <Switch checked={smtp.smtp_secure} onCheckedChange={(v) => setSmtp((p) => ({ ...p, smtp_secure: v }))} />
-                  <Label>TLS/SSL aktiv</Label>
-                </div>
-              </div>
-              <Separator />
-              <h3 className="font-semibold text-slate-700">Test-E-Mail senden</h3>
-              <div className="flex gap-2">
-                <Input type="email" value={testEmail} onChange={(e) => setTestEmail(e.target.value)} placeholder="test@firma.de" className="max-w-xs" />
-                <Button variant="outline" onClick={handleTestEmail} disabled={testSending || !testEmail.trim()}>
-                  {testSending ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Send className="w-4 h-4 mr-1.5" />}
-                  Senden
-                </Button>
-              </div>
-              {testMessage && <p className={`text-sm ${testMessage.includes('gesendet') ? 'text-green-600' : 'text-red-600'}`}>{testMessage}</p>}
             </div>
           )}
 
