@@ -231,95 +231,230 @@ button:focus-visible {
   }
 }
 
-/* ── Dark mode content overrides ── */
+/* ══════════════════════════════════════════════════════════ */
+/* ── DARK MODE ── .tf-dark applied to content wrapper     */
+/* ══════════════════════════════════════════════════════════ */
 
-/* Text colors: dark → light */
+/* --- Text --- */
 .tf-dark .text-slate-900 { color: #f1f5f9 !important; }
 .tf-dark .text-slate-800 { color: #e2e8f0 !important; }
 .tf-dark .text-slate-700 { color: #cbd5e1 !important; }
 .tf-dark .text-slate-600 { color: #94a3b8 !important; }
+.tf-dark .text-slate-500 { color: #94a3b8 !important; }
 .tf-dark .text-gray-900  { color: #f1f5f9 !important; }
 .tf-dark .text-gray-800  { color: #e2e8f0 !important; }
 .tf-dark .text-gray-700  { color: #cbd5e1 !important; }
 .tf-dark .text-gray-600  { color: #94a3b8 !important; }
 .tf-dark .text-gray-500  { color: #94a3b8 !important; }
-.tf-dark .text-black      { color: #f1f5f9 !important; }
+.tf-dark .text-gray-400  { color: #64748b !important; }
+.tf-dark .text-black     { color: #f1f5f9 !important; }
+.tf-dark p, .tf-dark span, .tf-dark label, .tf-dark h1, .tf-dark h2, .tf-dark h3, .tf-dark h4 {
+  color: inherit;
+}
 
-/* Headings within [#1e3a5f] brand color → lighter */
+/* Brand color */
 .tf-dark .text-\[\#1e3a5f\] { color: #93c5fd !important; }
 .tf-dark .text-\[\#0f172a\] { color: #e2e8f0 !important; }
 
-/* Backgrounds: white/light cards → dark cards */
-.tf-dark .bg-white       { background-color: rgba(30, 41, 59, 0.7) !important; }
-.tf-dark .bg-white\/90   { background-color: rgba(30, 41, 59, 0.65) !important; }
-.tf-dark .bg-slate-50    { background-color: rgba(30, 41, 59, 0.5) !important; }
-.tf-dark .bg-slate-100   { background-color: rgba(30, 41, 59, 0.4) !important; }
-.tf-dark .bg-gray-50     { background-color: rgba(30, 41, 59, 0.5) !important; }
-.tf-dark .bg-gray-100    { background-color: rgba(30, 41, 59, 0.4) !important; }
+/* --- Backgrounds --- */
+.tf-dark .bg-white       { background-color: rgba(15, 23, 42, 0.8) !important; }
+.tf-dark .bg-white\/90   { background-color: rgba(15, 23, 42, 0.7) !important; }
+.tf-dark .bg-slate-50    { background-color: rgba(30, 41, 59, 0.6) !important; }
+.tf-dark .bg-slate-100   { background-color: rgba(30, 41, 59, 0.5) !important; }
+.tf-dark .bg-slate-200   { background-color: rgba(30, 41, 59, 0.4) !important; }
+.tf-dark .bg-gray-50     { background-color: rgba(30, 41, 59, 0.6) !important; }
+.tf-dark .bg-gray-100    { background-color: rgba(30, 41, 59, 0.5) !important; }
 
-/* Borders: light → subtle dark */
-.tf-dark .border-slate-200  { border-color: rgba(148, 163, 184, 0.2) !important; }
-.tf-dark .border-slate-200\/80 { border-color: rgba(148, 163, 184, 0.15) !important; }
-.tf-dark .border-slate-300  { border-color: rgba(148, 163, 184, 0.25) !important; }
-.tf-dark .border-gray-200   { border-color: rgba(148, 163, 184, 0.2) !important; }
-.tf-dark .border-gray-300   { border-color: rgba(148, 163, 184, 0.25) !important; }
+/* --- Borders --- */
+.tf-dark .border-slate-100  { border-color: rgba(148, 163, 184, 0.12) !important; }
+.tf-dark .border-slate-200  { border-color: rgba(148, 163, 184, 0.18) !important; }
+.tf-dark .border-slate-200\/80 { border-color: rgba(148, 163, 184, 0.12) !important; }
+.tf-dark .border-slate-300  { border-color: rgba(148, 163, 184, 0.22) !important; }
+.tf-dark .border-gray-100   { border-color: rgba(148, 163, 184, 0.12) !important; }
+.tf-dark .border-gray-200   { border-color: rgba(148, 163, 184, 0.18) !important; }
+.tf-dark .border-gray-300   { border-color: rgba(148, 163, 184, 0.22) !important; }
+.tf-dark .border              { border-color: rgba(148, 163, 184, 0.15) !important; }
+.tf-dark .divide-slate-200 > * + * { border-color: rgba(148, 163, 184, 0.15) !important; }
 
-/* Input fields */
+/* --- Inputs --- */
 .tf-dark input,
 .tf-dark textarea,
 .tf-dark select {
-  background-color: rgba(15, 23, 42, 0.6) !important;
+  background-color: rgba(15, 23, 42, 0.7) !important;
   color: #e2e8f0 !important;
-  border-color: rgba(148, 163, 184, 0.25) !important;
+  border-color: rgba(148, 163, 184, 0.2) !important;
+}
+.tf-dark input:focus,
+.tf-dark textarea:focus,
+.tf-dark select:focus {
+  border-color: rgba(59, 130, 246, 0.5) !important;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15) !important;
 }
 .tf-dark input::placeholder,
 .tf-dark textarea::placeholder {
-  color: #64748b !important;
+  color: #475569 !important;
+}
+.tf-dark input[type="date"],
+.tf-dark input[type="month"],
+.tf-dark input[type="time"] {
+  color-scheme: dark;
 }
 
-/* shadcn Card component */
+/* --- Cards (shadcn) --- */
+.tf-dark [class*="rounded"][class*="border"][class*="bg-card"],
 .tf-dark [class*="rounded"][class*="border"][class*="bg-white"] {
-  background-color: rgba(30, 41, 59, 0.7) !important;
+  background-color: rgba(15, 23, 42, 0.7) !important;
+  border-color: rgba(148, 163, 184, 0.12) !important;
+}
+
+/* --- Select / Combobox --- */
+.tf-dark [data-radix-select-trigger],
+.tf-dark button[role="combobox"] {
+  background-color: rgba(15, 23, 42, 0.7) !important;
+  color: #e2e8f0 !important;
+  border-color: rgba(148, 163, 184, 0.2) !important;
+}
+.tf-dark [data-radix-select-content],
+.tf-dark [data-radix-popper-content-wrapper] [role="listbox"],
+.tf-dark [cmdk-root] {
+  background-color: #1e293b !important;
+  border-color: rgba(148, 163, 184, 0.15) !important;
+  color: #e2e8f0 !important;
+}
+.tf-dark [data-radix-select-item][data-highlighted],
+.tf-dark [cmdk-item][data-selected="true"] {
+  background-color: rgba(59, 130, 246, 0.2) !important;
+  color: #f1f5f9 !important;
+}
+
+/* --- Popover / Dialog --- */
+.tf-dark [data-radix-popper-content-wrapper] > div {
+  background-color: #1e293b !important;
   border-color: rgba(148, 163, 184, 0.15) !important;
 }
 
-/* Select trigger / dropdown */
-.tf-dark [data-radix-select-trigger],
-.tf-dark button[role="combobox"] {
+/* --- Tables --- */
+.tf-dark table { border-color: rgba(148, 163, 184, 0.15) !important; }
+.tf-dark th {
   background-color: rgba(15, 23, 42, 0.6) !important;
+  color: #cbd5e1 !important;
+  border-color: rgba(148, 163, 184, 0.15) !important;
+}
+.tf-dark td {
+  border-color: rgba(148, 163, 184, 0.1) !important;
   color: #e2e8f0 !important;
-  border-color: rgba(148, 163, 184, 0.25) !important;
 }
+.tf-dark tr:hover td { background-color: rgba(30, 41, 59, 0.5) !important; }
+.tf-dark thead { border-color: rgba(148, 163, 184, 0.15) !important; }
+.tf-dark tbody tr { border-color: rgba(148, 163, 184, 0.08) !important; }
 
-/* Status badges / pills keep their colors */
-.tf-dark .bg-green-50  { background-color: rgba(22, 101, 52, 0.3) !important; }
+/* --- Status badges --- */
+.tf-dark .bg-green-50  { background-color: rgba(22, 101, 52, 0.25) !important; }
 .tf-dark .bg-green-100 { background-color: rgba(22, 101, 52, 0.3) !important; }
-.tf-dark .bg-red-50    { background-color: rgba(153, 27, 27, 0.3) !important; }
+.tf-dark .bg-red-50    { background-color: rgba(153, 27, 27, 0.25) !important; }
 .tf-dark .bg-red-100   { background-color: rgba(153, 27, 27, 0.3) !important; }
-.tf-dark .bg-yellow-50 { background-color: rgba(133, 77, 14, 0.3) !important; }
+.tf-dark .bg-yellow-50 { background-color: rgba(133, 77, 14, 0.25) !important; }
 .tf-dark .bg-yellow-100 { background-color: rgba(133, 77, 14, 0.3) !important; }
-.tf-dark .bg-blue-50   { background-color: rgba(30, 58, 95, 0.4) !important; }
+.tf-dark .bg-blue-50   { background-color: rgba(30, 58, 95, 0.35) !important; }
 .tf-dark .bg-blue-100  { background-color: rgba(30, 58, 95, 0.4) !important; }
-.tf-dark .bg-emerald-50 { background-color: rgba(6, 78, 59, 0.3) !important; }
-.tf-dark .bg-orange-50  { background-color: rgba(154, 52, 18, 0.3) !important; }
+.tf-dark .bg-emerald-50 { background-color: rgba(6, 78, 59, 0.25) !important; }
+.tf-dark .bg-amber-50  { background-color: rgba(146, 64, 14, 0.25) !important; }
+.tf-dark .bg-amber-100 { background-color: rgba(146, 64, 14, 0.3) !important; }
+.tf-dark .bg-orange-50 { background-color: rgba(154, 52, 18, 0.25) !important; }
+.tf-dark .bg-purple-50 { background-color: rgba(88, 28, 135, 0.25) !important; }
+.tf-dark .bg-purple-100 { background-color: rgba(88, 28, 135, 0.3) !important; }
+.tf-dark .bg-cyan-50   { background-color: rgba(8, 145, 178, 0.2) !important; }
+.tf-dark .bg-cyan-100  { background-color: rgba(8, 145, 178, 0.25) !important; }
 
-/* Skeleton loading pulse */
-.tf-dark .animate-pulse { background-color: rgba(148, 163, 184, 0.15) !important; }
+/* --- Alert borders dark mode --- */
+.tf-dark .border-green-200 { border-color: rgba(34, 197, 94, 0.25) !important; }
+.tf-dark .border-red-200   { border-color: rgba(239, 68, 68, 0.25) !important; }
+.tf-dark .border-amber-200 { border-color: rgba(245, 158, 11, 0.25) !important; }
+.tf-dark .border-amber-300 { border-color: rgba(245, 158, 11, 0.3) !important; }
+.tf-dark .border-blue-200  { border-color: rgba(59, 130, 246, 0.25) !important; }
+.tf-dark .border-blue-100  { border-color: rgba(59, 130, 246, 0.2) !important; }
+.tf-dark .border-emerald-200 { border-color: rgba(16, 185, 129, 0.25) !important; }
+.tf-dark .border-purple-200 { border-color: rgba(168, 85, 247, 0.25) !important; }
+.tf-dark .border-cyan-200  { border-color: rgba(6, 182, 212, 0.25) !important; }
 
-/* Tabs */
-.tf-dark [role="tablist"] {
-  background-color: rgba(15, 23, 42, 0.5) !important;
-}
+/* --- Separator --- */
+.tf-dark [data-orientation="horizontal"] { background-color: rgba(148, 163, 184, 0.12) !important; }
+.tf-dark hr { border-color: rgba(148, 163, 184, 0.12) !important; }
+
+/* --- Skeleton loading --- */
+.tf-dark .animate-pulse { background-color: rgba(148, 163, 184, 0.1) !important; }
+
+/* --- Tabs (custom + shadcn) --- */
+.tf-dark [role="tablist"] { background-color: rgba(15, 23, 42, 0.5) !important; }
 .tf-dark [role="tab"][data-state="active"] {
   background-color: rgba(30, 41, 59, 0.8) !important;
   color: #f1f5f9 !important;
 }
-.tf-dark [role="tab"] {
-  color: #94a3b8 !important;
-}
+.tf-dark [role="tab"] { color: #94a3b8 !important; }
+.tf-dark .bg-slate-100.rounded-lg { background-color: rgba(15, 23, 42, 0.5) !important; }
 
-/* Hover states */
+/* --- Checkbox / Switch --- */
+.tf-dark [role="checkbox"] { border-color: rgba(148, 163, 184, 0.3) !important; }
+.tf-dark [role="switch"] { background-color: rgba(51, 65, 85, 0.8) !important; }
+
+/* --- Hover states --- */
 .tf-dark .hover\:bg-gray-100:hover  { background-color: rgba(51, 65, 85, 0.5) !important; }
 .tf-dark .hover\:bg-slate-100:hover { background-color: rgba(51, 65, 85, 0.5) !important; }
 .tf-dark .hover\:bg-gray-50:hover   { background-color: rgba(51, 65, 85, 0.4) !important; }
 .tf-dark .hover\:bg-slate-50:hover  { background-color: rgba(51, 65, 85, 0.4) !important; }
+.tf-dark .hover\:bg-slate-50:hover  { background-color: rgba(51, 65, 85, 0.4) !important; }
+
+/* --- Scrollbars --- */
+.tf-dark ::-webkit-scrollbar { width: 6px; height: 6px; }
+.tf-dark ::-webkit-scrollbar-track { background: transparent; }
+.tf-dark ::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.2); border-radius: 3px; }
+.tf-dark ::-webkit-scrollbar-thumb:hover { background: rgba(148, 163, 184, 0.35); }
+
+/* --- Shadow removal in dark mode --- */
+.tf-dark .shadow, .tf-dark .shadow-sm, .tf-dark .shadow-md, .tf-dark .shadow-lg {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* --- Driver item highlight dark --- */
+.tf-dark [data-radix-select-item].tf-driver-item[data-highlighted] {
+  background-color: rgba(30, 58, 95, 0.5) !important;
+  color: #93c5fd !important;
+}
+
+/* ══════════════════════════════════════════════════════════ */
+/* ── LIGHT MODE FIXES ── Better borders and contrast      */
+/* ══════════════════════════════════════════════════════════ */
+
+/* Tables in light mode: visible borders */
+.tf-page-content:not(.tf-dark) table {
+  border: 1px solid #e2e8f0;
+}
+.tf-page-content:not(.tf-dark) th {
+  background-color: #f8fafc;
+  border-bottom: 2px solid #cbd5e1;
+  color: #334155;
+  font-weight: 600;
+}
+.tf-page-content:not(.tf-dark) td {
+  border-bottom: 1px solid #e2e8f0;
+}
+.tf-page-content:not(.tf-dark) tr:hover td {
+  background-color: #f1f5f9;
+}
+
+/* Cards in light mode */
+.tf-page-content:not(.tf-dark) [class*="rounded"][class*="border"] {
+  border-color: #e2e8f0;
+}
+
+/* Inputs in light mode */
+.tf-page-content:not(.tf-dark) input,
+.tf-page-content:not(.tf-dark) textarea,
+.tf-page-content:not(.tf-dark) select {
+  border-color: #cbd5e1;
+}
+.tf-page-content:not(.tf-dark) input:focus,
+.tf-page-content:not(.tf-dark) textarea:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
