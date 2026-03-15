@@ -152,6 +152,40 @@ export default async function handler(req, res) {
       return acc;
     }, {});
 
+    // Company notes
+    const { data: companyNotes } = await supabaseAdmin
+      .from("company_notes")
+      .select("id, company_id, author_name, note, created_at")
+      .in("company_id", ids)
+      .order("created_at", { ascending: false });
+
+    const notesByCompany = (companyNotes || []).reduce((acc, note) => {
+      if (!acc[note.company_id]) acc[note.company_id] = [];
+      acc[note.company_id].push(note);
+      return acc;
+    }, {});
+
+    // Monthly revenue per company (last 6 months)
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    const { data: monthlyOrders } = await supabaseAdmin
+      .from("orders")
+      .select("company_id, driver_price, created_date")
+      .in("company_id", ids)
+      .is("deleted_at", null)
+      .gte("created_date", sixMonthsAgo.toISOString());
+
+    const monthlyRevenueByCompany = {};
+    for (const order of monthlyOrders || []) {
+      const cid = order.company_id;
+      if (!cid || !order.created_date) continue;
+      const price = parseFloat(order.driver_price);
+      if (!Number.isFinite(price)) continue;
+      const month = order.created_date.slice(0, 7); // YYYY-MM
+      if (!monthlyRevenueByCompany[cid]) monthlyRevenueByCompany[cid] = {};
+      monthlyRevenueByCompany[cid][month] = (monthlyRevenueByCompany[cid][month] || 0) + price;
+    }
+
     // Aggregate order stats per company
     const revenueByCompany = {};
     const lastActivityByCompany = {};
@@ -183,6 +217,8 @@ export default async function handler(req, res) {
       last_activity: lastActivityByCompany[company.id]
         ? new Date(lastActivityByCompany[company.id]).toISOString()
         : null,
+      notes: notesByCompany[company.id] || [],
+      monthly_revenue: monthlyRevenueByCompany[company.id] || {},
     }));
 
     res.status(200).json({ ok: true, data: result });

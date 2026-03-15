@@ -20,10 +20,14 @@ export default async function handler(req, res) {
     return res.status(204).end();
   }
 
-  // Protect with a secret key so only cron/admin can call this
-  const authHeader = req.headers["x-api-key"] || req.headers["authorization"];
+  // Protect: Vercel Cron sends CRON_SECRET, or manual call with API key
+  const cronSecret = req.headers["authorization"]?.replace("Bearer ", "");
+  const apiKey = req.headers["x-api-key"];
+  const vercelCronAuth = process.env.CRON_SECRET;
   const expectedKey = process.env.CRON_API_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!authHeader || (authHeader !== expectedKey && authHeader !== `Bearer ${expectedKey}`)) {
+  const isVercelCron = vercelCronAuth && cronSecret === vercelCronAuth;
+  const isManualCall = apiKey && (apiKey === expectedKey);
+  if (!isVercelCron && !isManualCall) {
     return res.status(401).json({ ok: false, error: "Unauthorized" });
   }
 

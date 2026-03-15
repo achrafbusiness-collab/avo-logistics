@@ -84,8 +84,11 @@ export default function SystemVermietung() {
   const [deleteMessage, setDeleteMessage] = useState("");
   const [deleteError, setDeleteError] = useState("");
   const [activeTab, setActiveTab] = useState("all");
+  const [sortBy, setSortBy] = useState("name");
   const [upgradingCompany, setUpgradingCompany] = useState(false);
   const [extendingTrial, setExtendingTrial] = useState(false);
+  const [newNote, setNewNote] = useState("");
+  const [savingNote, setSavingNote] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -179,12 +182,30 @@ export default function SystemVermietung() {
     };
   }, [companies]);
 
-  // Filtered companies based on tab
+  // Filtered and sorted companies
   const filteredCompanies = useMemo(() => {
-    if (activeTab === "paying") return companies.filter((c) => c.account_type !== "trial");
-    if (activeTab === "trial") return companies.filter((c) => c.account_type === "trial");
-    return companies;
-  }, [companies, activeTab]);
+    let list = companies;
+    if (activeTab === "paying") list = list.filter((c) => c.account_type !== "trial");
+    if (activeTab === "trial") list = list.filter((c) => c.account_type === "trial");
+
+    const sorted = [...list].sort((a, b) => {
+      switch (sortBy) {
+        case "revenue":
+          return (b.total_revenue || 0) - (a.total_revenue || 0);
+        case "activity":
+          return (b.last_activity ? new Date(b.last_activity).getTime() : 0) -
+                 (a.last_activity ? new Date(a.last_activity).getTime() : 0);
+        case "trial_end":
+          return (a.trial_expires_at ? new Date(a.trial_expires_at).getTime() : Infinity) -
+                 (b.trial_expires_at ? new Date(b.trial_expires_at).getTime() : Infinity);
+        case "orders":
+          return (b.order_count || 0) - (a.order_count || 0);
+        default:
+          return (a.name || "").localeCompare(b.name || "", "de");
+      }
+    });
+    return sorted;
+  }, [companies, activeTab, sortBy]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -359,6 +380,55 @@ export default function SystemVermietung() {
       setExtendingTrial(false);
     }
   };
+
+  const handleSaveNote = async () => {
+    if (!companyForm.id || !newNote.trim()) return;
+    setSavingNote(true);
+    setCompanyError("");
+    try {
+      const { error: noteError } = await supabase.from("company_notes").insert({
+        company_id: companyForm.id,
+        author_name: currentUser?.full_name || currentUser?.email || "System",
+        author_email: currentUser?.email || "",
+        note: newNote.trim(),
+      });
+      if (noteError) throw new Error(noteError.message);
+      setNewNote("");
+      setCompanyMessage("Notiz gespeichert.");
+      await fetchCompanies(selectedCompanyId);
+    } catch (err) {
+      setCompanyError(err?.message || "Notiz konnte nicht gespeichert werden.");
+    } finally {
+      setSavingNote(false);
+    }
+  };
+
+  const handleDeleteNote = async (noteId) => {
+    try {
+      await supabase.from("company_notes").delete().eq("id", noteId);
+      await fetchCompanies(selectedCompanyId);
+    } catch {
+      // silent
+    }
+  };
+
+  // Monthly revenue chart data for selected company
+  const monthlyChartData = useMemo(() => {
+    if (!selectedCompany?.monthly_revenue) return [];
+    const months = [];
+    const now = new Date();
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const label = d.toLocaleDateString("de-DE", { month: "short", year: "2-digit" });
+      months.push({ key, label, value: selectedCompany.monthly_revenue[key] || 0 });
+    }
+    return months;
+  }, [selectedCompany]);
+
+  const maxMonthlyRevenue = useMemo(() => {
+    return Math.max(...monthlyChartData.map((m) => m.value), 1);
+  }, [monthlyChartData]);
 
   const handleExportCSV = () => {
     if (!companies.length) return;
@@ -551,7 +621,18 @@ export default function SystemVermietung() {
         <CardHeader>
           <div className="flex items-center justify-between flex-wrap gap-3">
             <CardTitle>Mandanten</CardTitle>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-700"
+              >
+                <option value="name">Name A-Z</option>
+                <option value="revenue">Umsatz (hoch→niedrig)</option>
+                <option value="orders">Aufträge (hoch→niedrig)</option>
+                <option value="activity">Letzte Aktivität</option>
+                <option value="trial_end">Trial-Ende (bald zuerst)</option>
+              </select>
               <Button variant="outline" size="sm" onClick={handleExportCSV} disabled={!companies.length}>
                 <Download className="h-3.5 w-3.5 mr-1.5" />
                 CSV Export
@@ -850,6 +931,65 @@ export default function SystemVermietung() {
                         </div>
                       ))}
                       {!selectedCompany?.profiles?.length && <p className="text-xs text-slate-400">Keine Profile vorhanden.</p>}
+                    </div>
+                  </div>
+
+                  {/* Monats-Umsatz Chart */}
+                  {monthlyChartData.some((m) => m.value > 0) && (
+                    <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm">
+                      <p className="font-semibold text-slate-700 mb-3">Umsatzentwicklung (6 Monate)</p>
+                      <div className="flex items-end gap-2 h-32">
+                        {monthlyChartData.map((month) => (
+                          <div key={month.key} className="flex-1 flex flex-col items-center gap-1">
+                            <span className="text-[10px] text-slate-500 font-medium">
+                              {month.value > 0 ? `${Math.round(month.value)}€` : ""}
+                            </span>
+                            <div
+                              className="w-full rounded-t-md bg-gradient-to-t from-[#1e3a5f] to-[#2d5a8a] transition-all min-h-[2px]"
+                              style={{ height: `${Math.max((month.value / maxMonthlyRevenue) * 100, 2)}%` }}
+                            />
+                            <span className="text-[10px] text-slate-400">{month.label}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Notizen */}
+                  <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm">
+                    <p className="font-semibold text-slate-700 mb-3">Interne Notizen</p>
+                    <div className="flex gap-2 mb-3">
+                      <Input
+                        value={newNote}
+                        onChange={(e) => setNewNote(e.target.value)}
+                        placeholder="Notiz hinzufügen... (z.B. Upgrade besprochen)"
+                        onKeyDown={(e) => e.key === "Enter" && handleSaveNote()}
+                      />
+                      <Button size="sm" onClick={handleSaveNote} disabled={savingNote || !newNote.trim()} className="bg-[#1e3a5f] hover:bg-[#2d5a8a] shrink-0">
+                        {savingNote ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Speichern"}
+                      </Button>
+                    </div>
+                    <div className="max-h-48 space-y-2 overflow-auto">
+                      {(selectedCompany?.notes || []).map((note) => (
+                        <div key={note.id} className="flex items-start justify-between gap-2 rounded border border-slate-100 bg-slate-50 px-3 py-2">
+                          <div className="min-w-0">
+                            <p className="text-slate-800">{note.note}</p>
+                            <p className="text-[10px] text-slate-400 mt-1">
+                              {note.author_name || "System"} · {formatDate(note.created_at)}
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => handleDeleteNote(note.id)}
+                            className="text-slate-300 hover:text-red-500 text-xs shrink-0"
+                            title="Löschen"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                      {!(selectedCompany?.notes || []).length && (
+                        <p className="text-xs text-slate-400">Noch keine Notizen.</p>
+                      )}
                     </div>
                   </div>
 
