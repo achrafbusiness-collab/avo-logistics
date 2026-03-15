@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { appClient } from '@/api/appClient';
+import { supabase } from '@/lib/supabaseClient';
 import { CardListSkeleton } from "@/components/ui/page-skeletons";
 import { useRealtimeSync } from '@/hooks/useRealtimeSync';
 import { format } from 'date-fns';
@@ -153,6 +154,25 @@ export default function Drivers() {
       window.history.pushState({}, '', createPageUrl('Drivers'));
       return updated;
     } else {
+      // Limit-Check: Prüfe ob noch Fahrer-Slots frei sind
+      try {
+        const user = await appClient.auth.getCurrentUser();
+        if (user?.company_id) {
+          const { data: company } = await supabase
+            .from('companies')
+            .select('driver_limit')
+            .eq('id', user.company_id)
+            .maybeSingle();
+          const limit = company?.driver_limit;
+          if (typeof limit === 'number' && limit > 0 && drivers.length >= limit) {
+            throw new Error(
+              `Fahrer-Limit erreicht (${limit} Slots). Bitte buchen Sie unter "Fahrer-Slots" zusätzliche Slots.`
+            );
+          }
+        }
+      } catch (limitErr) {
+        if (limitErr?.message?.includes('Fahrer-Limit')) throw limitErr;
+      }
       const created = await createMutation.mutateAsync(data);
       return created;
     }

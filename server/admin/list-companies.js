@@ -152,6 +152,19 @@ export default async function handler(req, res) {
       return acc;
     }, {});
 
+    // Limit changes
+    const { data: limitChanges } = await supabaseAdmin
+      .from("driver_limit_changes")
+      .select("id, company_id, old_limit, new_limit, change_type, effective_date, status, notes, created_at, requested_by")
+      .in("company_id", ids)
+      .order("created_at", { ascending: false });
+
+    const limitChangesByCompany = (limitChanges || []).reduce((acc, change) => {
+      if (!acc[change.company_id]) acc[change.company_id] = [];
+      acc[change.company_id].push(change);
+      return acc;
+    }, {});
+
     // Company notes
     const { data: companyNotes } = await supabaseAdmin
       .from("company_notes")
@@ -218,6 +231,7 @@ export default async function handler(req, res) {
         ? new Date(lastActivityByCompany[company.id]).toISOString()
         : null,
       notes: notesByCompany[company.id] || [],
+      limit_changes: (limitChangesByCompany[company.id] || []).slice(0, 10),
       monthly_revenue: monthlyRevenueByCompany[company.id] || {},
     }));
 

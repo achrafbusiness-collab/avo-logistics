@@ -40,6 +40,7 @@ const adminPages = [
   { name: 'Statistik', icon: BarChart3, page: 'Statistics' },
   { name: 'Aufträge', icon: Truck, page: 'Orders' },
   { name: 'Fahrer', icon: Users, page: 'Drivers' },
+  { name: 'Fahrer-Slots', icon: Users, page: 'DriverSlots' },
   { name: 'Kunden & Finanzen', icon: User, page: 'Customers' },
   { name: 'Einstellungen', icon: Settings, page: 'Settings' },
   { name: 'Team', icon: Users, page: 'TeamTransferFleet' },

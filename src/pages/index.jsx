@@ -41,6 +41,7 @@ const SystemVermietung = lazy(() => import("./SystemVermietung"));
 const Upgrade = lazy(() => import("./Upgrade"));
 const Settings = lazy(() => import("./Settings"));
 const SystemBilling = lazy(() => import("./SystemBilling"));
+const DriverSlots = lazy(() => import("./DriverSlots"));
 const Verlauf = lazy(() => import("./Verlauf"));
 const AdminEmailSettings = lazy(() => import("./AdminEmailSettings"));
 const ProtocolPdf = lazy(() => import("./ProtocolPdf"));
@@ -72,6 +73,7 @@ const PAGE_NAMES = [
     'Upgrade',
     'Settings',
     'SystemBilling',
+    'DriverSlots',
 ];
 
 function PageFallback() {
@@ -258,6 +260,7 @@ function PagesContent() {
                     <Route path="/Upgrade" element={<Upgrade />} />
                     <Route path="/Settings" element={<Settings />} />
                     <Route path="/SystemBilling" element={<SystemBilling />} />
+                    <Route path="/DriverSlots" element={<DriverSlots />} />
 
                     <Route path="/verlauf" element={<Verlauf />} />
 

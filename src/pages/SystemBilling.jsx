@@ -191,7 +191,40 @@ export default function SystemBilling() {
 
         const driverLimit = company.driver_limit || company.driver_count || 0;
         const pricePerDriver = company.price_per_driver ?? 30;
-        const netAmount = driverLimit * pricePerDriver;
+
+        // Prüfe auf Limit-Änderungen im Abrechnungsmonat für anteilige Berechnung
+        let netAmount = driverLimit * pricePerDriver;
+        const { data: limitChanges } = await supabase
+          .from("driver_limit_changes")
+          .select("*")
+          .eq("company_id", company.id)
+          .eq("status", "active")
+          .gte("effective_date", `${selectedMonth}-01`)
+          .lte("effective_date", `${selectedMonth}-31`)
+          .order("effective_date", { ascending: true });
+
+        if (limitChanges?.length > 0) {
+          // Anteilige Berechnung: verschiedene Limits an verschiedenen Tagen
+          const [year, month] = selectedMonth.split("-").map(Number);
+          const daysInMonth = new Date(year, month, 0).getDate();
+          let total = 0;
+          let currentLimitForCalc = limitChanges[0].old_limit;
+          let lastDay = 1;
+
+          for (const change of limitChanges) {
+            const changeDay = new Date(change.effective_date).getDate();
+            const daysAtOldLimit = changeDay - lastDay;
+            if (daysAtOldLimit > 0) {
+              total += currentLimitForCalc * pricePerDriver * (daysAtOldLimit / daysInMonth);
+            }
+            currentLimitForCalc = change.new_limit;
+            lastDay = changeDay;
+          }
+          // Rest des Monats
+          const remainingDays = daysInMonth - lastDay + 1;
+          total += currentLimitForCalc * pricePerDriver * (remainingDays / daysInMonth);
+          netAmount = Math.round(total * 100) / 100;
+        }
         const vatAmount = Math.round(netAmount * vatRate) / 100;
         const grossAmount = netAmount + vatAmount;
         const invoiceNumber = `${prefix}-${String(nextNum).padStart(5, "0")}`;
