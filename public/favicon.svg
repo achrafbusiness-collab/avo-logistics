@@ -1,4 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
-  <rect width="120" height="120" rx="24" fill="#1e3a5f" />
-  <text x="60" y="72" text-anchor="middle" font-family="Arial, sans-serif" font-size="48" fill="#ffffff">TF</text>
+  <rect width="120" height="120" rx="24" fill="#0f172a" />
+  <g transform="translate(16, 20) scale(0.28)">
+    <!-- Globe simplified -->
+    <ellipse cx="120" cy="140" rx="100" ry="100" fill="none" stroke="#06b6d4" stroke-width="12"/>
+    <ellipse cx="120" cy="140" rx="50" ry="100" fill="none" stroke="#06b6d4" stroke-width="8"/>
+    <line x1="20" y1="140" x2="220" y2="140" stroke="#06b6d4" stroke-width="8"/>
+    <line x1="40" y1="80" x2="200" y2="80" stroke="#06b6d4" stroke-width="6"/>
+    <line x1="40" y1="200" x2="200" y2="200" stroke="#06b6d4" stroke-width="6"/>
+  </g>
+  <text x="82" y="78" text-anchor="middle" font-family="'Arial Black', Arial, sans-serif" font-weight="900" font-size="32" fill="#ffffff" letter-spacing="1">TF</text>
 </svg>
