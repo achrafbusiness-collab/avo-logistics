@@ -365,6 +365,7 @@ export default function SystemVermietung() {
           updates: {
             account_type: "trial",
             trial_expires_at: newExpiry.toISOString(),
+            trial_reminder_sent: false,
           },
         }),
       });

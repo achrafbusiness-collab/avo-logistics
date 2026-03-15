@@ -44,13 +44,15 @@ export default async function handler(req, res) {
     reminderDate.setDate(reminderDate.getDate() + REMINDER_DAYS_BEFORE);
     const reminderDateStr = reminderDate.toISOString().split("T")[0];
 
+    // Only companies that expire within 3 days AND haven't been reminded yet
     const { data: companies, error: companyError } = await supabase
       .from("companies")
       .select("id, name, trial_expires_at, owner_user_id, contact_email")
       .eq("account_type", "trial")
       .eq("is_active", true)
-      .gte("trial_expires_at", `${reminderDateStr}T00:00:00`)
-      .lt("trial_expires_at", `${reminderDateStr}T23:59:59`);
+      .eq("trial_reminder_sent", false)
+      .lte("trial_expires_at", `${reminderDateStr}T23:59:59`)
+      .gte("trial_expires_at", `${now.toISOString()}`);
 
     if (companyError) {
       return res.status(500).json({ ok: false, error: companyError.message });
@@ -134,6 +136,11 @@ export default async function handler(req, res) {
             </div>
           `,
         });
+        // Mark as sent so it never sends again
+        await supabase
+          .from("companies")
+          .update({ trial_reminder_sent: true })
+          .eq("id", company.id);
         sentCount++;
       } catch {
         // Skip failed sends, continue with others
