@@ -12,7 +12,9 @@ import { appClient } from "@/api/appClient";
 import {
   ArrowLeft, Loader2, Building2, CheckCircle2, AlertCircle,
   Save, FileText, Send, Download, Image, CreditCard, Receipt,
+  BarChart3, RefreshCw, Minus,
 } from "lucide-react";
+import { jsPDF } from "jspdf";
 
 const formatCurrency = (v) =>
   new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(v || 0);
@@ -61,6 +63,11 @@ export default function SystemBilling() {
   const [generating, setGenerating] = useState(false);
   const [genMessage, setGenMessage] = useState("");
   const [genError, setGenError] = useState("");
+  const [sendingEmail, setSendingEmail] = useState({});
+  const [creditDialogInvoice, setCreditDialogInvoice] = useState(null);
+  const [creditAmount, setCreditAmount] = useState("");
+  const [creditNote, setCreditNote] = useState("");
+  const [creatingCredit, setCreatingCredit] = useState(false);
 
   useEffect(() => {
     loadAll();
@@ -233,6 +240,266 @@ export default function SystemBilling() {
     await loadAll();
   };
 
+  // --- PDF Generation ---
+  const generateInvoicePdf = (inv) => {
+    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+    const w = doc.internal.pageSize.getWidth();
+    const isCredit = inv.invoice_type === "credit_note";
+    const title = isCredit ? "GUTSCHRIFT" : "RECHNUNG";
+
+    // Logo
+    if (profile.logo_data_url) {
+      try { doc.addImage(profile.logo_data_url, "PNG", 15, 12, 40, 16); } catch {}
+    }
+
+    // Sender
+    doc.setFontSize(8);
+    doc.setTextColor(120);
+    const senderLine = [profile.company_name, profile.company_suffix, profile.street, `${profile.postal_code} ${profile.city}`].filter(Boolean).join(" · ");
+    doc.text(senderLine, 15, 45);
+
+    // Recipient
+    const company = companies.find((c) => c.id === inv.company_id);
+    doc.setFontSize(11);
+    doc.setTextColor(30);
+    doc.text(inv.company_name || "Kunde", 15, 55);
+    if (company?.billing_address) doc.text(company.billing_address, 15, 61);
+    if (company?.billing_postal_code || company?.billing_city)
+      doc.text(`${company.billing_postal_code || ""} ${company.billing_city || ""}`.trim(), 15, 67);
+
+    // Title + Meta
+    doc.setFontSize(18);
+    doc.setTextColor(30, 58, 95);
+    doc.text(title, w - 15, 55, { align: "right" });
+    doc.setFontSize(9);
+    doc.setTextColor(100);
+    doc.text(`Nr.: ${inv.invoice_number}`, w - 15, 63, { align: "right" });
+    doc.text(`Datum: ${formatDate(inv.created_at)}`, w - 15, 69, { align: "right" });
+    doc.text(`Zeitraum: ${getMonthLabel(inv.billing_month)}`, w - 15, 75, { align: "right" });
+    if (isCredit && inv.related_invoice_id) {
+      const related = invoices.find((i) => i.id === inv.related_invoice_id);
+      if (related) doc.text(`Zu Rechnung: ${related.invoice_number}`, w - 15, 81, { align: "right" });
+    }
+
+    // Table header
+    let y = 95;
+    doc.setFillColor(245, 247, 250);
+    doc.rect(15, y - 5, w - 30, 8, "F");
+    doc.setFontSize(8);
+    doc.setTextColor(100);
+    doc.text("Position", 17, y);
+    doc.text("Menge", 100, y, { align: "right" });
+    doc.text("Einzelpreis", 130, y, { align: "right" });
+    doc.text("Betrag", w - 17, y, { align: "right" });
+
+    // Position
+    y += 10;
+    doc.setFontSize(10);
+    doc.setTextColor(30);
+    const posLabel = isCredit
+      ? `Gutschrift – ${inv.company_name}`
+      : `TransferFleet Pro – ${getMonthLabel(inv.billing_month)}`;
+    doc.text(posLabel, 17, y);
+    doc.text(String(inv.driver_count || 0), 100, y, { align: "right" });
+    doc.text(formatCurrency(inv.price_per_driver), 130, y, { align: "right" });
+    const sign = isCredit ? "-" : "";
+    doc.text(`${sign}${formatCurrency(inv.net_amount)}`, w - 17, y, { align: "right" });
+
+    if (!isCredit) {
+      y += 6;
+      doc.setFontSize(8);
+      doc.setTextColor(100);
+      doc.text(`${inv.driver_count} aktive Fahrer × ${formatCurrency(inv.price_per_driver)} / Monat`, 17, y);
+    }
+
+    // Totals
+    y += 15;
+    doc.setDrawColor(220);
+    doc.line(100, y, w - 15, y);
+    y += 7;
+    doc.setFontSize(9);
+    doc.setTextColor(80);
+    doc.text("Netto", 100, y);
+    doc.text(`${sign}${formatCurrency(inv.net_amount)}`, w - 17, y, { align: "right" });
+    y += 6;
+    doc.text(`MwSt. ${inv.vat_rate}%`, 100, y);
+    doc.text(`${sign}${formatCurrency(inv.vat_amount)}`, w - 17, y, { align: "right" });
+    y += 2;
+    doc.line(100, y, w - 15, y);
+    y += 7;
+    doc.setFontSize(12);
+    doc.setTextColor(30);
+    doc.setFont(undefined, "bold");
+    doc.text("Gesamt", 100, y);
+    doc.text(`${sign}${formatCurrency(inv.gross_amount)}`, w - 17, y, { align: "right" });
+    doc.setFont(undefined, "normal");
+
+    // Payment terms
+    y += 15;
+    doc.setFontSize(8);
+    doc.setTextColor(100);
+    const terms = (profile.payment_terms || "Zahlung innerhalb von {days} Tagen ab Rechnungseingang ohne Abzüge.")
+      .replace("{days}", String(profile.default_payment_days || 14));
+    doc.text(terms, 15, y);
+
+    // Footer
+    const footerY = 275;
+    doc.setDrawColor(200);
+    doc.line(15, footerY, w - 15, footerY);
+    doc.setFontSize(7);
+    doc.setTextColor(140);
+    const col1 = [profile.company_name, profile.street, `${profile.postal_code} ${profile.city}`].filter(Boolean);
+    const col2 = [profile.tax_number ? `St-Nr: ${profile.tax_number}` : "", profile.vat_id ? `USt-ID: ${profile.vat_id}` : "", profile.owner_name ? `GF: ${profile.owner_name}` : ""].filter(Boolean);
+    const col3 = [profile.bank_name, profile.iban ? `IBAN: ${profile.iban}` : "", profile.bic ? `BIC: ${profile.bic}` : ""].filter(Boolean);
+    col1.forEach((t, i) => doc.text(t, 15, footerY + 4 + i * 3.5));
+    col2.forEach((t, i) => doc.text(t, 80, footerY + 4 + i * 3.5));
+    col3.forEach((t, i) => doc.text(t, 145, footerY + 4 + i * 3.5));
+
+    return doc;
+  };
+
+  const handleDownloadPdf = (inv) => {
+    const doc = generateInvoicePdf(inv);
+    doc.save(`${inv.invoice_number}.pdf`);
+  };
+
+  // --- Email senden ---
+  const handleSendEmail = async (inv) => {
+    const company = companies.find((c) => c.id === inv.company_id);
+    const email = company?.contact_email || company?.owner_profile?.email;
+    if (!email) {
+      alert("Keine E-Mail-Adresse für diesen Mandanten hinterlegt.");
+      return;
+    }
+    if (!window.confirm(`Rechnung ${inv.invoice_number} an ${email} senden?`)) return;
+    setSendingEmail((prev) => ({ ...prev, [inv.id]: true }));
+    try {
+      const doc = generateInvoicePdf(inv);
+      const pdfBase64 = doc.output("datauristring").split(",")[1];
+      const token = (await supabase.auth.getSession()).data?.session?.access_token;
+      await fetch("/api/admin/send-driver-assignment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          sendInvoiceEmail: true,
+          recipientEmail: email,
+          subject: `Rechnung ${inv.invoice_number} – TransferFleet`,
+          body: `Sehr geehrte Damen und Herren,\n\nanbei erhalten Sie Ihre Rechnung ${inv.invoice_number} für den Zeitraum ${getMonthLabel(inv.billing_month)}.\n\nBetrag: ${formatCurrency(inv.gross_amount)} (inkl. MwSt.)\n\nMit freundlichen Grüßen\n${profile.company_name || "TransferFleet"}`,
+          pdfBase64,
+          pdfFilename: `${inv.invoice_number}.pdf`,
+        }),
+      });
+      await supabase.from("system_invoices").update({ sent_at: new Date().toISOString() }).eq("id", inv.id);
+      await loadAll();
+      alert(`Rechnung an ${email} gesendet.`);
+    } catch (err) {
+      alert(err?.message || "E-Mail konnte nicht gesendet werden.");
+    } finally {
+      setSendingEmail((prev) => ({ ...prev, [inv.id]: false }));
+    }
+  };
+
+  // --- Zahlungserinnerung ---
+  const handleSendReminder = async (inv) => {
+    const company = companies.find((c) => c.id === inv.company_id);
+    const email = company?.contact_email || company?.owner_profile?.email;
+    if (!email) { alert("Keine E-Mail-Adresse hinterlegt."); return; }
+    if (!window.confirm(`Zahlungserinnerung für ${inv.invoice_number} an ${email} senden?`)) return;
+    setSendingEmail((prev) => ({ ...prev, [`rem-${inv.id}`]: true }));
+    try {
+      const token = (await supabase.auth.getSession()).data?.session?.access_token;
+      await fetch("/api/admin/send-driver-assignment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          sendInvoiceEmail: true,
+          recipientEmail: email,
+          subject: `Zahlungserinnerung – ${inv.invoice_number}`,
+          body: `Sehr geehrte Damen und Herren,\n\nwir erlauben uns, Sie an die offene Rechnung ${inv.invoice_number} vom ${formatDate(inv.created_at)} zu erinnern.\n\nOffener Betrag: ${formatCurrency(inv.gross_amount)}\n\nBitte überweisen Sie den Betrag innerhalb der nächsten 7 Tage.\n\nMit freundlichen Grüßen\n${profile.company_name || "TransferFleet"}`,
+        }),
+      });
+      await supabase.from("system_invoices").update({
+        reminder_sent_at: new Date().toISOString(),
+        reminder_count: (inv.reminder_count || 0) + 1,
+      }).eq("id", inv.id);
+      await loadAll();
+      alert(`Zahlungserinnerung an ${email} gesendet.`);
+    } catch (err) {
+      alert(err?.message || "Erinnerung konnte nicht gesendet werden.");
+    } finally {
+      setSendingEmail((prev) => ({ ...prev, [`rem-${inv.id}`]: false }));
+    }
+  };
+
+  // --- Gutschrift erstellen ---
+  const handleCreateCredit = async () => {
+    if (!creditDialogInvoice || !creditAmount) return;
+    setCreatingCredit(true);
+    try {
+      const amount = parseFloat(creditAmount);
+      if (!Number.isFinite(amount) || amount <= 0) throw new Error("Ungültiger Betrag.");
+      const vatRate = creditDialogInvoice.vat_rate || 19;
+      const vatAmount = Math.round(amount * vatRate) / 100;
+      const grossAmount = amount + vatAmount;
+
+      let nextNum = parseInt(profile.next_invoice_number, 10) || 1000;
+      const prefix = profile.invoice_prefix || "TF-SYS";
+      const invoiceNumber = `${prefix}-GS-${String(nextNum).padStart(5, "0")}`;
+
+      await supabase.from("system_invoices").insert({
+        invoice_number: invoiceNumber,
+        company_id: creditDialogInvoice.company_id,
+        company_name: creditDialogInvoice.company_name,
+        billing_month: creditDialogInvoice.billing_month,
+        driver_count: creditDialogInvoice.driver_count,
+        price_per_driver: creditDialogInvoice.price_per_driver,
+        net_amount: amount,
+        vat_rate: vatRate,
+        vat_amount: vatAmount,
+        gross_amount: grossAmount,
+        status: "credit",
+        invoice_type: "credit_note",
+        related_invoice_id: creditDialogInvoice.id,
+        notes: creditNote || "",
+      });
+
+      if (profileId) {
+        await supabase.from("system_billing_profile").update({ next_invoice_number: nextNum + 1 }).eq("id", profileId);
+        setProfile((prev) => ({ ...prev, next_invoice_number: nextNum + 1 }));
+      }
+
+      setCreditDialogInvoice(null);
+      setCreditAmount("");
+      setCreditNote("");
+      await loadAll();
+    } catch (err) {
+      alert(err?.message || "Gutschrift konnte nicht erstellt werden.");
+    } finally {
+      setCreatingCredit(false);
+    }
+  };
+
+  // --- Jahresübersicht ---
+  const yearlyData = useMemo(() => {
+    const year = new Date().getFullYear();
+    const months = [];
+    for (let m = 0; m < 12; m++) {
+      const key = `${year}-${String(m + 1).padStart(2, "0")}`;
+      const monthInvs = invoices.filter((i) => i.billing_month === key && i.invoice_type !== "credit_note");
+      const credits = invoices.filter((i) => i.billing_month === key && i.invoice_type === "credit_note");
+      const revenue = monthInvs.reduce((s, i) => s + (i.gross_amount || 0), 0);
+      const creditTotal = credits.reduce((s, i) => s + (i.gross_amount || 0), 0);
+      const paid = monthInvs.filter((i) => i.status === "paid").reduce((s, i) => s + (i.gross_amount || 0), 0);
+      const label = new Date(year, m).toLocaleDateString("de-DE", { month: "short" });
+      months.push({ key, label, revenue, creditTotal, paid, net: revenue - creditTotal });
+    }
+    return months;
+  }, [invoices]);
+
+  const maxYearlyRevenue = useMemo(() => Math.max(...yearlyData.map((m) => m.revenue), 1), [yearlyData]);
+  const yearlyTotal = useMemo(() => yearlyData.reduce((s, m) => s + m.net, 0), [yearlyData]);
+  const yearlyPaid = useMemo(() => yearlyData.reduce((s, m) => s + m.paid, 0), [yearlyData]);
+
   const monthlyInvoices = useMemo(() => {
     const grouped = {};
     for (const inv of invoices) {
@@ -321,6 +588,7 @@ export default function SystemBilling() {
       <div className="flex gap-1 rounded-lg bg-slate-100 p-1">
         {[
           { key: "invoices", label: "Rechnungen", icon: FileText },
+          { key: "yearly", label: "Jahresübersicht", icon: BarChart3 },
           { key: "profile", label: "Mein Rechnungsprofil", icon: Building2 },
         ].map((tab) => {
           const Icon = tab.icon;
@@ -421,16 +689,34 @@ export default function SystemBilling() {
                           <p className="font-semibold text-sm">{formatCurrency(inv.gross_amount)}</p>
                           <p className="text-[10px] text-slate-400">Netto: {formatCurrency(inv.net_amount)}</p>
                         </div>
-                        {inv.status === "paid" ? (
+                        {inv.invoice_type === "credit_note" ? (
+                          <span className="rounded-full bg-purple-100 px-2.5 py-0.5 text-[10px] font-semibold text-purple-700">Gutschrift</span>
+                        ) : inv.status === "paid" ? (
                           <span className="rounded-full bg-green-100 px-2.5 py-0.5 text-[10px] font-semibold text-green-700">Bezahlt</span>
                         ) : (
-                          <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-[10px] font-semibold text-amber-700">Offen</span>
+                          <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-[10px] font-semibold text-amber-700">
+                            Offen{inv.reminder_count > 0 ? ` (${inv.reminder_count}× erinnert)` : ""}
+                          </span>
                         )}
-                        <div className="flex gap-1">
-                          {inv.status !== "paid" && (
-                            <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => handleMarkPaid(inv.id)}>
-                              <CheckCircle2 className="w-3 h-3 mr-1" /> Bezahlt
-                            </Button>
+                        <div className="flex gap-1 flex-wrap">
+                          <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => handleDownloadPdf(inv)} title="PDF herunterladen">
+                            <Download className="w-3 h-3" />
+                          </Button>
+                          <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => handleSendEmail(inv)} disabled={sendingEmail[inv.id]} title="Per E-Mail senden">
+                            {sendingEmail[inv.id] ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
+                          </Button>
+                          {inv.status !== "paid" && inv.invoice_type !== "credit_note" && (
+                            <>
+                              <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => handleMarkPaid(inv.id)}>
+                                <CheckCircle2 className="w-3 h-3 mr-1" /> Bezahlt
+                              </Button>
+                              <Button size="sm" variant="outline" className="text-xs h-7 text-amber-600" onClick={() => handleSendReminder(inv)} disabled={sendingEmail[`rem-${inv.id}`]} title="Zahlungserinnerung">
+                                {sendingEmail[`rem-${inv.id}`] ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+                              </Button>
+                              <Button size="sm" variant="outline" className="text-xs h-7 text-purple-600" onClick={() => { setCreditDialogInvoice(inv); setCreditAmount(String(inv.net_amount || 0)); }} title="Gutschrift erstellen">
+                                <Minus className="w-3 h-3" />
+                              </Button>
+                            </>
                           )}
                           <Button size="sm" variant="ghost" className="text-xs h-7 text-red-500" onClick={() => handleDeleteInvoice(inv.id)}>
                             ×
@@ -453,6 +739,117 @@ export default function SystemBilling() {
               </CardContent>
             </Card>
           )}
+        </div>
+      )}
+
+      {/* === GUTSCHRIFT DIALOG === */}
+      {creditDialogInvoice && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <CardTitle className="text-lg">Gutschrift erstellen</CardTitle>
+              <p className="text-sm text-slate-500">Zu Rechnung {creditDialogInvoice.invoice_number} ({creditDialogInvoice.company_name})</p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label>Netto-Betrag (EUR) *</Label>
+                <Input type="number" step="0.01" value={creditAmount} onChange={(e) => setCreditAmount(e.target.value)} />
+                <p className="text-xs text-slate-500 mt-1">Original: {formatCurrency(creditDialogInvoice.net_amount)}</p>
+              </div>
+              <div>
+                <Label>Grund</Label>
+                <Textarea value={creditNote} onChange={(e) => setCreditNote(e.target.value)} rows={2} placeholder="z.B. Fahrer im Monat inaktiv" />
+              </div>
+              <div className="flex gap-2 justify-end">
+                <Button variant="outline" onClick={() => setCreditDialogInvoice(null)}>Abbrechen</Button>
+                <Button onClick={handleCreateCredit} disabled={creatingCredit} className="bg-purple-600 hover:bg-purple-700 text-white">
+                  {creatingCredit ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Minus className="w-4 h-4 mr-2" />}
+                  Gutschrift erstellen
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* === JAHRESÜBERSICHT === */}
+      {activeTab === "yearly" && (
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <BarChart3 className="h-5 w-5 text-[#1e3a5f]" />
+                  Einnahmen {new Date().getFullYear()}
+                </CardTitle>
+                <div className="text-right">
+                  <p className="text-2xl font-bold text-[#1e3a5f]">{formatCurrency(yearlyTotal)}</p>
+                  <p className="text-xs text-slate-500">Gesamt (netto nach Gutschriften)</p>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-end gap-2 h-48 mb-4">
+                {yearlyData.map((month) => (
+                  <div key={month.key} className="flex-1 flex flex-col items-center gap-1">
+                    <span className="text-[10px] text-slate-500 font-medium">
+                      {month.revenue > 0 ? formatCurrency(month.revenue) : ""}
+                    </span>
+                    <div className="w-full flex flex-col gap-0.5" style={{ height: `${Math.max((month.revenue / maxYearlyRevenue) * 100, 2)}%` }}>
+                      <div
+                        className="w-full rounded-t-md bg-gradient-to-t from-green-600 to-green-400 flex-1"
+                        style={{ height: month.revenue > 0 ? `${(month.paid / month.revenue) * 100}%` : "0%" }}
+                        title={`Bezahlt: ${formatCurrency(month.paid)}`}
+                      />
+                      <div
+                        className="w-full bg-amber-400 flex-1"
+                        style={{ height: month.revenue > 0 ? `${((month.revenue - month.paid) / month.revenue) * 100}%` : "100%" }}
+                        title={`Offen: ${formatCurrency(month.revenue - month.paid)}`}
+                      />
+                    </div>
+                    <span className="text-[10px] text-slate-400">{month.label}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="flex items-center justify-center gap-6 text-xs text-slate-500">
+                <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-green-500" /> Bezahlt</span>
+                <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-amber-400" /> Offen</span>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Monthly Breakdown */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Monatsdetails</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {yearlyData.filter((m) => m.revenue > 0 || m.creditTotal > 0).reverse().map((month) => (
+                  <div key={month.key} className="flex items-center justify-between rounded-lg border border-slate-200 px-4 py-2.5">
+                    <span className="font-medium text-sm text-slate-800">{getMonthLabel(month.key)}</span>
+                    <div className="flex items-center gap-4 text-xs">
+                      <span className="text-slate-500">Brutto: {formatCurrency(month.revenue)}</span>
+                      {month.creditTotal > 0 && <span className="text-purple-600">Gutschriften: -{formatCurrency(month.creditTotal)}</span>}
+                      <span className="text-green-600">Bezahlt: {formatCurrency(month.paid)}</span>
+                      <span className="text-amber-600">Offen: {formatCurrency(month.revenue - month.paid)}</span>
+                    </div>
+                  </div>
+                ))}
+                {!yearlyData.some((m) => m.revenue > 0) && (
+                  <p className="text-sm text-slate-400 text-center py-4">Noch keine Einnahmen in diesem Jahr.</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Year Stats */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Card><CardContent className="p-4 text-center"><p className="text-xs text-slate-500">Brutto gesamt</p><p className="text-xl font-bold text-[#1e3a5f]">{formatCurrency(yearlyData.reduce((s, m) => s + m.revenue, 0))}</p></CardContent></Card>
+            <Card><CardContent className="p-4 text-center"><p className="text-xs text-slate-500">Gutschriften</p><p className="text-xl font-bold text-purple-600">-{formatCurrency(yearlyData.reduce((s, m) => s + m.creditTotal, 0))}</p></CardContent></Card>
+            <Card><CardContent className="p-4 text-center"><p className="text-xs text-slate-500">Bezahlt</p><p className="text-xl font-bold text-green-600">{formatCurrency(yearlyPaid)}</p></CardContent></Card>
+            <Card><CardContent className="p-4 text-center"><p className="text-xs text-slate-500">Offen</p><p className="text-xl font-bold text-amber-600">{formatCurrency(yearlyTotal - yearlyPaid)}</p></CardContent></Card>
+          </div>
         </div>
       )}
 
