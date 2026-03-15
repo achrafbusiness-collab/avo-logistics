@@ -553,10 +553,20 @@ export default function SystemVermietung() {
             </Button>
           </Link>
         </div>
-        <h1 className="text-2xl font-bold text-slate-900">System‑Vermietung</h1>
-        <p className="text-sm text-slate-500">
-          Mandanten verwalten, Trial-Status überwachen und Upgrades durchführen.
-        </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">System‑Vermietung</h1>
+            <p className="text-sm text-slate-500">
+              Mandanten verwalten, Trial-Status überwachen und Upgrades durchführen.
+            </p>
+          </div>
+          <Link to={createPageUrl("SystemBilling")}>
+            <Button className="bg-[#1e3a5f] hover:bg-[#2d5a8a] gap-2">
+              <CreditCard className="h-4 w-4" />
+              Rechnungen
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {/* Stats Cards */}

@@ -40,6 +40,7 @@ const Terminal = lazy(() => import("./Terminal"));
 const SystemVermietung = lazy(() => import("./SystemVermietung"));
 const Upgrade = lazy(() => import("./Upgrade"));
 const Settings = lazy(() => import("./Settings"));
+const SystemBilling = lazy(() => import("./SystemBilling"));
 const Verlauf = lazy(() => import("./Verlauf"));
 const AdminEmailSettings = lazy(() => import("./AdminEmailSettings"));
 const ProtocolPdf = lazy(() => import("./ProtocolPdf"));
@@ -70,6 +71,7 @@ const PAGE_NAMES = [
     'Verlauf',
     'Upgrade',
     'Settings',
+    'SystemBilling',
 ];
 
 function PageFallback() {
@@ -255,6 +257,7 @@ function PagesContent() {
 
                     <Route path="/Upgrade" element={<Upgrade />} />
                     <Route path="/Settings" element={<Settings />} />
+                    <Route path="/SystemBilling" element={<SystemBilling />} />
 
                     <Route path="/verlauf" element={<Verlauf />} />
 
