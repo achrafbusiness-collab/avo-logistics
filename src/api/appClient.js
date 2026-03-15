@@ -284,8 +284,14 @@ const Core = {
 };
 
 const getSessionToken = async () => {
-  const { data } = await supabase.auth.getSession();
-  return data?.session?.access_token || null;
+  // Erst refreshen, dann Token holen
+  const { data: { session }, error } = await supabase.auth.getSession();
+  if (error || !session?.access_token) {
+    // Session abgelaufen — versuche Refresh
+    const { data: refreshed } = await supabase.auth.refreshSession();
+    return refreshed?.session?.access_token || null;
+  }
+  return session.access_token;
 };
 
 const notifications = {
