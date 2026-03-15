@@ -11,9 +11,6 @@ import {
   Calendar, CreditCard, Info,
 } from "lucide-react";
 
-const formatCurrency = (v) =>
-  new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(v || 0);
-
 const formatDate = (d) => (d ? new Date(d).toLocaleDateString("de-DE") : "–");
 
 export default function DriverSlots() {
@@ -111,10 +108,10 @@ export default function DriverSlots() {
         effective_date: today.toISOString().split("T")[0],
         requested_by: user?.email || user?.full_name || "System",
         status: "active",
-        notes: `+${additionalSlots} Slots. Anteilig: ${formatCurrency(proratedCost)} (${daysRemaining}/${daysInMonth} Tage).`,
+        notes: `+${additionalSlots} Slots hinzugebucht. Wirksam ab ${today.toLocaleDateString("de-DE")}.`,
       });
 
-      setMessage(`Erhöhung erfolgreich! Neues Limit: ${newLimit} Fahrer-Slots. Anteilige Kosten diesen Monat: ${formatCurrency(proratedCost)}.`);
+      setMessage(`Erhöhung erfolgreich! Neues Limit: ${newLimit} Fahrer-Slots. Sie können jetzt ${newLimit} Fahrer anlegen.`);
       setNewSlots("");
       await loadData();
     } catch (err) {
@@ -237,8 +234,8 @@ export default function DriverSlots() {
         <Card>
           <CardContent className="p-4 text-center">
             <CreditCard className="mx-auto mb-1 h-5 w-5 text-emerald-600" />
-            <p className="text-2xl font-bold text-emerald-600">{formatCurrency(currentLimit * pricePerSlot)}</p>
-            <p className="text-xs text-slate-500">Monatlich</p>
+            <p className="text-2xl font-bold text-emerald-600">{currentLimit}</p>
+            <p className="text-xs text-slate-500">Max. Fahrer</p>
           </CardContent>
         </Card>
       </div>
@@ -276,9 +273,8 @@ export default function DriverSlots() {
           {additionalSlots > 0 && (
             <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm space-y-1">
               <p className="font-medium text-blue-800">Vorschau:</p>
-              <p className="text-blue-700">Neues Limit: {currentLimit} → <strong>{currentLimit + additionalSlots}</strong> Slots</p>
-              <p className="text-blue-700">Anteilige Kosten diesen Monat: <strong>{formatCurrency(proratedCost)}</strong> ({daysRemaining} von {daysInMonth} Tagen)</p>
-              <p className="text-blue-700">Ab nächstem Monat: <strong>{formatCurrency((currentLimit + additionalSlots) * pricePerSlot)}</strong> / Monat</p>
+              <p className="text-blue-700">Neues Limit: {currentLimit} → <strong>{currentLimit + additionalSlots}</strong> Fahrer-Slots</p>
+              <p className="text-blue-700">Sofort wirksam — Sie können direkt {currentLimit + additionalSlots} Fahrer anlegen.</p>
             </div>
           )}
           <div className="flex items-start gap-2 text-xs text-slate-500">
