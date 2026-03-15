@@ -89,6 +89,7 @@ export default function SystemVermietung() {
   const [extendingTrial, setExtendingTrial] = useState(false);
   const [newNote, setNewNote] = useState("");
   const [savingNote, setSavingNote] = useState(false);
+  const [customTrialDate, setCustomTrialDate] = useState("");
 
   useEffect(() => {
     const load = async () => {
@@ -377,6 +378,43 @@ export default function SystemVermietung() {
       await fetchCompanies(selectedCompanyId);
     } catch (err) {
       setCompanyError(err?.message || "Verlängerung fehlgeschlagen.");
+    } finally {
+      setExtendingTrial(false);
+    }
+  };
+
+  const handleSetTrialDate = async () => {
+    if (!companyForm.id || !customTrialDate) return;
+    setExtendingTrial(true);
+    setCompanyError("");
+    setCompanyMessage("");
+    try {
+      const token = await getAuthToken();
+      if (!token) throw new Error("Nicht angemeldet.");
+      const newExpiry = new Date(`${customTrialDate}T23:59:59`);
+      if (isNaN(newExpiry.getTime())) throw new Error("Ungültiges Datum.");
+      const response = await fetch("/api/admin/update-company", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          company_id: companyForm.id,
+          updates: {
+            account_type: "trial",
+            trial_expires_at: newExpiry.toISOString(),
+            trial_reminder_sent: false,
+          },
+        }),
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload?.ok) throw new Error(payload?.error || "Fehler.");
+      setCompanyMessage(`Trial verlängert bis ${newExpiry.toLocaleDateString("de-DE")}.`);
+      setCustomTrialDate("");
+      await fetchCompanies(selectedCompanyId);
+    } catch (err) {
+      setCompanyError(err?.message || "Datum setzen fehlgeschlagen.");
     } finally {
       setExtendingTrial(false);
     }
@@ -799,43 +837,67 @@ export default function SystemVermietung() {
                       )}
                     </div>
                     {companyForm.account_type === "trial" && (
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        <Button
-                          size="sm"
-                          onClick={handleUpgradeToPayng}
-                          disabled={upgradingCompany}
-                          className="bg-green-600 hover:bg-green-700 text-white"
-                        >
-                          {upgradingCompany ? (
-                            <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            <Zap className="mr-2 h-3.5 w-3.5" />
-                          )}
-                          Auf "Zahlend" upgraden
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleExtendTrial(7)}
-                          disabled={extendingTrial}
-                        >
-                          {extendingTrial ? (
-                            <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-                          ) : (
+                      <>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <Button
+                            size="sm"
+                            onClick={handleUpgradeToPayng}
+                            disabled={upgradingCompany}
+                            className="bg-green-600 hover:bg-green-700 text-white"
+                          >
+                            {upgradingCompany ? (
+                              <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Zap className="mr-2 h-3.5 w-3.5" />
+                            )}
+                            Auf "Zahlend" upgraden
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleExtendTrial(7)}
+                            disabled={extendingTrial}
+                          >
+                            {extendingTrial ? (
+                              <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <CalendarPlus className="mr-2 h-3.5 w-3.5" />
+                            )}
+                            +7 Tage verlängern
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleExtendTrial(14)}
+                            disabled={extendingTrial}
+                          >
                             <CalendarPlus className="mr-2 h-3.5 w-3.5" />
-                          )}
-                          +7 Tage verlängern
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleExtendTrial(14)}
-                          disabled={extendingTrial}
-                        >
-                          <CalendarPlus className="mr-2 h-3.5 w-3.5" />
-                          +14 Tage
-                        </Button>
-                      </div>
+                            +14 Tage
+                          </Button>
+                        </div>
+                        <div className="mt-2 flex items-center gap-2">
+                          <Input
+                            type="date"
+                            value={customTrialDate}
+                            onChange={(e) => setCustomTrialDate(e.target.value)}
+                            className="w-44 text-xs"
+                            min={new Date().toISOString().split("T")[0]}
+                          />
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={handleSetTrialDate}
+                            disabled={extendingTrial || !customTrialDate}
+                          >
+                            {extendingTrial ? (
+                              <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Calendar className="mr-2 h-3.5 w-3.5" />
+                            )}
+                            Bis Datum setzen
+                          </Button>
+                        </div>
+                      </>
                     )}
                   </div>
 
