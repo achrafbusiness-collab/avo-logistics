@@ -189,9 +189,9 @@ export default function SystemBilling() {
           continue;
         }
 
-        const driverCount = company.driver_count || 0;
+        const driverLimit = company.driver_limit || company.driver_count || 0;
         const pricePerDriver = company.price_per_driver ?? 30;
-        const netAmount = driverCount * pricePerDriver;
+        const netAmount = driverLimit * pricePerDriver;
         const vatAmount = Math.round(netAmount * vatRate) / 100;
         const grossAmount = netAmount + vatAmount;
         const invoiceNumber = `${prefix}-${String(nextNum).padStart(5, "0")}`;
@@ -201,7 +201,7 @@ export default function SystemBilling() {
           company_id: company.id,
           company_name: company.name,
           billing_month: selectedMonth,
-          driver_count: driverCount,
+          driver_count: driverLimit,
           price_per_driver: pricePerDriver,
           net_amount: netAmount,
           vat_rate: vatRate,
@@ -309,7 +309,7 @@ export default function SystemBilling() {
       y += 6;
       doc.setFontSize(8);
       doc.setTextColor(100);
-      doc.text(`${inv.driver_count} aktive Fahrer × ${formatCurrency(inv.price_per_driver)} / Monat`, 17, y);
+      doc.text(`${inv.driver_count} Fahrer-Slots × ${formatCurrency(inv.price_per_driver)} / Monat`, 17, y);
     }
 
     // Totals
@@ -681,7 +681,7 @@ export default function SystemBilling() {
                           <p className="text-xs text-slate-500">{inv.company_name}</p>
                         </div>
                         <div className="text-xs text-slate-500">
-                          {inv.driver_count} Fahrer × {formatCurrency(inv.price_per_driver)}
+                          {inv.driver_count} Slots × {formatCurrency(inv.price_per_driver)}
                         </div>
                       </div>
                       <div className="flex items-center gap-3">

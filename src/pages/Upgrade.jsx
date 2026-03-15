@@ -76,8 +76,8 @@ export default function Upgrade() {
             <span className="text-5xl font-bold text-[#1e3a5f]">30</span>
             <span className="text-xl text-gray-500">€</span>
           </div>
-          <p className="text-gray-600">pro Fahrer / Monat</p>
-          <p className="text-xs text-gray-400 pt-2">Keine Grundgebühr. Keine versteckten Kosten. Sie zahlen nur für aktive Fahrer.</p>
+          <p className="text-gray-600">pro Fahrer-Slot / Monat</p>
+          <p className="text-xs text-gray-400 pt-2">Keine Grundgebühr. Keine versteckten Kosten. Buchen Sie so viele Fahrer-Slots wie Sie brauchen. Erhöhung jederzeit, Reduzierung zum Monatsende.</p>
         </CardContent>
       </Card>
 
