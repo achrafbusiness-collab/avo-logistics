@@ -444,14 +444,13 @@ export default function SystemBilling() {
       const doc = generateInvoicePdf(inv);
       const pdfBase64 = doc.output("datauristring").split(",")[1];
       const token = (await supabase.auth.getSession()).data?.session?.access_token;
-      await fetch("/api/admin/send-driver-assignment", {
+      await fetch("/api/send-system-email", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
-          sendInvoiceEmail: true,
           recipientEmail: email,
-          subject: `Rechnung ${inv.invoice_number} – TransferFleet`,
-          body: `Sehr geehrte Damen und Herren,\n\nanbei erhalten Sie Ihre Rechnung ${inv.invoice_number} für den Zeitraum ${getMonthLabel(inv.billing_month)}.\n\nBetrag: ${formatCurrency(inv.gross_amount)} (inkl. MwSt.)\n\nMit freundlichen Grüßen\n${profile.company_name || "TransferFleet"}`,
+          subject: `Rechnung ${inv.invoice_number} – ${profile.company_name || "TransferFleet"}`,
+          textBody: `Sehr geehrte Damen und Herren,\n\nanbei erhalten Sie Ihre Rechnung ${inv.invoice_number} für den Zeitraum ${getMonthLabel(inv.billing_month)}.\n\nBetrag: ${formatCurrency(inv.gross_amount)} (inkl. MwSt.)\n\nMit freundlichen Grüßen\n${profile.company_name || "TransferFleet"}`,
           pdfBase64,
           pdfFilename: `${inv.invoice_number}.pdf`,
         }),
@@ -476,14 +475,13 @@ export default function SystemBilling() {
     setSendingEmail((prev) => ({ ...prev, [`rem-${inv.id}`]: true }));
     try {
       const token = (await supabase.auth.getSession()).data?.session?.access_token;
-      await fetch("/api/admin/send-driver-assignment", {
+      await fetch("/api/send-system-email", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
-          sendInvoiceEmail: true,
           recipientEmail: email,
           subject: `Zahlungserinnerung – ${inv.invoice_number}`,
-          body: `Sehr geehrte Damen und Herren,\n\nwir erlauben uns, Sie an die offene Rechnung ${inv.invoice_number} vom ${formatDate(inv.created_at)} zu erinnern.\n\nOffener Betrag: ${formatCurrency(inv.gross_amount)}\n\nBitte überweisen Sie den Betrag innerhalb der nächsten 7 Tage.\n\nMit freundlichen Grüßen\n${profile.company_name || "TransferFleet"}`,
+          textBody: `Sehr geehrte Damen und Herren,\n\nwir erlauben uns, Sie an die offene Rechnung ${inv.invoice_number} vom ${formatDate(inv.created_at)} zu erinnern.\n\nOffener Betrag: ${formatCurrency(inv.gross_amount)}\n\nBitte überweisen Sie den Betrag innerhalb der nächsten 7 Tage.\n\nMit freundlichen Grüßen\n${profile.company_name || "TransferFleet"}`,
         }),
       });
       await supabase.from("system_invoices").update({
