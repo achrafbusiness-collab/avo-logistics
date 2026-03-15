@@ -1,70 +1,125 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Truck, Users, User, Settings, CheckCircle2, ChevronRight } from 'lucide-react';
+import { appClient } from '@/api/appClient';
+import { supabase } from '@/lib/supabaseClient';
+import { Truck, Users, User, Settings, CheckCircle2, ChevronRight, Rocket } from 'lucide-react';
 
 const STEPS = [
   {
     title: 'Willkommen bei TransferFleet',
     description:
-      'Ihr KI-automatisiertes System für Fahrzeugüberführung. Diese kurze Tour zeigt Ihnen die wichtigsten Bereiche — dauert weniger als eine Minute.',
-    icon: CheckCircle2,
+      'Ihr KI-automatisiertes System für Fahrzeugüberführung. Diese kurze Tour zeigt Ihnen die wichtigsten Bereiche.',
+    icon: Rocket,
     color: 'text-blue-600',
   },
   {
     title: 'Aufträge verwalten',
     description:
-      'Unter "Aufträge" erstellen und verwalten Sie Fahrzeugüberführungen. Weisen Sie Fahrer zu, tracken Sie den Status und laden Sie Auslagen herunter.',
+      'Unter "Aufträge" erstellen und verwalten Sie Fahrzeugüberführungen. Weisen Sie Fahrer zu und tracken Sie den Status in Echtzeit.',
     icon: Truck,
     color: 'text-slate-700',
   },
   {
     title: 'Fahrer anlegen',
     description:
-      'Unter "Fahrer" legen Sie Ihr Fahrer-Team an. Fahrer erhalten automatisch Zugang zum Fahrer-Portal mit eigenem Login.',
+      'Unter "Fahrer" legen Sie Ihr Team an. Fahrer erhalten automatisch Zugang zum Fahrer-Portal mit eigenem Login.',
     icon: Users,
     color: 'text-slate-700',
   },
   {
     title: 'Kunden & Rechnungen',
     description:
-      'Unter "Kunden & Finanzen" verwalten Sie Kunden, erstellen Rechnungen und behalten offene Posten im Blick.',
+      'Unter "Kunden & Finanzen" verwalten Sie Ihre Kunden mit individuellen Preislisten und erstellen Rechnungen per Knopfdruck.',
     icon: User,
     color: 'text-slate-700',
   },
   {
-    title: 'Einstellungen konfigurieren',
+    title: 'Jetzt einrichten',
     description:
-      'Unter "App & Einstellungen" hinterlegen Sie Ihre Unternehmensdaten, Bankverbindung und Rechnungsdetails — einmalig, dann automatisch überall.',
+      'Im nächsten Schritt hinterlegen Sie Ihre Unternehmensdaten, Bankverbindung und Logo — einmalig, dann automatisch auf allen Rechnungen und Protokollen.',
     icon: Settings,
-    color: 'text-slate-700',
+    color: 'text-green-600',
   },
 ];
 
 export default function OnboardingTour() {
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(0);
+  const [checked, setChecked] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    const done = localStorage.getItem('tf-onboarding-done');
-    if (!done) {
-      const timer = setTimeout(() => setOpen(true), 1200);
-      return () => clearTimeout(timer);
-    }
+    // Prüfe sowohl localStorage als auch Datenbank
+    const check = async () => {
+      // Schnellcheck: localStorage
+      if (localStorage.getItem('tf-onboarding-done')) {
+        setChecked(true);
+        return;
+      }
+
+      // DB-Check: Profil hat onboarding_completed?
+      try {
+        const user = await appClient.auth.getCurrentUser();
+        if (!user) { setChecked(true); return; }
+
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('onboarding_completed')
+          .eq('id', user.id)
+          .maybeSingle();
+
+        if (profile?.onboarding_completed) {
+          // In localStorage cachen damit es nicht bei jedem Laden gecheckt wird
+          localStorage.setItem('tf-onboarding-done', '1');
+          setChecked(true);
+          return;
+        }
+
+        // Neuer User → Tour zeigen
+        setChecked(true);
+        setTimeout(() => setOpen(true), 1200);
+      } catch {
+        setChecked(true);
+      }
+    };
+
+    check();
   }, []);
 
   const handleClose = () => {
-    localStorage.setItem('tf-onboarding-done', '1');
+    markComplete();
     setOpen(false);
+  };
+
+  const markComplete = async () => {
+    localStorage.setItem('tf-onboarding-done', '1');
+    try {
+      const user = await appClient.auth.getCurrentUser();
+      if (user?.id) {
+        await supabase
+          .from('profiles')
+          .update({ onboarding_completed: true })
+          .eq('id', user.id);
+      }
+    } catch {
+      // Silent
+    }
   };
 
   const handleNext = () => {
     if (step < STEPS.length - 1) {
       setStep((s) => s + 1);
     } else {
-      handleClose();
+      // Letzter Schritt → Zur Einstellungen-Seite
+      markComplete();
+      setOpen(false);
+      navigate('/Settings?tab=company');
     }
   };
+
+  if (!checked) return null;
 
   const current = STEPS[step];
   const Icon = current.icon;
@@ -75,7 +130,7 @@ export default function OnboardingTour() {
       <DialogContent className="max-w-md">
         <DialogHeader>
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100">
+            <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${isLast ? 'bg-green-100' : 'bg-slate-100'}`}>
               <Icon className={`h-5 w-5 ${current.color}`} />
             </div>
             <DialogTitle className="text-base">{current.title}</DialogTitle>
@@ -101,9 +156,13 @@ export default function OnboardingTour() {
             <Button variant="ghost" size="sm" onClick={handleClose} className="text-slate-500">
               Überspringen
             </Button>
-            <Button size="sm" className="bg-[#1e3a5f] hover:bg-[#2d5a8a]" onClick={handleNext}>
+            <Button
+              size="sm"
+              className={isLast ? 'bg-green-600 hover:bg-green-700' : 'bg-[#1e3a5f] hover:bg-[#2d5a8a]'}
+              onClick={handleNext}
+            >
               {isLast ? (
-                <>Loslegen <CheckCircle2 className="ml-2 h-4 w-4" /></>
+                <>Einrichten <Settings className="ml-2 h-4 w-4" /></>
               ) : (
                 <>Weiter <ChevronRight className="ml-1 h-4 w-4" /></>
               )}
