@@ -25,6 +25,7 @@ import {
   Loader2, 
   CheckCircle2,
   AlertCircle,
+  AlertTriangle,
   Save
 } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
@@ -71,6 +72,11 @@ export default function AIImport() {
   const { data: customers = [] } = useQuery({
     queryKey: ['customers'],
     queryFn: () => appClient.entities.Customer.list(),
+  });
+
+  const { data: existingOrders = [] } = useQuery({
+    queryKey: ['orders-for-duplicate-check'],
+    queryFn: () => appClient.entities.Order.list('-created_date', 500, 'id,license_plate,pickup_date,dropoff_date,status'),
   });
 
   const customerOptions = useMemo(() => {
@@ -393,6 +399,22 @@ Gib ausschließlich die strukturierten Daten zurück.`,
     setFieldErrors({});
   }, [selectedOrderIndex]);
 
+  const checkDuplicate = (order) => {
+    if (!order?.license_plate) return null;
+    const plate = order.license_plate.replace(/[\s-]/g, '').toUpperCase();
+    const pickupDate = String(order.pickup_date || '').trim();
+    const match = existingOrders.find((existing) => {
+      if (!existing.license_plate) return false;
+      const existingPlate = existing.license_plate.replace(/[\s-]/g, '').toUpperCase();
+      if (existingPlate !== plate) return false;
+      if (pickupDate && existing.pickup_date) {
+        return String(existing.pickup_date).trim() === pickupDate;
+      }
+      return true;
+    });
+    return match || null;
+  };
+
   const handleConfirm = async () => {
     if (!currentOrder) return;
     const validation = validateCurrentOrder(currentOrder);
@@ -462,8 +484,28 @@ Gib ausschließlich die strukturierten Daten zurück.`,
       status: hasDriver ? 'assigned' : 'new',
     };
 
+    // Duplikat-Check
+    const duplicate = checkDuplicate(currentOrder);
+    if (duplicate) {
+      const confirmed = window.confirm(
+        `Mögliches Duplikat: Ein Auftrag mit Kennzeichen "${currentOrder.license_plate}" und gleichem Datum existiert bereits (Status: ${duplicate.status}). Trotzdem importieren?`
+      );
+      if (!confirmed) return;
+    }
+
     try {
-      await createOrderMutation.mutateAsync(dataToSave);
+      const created = await createOrderMutation.mutateAsync(dataToSave);
+
+      // Fahrer-Benachrichtigung senden wenn Fahrer zugewiesen
+      if (created?.id && hasDriver) {
+        try {
+          await appClient.notifications.sendDriverAssignment({ orderId: created.id });
+        } catch {
+          // Benachrichtigung ist optional, Import war erfolgreich
+        }
+      }
+
+      queryClient.invalidateQueries({ queryKey: ['orders-for-duplicate-check'] });
       const nextOrders = extractedOrders.filter((_, index) => index !== selectedOrderIndex);
       setExtractedOrders(nextOrders);
       if (!nextOrders.length) {
@@ -1194,6 +1236,18 @@ Gib ausschließlich die strukturierten Daten zurück.`,
                     </div>
                   </CardContent>
                 </Card>
+
+                {currentOrder && checkDuplicate(currentOrder) && (
+                  <div className="flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3">
+                    <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                    <div className="text-sm">
+                      <p className="font-semibold text-amber-800">Mögliches Duplikat</p>
+                      <p className="text-amber-700">
+                        Ein Auftrag mit Kennzeichen <strong>{currentOrder.license_plate}</strong> und gleichem Datum existiert bereits im System. Bitte prüfen Sie vor dem Import.
+                      </p>
+                    </div>
+                  </div>
+                )}
 
                 <Card>
                   <CardHeader>
