@@ -68,10 +68,23 @@ export default function Upgrade() {
         </p>
       </div>
 
+      {/* Pricing */}
+      <Card className="border-2 border-cyan-500/30 bg-gradient-to-br from-slate-50 to-cyan-50/30">
+        <CardContent className="p-8 text-center space-y-2">
+          <p className="text-sm text-gray-500 uppercase tracking-wide font-medium">Einfaches Preismodell</p>
+          <div className="flex items-baseline justify-center gap-1">
+            <span className="text-5xl font-bold text-[#1e3a5f]">30</span>
+            <span className="text-xl text-gray-500">€</span>
+          </div>
+          <p className="text-gray-600">pro Fahrer / Monat</p>
+          <p className="text-xs text-gray-400 pt-2">Keine Grundgebühr. Keine versteckten Kosten. Sie zahlen nur für aktive Fahrer.</p>
+        </CardContent>
+      </Card>
+
       <Card className="border-2 border-[#1e3a5f] shadow-lg">
         <CardHeader className="text-center pb-2">
           <CardTitle className="text-xl">TransferFleet Pro</CardTitle>
-          <p className="text-gray-500 text-sm">Alles was Sie für Ihre Disposition brauchen</p>
+          <p className="text-gray-500 text-sm">Alles inklusive — keine Feature-Limits</p>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

@@ -39,6 +39,7 @@ const buildCompanyForm = (company, owner) => ({
   is_active: company?.is_active ?? true,
   account_type: company?.account_type || "paying",
   trial_expires_at: company?.trial_expires_at || "",
+  price_per_driver: company?.price_per_driver ?? 30,
   owner_name: owner?.full_name || "",
   owner_email: owner?.email || "",
   owner_phone: owner?.phone || "",
@@ -173,6 +174,11 @@ export default function SystemVermietung() {
       return days !== null && days <= 0;
     });
     const totalRevenue = companies.reduce((sum, c) => sum + (c.total_revenue || 0), 0);
+    const totalDrivers = companies.reduce((sum, c) => sum + (c.driver_count || 0), 0);
+    const monthlyRecurring = paying.reduce((sum, c) => {
+      const price = c.price_per_driver ?? 30;
+      return sum + (c.driver_count || 0) * price;
+    }, 0);
     return {
       total: companies.length,
       paying: paying.length,
@@ -180,6 +186,8 @@ export default function SystemVermietung() {
       trialActive: trialActive.length,
       trialExpired: trialExpired.length,
       totalRevenue,
+      totalDrivers,
+      monthlyRecurring,
     };
   }, [companies]);
 
@@ -286,6 +294,7 @@ export default function SystemVermietung() {
             contact_email: companyForm.contact_email,
             contact_phone: companyForm.contact_phone,
             is_active: companyForm.is_active,
+            price_per_driver: parseFloat(companyForm.price_per_driver) || 30,
           },
           owner_profile: {
             full_name: companyForm.owner_name,
@@ -599,9 +608,10 @@ export default function SystemVermietung() {
           <CardContent className="p-4 text-center">
             <TrendingUp className="mx-auto mb-2 h-6 w-6 text-emerald-600" />
             <p className="text-2xl font-bold text-emerald-600">
-              {stats.totalRevenue.toLocaleString("de-DE", { minimumFractionDigits: 0, maximumFractionDigits: 0 })} €
+              {stats.monthlyRecurring.toLocaleString("de-DE", { maximumFractionDigits: 0 })} €
             </p>
-            <p className="text-xs text-slate-500">Gesamtumsatz</p>
+            <p className="text-xs text-slate-500">MRR (monatlich)</p>
+            <p className="text-[10px] text-slate-400 mt-0.5">{stats.totalDrivers} Fahrer gesamt</p>
           </CardContent>
         </Card>
       </div>
@@ -745,7 +755,7 @@ export default function SystemVermietung() {
                           </span>
                         ) : (
                           <span className="rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-semibold text-green-700">
-                            Zahlend
+                            {((company.driver_count || 0) * (company.price_per_driver ?? 30)).toLocaleString("de-DE", { maximumFractionDigits: 0 })} €/M
                           </span>
                         )}
                       </div>
@@ -836,6 +846,29 @@ export default function SystemVermietung() {
                         </span>
                       )}
                     </div>
+                    {companyForm.account_type !== "trial" && (
+                      <div className="mt-3 flex flex-wrap items-center gap-3 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2">
+                        <div className="flex items-center gap-2 text-sm">
+                          <CreditCard className="h-4 w-4 text-emerald-600" />
+                          <span className="text-emerald-800 font-medium">Abrechnung:</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <Input
+                            type="number"
+                            value={companyForm.price_per_driver}
+                            onChange={(e) => handleCompanyChange("price_per_driver", e.target.value)}
+                            className="w-20 h-7 text-xs text-center"
+                            min="0"
+                            step="1"
+                          />
+                          <span className="text-xs text-emerald-700">€ / Fahrer / Monat</span>
+                        </div>
+                        <div className="text-sm font-bold text-emerald-700">
+                          = {((selectedCompany?.driver_count || 0) * (parseFloat(companyForm.price_per_driver) || 0)).toLocaleString("de-DE", { maximumFractionDigits: 0 })} € / Monat
+                        </div>
+                        <span className="text-[10px] text-emerald-600">({selectedCompany?.driver_count || 0} Fahrer)</span>
+                      </div>
+                    )}
                     {companyForm.account_type === "trial" && (
                       <>
                         <div className="mt-3 flex flex-wrap gap-2">
