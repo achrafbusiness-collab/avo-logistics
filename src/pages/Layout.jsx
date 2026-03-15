@@ -55,35 +55,12 @@ export default function Layout({ children, currentPageName }) {
   const location = useLocation();
   const mainRef = useRef(null);
   const { t, dir } = useI18n();
-  const [darkMode, setDarkMode] = useState(() => {
-    const saved = localStorage.getItem('tf-dark-mode');
-    if (saved !== null) return JSON.parse(saved);
-    // Auto: System-Einstellung nutzen
-    if (typeof window !== 'undefined' && window.matchMedia) {
-      return window.matchMedia('(prefers-color-scheme: dark)').matches;
-    }
-    return true;
-  });
+  const [darkMode] = useState(true);
 
   useEffect(() => {
     loadUser();
   }, []);
 
-  useEffect(() => {
-    localStorage.setItem('tf-dark-mode', JSON.stringify(darkMode));
-  }, [darkMode]);
-
-  // Auto Dark Mode: Reagiert auf System-Änderung
-  useEffect(() => {
-    if (typeof window === 'undefined' || !window.matchMedia) return;
-    const mq = window.matchMedia('(prefers-color-scheme: dark)');
-    const handler = (e) => {
-      const saved = localStorage.getItem('tf-dark-mode');
-      if (saved === null) setDarkMode(e.matches);
-    };
-    mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
-  }, []);
 
   useEffect(() => {
     if (isDriver) return;
@@ -168,14 +145,6 @@ export default function Layout({ children, currentPageName }) {
           </div>
 
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setDarkMode(!darkMode)}
-              className="p-2 rounded-full text-white/70 hover:bg-white/10 hover:text-white transition-colors"
-              aria-label="Dark Mode umschalten"
-            >
-              {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-            </button>
-
             {user && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -385,10 +354,6 @@ export default function Layout({ children, currentPageName }) {
 
             <NotificationBell />
 
-            <Button variant="ghost" size="sm" onClick={() => setDarkMode(!darkMode)}
-              className={darkMode ? 'text-white/70 hover:bg-white/10 hover:text-white' : 'text-slate-500 hover:bg-gray-100'}>
-              {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-            </Button>
 
             <span className={`text-sm hidden lg:block ${darkMode ? 'text-white/60' : 'text-gray-500'}`}>
               {new Date().toLocaleDateString('de-DE', {
