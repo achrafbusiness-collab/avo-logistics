@@ -448,6 +448,7 @@ Gib ausschließlich die strukturierten Daten zurück.`,
       return Number.isFinite(parsed) ? parsed : null;
     })();
 
+    const hasDriver = Boolean(orderPayload.assigned_driver_id);
     const dataToSave = {
       ...orderPayload,
       customer_id: resolvedCustomerId,
@@ -458,6 +459,7 @@ Gib ausschließlich die strukturierten Daten zurück.`,
       dropoff_date: String(orderPayload.dropoff_date || '').trim(),
       distance_km: distanceKm,
       driver_price: parsedDriverPrice !== null ? parsedDriverPrice : autoPrice,
+      status: hasDriver ? 'assigned' : 'new',
     };
 
     try {
@@ -518,10 +520,19 @@ Gib ausschließlich die strukturierten Daten zurück.`,
   };
 
   const handleDriverChange = (driverId) => {
+    if (!driverId) {
+      updateCurrentOrder({
+        assigned_driver_id: '',
+        assigned_driver_name: '',
+      });
+      return;
+    }
     const driver = drivers.find(d => d.id === driverId);
     if (driver) {
-      updateExtractedData('assigned_driver_id', driver.id);
-      updateExtractedData('assigned_driver_name', `${driver.first_name} ${driver.last_name}`);
+      updateCurrentOrder({
+        assigned_driver_id: driver.id,
+        assigned_driver_name: `${driver.first_name || ''} ${driver.last_name || ''}`.trim(),
+      });
     }
   };
 
@@ -1090,17 +1101,37 @@ Gib ausschließlich die strukturierten Daten zurück.`,
                           onValueChange={(value) => handleDriverChange(value === "none" ? "" : value)}
                         >
                           <SelectTrigger>
-                            <SelectValue placeholder="Fahrer wählen..." />
+                            <SelectValue placeholder="Fahrer auswählen..." />
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="none">Kein Fahrer</SelectItem>
                             {drivers.filter(d => d.status === 'active').map(driver => (
                               <SelectItem key={driver.id} value={driver.id}>
-                                {driver.first_name} {driver.last_name}
+                                {`${driver.first_name || ''} ${driver.last_name || ''}`.trim() || 'Unbekannt'} ({driver.phone})
                               </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
+                        {currentOrder.assigned_driver_id && (() => {
+                          const driver = drivers.find(d => d.id === currentOrder.assigned_driver_id);
+                          if (!driver) return null;
+                          return (
+                            <div className="mt-2 flex items-center gap-3 rounded-lg border border-green-200 bg-green-50 px-3 py-2">
+                              <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center text-white text-xs font-bold">
+                                {(driver.first_name?.[0] || '').toUpperCase()}{(driver.last_name?.[0] || '').toUpperCase()}
+                              </div>
+                              <div className="text-sm">
+                                <p className="font-semibold text-green-800">
+                                  {driver.first_name} {driver.last_name}
+                                </p>
+                                <p className="text-xs text-green-600">{driver.phone || driver.email || ''}</p>
+                              </div>
+                              <span className="ml-auto text-[10px] font-medium text-green-700 bg-green-100 px-2 py-0.5 rounded-full">
+                                Zugewiesen
+                              </span>
+                            </div>
+                          );
+                        })()}
                       </div>
                       <div>
                         <Label>Kundentelefon</Label>
