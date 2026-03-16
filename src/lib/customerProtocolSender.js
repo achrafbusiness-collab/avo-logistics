@@ -181,13 +181,20 @@ export const sendCustomerProtocolInBackground = ({
       // 3. PDF erstellen
       emit({ id: `cp-pdf-${Date.now()}`, type: "info", message: "Erstelle PDF..." });
       const doc = buildProtocolPdf(order, pickup, dropoff, settings);
-      const pdfOutput = doc.output("arraybuffer");
-      const bytes = new Uint8Array(pdfOutput);
-      let binary = "";
-      for (let i = 0; i < bytes.length; i++) {
-        binary += String.fromCharCode(bytes[i]);
-      }
-      const pdfBase64 = btoa(binary);
+      const pdfBlob = doc.output("blob");
+      const pdfBase64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const result = reader.result;
+          if (typeof result === "string" && result.includes(",")) {
+            resolve(result.split(",")[1]);
+          } else {
+            reject(new Error("PDF-Encoding fehlgeschlagen."));
+          }
+        };
+        reader.onerror = () => reject(new Error("PDF-Encoding fehlgeschlagen."));
+        reader.readAsDataURL(pdfBlob);
+      });
       const filename = `protokoll-${order.order_number || orderId.slice(0, 8)}.pdf`;
 
       // 4. E-Mail senden
