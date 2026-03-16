@@ -16,11 +16,14 @@
   "functions": {
     "api/admin.js": {
       "maxDuration": 300
+    },
+    "api/send-system-email.js": {
+      "maxDuration": 30
     }
   },
   "rewrites": [
+    { "source": "/api/admin/send-system-email", "destination": "/api/send-system-email" },
     { "source": "/api/admin/(.*)", "destination": "/api/admin?action=$1" },
-    { "source": "/api/(.*)", "destination": "/api/$1" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
