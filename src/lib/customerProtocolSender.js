@@ -1,5 +1,4 @@
 import { supabase } from "@/lib/supabaseClient";
-import { jsPDF } from "jspdf";
 import { getFinanceSettings } from "@/utils/invoiceStorage";
 
 const listeners = new Set();
@@ -27,119 +26,89 @@ const fmtDateTime = (v) => {
   return isNaN(d.getTime()) ? "–" : `${d.toLocaleDateString("de-DE")} ${d.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}`;
 };
 
-const safeText = (v, max = 80) => String(v || "–").slice(0, max);
+const buildProtocolHtml = (order, pickup, dropoff, settings) => {
+  const companyName = settings?.invoiceProfile?.companyName || "TransferFleet";
+  const companyInfo = [
+    settings?.invoiceProfile?.street,
+    `${settings?.invoiceProfile?.postalCode || ""} ${settings?.invoiceProfile?.city || ""}`.trim(),
+    settings?.invoiceProfile?.phone,
+    settings?.invoiceProfile?.email,
+  ].filter(Boolean).join(" | ");
 
-const addRow = (doc, label, value, y, w) => {
-  doc.setTextColor(120);
-  doc.text(label, 17, y);
-  doc.setTextColor(30);
-  doc.text(safeText(value), 65, y);
-};
+  const pickupAddr = [order.pickup_address, `${order.pickup_postal_code || ""} ${order.pickup_city || ""}`.trim()].filter(Boolean).join(", ");
+  const dropoffAddr = [order.dropoff_address, `${order.dropoff_postal_code || ""} ${order.dropoff_city || ""}`.trim()].filter(Boolean).join(", ");
 
-const isValidDataUrl = (url) => {
-  if (!url || typeof url !== "string") return false;
-  return url.startsWith("data:image/") && url.includes(";base64,") && url.length > 100;
-};
-
-const getImageFormat = (dataUrl) => {
-  if (dataUrl.includes("image/png")) return "PNG";
-  if (dataUrl.includes("image/jpeg") || dataUrl.includes("image/jpg")) return "JPEG";
-  return "PNG";
-};
-
-const buildPdf = (order, pickup, dropoff, settings, logoImage) => {
-  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-  const w = doc.internal.pageSize.getWidth();
-
-  let y = 15;
-
-  // Logo
-  if (logoImage) {
-    try {
-      const format = getImageFormat(logoImage);
-      doc.addImage(logoImage, format, 15, y, 35, 14);
-    } catch {
-      // Logo fehlgeschlagen — weiter ohne
-    }
-  }
-
-  // Header
-  doc.setFontSize(18);
-  doc.setTextColor(30, 58, 95);
-  doc.text("FAHRZEUGPROTOKOLL", w / 2, y + 4, { align: "center" });
-  doc.setFontSize(10);
-  doc.setTextColor(100);
-  doc.text(safeText(`${order.order_number || ""} - ${order.license_plate || ""}`, 60), w / 2, y + 11, { align: "center" });
-
-  y = 32;
-  doc.setDrawColor(200);
-  doc.line(15, y, w - 15, y);
-  y += 8;
-
-  // Fahrzeug
-  doc.setFontSize(12);
-  doc.setTextColor(30, 58, 95);
-  doc.text("Fahrzeugdaten", 15, y);
-  y += 7;
-  doc.setFontSize(9);
-  addRow(doc, "Kennzeichen", order.license_plate, y); y += 5;
-  addRow(doc, "Marke / Modell", `${order.vehicle_brand || ""} ${order.vehicle_model || ""}`.trim() || "–", y); y += 5;
-  addRow(doc, "Farbe", order.vehicle_color, y); y += 5;
-  if (order.vin) { addRow(doc, "VIN", order.vin, y); y += 5; }
-
-  // Abholung
-  y += 5;
-  doc.setFontSize(12); doc.setTextColor(30, 58, 95);
-  doc.text("Abholung", 15, y); y += 7; doc.setFontSize(9);
-  const pAddr = [order.pickup_address, `${order.pickup_postal_code || ""} ${order.pickup_city || ""}`.trim()].filter(Boolean).join(", ");
-  addRow(doc, "Adresse", pAddr, y); y += 5;
-  addRow(doc, "Datum", fmtDateTime(pickup?.datetime || order.pickup_date), y); y += 5;
-  addRow(doc, "KM-Stand", pickup?.kilometer ? `${pickup.kilometer} km` : "–", y); y += 5;
-  addRow(doc, "Tankstand", pickup?.fuel_level || "–", y); y += 5;
-
-  // Abgabe
-  y += 5;
-  doc.setFontSize(12); doc.setTextColor(30, 58, 95);
-  doc.text("Abgabe", 15, y); y += 7; doc.setFontSize(9);
-  const dAddr = [order.dropoff_address, `${order.dropoff_postal_code || ""} ${order.dropoff_city || ""}`.trim()].filter(Boolean).join(", ");
-  addRow(doc, "Adresse", dAddr, y); y += 5;
-  addRow(doc, "Datum", fmtDateTime(dropoff?.datetime || order.dropoff_date), y); y += 5;
-  addRow(doc, "KM-Stand", dropoff?.kilometer ? `${dropoff.kilometer} km` : "–", y); y += 5;
-  addRow(doc, "Tankstand", dropoff?.fuel_level || "–", y); y += 5;
-
-  // Schäden
   const damages = [...(pickup?.damages || []), ...(dropoff?.damages || [])];
-  if (damages.length > 0) {
-    y += 5;
-    doc.setFontSize(12); doc.setTextColor(30, 58, 95);
-    doc.text("Schaeden", 15, y); y += 7; doc.setFontSize(9);
-    for (const d of damages.slice(0, 10)) {
-      if (y > 270) { doc.addPage(); y = 15; }
-      doc.setTextColor(60);
-      doc.text(safeText(`${d.location || ""}: ${d.type || ""}`, 90), 17, y); y += 4;
-      if (d.note) { doc.setTextColor(100); doc.text(safeText(d.note, 90), 20, y); y += 4; }
-    }
-  }
+  const damageRows = damages.length > 0
+    ? damages.slice(0, 10).map((d) =>
+      `<tr><td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;">${d.location || "–"}</td><td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;">${d.type || "–"}</td><td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;color:#6b7280;">${d.note || ""}</td></tr>`
+    ).join("")
+    : `<tr><td colspan="3" style="padding:12px;color:#9ca3af;text-align:center;">Keine Schaeden dokumentiert</td></tr>`;
 
-  // Notizen
-  if (order.notes) {
-    y += 5;
-    if (y > 260) { doc.addPage(); y = 15; }
-    doc.setFontSize(12); doc.setTextColor(30, 58, 95);
-    doc.text("Bemerkungen", 15, y); y += 7;
-    doc.setFontSize(9); doc.setTextColor(60);
-    const lines = doc.splitTextToSize(String(order.notes).slice(0, 500), w - 35);
-    doc.text(lines, 17, y);
-  }
+  const row = (label, value) =>
+    `<tr><td style="padding:4px 0;color:#6b7280;width:130px;font-size:13px;">${label}</td><td style="padding:4px 0;color:#1e293b;font-size:13px;font-weight:500;">${value || "–"}</td></tr>`;
 
-  // Footer
-  doc.setDrawColor(200);
-  doc.line(15, 280, w - 15, 280);
-  doc.setFontSize(7); doc.setTextColor(150);
-  const cn = settings?.invoiceProfile?.companyName || "TransferFleet";
-  doc.text(`Erstellt am ${fmtDate(new Date())} - ${cn}`, 15, 284);
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:Arial,sans-serif;">
+<div style="max-width:600px;margin:0 auto;padding:20px;">
+<div style="background:linear-gradient(135deg,#1e3a5f,#2d5a8a);padding:24px 28px;border-radius:12px 12px 0 0;">
+<h1 style="color:#fff;margin:0;font-size:20px;">FAHRZEUGPROTOKOLL</h1>
+<p style="color:rgba(255,255,255,0.7);margin:6px 0 0;font-size:13px;">${order.order_number || ""} | ${order.license_plate || ""}</p>
+</div>
+<div style="background:#fff;border:1px solid #e2e8f0;border-top:0;padding:0;">
 
-  return doc;
+<div style="padding:20px 28px;border-bottom:1px solid #f1f5f9;">
+<h2 style="color:#1e3a5f;font-size:14px;margin:0 0 12px;">Fahrzeugdaten</h2>
+<table style="width:100%;border-collapse:collapse;">
+${row("Kennzeichen", order.license_plate)}
+${row("Marke / Modell", `${order.vehicle_brand || ""} ${order.vehicle_model || ""}`.trim())}
+${row("Farbe", order.vehicle_color)}
+${order.vin ? row("VIN", order.vin) : ""}
+</table>
+</div>
+
+<div style="padding:20px 28px;border-bottom:1px solid #f1f5f9;">
+<table style="width:100%;border-collapse:collapse;"><tr>
+<td style="vertical-align:top;width:48%;padding-right:8px;">
+<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:14px;">
+<h3 style="color:#1e40af;font-size:12px;margin:0 0 8px;">ABHOLUNG</h3>
+<p style="margin:0 0 3px;color:#1e293b;font-size:12px;font-weight:600;">${pickupAddr || "–"}</p>
+<p style="margin:0;color:#6b7280;font-size:11px;">${fmtDateTime(pickup?.datetime || order.pickup_date)}</p>
+${pickup?.kilometer ? `<p style="margin:3px 0 0;color:#6b7280;font-size:11px;">KM: ${pickup.kilometer}</p>` : ""}
+${pickup?.fuel_level ? `<p style="margin:2px 0 0;color:#6b7280;font-size:11px;">Tank: ${pickup.fuel_level}</p>` : ""}
+</div></td>
+<td style="vertical-align:middle;text-align:center;width:4%;color:#94a3b8;">&#8594;</td>
+<td style="vertical-align:top;width:48%;padding-left:8px;">
+<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:14px;">
+<h3 style="color:#166534;font-size:12px;margin:0 0 8px;">ABGABE</h3>
+<p style="margin:0 0 3px;color:#1e293b;font-size:12px;font-weight:600;">${dropoffAddr || "–"}</p>
+<p style="margin:0;color:#6b7280;font-size:11px;">${fmtDateTime(dropoff?.datetime || order.dropoff_date)}</p>
+${dropoff?.kilometer ? `<p style="margin:3px 0 0;color:#6b7280;font-size:11px;">KM: ${dropoff.kilometer}</p>` : ""}
+${dropoff?.fuel_level ? `<p style="margin:2px 0 0;color:#6b7280;font-size:11px;">Tank: ${dropoff.fuel_level}</p>` : ""}
+</div></td>
+</tr></table>
+</div>
+
+<div style="padding:20px 28px;border-bottom:1px solid #f1f5f9;">
+<h2 style="color:#1e3a5f;font-size:14px;margin:0 0 12px;">Schadensprotokoll</h2>
+<table style="width:100%;border-collapse:collapse;border:1px solid #e5e7eb;border-radius:6px;">
+<tr style="background:#f8fafc;"><th style="padding:8px 12px;text-align:left;font-size:11px;color:#64748b;border-bottom:2px solid #e2e8f0;">Bereich</th><th style="padding:8px 12px;text-align:left;font-size:11px;color:#64748b;border-bottom:2px solid #e2e8f0;">Art</th><th style="padding:8px 12px;text-align:left;font-size:11px;color:#64748b;border-bottom:2px solid #e2e8f0;">Notiz</th></tr>
+${damageRows}
+</table>
+</div>
+
+${order.notes ? `<div style="padding:20px 28px;border-bottom:1px solid #f1f5f9;">
+<h2 style="color:#1e3a5f;font-size:14px;margin:0 0 8px;">Bemerkungen</h2>
+<p style="color:#374151;font-size:12px;line-height:1.6;margin:0;background:#f8fafc;padding:10px;border-radius:6px;">${String(order.notes).replace(/\n/g, "<br>")}</p>
+</div>` : ""}
+
+<div style="padding:16px 28px;background:#f8fafc;">
+<p style="margin:0;color:#94a3b8;font-size:10px;">Erstellt am ${fmtDate(new Date())} | ${companyName}</p>
+${companyInfo ? `<p style="margin:2px 0 0;color:#94a3b8;font-size:10px;">${companyInfo}</p>` : ""}
+</div>
+</div>
+<p style="text-align:center;color:#94a3b8;font-size:10px;margin:12px 0 0;">Automatisch generiert von TransferFleet</p>
+</div></body></html>`;
 };
 
 export const sendCustomerProtocolInBackground = ({
@@ -151,7 +120,7 @@ export const sendCustomerProtocolInBackground = ({
   if (!orderId) throw new Error("Auftrag fehlt.");
   if (!targetEmail) throw new Error("Bitte E-Mail-Adresse eingeben.");
 
-  emit({ id: `cp-start-${Date.now()}`, type: "info", message: "Erstelle Protokoll-PDF..." });
+  emit({ id: `cp-start-${Date.now()}`, type: "info", message: "Erstelle Protokoll..." });
 
   void (async () => {
     try {
@@ -168,64 +137,56 @@ export const sendCustomerProtocolInBackground = ({
       const pickup = (checklists || []).find((c) => c.type === "pickup");
       const dropoff = (checklists || []).find((c) => c.type === "dropoff");
 
-      // PDF
-      emit({ id: `cp-pdf-${Date.now()}`, type: "info", message: "Erstelle PDF..." });
-      const settings = getFinanceSettings();
-      const rawLogo = settings?.invoiceProfile?.logoDataUrl;
-      const logoImage = isValidDataUrl(rawLogo) ? rawLogo : null;
-      const doc = buildPdf(order, pickup, dropoff, settings, logoImage);
+      // HTML
+      emit({ id: `cp-html-${Date.now()}`, type: "info", message: "Erstelle Protokoll..." });
+      const htmlBody = buildProtocolHtml(order, pickup, dropoff, getFinanceSettings());
 
-      // Base64 — sicher über Blob + FileReader
-      const base64 = await new Promise((resolve, reject) => {
-        try {
-          const blob = doc.output("blob");
-          const reader = new FileReader();
-          reader.onload = () => {
-            try {
-              const dataUrl = reader.result;
-              const idx = dataUrl.indexOf(",");
-              resolve(idx >= 0 ? dataUrl.substring(idx + 1) : "");
-            } catch (e) { reject(e); }
-          };
-          reader.onerror = () => reject(new Error("PDF lesen fehlgeschlagen."));
-          reader.readAsDataURL(blob);
-        } catch (e) { reject(e); }
+      // Senden — nutze die alte send-driver-assignment API die funktioniert
+      emit({ id: `cp-send-${Date.now()}`, type: "info", message: `Sende an ${targetEmail}...` });
+      const res = await fetch("/api/admin/send-driver-assignment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          sendCustomerProtocol: true,
+          orderId,
+          protocolChecklistId,
+          customerProtocolEmail: targetEmail,
+          customerProtocolQuality: "normal",
+          // Fallback: Wenn Server-PDF fehlschlaegt, sende HTML
+          htmlFallback: htmlBody,
+        }),
       });
 
-      if (!base64 || base64.length < 100) throw new Error("PDF-Erstellung fehlgeschlagen.");
+      let ok = false;
+      try {
+        const payload = await res.json();
+        ok = res.ok && payload?.ok;
+        if (ok) {
+          emit({ id: `cp-ok-${Date.now()}`, type: "success", message: `Protokoll an ${targetEmail} gesendet.` });
+          return;
+        }
+      } catch {}
 
-      const filename = `protokoll-${(order.order_number || orderId).replace(/[^a-zA-Z0-9-]/g, "_")}.pdf`;
-
-      // Senden
-      emit({ id: `cp-send-${Date.now()}`, type: "info", message: `Sende an ${targetEmail}...` });
-      const res = await fetch("/api/admin/send-system-email", {
+      // Fallback: HTML-E-Mail ueber send-system-email (ohne PDF)
+      emit({ id: `cp-fallback-${Date.now()}`, type: "info", message: "Sende als HTML-E-Mail..." });
+      const fallbackRes = await fetch("/api/admin/send-system-email", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           recipientEmail: targetEmail,
           subject: `Fahrzeugprotokoll ${order.order_number || ""} - ${order.license_plate || ""}`,
-          textBody: [
-            "Sehr geehrte Damen und Herren,",
-            "",
-            `anbei erhalten Sie das Fahrzeugprotokoll fuer ${order.license_plate || "das Fahrzeug"} (${order.order_number || ""}).`,
-            "",
-            `Route: ${order.pickup_city || ""} -> ${order.dropoff_city || ""}`,
-            "",
-            "Mit freundlichen Gruessen",
-            "TransferFleet",
-          ].join("\n"),
-          pdfBase64: base64,
-          pdfFilename: filename,
+          htmlBody,
+          textBody: `Fahrzeugprotokoll ${order.order_number || ""}\nKennzeichen: ${order.license_plate || ""}\nRoute: ${order.pickup_city || ""} -> ${order.dropoff_city || ""}`,
         }),
       });
 
-      if (!res.ok) {
+      if (fallbackRes.ok) {
+        emit({ id: `cp-ok-${Date.now()}`, type: "success", message: `Protokoll an ${targetEmail} gesendet.` });
+      } else {
         let errMsg = "Versand fehlgeschlagen.";
-        try { const p = await res.json(); errMsg = p?.error || errMsg; } catch {}
+        try { const p = await fallbackRes.json(); errMsg = p?.error || errMsg; } catch {}
         throw new Error(errMsg);
       }
-
-      emit({ id: `cp-ok-${Date.now()}`, type: "success", message: `Protokoll-PDF an ${targetEmail} gesendet.` });
     } catch (error) {
       emit({ id: `cp-err-${Date.now()}`, type: "error", message: error?.message || "Versand fehlgeschlagen." });
     }
