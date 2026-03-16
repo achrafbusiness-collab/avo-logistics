@@ -28,6 +28,7 @@ import { appClient } from "@/api/appClient";
 import { supabase } from "@/lib/supabaseClient";
 import StatusBadge from '@/components/ui/StatusBadge';
 import { buildOrderExpensePoolFromChecklists } from '@/utils/orderExpenses';
+import { sendCustomerProtocolInBackground } from '@/lib/customerProtocolSender';
 import { 
   Car,
   MapPin,
@@ -679,28 +680,14 @@ export default function OrderDetails({
     setCustomerProtocolFeedback({ type: '', message: '' });
     setIsSendingProtocol(true);
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData?.session?.access_token;
-      if (!token) throw new Error('Nicht angemeldet.');
-      const response = await fetch('/api/admin/send-driver-assignment', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          orderId: order.id,
-          protocolChecklistId,
-          sendCustomerProtocol: true,
-          customerProtocolEmail: targetEmail,
-          customerProtocolQuality,
-        }),
+      sendCustomerProtocolInBackground({
+        orderId: order.id,
+        protocolChecklistId,
+        customerProtocolEmail: targetEmail,
       });
-      let payload;
-      try { payload = await response.json(); } catch { payload = null; }
-      if (!response.ok || !payload?.ok) {
-        throw new Error(payload?.error || `Serverfehler (${response.status})`);
-      }
       setCustomerProtocolFeedback({
         type: 'success',
-        message: `E-Mail erfolgreich an ${payload?.data?.to || targetEmail} gesendet.`,
+        message: `Protokoll wird an ${targetEmail} gesendet...`,
       });
     } catch (error) {
       setCustomerProtocolFeedback({

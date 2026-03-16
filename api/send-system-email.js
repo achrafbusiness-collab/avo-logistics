@@ -44,22 +44,15 @@ export default async function handler(req, res) {
     const { data: authData } = await supabase.auth.getUser(token);
     if (!authData?.user) return res.status(401).json({ ok: false, error: "Ungültiger Token" });
 
-    // Only system admin can send system emails
-    const isAdmin =
-      (systemAdminUserId && authData.user.id === systemAdminUserId) ||
-      (systemAdminEmail && authData.user.email?.toLowerCase() === systemAdminEmail?.toLowerCase());
+    // Get user profile to find their company
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("id, role, company_id")
+      .eq("id", authData.user.id)
+      .maybeSingle();
 
-    // Also check if user is owner of first company
-    if (!isAdmin) {
-      const { data: firstCompany } = await supabase
-        .from("companies")
-        .select("owner_user_id")
-        .order("created_at", { ascending: true })
-        .limit(1)
-        .maybeSingle();
-      if (!firstCompany || firstCompany.owner_user_id !== authData.user.id) {
-        return res.status(403).json({ ok: false, error: "Nicht erlaubt" });
-      }
+    if (!profile || profile.role === "driver") {
+      return res.status(403).json({ ok: false, error: "Nicht erlaubt" });
     }
 
     const body = await readJsonBody(req);
@@ -69,13 +62,16 @@ export default async function handler(req, res) {
       return res.status(400).json({ ok: false, error: "recipientEmail und subject sind Pflicht" });
     }
 
-    // Load SMTP from first company's app_settings (your settings)
-    const { data: firstCompanyData } = await supabase
-      .from("companies")
-      .select("id")
-      .order("created_at", { ascending: true })
-      .limit(1)
-      .maybeSingle();
+    // Load SMTP from user's company app_settings
+    const companyId = profile.company_id;
+    const { data: firstCompanyData } = companyId
+      ? { data: { id: companyId } }
+      : await supabase
+          .from("companies")
+          .select("id")
+          .order("created_at", { ascending: true })
+          .limit(1)
+          .maybeSingle();
 
     let smtp = { ...envSmtp };
     let senderName = "TransferFleet";
