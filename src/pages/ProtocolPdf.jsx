@@ -217,7 +217,7 @@ export default function ProtocolPdf() {
     <div className="protocol-pdf">
       <style>{`
         .protocol-pdf { font-family: "Arial", sans-serif; color: #0f172a; padding: 24px; background: #f8fafc; }
-        .pdf-page { background: white; padding: 28px; width: 210mm; min-height: 297mm; box-sizing: border-box; margin: 0 auto 24px; border: 1px solid #e2e8f0; box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08); }
+        .pdf-page { background: white; padding: 28px; width: 210mm; box-sizing: border-box; margin: 0 auto 24px; border: 1px solid #e2e8f0; box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08); }
         .pdf-header { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 16px; border-bottom: 2px solid #e2e8f0; padding-bottom: 16px; }
         .pdf-logo { height: 72px; }
         .pdf-title { text-align: center; }
@@ -274,28 +274,30 @@ export default function ProtocolPdf() {
         .pdf-editor-field { display: grid; gap: 6px; font-size: 12px; color: #334155; }
         .pdf-editor-field input { border: 1px solid #cbd5f5; border-radius: 8px; padding: 8px 10px; font-size: 12px; }
         .pdf-editor-actions { display: flex; gap: 10px; }
-        .pdf-photo-page { page-break-before: always; break-before: page; min-height: 297mm; }
-        .pdf-protocol-page { page-break-after: always; break-after: page; min-height: 297mm; }
-        @page { size: A4; margin: 0; }
+        .pdf-photo-page { page-break-before: always; break-before: page; }
+        .pdf-protocol-page { page-break-after: always; break-after: page; }
+        @page { size: A4; margin: 6mm; }
         @media print {
           .pdf-actions { display: none; }
           .pdf-editor { display: none; }
           .protocol-pdf { background: white; padding: 0; }
-          .pdf-page { box-shadow: none; border: none; margin: 0; width: 210mm; min-height: 297mm; box-sizing: border-box; padding: 6mm; }
-          .pdf-header { padding-bottom: 6mm; }
-          .pdf-logo { height: 72px; }
-          .pdf-title h1 { font-size: 20px; }
-          .pdf-subtitle { font-size: 12px; }
-          .pdf-protocol-column h2 { font-size: 15px; }
-          .pdf-box { font-size: 12px; }
-          .pdf-field-value { font-size: 12px; }
-          .pdf-photo-page-header { margin-bottom: 4mm; }
-          .pdf-photo-grid { gap: 3mm; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-          .pdf-photo-card { padding: 2mm; }
-          .pdf-photo-card img { height: 118mm; object-fit: contain; }
-          .pdf-photo-caption { font-size: 10px; margin-top: 2mm; }
-          .pdf-sketch.compact { height: 135px; }
-          .pdf-sketch.compact img { height: 135px; }
+          .pdf-page { box-shadow: none; border: none; margin: 0; padding: 0; width: auto; min-height: auto; }
+          .pdf-header { padding-bottom: 4mm; }
+          .pdf-logo { height: 56px; }
+          .pdf-title h1 { font-size: 18px; }
+          .pdf-subtitle { font-size: 11px; }
+          .pdf-protocol-column h2 { font-size: 14px; }
+          .pdf-box { font-size: 11px; padding: 6px 8px; }
+          .pdf-field-value { font-size: 11px; }
+          .pdf-photo-page-header { margin-bottom: 3mm; }
+          .pdf-photo-grid { gap: 2mm; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+          .pdf-photo-card { padding: 1.5mm; border-radius: 4px; }
+          .pdf-photo-card img { height: 100mm; object-fit: contain; }
+          .pdf-photo-caption { font-size: 9px; margin-top: 1mm; }
+          .pdf-sketch.compact { height: 120px; }
+          .pdf-sketch.compact img { height: 120px; }
+          .pdf-divider { margin: 8px 0; }
+          .pdf-protocol-grid { gap: 8px; }
         }
       `}</style>
 
