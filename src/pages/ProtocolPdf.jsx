@@ -209,65 +209,8 @@ export default function ProtocolPdf() {
   const dropoffDateTime = editValues.dropoff.datetime ?? dropoffChecklist?.datetime ?? "";
   const pickupKilometer = editValues.pickup.kilometer ?? pickupChecklist?.kilometer ?? "";
   const dropoffKilometer = editValues.dropoff.kilometer ?? dropoffChecklist?.kilometer ?? "";
-  const handleDownloadPdf = async () => {
-    if (isDownloadingPdf) return;
-    setIsDownloadingPdf(true);
-    setDownloadError("");
-    try {
-      // Zuerst versuche Server-Download
-      const { data: sessionData } = await supabase.auth.getSession();
-      let token = sessionData?.session?.access_token;
-      if (!token) {
-        const { data: refreshed } = await supabase.auth.refreshSession();
-        token = refreshed?.session?.access_token;
-      }
-
-      if (token && checklistId) {
-        try {
-          const response = await fetch("/api/admin/send-driver-assignment", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({
-              downloadProtocolPdf: true,
-              protocolChecklistId: checklistId,
-              customerProtocolQuality: "high",
-            }),
-          });
-
-          if (response.ok) {
-            const blob = await response.blob();
-            const contentDisposition = response.headers.get("Content-Disposition") || "";
-            const fileMatch = contentDisposition.match(/filename="?([^"]+)"?/i);
-            const fallbackName = `protokoll-${String(order.order_number || checklistId || "download").replace(
-              /[^a-z0-9._-]/gi,
-              "_"
-            )}.pdf`;
-            const fileName = (fileMatch?.[1] || fallbackName).trim();
-            const objectUrl = URL.createObjectURL(blob);
-            const link = document.createElement("a");
-            link.href = objectUrl;
-            link.download = fileName;
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-            setTimeout(() => URL.revokeObjectURL(objectUrl), 1200);
-            return;
-          }
-        } catch {
-          // Server-Download fehlgeschlagen → Fallback auf Print
-        }
-      }
-
-      // Fallback: Browser-Print-Dialog (speichert als PDF)
-      window.print();
-    } catch (error) {
-      setDownloadError(error?.message || "PDF konnte nicht heruntergeladen werden.");
-    } finally {
-      setIsDownloadingPdf(false);
-    }
+  const handleDownloadPdf = () => {
+    window.print();
   };
 
   return (
@@ -357,8 +300,8 @@ export default function ProtocolPdf() {
       `}</style>
 
       <div className="pdf-actions">
-        <button className="pdf-button" onClick={handleDownloadPdf} disabled={isDownloadingPdf}>
-          {isDownloadingPdf ? "PDF wird erstellt…" : "PDF herunterladen"}
+        <button className="pdf-button" onClick={handleDownloadPdf}>
+          PDF herunterladen
         </button>
         <button className="pdf-button secondary" onClick={() => window.history.back()}>
           Zurück
@@ -367,7 +310,6 @@ export default function ProtocolPdf() {
           {editMode ? "Bearbeitung schließen" : "Daten bearbeiten"}
         </button>
       </div>
-      {downloadError ? <div className="pdf-note">{downloadError}</div> : null}
       {editMode && (
         <div className="pdf-editor">
           <div className="pdf-editor-title">Daten vor dem Druck anpassen</div>
