@@ -55,7 +55,15 @@ export default function Layout({ children, currentPageName }) {
   const location = useLocation();
   const mainRef = useRef(null);
   const { t, dir } = useI18n();
-  const [darkMode] = useState(true);
+  const [darkMode, setDarkMode] = useState(() => {
+    const saved = localStorage.getItem('tf-dark-mode');
+    if (saved !== null) return JSON.parse(saved);
+    return true;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('tf-dark-mode', JSON.stringify(darkMode));
+  }, [darkMode]);
 
   useEffect(() => {
     loadUser();
@@ -124,11 +132,7 @@ export default function Layout({ children, currentPageName }) {
     return (
       <div
         dir={dir}
-        className={`min-h-screen driver-layout ${dir === 'rtl' ? 'rtl' : 'ltr'} ${
-          darkMode
-            ? 'bg-gradient-to-b from-slate-950 via-slate-900 to-blue-950 text-slate-100'
-            : 'bg-gradient-to-b from-slate-50 via-gray-50 to-slate-100 text-slate-900'
-        }`}
+        className={`min-h-screen driver-layout ${dir === 'rtl' ? 'rtl' : 'ltr'} bg-gradient-to-b from-slate-950 via-slate-900 to-blue-950 text-slate-100`}
       >
         <style>{`
           :root {
@@ -165,18 +169,14 @@ export default function Layout({ children, currentPageName }) {
           </div>
         </header>
 
-        <main className={`pb-28 ${darkMode ? 'tf-driver-dark' : ''}`}>
+        <main className="pb-28 tf-driver-dark">
           {children}
         </main>
 
         {/* Bottom Navigation for Driver */}
         {!['DriverProtocol', 'DriverChecklist'].includes(currentPageName) && (
           <div className="fixed bottom-0 left-0 right-0 p-3 z-50">
-            <nav className={`mx-auto max-w-md rounded-2xl backdrop-blur-xl shadow-2xl px-2 py-2 flex justify-between driver-bottom-nav ${
-              darkMode
-                ? 'bg-slate-800/95 border border-slate-700/50 shadow-black/30'
-                : 'bg-white/95 border border-gray-200/50 shadow-black/15'
-            }`}>
+            <nav className="mx-auto max-w-md rounded-2xl backdrop-blur-xl shadow-2xl px-2 py-2 flex justify-between driver-bottom-nav bg-slate-800/95 border border-slate-700/50 shadow-black/30">
               {driverPages.map((item) => {
                 const isActive = currentPageName === item.page;
                 return (
@@ -186,9 +186,7 @@ export default function Layout({ children, currentPageName }) {
                     className={`driver-nav-item flex flex-col items-center flex-1 rounded-xl px-4 py-2 transition-all ${
                       isActive
                         ? 'text-white bg-gradient-to-r from-cyan-500 to-blue-500 shadow-md shadow-cyan-500/25'
-                        : darkMode
-                        ? 'text-slate-400 hover:text-slate-200'
-                        : 'text-gray-400 hover:text-gray-600'
+                        : 'text-slate-400 hover:text-slate-200'
                     }`}
                   >
                     <item.icon className="w-5 h-5" />
@@ -354,6 +352,10 @@ export default function Layout({ children, currentPageName }) {
 
             <NotificationBell />
 
+            <Button variant="ghost" size="sm" onClick={() => setDarkMode(!darkMode)}
+              className={darkMode ? 'text-white/70 hover:bg-white/10 hover:text-white' : 'text-slate-500 hover:bg-gray-100'}>
+              {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </Button>
 
             <span className={`text-sm hidden lg:block ${darkMode ? 'text-white/60' : 'text-gray-500'}`}>
               {new Date().toLocaleDateString('de-DE', {
