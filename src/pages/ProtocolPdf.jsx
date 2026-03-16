@@ -214,55 +214,55 @@ export default function ProtocolPdf() {
     setIsDownloadingPdf(true);
     setDownloadError("");
     try {
-      if (!checklistId) {
-        throw new Error("Checklist-ID fehlt.");
-      }
-      const { data } = await supabase.auth.getSession();
-      const token = data?.session?.access_token;
+      // Zuerst versuche Server-Download
+      const { data: sessionData } = await supabase.auth.getSession();
+      let token = sessionData?.session?.access_token;
       if (!token) {
-        throw new Error("Nicht angemeldet.");
+        const { data: refreshed } = await supabase.auth.refreshSession();
+        token = refreshed?.session?.access_token;
       }
 
-      const response = await fetch("/api/admin/send-driver-assignment", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          downloadProtocolPdf: true,
-          protocolChecklistId: checklistId,
-          customerProtocolQuality: "high",
-        }),
-      });
-
-      if (!response.ok) {
-        let message = "PDF konnte nicht heruntergeladen werden.";
+      if (token && checklistId) {
         try {
-          const payload = await response.json();
-          if (payload?.error) message = payload.error;
+          const response = await fetch("/api/admin/send-driver-assignment", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              downloadProtocolPdf: true,
+              protocolChecklistId: checklistId,
+              customerProtocolQuality: "high",
+            }),
+          });
+
+          if (response.ok) {
+            const blob = await response.blob();
+            const contentDisposition = response.headers.get("Content-Disposition") || "";
+            const fileMatch = contentDisposition.match(/filename="?([^"]+)"?/i);
+            const fallbackName = `protokoll-${String(order.order_number || checklistId || "download").replace(
+              /[^a-z0-9._-]/gi,
+              "_"
+            )}.pdf`;
+            const fileName = (fileMatch?.[1] || fallbackName).trim();
+            const objectUrl = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = objectUrl;
+            link.download = fileName;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            setTimeout(() => URL.revokeObjectURL(objectUrl), 1200);
+            return;
+          }
         } catch {
-          // ignore non-json responses
+          // Server-Download fehlgeschlagen → Fallback auf Print
         }
-        throw new Error(message);
       }
 
-      const blob = await response.blob();
-      const contentDisposition = response.headers.get("Content-Disposition") || "";
-      const fileMatch = contentDisposition.match(/filename="?([^"]+)"?/i);
-      const fallbackName = `protokoll-${String(order.order_number || checklistId || "download").replace(
-        /[^a-z0-9._-]/gi,
-        "_"
-      )}.pdf`;
-      const fileName = (fileMatch?.[1] || fallbackName).trim();
-      const objectUrl = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = objectUrl;
-      link.download = fileName;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      setTimeout(() => URL.revokeObjectURL(objectUrl), 1200);
+      // Fallback: Browser-Print-Dialog (speichert als PDF)
+      window.print();
     } catch (error) {
       setDownloadError(error?.message || "PDF konnte nicht heruntergeladen werden.");
     } finally {
