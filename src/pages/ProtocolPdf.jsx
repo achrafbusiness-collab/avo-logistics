@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { appClient } from "@/api/appClient";
 import { supabase } from "@/lib/supabaseClient";
+import { getFinanceSettings } from "@/utils/invoiceStorage";
 
 const formatDate = (value) => {
   if (!value) return "-";
@@ -444,7 +445,7 @@ export default function ProtocolPdf() {
 
       <div className="pdf-page pdf-protocol-page">
         <div className="pdf-header">
-          <img className="pdf-logo" src="/logo-dark.png" alt="TransferFleet" />
+          <img className="pdf-logo" src={getFinanceSettings()?.invoiceProfile?.logoDataUrl || "/logo-dark.png"} alt="TransferFleet" />
           <div className="pdf-title">
             <h1>FAHRZEUGPROTOKOLL</h1>
             <div className="pdf-subtitle">{orderNumber} • {order.license_plate || "-"}</div>

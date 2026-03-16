@@ -2,6 +2,7 @@ import React, { useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { appClient } from "@/api/appClient";
+import { getFinanceSettings } from "@/utils/invoiceStorage";
 import { buildOrderExpensePoolFromChecklists } from "@/utils/orderExpenses";
 
 const EXPENSE_LABELS = {
@@ -144,7 +145,7 @@ export default function ExpensesPdf() {
 
       <div className="pdf-page">
         <div className="pdf-header">
-          <img className="pdf-logo" src="/logo-dark.png" alt="TransferFleet" />
+          <img className="pdf-logo" src={getFinanceSettings()?.invoiceProfile?.logoDataUrl || "/logo-dark.png"} alt="TransferFleet" />
           <div className="pdf-title">
             <h1>Auslagenübersicht</h1>
             <div className="pdf-subtitle">{order.order_number || "-"} • {order.license_plate || "-"}</div>
