@@ -16,6 +16,9 @@
   "functions": {
     "api/admin.js": {
       "maxDuration": 300
+    },
+    "api/send-system-email.js": {
+      "maxDuration": 30
     }
   },
   "rewrites": [

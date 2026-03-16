@@ -1,6 +1,14 @@
 import { createClient } from "@supabase/supabase-js";
 import nodemailer from "nodemailer";
 
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: "10mb",
+    },
+  },
+};
+
 const supabaseUrl = process.env.SUPABASE_URL;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const systemAdminEmail = process.env.SYSTEM_ADMIN_EMAIL;

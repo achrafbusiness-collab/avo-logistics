@@ -205,7 +205,13 @@ export const sendCustomerProtocolInBackground = ({
       doc.setTextColor(150);
       doc.text(`Erstellt am ${new Date().toLocaleDateString("de-DE")} • TransferFleet`, 15, y);
 
-      const pdfBase64 = doc.output("datauristring").split(",")[1];
+      // Output als Base64 — komprimiert
+      const pdfBlob = doc.output("blob");
+      const pdfBase64 = await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result.split(",")[1]);
+        reader.readAsDataURL(pdfBlob);
+      });
       const filename = `protokoll-${order.order_number || orderId.slice(0, 8)}.pdf`;
 
       // 4. E-Mail senden
