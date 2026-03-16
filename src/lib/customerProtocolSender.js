@@ -1,5 +1,4 @@
 import { supabase } from "@/lib/supabaseClient";
-import { jsPDF } from "jspdf";
 import { getFinanceSettings } from "@/utils/invoiceStorage";
 
 const listeners = new Set();
@@ -15,16 +14,119 @@ export const subscribeCustomerProtocolNotifications = (listener) => {
   return () => listeners.delete(listener);
 };
 
-const formatDate = (v) => {
-  if (!v) return "-";
+const fmtDate = (v) => {
+  if (!v) return "–";
   const d = new Date(v);
-  return isNaN(d.getTime()) ? "-" : d.toLocaleDateString("de-DE");
+  return isNaN(d.getTime()) ? "–" : d.toLocaleDateString("de-DE");
 };
 
-const formatDateTime = (v) => {
-  if (!v) return "-";
+const fmtDateTime = (v) => {
+  if (!v) return "–";
   const d = new Date(v);
-  return isNaN(d.getTime()) ? "-" : d.toLocaleDateString("de-DE") + " " + d.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+  return isNaN(d.getTime()) ? "–" : `${d.toLocaleDateString("de-DE")} ${d.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}`;
+};
+
+const buildProtocolHtml = (order, pickup, dropoff, settings) => {
+  const companyName = settings?.invoiceProfile?.companyName || "TransferFleet";
+  const companyAddress = [settings?.invoiceProfile?.street, `${settings?.invoiceProfile?.postalCode || ""} ${settings?.invoiceProfile?.city || ""}`.trim()].filter(Boolean).join(", ");
+  const companyPhone = settings?.invoiceProfile?.phone || "";
+  const companyEmail = settings?.invoiceProfile?.email || "";
+
+  const pickupAddr = [order.pickup_address, `${order.pickup_postal_code || ""} ${order.pickup_city || ""}`.trim()].filter(Boolean).join(", ");
+  const dropoffAddr = [order.dropoff_address, `${order.dropoff_postal_code || ""} ${order.dropoff_city || ""}`.trim()].filter(Boolean).join(", ");
+
+  const damages = [...(pickup?.damages || []), ...(dropoff?.damages || [])];
+  const damageRows = damages.length > 0
+    ? damages.slice(0, 10).map((d) => `<tr><td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;color:#374151;">${d.location || "–"}</td><td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;color:#374151;">${d.type || "–"}</td><td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;color:#6b7280;">${d.note || ""}</td></tr>`).join("")
+    : `<tr><td colspan="3" style="padding:12px;color:#9ca3af;text-align:center;">Keine Schäden dokumentiert</td></tr>`;
+
+  return `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:Arial,Helvetica,sans-serif;">
+<div style="max-width:640px;margin:0 auto;padding:24px;">
+
+  <!-- Header -->
+  <div style="background:linear-gradient(135deg,#1e3a5f,#2d5a8a);padding:28px 32px;border-radius:12px 12px 0 0;">
+    <h1 style="color:#ffffff;margin:0;font-size:22px;letter-spacing:0.5px;">FAHRZEUGPROTOKOLL</h1>
+    <p style="color:rgba(255,255,255,0.7);margin:8px 0 0;font-size:14px;">${order.order_number || ""} • ${order.license_plate || ""}</p>
+  </div>
+
+  <!-- Body -->
+  <div style="background:#ffffff;padding:0;border:1px solid #e2e8f0;border-top:0;border-radius:0 0 12px 12px;">
+
+    <!-- Fahrzeug -->
+    <div style="padding:24px 32px;border-bottom:1px solid #f1f5f9;">
+      <h2 style="color:#1e3a5f;font-size:15px;margin:0 0 14px;display:flex;align-items:center;">🚗 Fahrzeugdaten</h2>
+      <table style="width:100%;border-collapse:collapse;">
+        <tr><td style="padding:4px 0;color:#6b7280;width:140px;">Kennzeichen</td><td style="padding:4px 0;font-weight:600;color:#1e293b;">${order.license_plate || "–"}</td></tr>
+        <tr><td style="padding:4px 0;color:#6b7280;">Marke / Modell</td><td style="padding:4px 0;color:#1e293b;">${order.vehicle_brand || "–"} ${order.vehicle_model || ""}</td></tr>
+        <tr><td style="padding:4px 0;color:#6b7280;">Farbe</td><td style="padding:4px 0;color:#1e293b;">${order.vehicle_color || "–"}</td></tr>
+        ${order.vin ? `<tr><td style="padding:4px 0;color:#6b7280;">VIN</td><td style="padding:4px 0;color:#1e293b;font-size:12px;">${order.vin}</td></tr>` : ""}
+      </table>
+    </div>
+
+    <!-- Route -->
+    <div style="padding:24px 32px;border-bottom:1px solid #f1f5f9;">
+      <table style="width:100%;border-collapse:collapse;">
+        <tr>
+          <td style="vertical-align:top;width:48%;padding-right:12px;">
+            <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:16px;">
+              <h3 style="color:#1e40af;font-size:13px;margin:0 0 10px;">📍 Abholung</h3>
+              <p style="margin:0 0 4px;color:#1e293b;font-weight:600;font-size:13px;">${pickupAddr || "–"}</p>
+              <p style="margin:0;color:#6b7280;font-size:12px;">${fmtDateTime(pickup?.datetime || order.pickup_date)}</p>
+              ${pickup?.kilometer ? `<p style="margin:4px 0 0;color:#6b7280;font-size:12px;">KM: ${pickup.kilometer}</p>` : ""}
+              ${pickup?.fuel_level ? `<p style="margin:2px 0 0;color:#6b7280;font-size:12px;">Tank: ${pickup.fuel_level}</p>` : ""}
+            </div>
+          </td>
+          <td style="vertical-align:middle;text-align:center;width:4%;color:#94a3b8;font-size:20px;">→</td>
+          <td style="vertical-align:top;width:48%;padding-left:12px;">
+            <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:16px;">
+              <h3 style="color:#166534;font-size:13px;margin:0 0 10px;">📍 Abgabe</h3>
+              <p style="margin:0 0 4px;color:#1e293b;font-weight:600;font-size:13px;">${dropoffAddr || "–"}</p>
+              <p style="margin:0;color:#6b7280;font-size:12px;">${fmtDateTime(dropoff?.datetime || order.dropoff_date)}</p>
+              ${dropoff?.kilometer ? `<p style="margin:4px 0 0;color:#6b7280;font-size:12px;">KM: ${dropoff.kilometer}</p>` : ""}
+              ${dropoff?.fuel_level ? `<p style="margin:2px 0 0;color:#6b7280;font-size:12px;">Tank: ${dropoff.fuel_level}</p>` : ""}
+            </div>
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    <!-- Schäden -->
+    <div style="padding:24px 32px;border-bottom:1px solid #f1f5f9;">
+      <h2 style="color:#1e3a5f;font-size:15px;margin:0 0 14px;">⚠️ Schadensprotokoll</h2>
+      <table style="width:100%;border-collapse:collapse;border:1px solid #e5e7eb;border-radius:8px;">
+        <tr style="background:#f8fafc;">
+          <th style="padding:8px 12px;text-align:left;font-size:12px;color:#64748b;border-bottom:2px solid #e2e8f0;">Bereich</th>
+          <th style="padding:8px 12px;text-align:left;font-size:12px;color:#64748b;border-bottom:2px solid #e2e8f0;">Art</th>
+          <th style="padding:8px 12px;text-align:left;font-size:12px;color:#64748b;border-bottom:2px solid #e2e8f0;">Notiz</th>
+        </tr>
+        ${damageRows}
+      </table>
+    </div>
+
+    ${order.notes ? `
+    <!-- Bemerkungen -->
+    <div style="padding:24px 32px;border-bottom:1px solid #f1f5f9;">
+      <h2 style="color:#1e3a5f;font-size:15px;margin:0 0 10px;">📝 Bemerkungen</h2>
+      <p style="color:#374151;font-size:13px;line-height:1.6;margin:0;background:#f8fafc;padding:12px;border-radius:8px;">${order.notes.replace(/\n/g, "<br>")}</p>
+    </div>
+    ` : ""}
+
+    <!-- Footer -->
+    <div style="padding:20px 32px;background:#f8fafc;border-radius:0 0 12px 12px;">
+      <p style="margin:0;color:#94a3b8;font-size:11px;">Erstellt am ${fmtDate(new Date())} • ${companyName}</p>
+      ${companyAddress ? `<p style="margin:2px 0 0;color:#94a3b8;font-size:11px;">${companyAddress}</p>` : ""}
+      ${companyPhone || companyEmail ? `<p style="margin:2px 0 0;color:#94a3b8;font-size:11px;">${[companyPhone, companyEmail].filter(Boolean).join(" • ")}</p>` : ""}
+    </div>
+  </div>
+
+  <p style="text-align:center;color:#94a3b8;font-size:11px;margin:16px 0 0;">Diese E-Mail wurde automatisch von TransferFleet generiert.</p>
+</div>
+</body>
+</html>`;
 };
 
 export const sendCustomerProtocolInBackground = ({
@@ -36,12 +138,11 @@ export const sendCustomerProtocolInBackground = ({
   if (!orderId) throw new Error("Auftrag fehlt.");
   if (!targetEmail) throw new Error("Bitte E-Mail-Adresse eingeben.");
 
-  emit({ id: `cp-start-${Date.now()}`, type: "info", message: "Erstelle Protokoll-PDF..." });
+  emit({ id: `cp-start-${Date.now()}`, type: "info", message: "Erstelle Protokoll..." });
 
   void (async () => {
     try {
-      // 1. Token holen
-      emit({ id: `cp-auth-${Date.now()}`, type: "info", message: "Authentifizierung..." });
+      // 1. Token
       let token = null;
       const { data } = await supabase.auth.getSession();
       token = data?.session?.access_token;
@@ -67,149 +168,14 @@ export const sendCustomerProtocolInBackground = ({
 
       const pickup = (checklists || []).find((c) => c.type === "pickup");
       const dropoff = (checklists || []).find((c) => c.type === "dropoff");
-
-      // 3. PDF erstellen
-      emit({ id: `cp-pdf-${Date.now()}`, type: "info", message: "Erstelle PDF..." });
-      const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-      const w = doc.internal.pageSize.getWidth();
       const settings = getFinanceSettings();
-      const logoUrl = settings?.invoiceProfile?.logoDataUrl;
 
-      // Header
-      let y = 15;
-      if (logoUrl) {
-        try { doc.addImage(logoUrl, "PNG", 15, y, 35, 14); } catch {}
-      }
-      doc.setFontSize(18);
-      doc.setTextColor(30, 58, 95);
-      doc.text("FAHRZEUGPROTOKOLL", w / 2, y + 8, { align: "center" });
-      doc.setFontSize(10);
-      doc.setTextColor(100);
-      doc.text(`${order.order_number || "-"} • ${order.license_plate || "-"}`, w / 2, y + 14, { align: "center" });
+      // 3. HTML-E-Mail erstellen
+      emit({ id: `cp-html-${Date.now()}`, type: "info", message: "Erstelle Protokoll..." });
+      const htmlBody = buildProtocolHtml(order, pickup, dropoff, settings);
 
-      // Linie
-      y = 35;
-      doc.setDrawColor(200);
-      doc.line(15, y, w - 15, y);
-      y += 8;
-
-      // Fahrzeugdaten
-      doc.setFontSize(12);
-      doc.setTextColor(30, 58, 95);
-      doc.text("Fahrzeugdaten", 15, y);
-      y += 7;
-      doc.setFontSize(9);
-      doc.setTextColor(60);
-      const vehicleData = [
-        ["Kennzeichen", order.license_plate || "-"],
-        ["Marke / Modell", `${order.vehicle_brand || "-"} ${order.vehicle_model || ""}`.trim()],
-        ["Farbe", order.vehicle_color || "-"],
-        ["VIN", order.vin || "-"],
-      ];
-      for (const [label, value] of vehicleData) {
-        doc.setTextColor(120);
-        doc.text(label, 17, y);
-        doc.setTextColor(30);
-        doc.text(value, 65, y);
-        y += 5;
-      }
-
-      // Abholung
-      y += 5;
-      doc.setFontSize(12);
-      doc.setTextColor(30, 58, 95);
-      doc.text("Abholung", 15, y);
-      y += 7;
-      doc.setFontSize(9);
-      const pickupData = [
-        ["Adresse", `${order.pickup_address || ""}, ${order.pickup_postal_code || ""} ${order.pickup_city || ""}`.trim()],
-        ["Datum", formatDateTime(pickup?.datetime || order.pickup_date)],
-        ["Kilometerstand", pickup?.kilometer ? `${pickup.kilometer} km` : "-"],
-        ["Tankstand", pickup?.fuel_level || "-"],
-        ["Standort bestätigt", pickup?.location_confirmed === false ? `Nein – ${pickup?.location || ""}` : "Ja"],
-      ];
-      for (const [label, value] of pickupData) {
-        doc.setTextColor(120);
-        doc.text(label, 17, y);
-        doc.setTextColor(30);
-        doc.text(String(value).slice(0, 80), 65, y);
-        y += 5;
-      }
-
-      // Abgabe
-      y += 5;
-      doc.setFontSize(12);
-      doc.setTextColor(30, 58, 95);
-      doc.text("Abgabe", 15, y);
-      y += 7;
-      doc.setFontSize(9);
-      const dropoffData = [
-        ["Adresse", `${order.dropoff_address || ""}, ${order.dropoff_postal_code || ""} ${order.dropoff_city || ""}`.trim()],
-        ["Datum", formatDateTime(dropoff?.datetime || order.dropoff_date)],
-        ["Kilometerstand", dropoff?.kilometer ? `${dropoff.kilometer} km` : "-"],
-        ["Tankstand", dropoff?.fuel_level || "-"],
-      ];
-      for (const [label, value] of dropoffData) {
-        doc.setTextColor(120);
-        doc.text(label, 17, y);
-        doc.setTextColor(30);
-        doc.text(String(value).slice(0, 80), 65, y);
-        y += 5;
-      }
-
-      // Schäden
-      const allDamages = [...(pickup?.damages || []), ...(dropoff?.damages || [])];
-      if (allDamages.length > 0) {
-        y += 5;
-        doc.setFontSize(12);
-        doc.setTextColor(30, 58, 95);
-        doc.text("Schäden", 15, y);
-        y += 7;
-        doc.setFontSize(9);
-        for (const damage of allDamages.slice(0, 10)) {
-          if (y > 270) { doc.addPage(); y = 15; }
-          doc.setTextColor(60);
-          const label = `${damage.location || "-"}: ${damage.type || "-"}`;
-          doc.text(label.slice(0, 90), 17, y);
-          y += 4;
-          if (damage.note) {
-            doc.setTextColor(100);
-            doc.text(String(damage.note).slice(0, 90), 20, y);
-            y += 4;
-          }
-        }
-      }
-
-      // Notizen
-      if (order.notes) {
-        y += 5;
-        if (y > 260) { doc.addPage(); y = 15; }
-        doc.setFontSize(12);
-        doc.setTextColor(30, 58, 95);
-        doc.text("Bemerkungen", 15, y);
-        y += 7;
-        doc.setFontSize(9);
-        doc.setTextColor(60);
-        const noteLines = doc.splitTextToSize(order.notes, w - 35);
-        doc.text(noteLines, 17, y);
-        y += noteLines.length * 4;
-      }
-
-      // Footer
-      y += 10;
-      if (y > 270) { doc.addPage(); y = 15; }
-      doc.setDrawColor(200);
-      doc.line(15, y, w - 15, y);
-      y += 5;
-      doc.setFontSize(7);
-      doc.setTextColor(150);
-      doc.text(`Erstellt am ${new Date().toLocaleDateString("de-DE")} • TransferFleet`, 15, y);
-
-      const pdfBase64 = btoa(doc.output("latin1"));
-      const filename = `protokoll-${order.order_number || orderId.slice(0, 8)}.pdf`;
-
-      // 4. E-Mail senden
-      emit({ id: `cp-send-${Date.now()}`, type: "info", message: `Sende E-Mail an ${targetEmail}...` });
+      // 4. Senden
+      emit({ id: `cp-send-${Date.now()}`, type: "info", message: `Sende an ${targetEmail}...` });
       const emailResponse = await fetch("/api/admin/send-system-email", {
         method: "POST",
         headers: {
@@ -219,9 +185,8 @@ export const sendCustomerProtocolInBackground = ({
         body: JSON.stringify({
           recipientEmail: targetEmail,
           subject: `Fahrzeugprotokoll ${order.order_number || ""} – ${order.license_plate || ""}`,
-          textBody: `Sehr geehrte Damen und Herren,\n\nanbei erhalten Sie das Fahrzeugprotokoll für ${order.license_plate || "das Fahrzeug"} (${order.order_number || ""}).\n\nRoute: ${order.pickup_city || ""} → ${order.dropoff_city || ""}\n\nMit freundlichen Grüßen\nTransferFleet`,
-          pdfBase64,
-          pdfFilename: filename,
+          htmlBody,
+          textBody: `Fahrzeugprotokoll ${order.order_number || ""}\nKennzeichen: ${order.license_plate || ""}\nRoute: ${order.pickup_city || ""} → ${order.dropoff_city || ""}`,
         }),
       });
 
