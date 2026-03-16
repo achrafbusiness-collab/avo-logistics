@@ -205,18 +205,12 @@ export const sendCustomerProtocolInBackground = ({
       doc.setTextColor(150);
       doc.text(`Erstellt am ${new Date().toLocaleDateString("de-DE")} • TransferFleet`, 15, y);
 
-      // Output als Base64 — komprimiert
-      const pdfBlob = doc.output("blob");
-      const pdfBase64 = await new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result.split(",")[1]);
-        reader.readAsDataURL(pdfBlob);
-      });
+      const pdfBase64 = btoa(doc.output("latin1"));
       const filename = `protokoll-${order.order_number || orderId.slice(0, 8)}.pdf`;
 
       // 4. E-Mail senden
       emit({ id: `cp-send-${Date.now()}`, type: "info", message: `Sende E-Mail an ${targetEmail}...` });
-      const emailResponse = await fetch("/api/send-system-email", {
+      const emailResponse = await fetch("/api/admin/send-system-email", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

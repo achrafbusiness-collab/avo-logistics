@@ -444,7 +444,7 @@ export default function SystemBilling() {
       const doc = generateInvoicePdf(inv);
       const pdfBase64 = doc.output("datauristring").split(",")[1];
       const token = (await supabase.auth.getSession()).data?.session?.access_token;
-      await fetch("/api/send-system-email", {
+      await fetch("/api/admin/send-system-email", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
@@ -475,7 +475,7 @@ export default function SystemBilling() {
     setSendingEmail((prev) => ({ ...prev, [`rem-${inv.id}`]: true }));
     try {
       const token = (await supabase.auth.getSession()).data?.session?.access_token;
-      await fetch("/api/send-system-email", {
+      await fetch("/api/admin/send-system-email", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
