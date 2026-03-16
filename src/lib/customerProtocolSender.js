@@ -36,18 +36,40 @@ const addRow = (doc, label, value, y, w) => {
   doc.text(safeText(value), 65, y);
 };
 
-const buildPdf = (order, pickup, dropoff, settings) => {
+const isValidDataUrl = (url) => {
+  if (!url || typeof url !== "string") return false;
+  return url.startsWith("data:image/") && url.includes(";base64,") && url.length > 100;
+};
+
+const getImageFormat = (dataUrl) => {
+  if (dataUrl.includes("image/png")) return "PNG";
+  if (dataUrl.includes("image/jpeg") || dataUrl.includes("image/jpg")) return "JPEG";
+  return "PNG";
+};
+
+const buildPdf = (order, pickup, dropoff, settings, logoImage) => {
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const w = doc.internal.pageSize.getWidth();
 
-  // Header — kein Logo (vermeidet addImage-Fehler)
   let y = 15;
+
+  // Logo
+  if (logoImage) {
+    try {
+      const format = getImageFormat(logoImage);
+      doc.addImage(logoImage, format, 15, y, 35, 14);
+    } catch {
+      // Logo fehlgeschlagen — weiter ohne
+    }
+  }
+
+  // Header
   doc.setFontSize(18);
   doc.setTextColor(30, 58, 95);
   doc.text("FAHRZEUGPROTOKOLL", w / 2, y + 4, { align: "center" });
   doc.setFontSize(10);
   doc.setTextColor(100);
-  doc.text(safeText(`${order.order_number || ""} \u2022 ${order.license_plate || ""}`, 60), w / 2, y + 11, { align: "center" });
+  doc.text(safeText(`${order.order_number || ""} - ${order.license_plate || ""}`, 60), w / 2, y + 11, { align: "center" });
 
   y = 32;
   doc.setDrawColor(200);
@@ -148,7 +170,10 @@ export const sendCustomerProtocolInBackground = ({
 
       // PDF
       emit({ id: `cp-pdf-${Date.now()}`, type: "info", message: "Erstelle PDF..." });
-      const doc = buildPdf(order, pickup, dropoff, getFinanceSettings());
+      const settings = getFinanceSettings();
+      const rawLogo = settings?.invoiceProfile?.logoDataUrl;
+      const logoImage = isValidDataUrl(rawLogo) ? rawLogo : null;
+      const doc = buildPdf(order, pickup, dropoff, settings, logoImage);
 
       // Base64 — sicher über Blob + FileReader
       const base64 = await new Promise((resolve, reject) => {
