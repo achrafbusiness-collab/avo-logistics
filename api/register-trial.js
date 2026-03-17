@@ -191,7 +191,7 @@ export default async function handler(req, res) {
 
     // 6. Willkommens-E-Mail senden
     const normalizedPublicUrl = normalizePublicUrl(publicSiteUrl);
-    const loginUrl = normalizedPublicUrl ? `${normalizedPublicUrl}/login` : "https://transferfleet.de/login";
+    const loginUrl = normalizedPublicUrl ? `${normalizedPublicUrl}/login` : "https://app.transferfleet.de/login";
     const logoUrl = normalizedPublicUrl ? `${normalizedPublicUrl}/logo-dark.png` : "";
     const brandPrimary = "#1e3a5f";
     const brandSecondary = "#2d5a8a";
@@ -334,8 +334,8 @@ Ihr TransferFleet Team`;
     try {
       await sendEmail({
         to: adminNotifyEmail,
-        subject: `Neue Trial-Registrierung: ${companyName}`,
-        text: `Neuer Trial-Kunde:\n\nFirma: ${companyName}\nName: ${fullName}\nE-Mail: ${normalizedEmail}\nTelefon: ${phone || "-"}\nTrial bis: ${trialEndFormatted}`,
+        subject: `Neue Trial-Registrierung: ${company_name}`,
+        text: `Neuer Trial-Kunde:\n\nFirma: ${company_name}\nName: ${full_name}\nE-Mail: ${normalizedEmail}\nTelefon: ${phone || "-"}\nTrial bis: ${trialEndFormatted}`,
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 500px;">
             <div style="background: linear-gradient(135deg, #1e3a5f, #2d5a8a); padding: 20px; border-radius: 10px 10px 0 0;">
@@ -343,8 +343,8 @@ Ihr TransferFleet Team`;
             </div>
             <div style="padding: 20px; border: 1px solid #e5e7eb; border-top: 0; border-radius: 0 0 10px 10px;">
               <table style="width: 100%; border-collapse: collapse;">
-                <tr><td style="padding: 6px 0; color: #666;">Firma</td><td style="padding: 6px 0; font-weight: bold;">${companyName}</td></tr>
-                <tr><td style="padding: 6px 0; color: #666;">Name</td><td style="padding: 6px 0; font-weight: bold;">${fullName}</td></tr>
+                <tr><td style="padding: 6px 0; color: #666;">Firma</td><td style="padding: 6px 0; font-weight: bold;">${company_name}</td></tr>
+                <tr><td style="padding: 6px 0; color: #666;">Name</td><td style="padding: 6px 0; font-weight: bold;">${full_name}</td></tr>
                 <tr><td style="padding: 6px 0; color: #666;">E-Mail</td><td style="padding: 6px 0; font-weight: bold;">${normalizedEmail}</td></tr>
                 <tr><td style="padding: 6px 0; color: #666;">Telefon</td><td style="padding: 6px 0; font-weight: bold;">${phone || "-"}</td></tr>
                 <tr><td style="padding: 6px 0; color: #666;">Trial bis</td><td style="padding: 6px 0; font-weight: bold;">${trialEndFormatted}</td></tr>

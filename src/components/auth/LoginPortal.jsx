@@ -185,6 +185,16 @@ export default function LoginPortal({
                 <p className="font-semibold text-slate-700">{hintTitle}</p>
                 <p>{hintText}</p>
               </div>
+
+              <div className="mt-4 text-center text-sm text-slate-500">
+                Noch kein Konto?{' '}
+                <a
+                  href="https://transferfleet.de"
+                  className="font-semibold text-[#1e3a5f] hover:underline"
+                >
+                  14 Tage kostenlos testen →
+                </a>
+              </div>
             </CardContent>
           </Card>
         </div>

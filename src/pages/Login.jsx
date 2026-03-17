@@ -104,6 +104,16 @@ export default function Login() {
             <span className="rounded-full border border-white/15 px-3 py-1">Rollen steuern Rechte</span>
             <span className="rounded-full border border-white/15 px-3 py-1">Sicherer Zugriff</span>
           </div>
+
+          <div className="text-center text-sm text-white/60">
+            Noch kein Konto?{' '}
+            <a
+              href="https://transferfleet.de"
+              className="font-semibold text-blue-300 hover:text-blue-200 hover:underline transition-colors"
+            >
+              14 Tage kostenlos testen →
+            </a>
+          </div>
         </div>
       </div>
     </div>
