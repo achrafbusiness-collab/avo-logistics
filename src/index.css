@@ -114,6 +114,41 @@ button:focus-visible {
 
 
 
+  .tf-dark, .tf-driver-dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 93%;
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 93%;
+    --popover: 222.2 84% 7%;
+    --popover-foreground: 210 40% 93%;
+    --primary: 210 40% 93%;
+    --primary-foreground: 222.2 84% 4.9%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 93%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 60%;
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 93%;
+    --destructive: 0 62.8% 50%;
+    --destructive-foreground: 210 40% 93%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 212.7 26.8% 45%;
+    --chart-1: 220 70% 50%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+    --sidebar-background: 222.2 84% 4.9%;
+    --sidebar-foreground: 210 40% 93%;
+    --sidebar-primary: 210 40% 93%;
+    --sidebar-primary-foreground: 222.2 84% 4.9%;
+    --sidebar-accent: 217.2 32.6% 17.5%;
+    --sidebar-accent-foreground: 210 40% 93%;
+    --sidebar-border: 217.2 32.6% 17.5%;
+    --sidebar-ring: 212.7 26.8% 45%;
+  }
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -218,16 +253,17 @@ button:focus-visible {
 
 @media (max-width: 768px) {
   .orders-list-zoom {
-    transform: scale(0.3);
-    transform-origin: top left;
-    width: calc(100% / 0.3);
+    font-size: 0.8rem;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
 }
 
 @media (max-width: 480px) {
   .orders-list-zoom {
-    transform: scale(0.3);
-    width: calc(100% / 0.3);
+    font-size: 0.75rem;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
 }
 
@@ -365,6 +401,35 @@ button:focus-visible {
 .tf-dark .bg-purple-100 { background-color: rgba(88, 28, 135, 0.3) !important; }
 .tf-dark .bg-cyan-50   { background-color: rgba(8, 145, 178, 0.2) !important; }
 .tf-dark .bg-cyan-100  { background-color: rgba(8, 145, 178, 0.25) !important; }
+.tf-dark .bg-teal-100  { background-color: rgba(13, 148, 136, 0.25) !important; }
+.tf-dark .bg-indigo-100 { background-color: rgba(67, 56, 202, 0.25) !important; }
+.tf-dark .bg-orange-100 { background-color: rgba(154, 52, 18, 0.3) !important; }
+.tf-dark .bg-emerald-100 { background-color: rgba(6, 78, 59, 0.3) !important; }
+
+/* --- Badge text colors (StatusBadge) --- */
+.tf-dark .text-blue-800    { color: #93c5fd !important; }
+.tf-dark .text-purple-800  { color: #c4b5fd !important; }
+.tf-dark .text-cyan-800    { color: #67e8f9 !important; }
+.tf-dark .text-yellow-800  { color: #fde68a !important; }
+.tf-dark .text-orange-800  { color: #fdba74 !important; }
+.tf-dark .text-teal-800    { color: #5eead4 !important; }
+.tf-dark .text-emerald-800 { color: #6ee7b7 !important; }
+.tf-dark .text-indigo-800  { color: #a5b4fc !important; }
+.tf-dark .text-red-800     { color: #fca5a5 !important; }
+.tf-dark .text-green-800   { color: #86efac !important; }
+.tf-dark .text-amber-800   { color: #fcd34d !important; }
+
+.tf-driver-dark .text-blue-800    { color: #93c5fd !important; }
+.tf-driver-dark .text-purple-800  { color: #c4b5fd !important; }
+.tf-driver-dark .text-cyan-800    { color: #67e8f9 !important; }
+.tf-driver-dark .text-yellow-800  { color: #fde68a !important; }
+.tf-driver-dark .text-orange-800  { color: #fdba74 !important; }
+.tf-driver-dark .text-teal-800    { color: #5eead4 !important; }
+.tf-driver-dark .text-emerald-800 { color: #6ee7b7 !important; }
+.tf-driver-dark .text-indigo-800  { color: #a5b4fc !important; }
+.tf-driver-dark .text-red-800     { color: #fca5a5 !important; }
+.tf-driver-dark .text-green-800   { color: #86efac !important; }
+.tf-driver-dark .text-amber-800   { color: #fcd34d !important; }
 
 /* --- Alert borders dark mode --- */
 .tf-dark .border-green-200 { border-color: rgba(34, 197, 94, 0.25) !important; }
@@ -376,6 +441,11 @@ button:focus-visible {
 .tf-dark .border-emerald-200 { border-color: rgba(16, 185, 129, 0.25) !important; }
 .tf-dark .border-purple-200 { border-color: rgba(168, 85, 247, 0.25) !important; }
 .tf-dark .border-cyan-200  { border-color: rgba(6, 182, 212, 0.25) !important; }
+.tf-dark .border-teal-200  { border-color: rgba(20, 184, 166, 0.25) !important; }
+.tf-dark .border-indigo-200 { border-color: rgba(99, 102, 241, 0.25) !important; }
+.tf-dark .border-orange-200 { border-color: rgba(249, 115, 22, 0.25) !important; }
+.tf-dark .border-yellow-200 { border-color: rgba(234, 179, 8, 0.25) !important; }
+.tf-dark .border-green-200  { border-color: rgba(34, 197, 94, 0.25) !important; }
 
 /* --- Separator --- */
 .tf-dark [data-orientation="horizontal"] { background-color: rgba(148, 163, 184, 0.12) !important; }

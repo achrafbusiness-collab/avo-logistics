@@ -1,11 +1,22 @@
 "use client";
-import { useTheme } from "next-themes"
+import { useEffect, useState } from "react"
 import { Toaster as Sonner } from "sonner"
 
 const Toaster = ({
   ...props
 }) => {
-  const { theme = "system" } = useTheme()
+  const [theme, setTheme] = useState("light");
+
+  useEffect(() => {
+    const check = () => {
+      const hasDark = document.querySelector('.tf-dark, .tf-driver-dark');
+      setTheme(hasDark ? "dark" : "light");
+    };
+    check();
+    const observer = new MutationObserver(check);
+    observer.observe(document.body, { attributes: true, subtree: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, []);
 
   return (
     (<Sonner

@@ -221,7 +221,7 @@ export default function Layout({ children, currentPageName }) {
         onMouseLeave={() => setSidebarHover(false)}
         className={`
         fixed inset-y-0 left-0 z-50
-        w-64 text-white
+        w-[85vw] max-w-64 text-white
         transform transition-transform duration-300 ease-in-out
         ${sidebarVisible ? 'translate-x-0' : '-translate-x-full'}
         bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950

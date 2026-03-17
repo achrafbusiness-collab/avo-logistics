@@ -221,69 +221,56 @@ export default function OrderDetails({
   }, [order?.customer_id, order?.customer_email, customerProtocolEmail]);
 
   useEffect(() => {
-    const loadNotes = async () => {
-      if (!order?.id) return;
-      setNotesLoading(true);
-      setNotesError('');
-      try {
-        const data = await appClient.entities.OrderNote.filter(
-          { order_id: order.id },
-          '-created_at',
-          200
-        );
-        const sorted = [...data].sort((a, b) => {
-          if (a.is_pinned === b.is_pinned) {
-            return new Date(b.created_at) - new Date(a.created_at);
-          }
+    if (!order?.id) return;
+    let cancelled = false;
+
+    setNotesLoading(true);
+    setDocsLoading(true);
+    setSegmentsLoading(true);
+    setHandoffsLoading(true);
+    setNotesError('');
+    setDocsError('');
+    setSegmentsError('');
+    setHandoffsError('');
+
+    const sortByDate = (list, dateField = 'created_date') =>
+      [...(list || [])].sort((a, b) => {
+        const aDate = new Date(a[dateField] || a.created_at || 0).getTime();
+        const bDate = new Date(b[dateField] || b.created_at || 0).getTime();
+        return aDate - bDate;
+      });
+
+    Promise.allSettled([
+      appClient.entities.OrderNote.filter({ order_id: order.id }, '-created_at', 200),
+      appClient.entities.OrderDocument.filter({ order_id: order.id }, '-created_date', 200),
+      appClient.entities.OrderSegment.filter({ order_id: order.id }, 'created_date', 200),
+      appClient.entities.OrderHandoff.filter({ order_id: order.id }, 'created_date', 200),
+    ]).then(([notesResult, docsResult, segmentsResult, handoffsResult]) => {
+      if (cancelled) return;
+
+      // Notes
+      if (notesResult.status === 'fulfilled') {
+        const sorted = [...notesResult.value].sort((a, b) => {
+          if (a.is_pinned === b.is_pinned) return new Date(b.created_at) - new Date(a.created_at);
           return a.is_pinned ? -1 : 1;
         });
         setNotes(sorted);
-      } catch (err) {
-        setNotesError(err?.message || 'Notizen konnten nicht geladen werden.');
-      } finally {
-        setNotesLoading(false);
+      } else {
+        setNotesError(notesResult.reason?.message || 'Notizen konnten nicht geladen werden.');
       }
-    };
-    loadNotes();
-  }, [order?.id]);
+      setNotesLoading(false);
 
-  useEffect(() => {
-    const loadDocuments = async () => {
-      if (!order?.id) return;
-      setDocsLoading(true);
-      setDocsError('');
-      try {
-        const list = await appClient.entities.OrderDocument.filter(
-          { order_id: order.id },
-          '-created_date',
-          200
-        );
-        setDocuments(list || []);
-      } catch (err) {
-        setDocsError(err?.message || 'Dokumente konnten nicht geladen werden.');
-      } finally {
-        setDocsLoading(false);
+      // Documents
+      if (docsResult.status === 'fulfilled') {
+        setDocuments(docsResult.value || []);
+      } else {
+        setDocsError(docsResult.reason?.message || 'Dokumente konnten nicht geladen werden.');
       }
-    };
-    loadDocuments();
-  }, [order?.id]);
+      setDocsLoading(false);
 
-  useEffect(() => {
-    const loadSegments = async () => {
-      if (!order?.id) return;
-      setSegmentsLoading(true);
-      setSegmentsError('');
-      try {
-        const list = await appClient.entities.OrderSegment.filter(
-          { order_id: order.id },
-          'created_date',
-          200
-        );
-        const sorted = [...(list || [])].sort((a, b) => {
-          const aDate = new Date(a.created_date || a.created_at || 0).getTime();
-          const bDate = new Date(b.created_date || b.created_at || 0).getTime();
-          return aDate - bDate;
-        });
+      // Segments
+      if (segmentsResult.status === 'fulfilled') {
+        const sorted = sortByDate(segmentsResult.value);
         setOrderSegments(sorted);
         setSegmentEdits((prev) => {
           const next = { ...prev };
@@ -294,39 +281,21 @@ export default function OrderDetails({
           });
           return next;
         });
-      } catch (err) {
-        setSegmentsError(err?.message || 'Zwischenstrecken konnten nicht geladen werden.');
-      } finally {
-        setSegmentsLoading(false);
+      } else {
+        setSegmentsError(segmentsResult.reason?.message || 'Zwischenstrecken konnten nicht geladen werden.');
       }
-    };
-    loadSegments();
-  }, [order?.id]);
+      setSegmentsLoading(false);
 
-  useEffect(() => {
-    const loadHandoffs = async () => {
-      if (!order?.id) return;
-      setHandoffsLoading(true);
-      setHandoffsError('');
-      try {
-        const list = await appClient.entities.OrderHandoff.filter(
-          { order_id: order.id },
-          'created_date',
-          200
-        );
-        const sorted = [...(list || [])].sort((a, b) => {
-          const aDate = new Date(a.created_date || a.created_at || 0).getTime();
-          const bDate = new Date(b.created_date || b.created_at || 0).getTime();
-          return aDate - bDate;
-        });
-        setOrderHandoffs(sorted);
-      } catch (err) {
-        setHandoffsError(err?.message || 'Zwischenabgaben konnten nicht geladen werden.');
-      } finally {
-        setHandoffsLoading(false);
+      // Handoffs
+      if (handoffsResult.status === 'fulfilled') {
+        setOrderHandoffs(sortByDate(handoffsResult.value));
+      } else {
+        setHandoffsError(handoffsResult.reason?.message || 'Zwischenabgaben konnten nicht geladen werden.');
       }
-    };
-    loadHandoffs();
+      setHandoffsLoading(false);
+    });
+
+    return () => { cancelled = true; };
   }, [order?.id]);
 
 

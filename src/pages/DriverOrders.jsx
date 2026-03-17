@@ -341,9 +341,9 @@ export default function DriverOrders() {
   return (
     <div className="p-4 space-y-4 pb-24">
       <div className="relative overflow-hidden rounded-[28px] bg-gradient-to-br from-[#0a1628] via-[#0c2e4a] to-[#134e6f] p-6 text-white shadow-xl min-h-[44vh] md:min-h-[34vh]">
-        <div className="absolute inset-0 opacity-75">
-          <div className="absolute -left-24 -top-16 h-72 w-[150%] rounded-[48%] bg-cyan-200/25 blur-3xl animate-[spin_22s_linear_infinite]" />
-          <div className="absolute -right-24 -bottom-24 h-80 w-[155%] rounded-[45%] bg-sky-100/20 blur-3xl animate-[spin_30s_linear_infinite_reverse]" />
+        <div className="absolute inset-0 overflow-hidden opacity-75">
+          <div className="absolute -left-24 -top-16 h-72 w-full rounded-[48%] bg-cyan-200/25 blur-3xl animate-[spin_22s_linear_infinite]" />
+          <div className="absolute -right-24 -bottom-24 h-80 w-full rounded-[45%] bg-sky-100/20 blur-3xl animate-[spin_30s_linear_infinite_reverse]" />
           <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-white/10 to-transparent" />
         </div>
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(255,255,255,0.25),transparent_36%),radial-gradient(circle_at_80%_30%,rgba(255,255,255,0.18),transparent_34%)]" />

@@ -417,6 +417,7 @@ export default function Orders() {
       if (error) return [];
       return data || [];
     },
+    staleTime: 5 * 60 * 1000,
   });
 
   const { data: trashedOrders = [] } = useQuery({
@@ -830,90 +831,93 @@ export default function Orders() {
       maximumFractionDigits: 2,
     });
 
-  const searchLower = searchTerm.trim().toLowerCase();
-  const dateFromBound = dateFromFilter ? new Date(`${dateFromFilter}T00:00:00`) : null;
-  const dateToBound = dateToFilter ? new Date(`${dateToFilter}T23:59:59.999`) : null;
-  const filteredOrders = orders.filter(order => {
-    const matchesSearch =
-      !searchLower ||
-      order.order_number?.toLowerCase().includes(searchLower) ||
-      order.customer_order_number?.toLowerCase().includes(searchLower) ||
-      order.license_plate?.toLowerCase().includes(searchLower) ||
-      order.vehicle_brand?.toLowerCase().includes(searchLower) ||
-      order.vehicle_model?.toLowerCase().includes(searchLower) ||
-      order.vin?.toLowerCase().includes(searchLower) ||
-      order.pickup_address?.toLowerCase().includes(searchLower) ||
-      order.pickup_city?.toLowerCase().includes(searchLower) ||
-      order.pickup_postal_code?.toLowerCase().includes(searchLower) ||
-      order.dropoff_address?.toLowerCase().includes(searchLower) ||
-      order.dropoff_city?.toLowerCase().includes(searchLower) ||
-      order.dropoff_postal_code?.toLowerCase().includes(searchLower) ||
-      order.customer_name?.toLowerCase().includes(searchLower) ||
-      order.assigned_driver_name?.toLowerCase().includes(searchLower);
-    
-    const matchesListMode =
-      listMode === 'completed'
-        ? order.status === 'completed' || order.status === 'cancelled'
-        : order.status !== 'completed' && order.status !== 'cancelled';
-    const matchesStatus =
-      statusFilter === 'all' ||
-      (statusFilter === 'in_transit'
-        ? IN_DELIVERY_STATUSES.has(order.status)
-        : getMainOrderStatus(order.status) === statusFilter);
-    
-    const matchesDriver =
-      driverFilter === 'all' || order.assigned_driver_id === driverFilter;
+  const filteredOrders = useMemo(() => {
+    const searchLower = searchTerm.trim().toLowerCase();
+    const dateFromBound = dateFromFilter ? new Date(`${dateFromFilter}T00:00:00`) : null;
+    const dateToBound = dateToFilter ? new Date(`${dateToFilter}T23:59:59.999`) : null;
 
-    const matchesCustomer = (() => {
-      if (customerFilter === 'all') return true;
-      if (customerFilter === 'none') return !order.customer_id;
-      return order.customer_id === customerFilter;
-    })();
+    return orders.filter(order => {
+      const matchesSearch =
+        !searchLower ||
+        order.order_number?.toLowerCase().includes(searchLower) ||
+        order.customer_order_number?.toLowerCase().includes(searchLower) ||
+        order.license_plate?.toLowerCase().includes(searchLower) ||
+        order.vehicle_brand?.toLowerCase().includes(searchLower) ||
+        order.vehicle_model?.toLowerCase().includes(searchLower) ||
+        order.vin?.toLowerCase().includes(searchLower) ||
+        order.pickup_address?.toLowerCase().includes(searchLower) ||
+        order.pickup_city?.toLowerCase().includes(searchLower) ||
+        order.pickup_postal_code?.toLowerCase().includes(searchLower) ||
+        order.dropoff_address?.toLowerCase().includes(searchLower) ||
+        order.dropoff_city?.toLowerCase().includes(searchLower) ||
+        order.dropoff_postal_code?.toLowerCase().includes(searchLower) ||
+        order.customer_name?.toLowerCase().includes(searchLower) ||
+        order.assigned_driver_name?.toLowerCase().includes(searchLower);
 
-    const hasExpenses = Boolean(expensesByOrder[order.id]);
-    const matchesExpenses =
-      expensesFilter === 'all' ||
-      (expensesFilter === 'with' ? hasExpenses : !hasExpenses);
+      const matchesListMode =
+        listMode === 'completed'
+          ? order.status === 'completed' || order.status === 'cancelled'
+          : order.status !== 'completed' && order.status !== 'cancelled';
+      const matchesStatus =
+        statusFilter === 'all' ||
+        (statusFilter === 'in_transit'
+          ? IN_DELIVERY_STATUSES.has(order.status)
+          : getMainOrderStatus(order.status) === statusFilter);
 
-    const dueAt = getDueDateTime(order);
-    const orderDateTime = getOrderFilterDateTime(order);
-    const now = new Date();
-    const tomorrow = addDays(now, 1);
-    const matchesDueFilter = (() => {
-      if (dueFilter === 'all') return true;
-      if (dueFilter === 'overdue') {
-        return order.status !== 'completed' && dueAt && dueAt.getTime() < now.getTime();
-      }
-      if (dueFilter === 'tomorrow') {
-        return order.status !== 'completed' && dueAt && isSameDay(dueAt, tomorrow);
-      }
-      if (dueFilter === 'open') {
-        return order.status !== 'completed';
-      }
-      if (dueFilter === 'in_transit') {
-        return IN_DELIVERY_STATUSES.has(order.status);
-      }
-      return true;
-    })();
-    const matchesDateRange = (() => {
-      if (!dateFromBound && !dateToBound) return true;
-      if (!orderDateTime) return false;
-      if (dateFromBound && orderDateTime.getTime() < dateFromBound.getTime()) return false;
-      if (dateToBound && orderDateTime.getTime() > dateToBound.getTime()) return false;
-      return true;
-    })();
-    
-    return (
-      matchesSearch &&
-      matchesStatus &&
-      matchesListMode &&
-      matchesDriver &&
-      matchesCustomer &&
-      matchesExpenses &&
-      matchesDueFilter &&
-      matchesDateRange
-    );
-  });
+      const matchesDriver =
+        driverFilter === 'all' || order.assigned_driver_id === driverFilter;
+
+      const matchesCustomer = (() => {
+        if (customerFilter === 'all') return true;
+        if (customerFilter === 'none') return !order.customer_id;
+        return order.customer_id === customerFilter;
+      })();
+
+      const hasExpenses = Boolean(expensesByOrder[order.id]);
+      const matchesExpenses =
+        expensesFilter === 'all' ||
+        (expensesFilter === 'with' ? hasExpenses : !hasExpenses);
+
+      const dueAt = getDueDateTime(order);
+      const orderDateTime = getOrderFilterDateTime(order);
+      const now = new Date();
+      const tomorrow = addDays(now, 1);
+      const matchesDueFilter = (() => {
+        if (dueFilter === 'all') return true;
+        if (dueFilter === 'overdue') {
+          return order.status !== 'completed' && dueAt && dueAt.getTime() < now.getTime();
+        }
+        if (dueFilter === 'tomorrow') {
+          return order.status !== 'completed' && dueAt && isSameDay(dueAt, tomorrow);
+        }
+        if (dueFilter === 'open') {
+          return order.status !== 'completed';
+        }
+        if (dueFilter === 'in_transit') {
+          return IN_DELIVERY_STATUSES.has(order.status);
+        }
+        return true;
+      })();
+      const matchesDateRange = (() => {
+        if (!dateFromBound && !dateToBound) return true;
+        if (!orderDateTime) return false;
+        if (dateFromBound && orderDateTime.getTime() < dateFromBound.getTime()) return false;
+        if (dateToBound && orderDateTime.getTime() > dateToBound.getTime()) return false;
+        return true;
+      })();
+
+      return (
+        matchesSearch &&
+        matchesStatus &&
+        matchesListMode &&
+        matchesDriver &&
+        matchesCustomer &&
+        matchesExpenses &&
+        matchesDueFilter &&
+        matchesDateRange
+      );
+    });
+  }, [orders, searchTerm, dateFromFilter, dateToFilter, listMode, statusFilter, driverFilter, customerFilter, expensesByOrder, expensesFilter, dueFilter]);
 
   const sortedOrders = useMemo(() => {
     const direction = dueSort === 'asc' ? 1 : -1;

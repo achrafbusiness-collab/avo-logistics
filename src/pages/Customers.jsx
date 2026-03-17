@@ -1796,8 +1796,8 @@ Gib ausschließlich strukturierte Daten zurück.`,
                     <p className="text-sm text-slate-400">Keine Rechnungsentwürfe vorhanden.</p>
                   </div>
                 ) : (
-                  <div className="max-h-[760px] overflow-auto overflow-x-auto">
-                    <table className="w-full min-w-[600px] text-sm">
+                  <div className="max-h-[760px] overflow-auto overflow-x-auto -webkit-overflow-scrolling-touch">
+                    <table className="w-full min-w-[480px] text-sm">
                       <thead>
                         <tr className="bg-[#1e3a5f] text-white text-xs uppercase tracking-wide">
                           <th className="px-4 py-3.5 text-left font-semibold">Kunde</th>
@@ -1851,8 +1851,8 @@ Gib ausschließlich strukturierte Daten zurück.`,
                     <p className="text-sm text-slate-400">Keine Rechnungen vorhanden.</p>
                   </div>
                 ) : (
-                  <div className="max-h-[760px] overflow-auto">
-                    <table className="w-full min-w-[700px] table-fixed text-sm">
+                  <div className="max-h-[760px] overflow-auto overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+                    <table className="w-full min-w-[580px] text-sm">
                       <thead className="sticky top-0 z-10">
                         <tr className="bg-[#1e3a5f] text-white text-xs uppercase tracking-wide">
                           <th className="w-[11%] px-3 py-3.5 text-left font-semibold">Rechnungsnr.</th>
