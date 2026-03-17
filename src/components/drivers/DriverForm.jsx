@@ -546,7 +546,7 @@ export default function DriverForm({ driver, onSave, onCancel }) {
 
             {/* Success Dialog after creating a new driver */}
             <Dialog open={showResultDialog} onOpenChange={setShowResultDialog}>
-              <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
+              <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100">
                     <CheckCircle2 className="h-6 w-6 text-emerald-600" />
