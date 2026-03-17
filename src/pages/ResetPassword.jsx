@@ -14,8 +14,8 @@ import {
   FormControl,
   FormMessage,
 } from "@/components/ui/form";
-import { Lock, Loader2, Mail } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Lock, Loader2, Mail, Eye, EyeOff } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
 
 const getPublicResetUrl = () => {
   const envUrl = (import.meta.env.VITE_PUBLIC_SITE_URL || "").trim();
@@ -26,12 +26,15 @@ const getPublicResetUrl = () => {
 };
 
 export default function ResetPassword() {
+  const navigate = useNavigate();
   const [hasSession, setHasSession] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [sending, setSending] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const emailForm = useForm({
     resolver: zodResolver(emailSchema),
@@ -56,8 +59,8 @@ export default function ResetPassword() {
       const { data } = await supabase.auth.getSession();
       const session = data?.session || null;
       setHasSession(!!session);
-      if (session?.user?.email) {
-        emailForm.setValue("email", (prev) => prev || session.user.email || "");
+      if (session?.user?.email && !emailForm.getValues("email")) {
+        emailForm.setValue("email", session.user.email);
       }
     };
 
@@ -185,11 +188,10 @@ export default function ResetPassword() {
     try {
       await supabase.auth.updateUser({ password: data.password });
       await activateProfile();
-      setMessage("Passwort gespeichert. Bitte jetzt einloggen.");
       await supabase.auth.signOut();
+      navigate("/login");
     } catch (err) {
       setError(err?.message || "Passwort konnte nicht gesetzt werden.");
-    } finally {
       setSaving(false);
     }
   };
@@ -235,7 +237,23 @@ export default function ResetPassword() {
                     <FormItem>
                       <FormLabel>Neues Passwort</FormLabel>
                       <FormControl>
-                        <Input {...field} type="password" placeholder="Mindestens 8 Zeichen" />
+                        <div className="relative">
+                          <Input
+                            {...field}
+                            type={showPassword ? "text" : "password"}
+                            placeholder="Mindestens 8 Zeichen"
+                            autoComplete="new-password"
+                            autoFocus
+                          />
+                          <button
+                            type="button"
+                            tabIndex={-1}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                            onClick={() => setShowPassword((v) => !v)}
+                          >
+                            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </button>
+                        </div>
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -248,7 +266,21 @@ export default function ResetPassword() {
                     <FormItem>
                       <FormLabel>Neues Passwort bestätigen</FormLabel>
                       <FormControl>
-                        <Input {...field} type="password" />
+                        <div className="relative">
+                          <Input
+                            {...field}
+                            type={showConfirm ? "text" : "password"}
+                            autoComplete="new-password"
+                          />
+                          <button
+                            type="button"
+                            tabIndex={-1}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                            onClick={() => setShowConfirm((v) => !v)}
+                          >
+                            {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </button>
+                        </div>
                       </FormControl>
                       <FormMessage />
                     </FormItem>
