@@ -546,100 +546,86 @@ export default function DriverForm({ driver, onSave, onCancel }) {
 
             {/* Success Dialog after creating a new driver */}
             <Dialog open={showResultDialog} onOpenChange={setShowResultDialog}>
-              <DialogContent className="sm:max-w-lg">
+              <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
-                  <div className="mx-auto mb-2 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100">
-                    <CheckCircle2 className="h-8 w-8 text-emerald-600" />
+                  <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100">
+                    <CheckCircle2 className="h-6 w-6 text-emerald-600" />
                   </div>
-                  <DialogTitle className="text-center text-xl">
+                  <DialogTitle className="text-center text-lg">
                     Fahrer erfolgreich angelegt!
                   </DialogTitle>
                 </DialogHeader>
 
-                <div className="space-y-4 mt-2">
+                <div className="space-y-3 mt-1">
                   {/* Driver Info */}
-                  <div className="rounded-xl bg-slate-50 border border-slate-200 p-4 space-y-3">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Fahrer-Informationen</p>
-                    <div className="grid gap-2">
-                      <div className="flex items-center gap-3">
-                        <User className="w-4 h-4 text-slate-400" />
-                        <span className="text-sm font-medium text-slate-700">
-                          {form.getValues('first_name')} {form.getValues('last_name')}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <Mail className="w-4 h-4 text-slate-400" />
-                        <span className="text-sm text-slate-700">{form.getValues('email')}</span>
-                      </div>
-                      {form.getValues('phone') && (
-                        <div className="flex items-center gap-3">
-                          <Phone className="w-4 h-4 text-slate-400" />
-                          <span className="text-sm text-slate-700">{form.getValues('phone')}</span>
-                        </div>
-                      )}
-                    </div>
+                  <div className="flex items-center gap-3 px-1">
+                    <User className="w-4 h-4 text-slate-400 shrink-0" />
+                    <span className="text-sm font-medium">
+                      {form.getValues('first_name')} {form.getValues('last_name')}
+                    </span>
+                    <span className="text-xs text-slate-400 truncate ml-auto">{form.getValues('email')}</span>
                   </div>
 
                   {/* Login Credentials */}
                   {loginResult && (
-                    <div className="rounded-xl bg-blue-50 border border-blue-200 p-4 space-y-3">
-                      <p className="text-xs font-semibold uppercase tracking-wider text-blue-400">Zugangsdaten</p>
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-3">
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Zugangsdaten</p>
 
                       {loginResult.tempPassword && (
-                        <div className="space-y-1">
-                          <p className="text-xs text-slate-500">Temporäres Passwort</p>
+                        <div>
+                          <p className="text-[11px] text-slate-400 mb-1">Temporäres Passwort</p>
                           <div className="flex items-center gap-2">
-                            <div className="flex-1 rounded-lg bg-white border border-blue-200 px-3 py-2 font-mono text-sm font-bold text-blue-700 tracking-wider">
+                            <code className="flex-1 min-w-0 rounded border border-slate-200 bg-white px-3 py-1.5 font-mono text-sm font-bold text-[#1e3a5f] tracking-wide truncate">
                               {loginResult.tempPassword}
-                            </div>
+                            </code>
                             <Button
                               type="button"
                               variant="outline"
-                              size="sm"
-                              className="shrink-0"
+                              size="icon"
+                              className="shrink-0 h-8 w-8"
                               onClick={() => copyToClipboard(loginResult.tempPassword, 'password')}
                             >
-                              {copiedField === 'password' ? <CheckCircle2 className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+                              {copiedField === 'password' ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
                             </Button>
                           </div>
                         </div>
                       )}
 
                       {loginResult.loginUrl && (
-                        <div className="space-y-1">
-                          <p className="text-xs text-slate-500">Login-URL</p>
+                        <div>
+                          <p className="text-[11px] text-slate-400 mb-1">Login-URL</p>
                           <div className="flex items-center gap-2">
-                            <div className="flex-1 rounded-lg bg-white border border-blue-200 px-3 py-2 text-xs text-blue-600 truncate">
+                            <div className="flex-1 min-w-0 rounded border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-600 truncate">
                               {loginResult.loginUrl}
                             </div>
                             <Button
                               type="button"
                               variant="outline"
-                              size="sm"
-                              className="shrink-0"
+                              size="icon"
+                              className="shrink-0 h-8 w-8"
                               onClick={() => copyToClipboard(loginResult.loginUrl, 'loginUrl')}
                             >
-                              {copiedField === 'loginUrl' ? <CheckCircle2 className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+                              {copiedField === 'loginUrl' ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
                             </Button>
                           </div>
                         </div>
                       )}
 
                       {!loginResult.emailSent && loginResult.resetLink && (
-                        <div className="space-y-1">
-                          <p className="text-xs text-slate-500">Passwort-Reset-Link</p>
+                        <div>
+                          <p className="text-[11px] text-slate-400 mb-1">Reset-Link</p>
                           <div className="flex items-center gap-2">
-                            <div className="flex-1 rounded-lg bg-white border border-blue-200 px-3 py-2 text-xs text-blue-600 truncate">
+                            <div className="flex-1 min-w-0 rounded border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-600 truncate">
                               {loginResult.resetLink}
                             </div>
                             <Button
                               type="button"
                               variant="outline"
-                              size="sm"
-                              className="shrink-0"
+                              size="icon"
+                              className="shrink-0 h-8 w-8"
                               onClick={() => copyToClipboard(loginResult.resetLink, 'resetLink')}
                             >
-                              {copiedField === 'resetLink' ? <CheckCircle2 className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+                              {copiedField === 'resetLink' ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
                             </Button>
                           </div>
                         </div>
@@ -648,34 +634,22 @@ export default function DriverForm({ driver, onSave, onCancel }) {
                   )}
 
                   {/* Email Status */}
-                  <div className={`rounded-xl border p-3 text-sm flex items-center gap-3 ${
-                    loginResult?.emailSent
-                      ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
-                      : 'bg-amber-50 border-amber-200 text-amber-700'
-                  }`}>
-                    {loginResult?.emailSent ? (
-                      <>
-                        <Mail className="w-5 h-5 flex-shrink-0" />
-                        <span>Einladungs-E-Mail wurde erfolgreich an <strong>{form.getValues('email')}</strong> gesendet.</span>
-                      </>
-                    ) : (
-                      <>
-                        <AlertCircle className="w-5 h-5 flex-shrink-0" />
-                        <span>
-                          {loginResult?.emailError
-                            ? `E-Mail konnte nicht gesendet werden: ${loginResult.emailError}`
-                            : 'E-Mail konnte nicht gesendet werden. Bitte Zugangsdaten manuell weitergeben.'}
-                        </span>
-                      </>
-                    )}
-                  </div>
+                  {loginResult?.emailSent ? (
+                    <p className="text-xs text-emerald-600 text-center">
+                      Einladungs-E-Mail an {form.getValues('email')} gesendet.
+                    </p>
+                  ) : loginResult?.emailError ? (
+                    <p className="text-xs text-amber-600 text-center">
+                      E-Mail-Versand fehlgeschlagen — bitte Zugangsdaten manuell weitergeben.
+                    </p>
+                  ) : null}
 
-                  <p className="text-xs text-center text-slate-400">
+                  <p className="text-[11px] text-center text-slate-400">
                     Status bleibt auf „Bearbeitung" bis der Fahrer sein Passwort gesetzt hat.
                   </p>
 
                   {/* Actions */}
-                  <div className="flex gap-3 pt-2">
+                  <div className="flex gap-3 pt-1">
                     <Button
                       type="button"
                       variant="outline"
