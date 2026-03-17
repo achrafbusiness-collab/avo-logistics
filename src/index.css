@@ -495,21 +495,30 @@ button:focus-visible {
 /* ── LIGHT MODE FIXES ── Better borders and contrast      */
 /* ══════════════════════════════════════════════════════════ */
 
-/* Tables in light mode: visible borders */
+/* Tables in light mode: strong visible borders */
 .tf-page-content:not(.tf-dark) table {
-  border: 1px solid #e2e8f0;
+  border: 1px solid #1e293b;
+  border-collapse: collapse;
 }
 .tf-page-content:not(.tf-dark) th {
-  background-color: #f8fafc;
-  border-bottom: 2px solid #cbd5e1;
-  color: #334155;
-  font-weight: 600;
+  background-color: #f1f5f9;
+  border-bottom: 2px solid #0f172a;
+  border-right: 1px solid #cbd5e1;
+  color: #0f172a;
+  font-weight: 700;
+}
+.tf-page-content:not(.tf-dark) th:last-child {
+  border-right: none;
 }
 .tf-page-content:not(.tf-dark) td {
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid #334155;
+  border-right: 1px solid #e2e8f0;
+}
+.tf-page-content:not(.tf-dark) td:last-child {
+  border-right: none;
 }
 .tf-page-content:not(.tf-dark) tr:hover td {
-  background-color: #f1f5f9;
+  background-color: #eff6ff;
 }
 
 /* Cards in light mode */
