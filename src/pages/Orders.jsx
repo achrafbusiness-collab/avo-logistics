@@ -305,13 +305,27 @@ export default function Orders() {
     });
   };
 
-  const openOrderDetails = (order) => {
+  const openOrderDetails = async (order) => {
     if (!order?.id) return;
     storeListScroll();
     setSelectedOrder(order);
     setView('details');
     window.history.pushState({}, '', createPageUrl('Orders') + `?id=${order.id}`);
     scrollOrderDetailsToTop(order.id);
+    // Frische Daten aus Supabase holen um sicherzustellen, dass alle Felder vorhanden sind
+    const { data: fresh } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('id', order.id)
+      .single();
+    if (fresh) {
+      setSelectedOrder(fresh);
+      // Cache aktualisieren
+      queryClient.setQueryData(['orders'], (old) => {
+        if (!Array.isArray(old)) return old;
+        return old.map((o) => (o.id === fresh.id ? fresh : o));
+      });
+    }
   };
 
   useEffect(() => {
@@ -700,11 +714,22 @@ export default function Orders() {
       setView('form');
       setSelectedOrder(null);
     } else if (urlParams.get('id')) {
-      const order = orders.find(o => o.id === urlParams.get('id'));
+      const orderId = urlParams.get('id');
+      const order = orders.find(o => o.id === orderId);
       if (order) {
         setSelectedOrder(order);
         setView('details');
         scrollOrderDetailsToTop(order.id);
+        // Frische Daten nachladen
+        supabase.from('orders').select('*').eq('id', orderId).single().then(({ data: fresh }) => {
+          if (fresh) {
+            setSelectedOrder(fresh);
+            queryClient.setQueryData(['orders'], (old) => {
+              if (!Array.isArray(old)) return old;
+              return old.map((o) => (o.id === fresh.id ? fresh : o));
+            });
+          }
+        });
       }
     }
     if (urlParams.get('status')) {

@@ -33,7 +33,7 @@ export function useRealtimeSync(table, queryKeys, options = {}) {
           const eventType = payload.eventType;
 
           if (eventType === 'UPDATE' && payload.new) {
-            // Surgically update the specific record in cache
+            // Merge new data into existing cached record (keeps fields not in payload)
             keys.forEach((key) => {
               queryClient.setQueriesData(
                 { queryKey: [key] },
@@ -42,7 +42,7 @@ export function useRealtimeSync(table, queryKeys, options = {}) {
                   const idx = oldData.findIndex((item) => item.id === payload.new.id);
                   if (idx === -1) return oldData;
                   const updated = [...oldData];
-                  updated[idx] = payload.new;
+                  updated[idx] = { ...oldData[idx], ...payload.new };
                   return updated;
                 }
               );
