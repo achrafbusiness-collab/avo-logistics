@@ -834,6 +834,19 @@ export default function Orders() {
   };
 
   const handleStatusUpdate = async (orderId, data) => {
+    // Build status history entry
+    const currentOrder = selectedOrder;
+    if (currentOrder && data.status && data.status !== currentOrder.status) {
+      const historyEntry = {
+        from: currentOrder.status,
+        to: data.status,
+        reason: data.status_override_reason || '',
+        at: new Date().toISOString(),
+        by: currentUser?.full_name || currentUser?.email || 'System',
+      };
+      const existingHistory = Array.isArray(currentOrder.status_history) ? currentOrder.status_history : [];
+      data.status_history = [...existingHistory, historyEntry];
+    }
     const updated = await appClient.entities.Order.update(orderId, data);
     setSelectedOrder(updated);
     queryClient.invalidateQueries({ queryKey: ['orders'] });

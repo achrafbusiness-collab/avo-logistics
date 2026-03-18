@@ -1,6 +1,8 @@
 const DRAFTS_KEY = 'tf:finance:invoice-drafts:v1';
 const INVOICES_KEY = 'tf:finance:invoices:v1';
 const SETTINGS_KEY = 'tf:finance:settings:v1';
+const TRASH_KEY = 'tf:finance:invoice-trash:v1';
+const TRASH_RETENTION_DAYS = 14;
 
 // Migrate data from old avo: keys to new tf: keys (one-time)
 if (typeof window !== 'undefined') {
@@ -172,10 +174,61 @@ export const updateInvoiceStatus = (invoiceId, status, options = {}) => {
   return invoices[index];
 };
 
+// Move invoice to trash instead of permanent delete
 export const deleteInvoice = (invoiceId) => {
   if (!invoiceId) return;
-  const invoices = listInvoices().filter((invoice) => invoice.id !== invoiceId);
-  writeJson(INVOICES_KEY, invoices);
+  const invoices = listInvoices();
+  const invoice = invoices.find((inv) => inv.id === invoiceId);
+  if (invoice) {
+    // Move to trash
+    const trash = listTrashedInvoices();
+    trash.unshift({
+      ...invoice,
+      deletedAt: new Date().toISOString(),
+    });
+    writeJson(TRASH_KEY, trash);
+  }
+  const remaining = invoices.filter((inv) => inv.id !== invoiceId);
+  writeJson(INVOICES_KEY, remaining);
+};
+
+// Trash management
+export const listTrashedInvoices = () => {
+  const now = Date.now();
+  const cutoff = TRASH_RETENTION_DAYS * 24 * 60 * 60 * 1000;
+  const trash = normalizeArray(readJson(TRASH_KEY, []));
+  // Auto-purge invoices older than 14 days
+  const valid = trash.filter((inv) => {
+    const deletedAt = new Date(inv.deletedAt || 0).getTime();
+    return now - deletedAt < cutoff;
+  });
+  if (valid.length !== trash.length) {
+    writeJson(TRASH_KEY, valid);
+  }
+  return valid.sort((a, b) => {
+    const aTime = new Date(b.deletedAt || 0).getTime();
+    const bTime = new Date(a.deletedAt || 0).getTime();
+    return aTime - bTime;
+  });
+};
+
+export const restoreInvoice = (invoiceId) => {
+  if (!invoiceId) return null;
+  const trash = listTrashedInvoices();
+  const invoice = trash.find((inv) => inv.id === invoiceId);
+  if (!invoice) return null;
+  // Remove deletedAt and restore
+  const { deletedAt, ...restored } = invoice;
+  upsertInvoice(restored);
+  const remaining = trash.filter((inv) => inv.id !== invoiceId);
+  writeJson(TRASH_KEY, remaining);
+  return restored;
+};
+
+export const permanentlyDeleteInvoice = (invoiceId) => {
+  if (!invoiceId) return;
+  const trash = listTrashedInvoices().filter((inv) => inv.id !== invoiceId);
+  writeJson(TRASH_KEY, trash);
 };
 
 export const finalizeDraftToInvoice = (draftId, data = {}) => {

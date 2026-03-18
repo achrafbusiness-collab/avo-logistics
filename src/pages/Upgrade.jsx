@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { appClient } from '@/api/appClient';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Check, Zap, Phone, Mail, Clock, Shield } from 'lucide-react';
+import { Check, Zap, Mail, Clock, Shield } from 'lucide-react';
 
 const FEATURES = [
   'Unbegrenzte Aufträge & Fahrer',
@@ -124,11 +124,7 @@ export default function Upgrade() {
             )}
           </div>
 
-          <div className="border-t pt-4 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-            <div className="flex items-center gap-3 text-gray-600">
-              <Phone className="w-4 h-4 text-[#1e3a5f]" />
-              <span>+49 176 123 456 78</span>
-            </div>
+          <div className="border-t pt-4 flex justify-center text-sm">
             <div className="flex items-center gap-3 text-gray-600">
               <Mail className="w-4 h-4 text-[#1e3a5f]" />
               <span>info@transferfleet.de</span>

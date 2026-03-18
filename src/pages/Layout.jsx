@@ -50,6 +50,7 @@ const adminPages = [
 export default function Layout({ children, currentPageName }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarHover, setSidebarHover] = useState(false);
+  const [accountDropdownOpen, setAccountDropdownOpen] = useState(false);
   const [user, setUser] = useState(null);
   const [isDriver, setIsDriver] = useState(false);
   const location = useLocation();
@@ -202,7 +203,7 @@ export default function Layout({ children, currentPageName }) {
   }
 
   const visibleAdminPages = adminPages.filter((item) => hasPageAccess(user, item.page));
-  const sidebarVisible = sidebarOpen || sidebarHover;
+  const sidebarVisible = sidebarOpen || sidebarHover || accountDropdownOpen;
 
   // Admin Layout
   return (
@@ -218,7 +219,7 @@ export default function Layout({ children, currentPageName }) {
       {/* Sidebar */}
       <aside
         onMouseEnter={() => setSidebarHover(true)}
-        onMouseLeave={() => setSidebarHover(false)}
+        onMouseLeave={() => { if (!accountDropdownOpen) setSidebarHover(false); }}
         className={`
         fixed inset-y-0 left-0 z-50
         w-[85vw] max-w-64 text-white
@@ -273,7 +274,7 @@ export default function Layout({ children, currentPageName }) {
 
           {user && (
             <div className="p-4 border-t border-white/10">
-              <DropdownMenu>
+              <DropdownMenu open={accountDropdownOpen} onOpenChange={setAccountDropdownOpen}>
                 <DropdownMenuTrigger asChild>
                   <button className="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all hover:bg-white/10">
                     <div className="w-8 h-8 rounded-full flex items-center justify-center bg-white/20">
@@ -319,7 +320,7 @@ export default function Layout({ children, currentPageName }) {
         }`}
       >
         {/* Top Bar */}
-        <header className={`border-b px-6 py-4 flex items-center justify-between lg:px-8 ${darkMode ? 'bg-[#0a1628] border-[#0a1628]' : 'bg-white border-slate-200'}`}>
+        <header className={`border-b px-3 py-3 sm:px-6 sm:py-4 flex items-center justify-between lg:px-8 ${darkMode ? 'bg-[#0a1628] border-[#0a1628]' : 'bg-white border-slate-200'}`}>
           <button
             onClick={() => {
               setSidebarOpen((prev) => !prev);
@@ -371,10 +372,10 @@ export default function Layout({ children, currentPageName }) {
         {/* Page Content */}
         <main
           ref={mainRef}
-          className={`flex-1 p-4 lg:p-6 overflow-auto ${darkMode ? 'bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950' : 'bg-slate-100'}`}
+          className={`flex-1 p-2 sm:p-4 lg:p-6 overflow-auto ${darkMode ? 'bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950' : 'bg-slate-100'}`}
         >
           <TrialBanner trialStatus={user?.trialStatus} />
-          <div className={`tf-page-content min-h-full p-5 lg:p-8 ${darkMode ? 'tf-dark' : 'rounded-[28px] bg-white shadow-[0_30px_60px_-40px_rgba(15,23,42,0.15)]'}`}>
+          <div className={`tf-page-content min-h-full p-3 sm:p-5 lg:p-8 ${darkMode ? 'tf-dark' : 'rounded-[28px] bg-white shadow-[0_30px_60px_-40px_rgba(15,23,42,0.15)]'}`}>
             {children}
           </div>
         </main>

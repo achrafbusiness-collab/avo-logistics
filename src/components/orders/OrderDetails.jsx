@@ -1377,6 +1377,36 @@ export default function OrderDetails({
                 <p className="text-xs text-red-600">{statusError}</p>
               )}
 
+              {/* Status-Änderungshistorie */}
+              {Array.isArray(order.status_history) && order.status_history.length > 0 && (
+                <div className="space-y-2 border-t border-slate-200 pt-3 mt-3">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Änderungsverlauf</p>
+                  <div className="space-y-1.5">
+                    {[...order.status_history].reverse().map((entry, idx) => {
+                      const fromLabel = STATUS_FLOW.find(s => s.value === entry.from)?.label || entry.from || '–';
+                      const toLabel = STATUS_FLOW.find(s => s.value === entry.to)?.label || entry.to || '–';
+                      const dateStr = entry.at ? new Date(entry.at).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+                      return (
+                        <div key={idx} className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2 text-xs">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-medium text-slate-700">
+                              {fromLabel} → {toLabel}
+                            </span>
+                            <span className="text-slate-400 shrink-0">{dateStr}</span>
+                          </div>
+                          {entry.reason && !entry.reason.startsWith('billing_override::') && (
+                            <p className="mt-1 text-slate-500">Grund: {entry.reason}</p>
+                          )}
+                          {entry.by && (
+                            <p className="text-slate-400 mt-0.5">von {entry.by}</p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {isAdmin && (
                 <Dialog open={overrideOpen} onOpenChange={setOverrideOpen}>
                   <DialogTrigger asChild>

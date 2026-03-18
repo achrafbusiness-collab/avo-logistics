@@ -29,9 +29,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import StatusBadge from '@/components/ui/StatusBadge';
 import DriverForm from '@/components/drivers/DriverForm';
-import { 
-  Plus, 
-  Search, 
+import {
+  Plus,
+  Search,
   Filter,
   Users,
   ArrowLeft,
@@ -42,7 +42,9 @@ import {
   Edit,
   Trash2,
   ExternalLink,
-  Download
+  Download,
+  CheckCircle2,
+  XCircle,
 } from 'lucide-react';
 import { createPageUrl } from '@/utils';
 
@@ -1066,7 +1068,22 @@ export default function Drivers() {
                       <p className="text-sm text-gray-500">{driver.phone}</p>
                     </div>
                   </div>
-                  <div className="flex gap-4 mt-4 pt-4 border-t text-sm">
+                  {/* Dokument-Check */}
+                  <div className="flex flex-wrap gap-2 mt-3 text-xs">
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full ${driver.license_front && driver.license_back ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-400'}`}>
+                      {driver.license_front && driver.license_back ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
+                      Führerschein
+                    </span>
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full ${driver.id_card_front && driver.id_card_back ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-400'}`}>
+                      {driver.id_card_front && driver.id_card_back ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
+                      Ausweis
+                    </span>
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full ${driver.address_confirmed ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-400'}`}>
+                      {driver.address_confirmed ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
+                      Adresse
+                    </span>
+                  </div>
+                  <div className="flex gap-4 mt-3 pt-3 border-t text-sm">
                     <div>
                       <span className="text-gray-500">Aktiv:</span>{' '}
                       <span className="font-medium text-blue-600">{stats.active}</span>

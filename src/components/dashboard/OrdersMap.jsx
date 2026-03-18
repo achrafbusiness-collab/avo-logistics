@@ -5,10 +5,7 @@ import { AlertTriangle, MapPin } from "lucide-react";
 let mapboxglModule = null;
 const loadMapbox = async () => {
   if (mapboxglModule) return mapboxglModule;
-  const [mod] = await Promise.all([
-    import("mapbox-gl"),
-    import("mapbox-gl/dist/mapbox-gl.css"),
-  ]);
+  const mod = await import("mapbox-gl");
   mapboxglModule = mod.default;
   return mapboxglModule;
 };
@@ -297,80 +294,80 @@ export default function OrdersMap({
     }
 
     let cancelled = false;
+
+    const geocodeAddress = async (address, cache) => {
+      const key = address.toLowerCase();
+      if (cache[key]) return cache[key];
+      try {
+        const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(
+          address
+        )}.json?limit=1&access_token=${token}`;
+        const response = await fetch(url);
+        if (!response.ok) return null;
+        const data = await response.json();
+        const match = data.features?.[0]?.center;
+        if (match) cache[key] = match;
+        return match || null;
+      } catch {
+        return null;
+      }
+    };
+
     const fetchRoutes = async () => {
       setLoading(true);
       setError("");
       const geocodeCache = getGeocodeCache();
       const routeCache = getRouteCache();
       const routeOrderIds = new Set(routeOrders.map((order) => order.id));
-      const results = [];
 
+      // Collect all unique addresses to geocode
+      const addressesToGeocode = new Set();
+      const orderAddresses = [];
       for (const order of mapOrders) {
         const pickup = normalizeAddress(order, "pickup");
         const dropoff = normalizeAddress(order, "dropoff");
+        if (!pickup || !dropoff) continue;
+        orderAddresses.push({ order, pickup, dropoff });
+        if (!geocodeCache[pickup.toLowerCase()]) addressesToGeocode.add(pickup);
+        if (!geocodeCache[dropoff.toLowerCase()]) addressesToGeocode.add(dropoff);
+      }
 
-        if (!pickup || !dropoff) {
-          continue;
-        }
+      // Geocode unknown addresses in parallel (batches of 5)
+      const uniqueAddresses = [...addressesToGeocode];
+      for (let i = 0; i < uniqueAddresses.length; i += 5) {
+        const batch = uniqueAddresses.slice(i, i + 5);
+        await Promise.all(batch.map((addr) => geocodeAddress(addr, geocodeCache)));
+        if (cancelled) return;
+      }
 
-        const pickupKey = pickup.toLowerCase();
-        const dropoffKey = dropoff.toLowerCase();
-
-        let start = geocodeCache[pickupKey];
-        let end = geocodeCache[dropoffKey];
-
-        if (!start) {
-          const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(
-            pickup
-          )}.json?limit=1&access_token=${token}`;
-          const response = await fetch(url);
-          const data = await response.json();
-          const match = data.features?.[0]?.center;
-          if (match) {
-            start = match;
-            geocodeCache[pickupKey] = match;
-          }
-        }
-
-        if (!end) {
-          const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(
-            dropoff
-          )}.json?limit=1&access_token=${token}`;
-          const response = await fetch(url);
-          const data = await response.json();
-          const match = data.features?.[0]?.center;
-          if (match) {
-            end = match;
-            geocodeCache[dropoffKey] = match;
-          }
-        }
-
-        if (!start || !end) {
-          continue;
-        }
+      // Build results and fetch routes
+      const results = [];
+      for (const { order, pickup, dropoff } of orderAddresses) {
+        const start = geocodeCache[pickup.toLowerCase()];
+        const end = geocodeCache[dropoff.toLowerCase()];
+        if (!start || !end) continue;
 
         const routeKey = buildRouteKey(start, end);
         const shouldFetchRoute = routeOrderIds.has(order.id);
         let geometry = shouldFetchRoute ? routeCache[routeKey] : null;
 
         if (!geometry && shouldFetchRoute) {
-          const directionsUrl = `https://api.mapbox.com/directions/v5/mapbox/driving/${start.join(
-            ","
-          )};${end.join(",")}?geometries=geojson&overview=full&access_token=${token}`;
-          const response = await fetch(directionsUrl);
-          const data = await response.json();
-          geometry = data.routes?.[0]?.geometry || null;
-          if (geometry) {
-            routeCache[routeKey] = geometry;
+          try {
+            const directionsUrl = `https://api.mapbox.com/directions/v5/mapbox/driving/${start.join(
+              ","
+            )};${end.join(",")}?geometries=geojson&overview=full&access_token=${token}`;
+            const response = await fetch(directionsUrl);
+            if (response.ok) {
+              const data = await response.json();
+              geometry = data.routes?.[0]?.geometry || null;
+              if (geometry) routeCache[routeKey] = geometry;
+            }
+          } catch {
+            // Skip failed route
           }
         }
 
-        results.push({
-          order,
-          start,
-          end,
-          geometry: geometry || null,
-        });
+        results.push({ order, start, end, geometry: geometry || null });
       }
 
       writeCache(GEOCODE_CACHE_KEY, geocodeCache);

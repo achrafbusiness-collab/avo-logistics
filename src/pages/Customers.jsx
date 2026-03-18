@@ -47,6 +47,9 @@ import {
   getFinanceSettings,
   listInvoiceDrafts,
   listInvoices,
+  listTrashedInvoices,
+  restoreInvoice,
+  permanentlyDeleteInvoice,
   saveFinanceSettings,
   updateInvoiceStatus,
 } from '@/utils/invoiceStorage';
@@ -1744,6 +1747,7 @@ Gib ausschließlich strukturierte Daten zurück.`,
                     <SelectItem value="invoices">Rechnungen</SelectItem>
                     <SelectItem value="drafts">Rechnungsentwürfe</SelectItem>
                     <SelectItem value="receivables">Offene Posten</SelectItem>
+                    <SelectItem value="trash">Zuletzt gelöscht</SelectItem>
                   </SelectContent>
                 </Select>
                 <Button
@@ -2059,6 +2063,87 @@ Gib ausschließlich strukturierte Daten zurück.`,
                 </div>
               </>
             )}
+
+            {/* Trash / Zuletzt gelöscht */}
+            {financePanel === 'trash' && (() => {
+              const trashedInvoices = listTrashedInvoices();
+              return (
+                <div className="rounded-xl overflow-hidden border border-slate-200 shadow-sm">
+                  {trashedInvoices.length === 0 ? (
+                    <div className="bg-white py-16 text-center">
+                      <Trash2 className="mx-auto h-8 w-8 text-slate-300 mb-3" />
+                      <p className="text-sm text-slate-400">Keine gelöschten Rechnungen.</p>
+                      <p className="text-xs text-slate-400 mt-1">Gelöschte Rechnungen werden hier 14 Tage aufbewahrt.</p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="bg-white px-4 py-3 border-b border-slate-100">
+                        <p className="text-xs text-slate-500">
+                          Gelöschte Rechnungen werden nach 14 Tagen automatisch endgültig entfernt.
+                        </p>
+                      </div>
+                      <div className="max-h-[760px] overflow-auto">
+                        <table className="w-full min-w-[500px] text-sm">
+                          <thead>
+                            <tr className="bg-slate-100 text-slate-600 text-xs uppercase tracking-wide">
+                              <th className="px-4 py-3 text-left font-semibold">Rechnungsnr.</th>
+                              <th className="px-4 py-3 text-left font-semibold">Kunde</th>
+                              <th className="px-4 py-3 text-left font-semibold">Gelöscht am</th>
+                              <th className="px-4 py-3 text-left font-semibold">Verbleibt</th>
+                              <th className="px-4 py-3 text-right font-semibold">Aktionen</th>
+                            </tr>
+                          </thead>
+                          <tbody className="bg-white divide-y divide-slate-100">
+                            {trashedInvoices.map((inv) => {
+                              const deletedDate = new Date(inv.deletedAt || 0);
+                              const daysLeft = Math.max(0, 14 - Math.floor((Date.now() - deletedDate.getTime()) / (1000 * 60 * 60 * 24)));
+                              return (
+                                <tr key={inv.id} className="transition-colors hover:bg-slate-50">
+                                  <td className="px-4 py-3 font-medium text-slate-700">{inv.invoiceNumber || inv.id}</td>
+                                  <td className="px-4 py-3 text-slate-600">{inv.customerName || '–'}</td>
+                                  <td className="px-4 py-3 text-slate-500 text-xs">
+                                    {deletedDate.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    <span className={`text-xs font-medium ${daysLeft <= 3 ? 'text-red-600' : 'text-slate-500'}`}>
+                                      {daysLeft} {daysLeft === 1 ? 'Tag' : 'Tage'}
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-3 text-right space-x-2">
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="h-7 text-xs border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+                                      onClick={() => {
+                                        restoreInvoice(inv.id);
+                                        setFinanceRefreshTick((t) => t + 1);
+                                      }}
+                                    >
+                                      Wiederherstellen
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="h-7 text-xs border-red-200 text-red-600 hover:bg-red-50"
+                                      onClick={() => {
+                                        permanentlyDeleteInvoice(inv.id);
+                                        setFinanceRefreshTick((t) => t + 1);
+                                      }}
+                                    >
+                                      Endgültig löschen
+                                    </Button>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </>
+                  )}
+                </div>
+              );
+            })()}
           </div>
 
           {/* ── RIGHT SIDEBAR – Customers ── */}

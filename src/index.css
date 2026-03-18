@@ -267,6 +267,31 @@ button:focus-visible {
   }
 }
 
+/* Mobile: prevent text/button overflow */
+@media (max-width: 640px) {
+  .tf-page-content {
+    overflow-x: hidden;
+    word-break: break-word;
+  }
+  .tf-page-content table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .tf-page-content h1 {
+    font-size: 1.25rem;
+  }
+  .tf-page-content h2 {
+    font-size: 1.1rem;
+  }
+  /* Ensure buttons don't overflow on small screens */
+  .tf-page-content button {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
 /* ══════════════════════════════════════════════════════════ */
 /* ── DARK MODE ── .tf-dark applied to content wrapper     */
 /* ══════════════════════════════════════════════════════════ */

@@ -205,11 +205,15 @@ export default function DriverSlots() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Fahrer-Slots</h1>
-        <p className="text-sm text-slate-500">Verwalten Sie Ihre gebuchten Fahrer-Slots.</p>
+        <p className="text-sm text-slate-500 mt-1">
+          Fahrer-Slots bestimmen, wie viele Fahrer Sie gleichzeitig in Ihrem System verwalten können.
+          Jeder Slot entspricht einem aktiven Fahrerplatz. Sie können die Anzahl Ihrer Slots jederzeit erhöhen
+          oder zum Monatsende reduzieren — so passen Sie Ihre Kapazität flexibel an Ihren Bedarf an.
+        </p>
       </div>
 
       {/* Status Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
         <Card>
           <CardContent className="p-4 text-center">
             <Users className="mx-auto mb-1 h-5 w-5 text-[#1e3a5f]" />

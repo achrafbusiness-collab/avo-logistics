@@ -458,7 +458,7 @@ export default function TeamTransferFleet() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[260px_1fr]">
+      <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-[260px_1fr]">
         <Card className="h-fit border border-slate-200">
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
@@ -734,11 +734,6 @@ export default function TeamTransferFleet() {
                 placeholder="Straße, PLZ, Stadt"
               />
             </div>
-          </div>
-          <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-600">
-            Der Mitarbeiter erhält Zugriff auf alle Seiten außer Admin Controlling.
-            Nach dem Passwort-Setup wird das Konto automatisch aktiviert und eine Willkommensmail
-            gesendet.
           </div>
           <DialogFooter>
             <Button
