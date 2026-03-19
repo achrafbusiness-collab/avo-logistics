@@ -521,13 +521,6 @@ const generateProtocolPdfFromPage = async ({ siteUrl, checklistId, authToken, qu
         });
         await applyAuthFetchOverride(page, authToken);
         await page.goto(url, { waitUntil: plan.waitUntil, timeout: 120000 });
-        // Inject company logo if provided
-        if (logoDataUrl) {
-          await page.evaluate((src) => {
-            const logo = document.querySelector('.pdf-logo');
-            if (logo) logo.src = src;
-          }, logoDataUrl).catch(() => {});
-        }
         await waitForProtocolPageReady(page, { waitForImages: plan.waitForImages });
         if (plan.optimizeImages) {
           await optimizeProtocolImagesForPdf(page, qualityPreset).catch((error) => {
@@ -535,6 +528,24 @@ const generateProtocolPdfFromPage = async ({ siteUrl, checklistId, authToken, qu
               throw error;
             }
           });
+        }
+        // Inject company logo AFTER page is fully rendered and images optimized
+        if (logoDataUrl) {
+          await page.evaluate((src) => {
+            const logos = document.querySelectorAll('.pdf-logo');
+            logos.forEach((logo) => { logo.src = src; });
+          }, logoDataUrl).catch(() => {});
+          // Wait for the logo image to load
+          await page.evaluate(() => {
+            return Promise.all(
+              Array.from(document.querySelectorAll('.pdf-logo')).map((img) =>
+                img.complete ? Promise.resolve() : new Promise((resolve) => {
+                  img.onload = resolve;
+                  img.onerror = resolve;
+                })
+              )
+            );
+          }).catch(() => {});
         }
         await waitForMs(plan.id === "safe" ? 300 : qualityPreset.renderDelayMs);
         await page.emulateMediaType("print");
