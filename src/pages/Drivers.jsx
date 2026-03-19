@@ -45,6 +45,7 @@ import {
   Download,
   CheckCircle2,
   XCircle,
+  CheckSquare,
 } from 'lucide-react';
 import { createPageUrl } from '@/utils';
 
@@ -65,18 +66,6 @@ export default function Drivers() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [selectedDriverIds, setSelectedDriverIds] = useState([]);
   const [selectionMode, setSelectionMode] = useState(false);
-
-  // Listen for selection mode toggle from Layout header
-  useEffect(() => {
-    const handleSelectionMode = (e) => setSelectionMode(e.detail);
-    const handleClearSelection = () => { setSelectedDriverIds([]); setSelectionMode(false); };
-    window.addEventListener('tf:selectionMode', handleSelectionMode);
-    window.addEventListener('tf:clearSelection', handleClearSelection);
-    return () => {
-      window.removeEventListener('tf:selectionMode', handleSelectionMode);
-      window.removeEventListener('tf:clearSelection', handleClearSelection);
-    };
-  }, []);
   const [billingRange, setBillingRange] = useState(() => {
     const now = new Date();
     const start = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -1012,6 +1001,27 @@ export default function Drivers() {
           )}
         </CardContent>
       </Card>
+
+      {/* Selection toggle */}
+      <div className="flex items-center justify-between">
+        <Button
+          variant={selectionMode ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => {
+            if (selectionMode) {
+              setSelectedDriverIds([]);
+            }
+            setSelectionMode(!selectionMode);
+          }}
+          className={selectionMode ? 'bg-[#1e3a5f] hover:bg-[#2d5a8a]' : ''}
+        >
+          <CheckSquare className="w-4 h-4 mr-1.5" />
+          {selectionMode ? 'Fertig' : 'Auswählen'}
+        </Button>
+        {selectionMode && selectedDriverIds.length > 0 && (
+          <span className="text-sm text-slate-500">{selectedDriverIds.length} ausgewählt</span>
+        )}
+      </div>
 
       {/* Driver Cards */}
       {isLoading ? (

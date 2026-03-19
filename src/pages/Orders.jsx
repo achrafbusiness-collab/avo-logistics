@@ -249,18 +249,6 @@ export default function Orders() {
   const [currentUser, setCurrentUser] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]);
   const [selectionMode, setSelectionMode] = useState(false);
-
-  // Listen for selection mode toggle from Layout header
-  useEffect(() => {
-    const handleSelectionMode = (e) => setSelectionMode(e.detail);
-    const handleClearSelection = () => { setSelectedIds([]); setSelectionMode(false); };
-    window.addEventListener('tf:selectionMode', handleSelectionMode);
-    window.addEventListener('tf:clearSelection', handleClearSelection);
-    return () => {
-      window.removeEventListener('tf:selectionMode', handleSelectionMode);
-      window.removeEventListener('tf:clearSelection', handleClearSelection);
-    };
-  }, []);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [bulkAssignCustomerOpen, setBulkAssignCustomerOpen] = useState(false);
   const [bulkCustomerBillingOpen, setBulkCustomerBillingOpen] = useState(false);
@@ -2413,7 +2401,26 @@ export default function Orders() {
         </div>
       )}
 
-      {/* Table */}
+      {/* Selection toggle + Table */}
+      <div className="flex items-center justify-between mb-2">
+        <Button
+          variant={selectionMode ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => {
+            if (selectionMode) {
+              setSelectedIds([]);
+            }
+            setSelectionMode(!selectionMode);
+          }}
+          className={selectionMode ? 'bg-[#1e3a5f] hover:bg-[#2d5a8a]' : ''}
+        >
+          <CheckSquare className="w-4 h-4 mr-1.5" />
+          {selectionMode ? 'Fertig' : 'Auswählen'}
+        </Button>
+        {selectionMode && selectedIds.length > 0 && (
+          <span className="text-sm text-slate-500">{selectedIds.length} ausgewählt</span>
+        )}
+      </div>
       <Card>
         <CardContent className="p-0">
           {isLoading ? (
