@@ -658,15 +658,29 @@ export default function Statistics() {
   const Recharts = recharts;
 
   return (
-    <div className="space-y-6">
-      <div className="relative overflow-hidden rounded-3xl bg-slate-950 text-white shadow-[0_30px_60px_-40px_rgba(15,23,42,0.8)]">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="relative overflow-hidden rounded-2xl md:rounded-3xl bg-slate-950 text-white shadow-[0_30px_60px_-40px_rgba(15,23,42,0.8)]">
         <div className="absolute -right-24 -top-24 h-56 w-56 rounded-full bg-blue-500/30 blur-3xl" />
         <div className="absolute -left-20 -bottom-20 h-56 w-56 rounded-full bg-blue-600/20 blur-3xl" />
-        <div className="relative flex flex-wrap items-center justify-between gap-4 p-6 md:p-8">
-          <div>
-            <p className="text-xs uppercase tracking-[0.35em] text-blue-200">TRANSFERFLEET</p>
-            <h1 className="mt-2 text-3xl font-semibold tracking-tight">Statistik</h1>
-            <p className="text-sm text-slate-300">Umsatz, Fahrer-Kosten und Gewinn pro Zeitraum</p>
+        <div className="relative space-y-3 p-4 sm:p-6 md:p-8">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-[10px] sm:text-xs uppercase tracking-[0.35em] text-blue-200">TRANSFERFLEET</p>
+              <h1 className="mt-1 text-xl sm:text-3xl font-semibold tracking-tight">Statistik</h1>
+              <p className="text-xs sm:text-sm text-slate-300">Umsatz, Fahrer-Kosten & Gewinn</p>
+            </div>
+            <Link to={createPageUrl('Dashboard')}>
+              <Button variant="outline" size="sm" className="shrink-0 border-white/30 bg-white/10 text-white hover:bg-white/20">
+                Zurück
+              </Button>
+            </Link>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-[10px] sm:text-xs uppercase tracking-wide text-slate-200">
+              {rangeLabel}
+            </div>
+          </div>
+          <div className="hidden md:block">
             <p className="text-xs text-slate-400">
               Umsatz wird nach Abgabedatum (Dropoff-Protokoll) ausgewertet.
             </p>
@@ -674,40 +688,31 @@ export default function Statistics() {
               Fahrer-Kosten werden nach dem Segmentdatum ausgewertet (Fallback: Auftragsdatum).
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs uppercase tracking-wide text-slate-200">
-              Zeitraum: {rangeLabel}
-            </div>
-            <Link to={createPageUrl('Dashboard')}>
-              <Button variant="outline" className="border-white/30 bg-white/10 text-white hover:bg-white/20">
-                Zurück
-              </Button>
-            </Link>
-          </div>
         </div>
       </div>
 
       <Card className="border border-slate-200/80 bg-white/90">
-        <CardContent className="space-y-4 p-4">
-          <div className="flex flex-wrap gap-2">
+        <CardContent className="space-y-3 sm:space-y-4 p-3 sm:p-4">
+          <div className="flex flex-wrap gap-1.5 sm:gap-2">
             {PERIODS.map((item) => (
               <Button
                 key={item.value}
                 size="sm"
                 variant={period === item.value ? 'default' : 'outline'}
-                className={period === item.value ? 'bg-[#1e3a5f] hover:bg-[#2d5a8a]' : ''}
+                className={`text-xs sm:text-sm px-2.5 sm:px-3 ${period === item.value ? 'bg-[#1e3a5f] hover:bg-[#2d5a8a]' : ''}`}
                 onClick={() => setPeriod(item.value)}
               >
-                <Calendar className="mr-2 h-4 w-4" />
+                <Calendar className="mr-1.5 h-3.5 w-3.5 hidden sm:inline-block" />
                 {item.label}
               </Button>
             ))}
           </div>
 
-          <div className="flex flex-wrap gap-2">
+          <div className="grid grid-cols-3 sm:flex sm:flex-wrap gap-1.5 sm:gap-2">
             <Button
               size="sm"
               variant="outline"
+              className="text-xs sm:text-sm px-2 sm:px-3"
               onClick={() => {
                 const today = new Date();
                 applyQuickRange(startOfDay(today), endOfDay(today));
@@ -718,6 +723,7 @@ export default function Statistics() {
             <Button
               size="sm"
               variant="outline"
+              className="text-xs sm:text-sm px-2 sm:px-3"
               onClick={() => {
                 const yesterday = subDays(new Date(), 1);
                 applyQuickRange(startOfDay(yesterday), endOfDay(yesterday));
@@ -728,6 +734,7 @@ export default function Statistics() {
             <Button
               size="sm"
               variant="outline"
+              className="text-xs sm:text-sm px-2 sm:px-3"
               onClick={() => {
                 const dayBefore = subDays(new Date(), 2);
                 applyQuickRange(startOfDay(dayBefore), endOfDay(dayBefore));
@@ -738,38 +745,42 @@ export default function Statistics() {
             <Button
               size="sm"
               variant="outline"
+              className="text-xs sm:text-sm px-2 sm:px-3"
               onClick={() => {
                 const now = new Date();
                 applyQuickRange(startOfWeek(now, { weekStartsOn: 1 }), endOfWeek(now, { weekStartsOn: 1 }));
               }}
             >
-              Diese Woche
+              Diese Wo.
             </Button>
             <Button
               size="sm"
               variant="outline"
+              className="text-xs sm:text-sm px-2 sm:px-3"
               onClick={() => {
                 const now = new Date();
                 const lastWeek = subDays(now, 7);
                 applyQuickRange(startOfWeek(lastWeek, { weekStartsOn: 1 }), endOfWeek(lastWeek, { weekStartsOn: 1 }));
               }}
             >
-              Letzte Woche
+              Letzte Wo.
             </Button>
             <Button
               size="sm"
               variant="outline"
+              className="text-xs sm:text-sm px-2 sm:px-3"
               onClick={() => {
                 const now = new Date();
                 applyQuickRange(startOfMonth(now), endOfMonth(now));
                 setTargetMonth(format(now, 'yyyy-MM'));
               }}
             >
-              Dieser Monat
+              Dieser Mo.
             </Button>
             <Button
               size="sm"
               variant="outline"
+              className="col-span-2 sm:col-span-1 text-xs sm:text-sm px-2 sm:px-3"
               onClick={() => {
                 const now = new Date();
                 const lastMonth = subDays(startOfMonth(now), 1);
@@ -777,63 +788,63 @@ export default function Statistics() {
                 setTargetMonth(format(lastMonth, 'yyyy-MM'));
               }}
             >
-              Letzter Monat
+              Letzter Mo.
             </Button>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="text-xs uppercase tracking-wide text-slate-500">Zeitraum</span>
-            <Input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} className="w-full sm:w-44" />
-            <span className="text-slate-500">bis</span>
-            <Input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} className="w-full sm:w-44" />
+          <div className="grid grid-cols-[auto_1fr_auto_1fr] sm:flex sm:flex-wrap items-center gap-2 sm:gap-3">
+            <span className="text-xs uppercase tracking-wide text-slate-500">Von</span>
+            <Input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} className="sm:w-44" />
+            <span className="text-xs uppercase tracking-wide text-slate-500">Bis</span>
+            <Input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} className="sm:w-44" />
           </div>
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-6">
-        <Card><CardContent className="p-5"><p className="text-xs text-slate-500">Abgeschlossene Touren</p><p className="mt-2 text-2xl font-semibold">{rows.length}</p><Truck className="mt-2 h-4 w-4 text-slate-400" /></CardContent></Card>
-        <Card><CardContent className="p-5"><p className="text-xs text-slate-500">Umsatz</p><p className="mt-2 text-2xl font-semibold">{formatCurrency(totals.revenue)}</p><TrendingUp className="mt-2 h-4 w-4 text-emerald-500" /></CardContent></Card>
+      <div className="grid grid-cols-2 gap-2 sm:gap-4 sm:grid-cols-3 lg:grid-cols-6">
+        <Card><CardContent className="p-3 sm:p-5"><p className="text-[10px] sm:text-xs text-slate-500">Touren</p><p className="mt-1 sm:mt-2 text-lg sm:text-2xl font-semibold">{rows.length}</p><Truck className="mt-1 sm:mt-2 h-4 w-4 text-slate-400" /></CardContent></Card>
+        <Card><CardContent className="p-3 sm:p-5"><p className="text-[10px] sm:text-xs text-slate-500">Umsatz</p><p className="mt-1 sm:mt-2 text-lg sm:text-2xl font-semibold">{formatCurrency(totals.revenue)}</p><TrendingUp className="mt-1 sm:mt-2 h-4 w-4 text-emerald-500" /></CardContent></Card>
         <Card>
-          <CardContent className="p-5">
-            <p className="text-xs text-slate-500">Fahrer-Kosten</p>
-            <p className="mt-2 text-2xl font-semibold">{formatCurrency(totals.cost)}</p>
-            <p className="mt-1 text-xs text-slate-500">
+          <CardContent className="p-3 sm:p-5">
+            <p className="text-[10px] sm:text-xs text-slate-500">Fahrer-Kosten</p>
+            <p className="mt-1 sm:mt-2 text-lg sm:text-2xl font-semibold">{formatCurrency(totals.cost)}</p>
+            <p className="mt-0.5 sm:mt-1 text-[10px] sm:text-xs text-slate-500">
               {costShareLabel} % vom Umsatz
             </p>
-            <Wallet className="mt-2 h-4 w-4 text-amber-500" />
+            <Wallet className="mt-1 sm:mt-2 h-4 w-4 text-amber-500" />
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-5">
-            <p className="text-xs text-slate-500">Gewinn</p>
-            <p className="mt-2 text-2xl font-semibold">{formatCurrency(totals.profit)}</p>
-            <p className="mt-1 text-xs text-slate-500">
+          <CardContent className="p-3 sm:p-5">
+            <p className="text-[10px] sm:text-xs text-slate-500">Gewinn</p>
+            <p className="mt-1 sm:mt-2 text-lg sm:text-2xl font-semibold">{formatCurrency(totals.profit)}</p>
+            <p className="mt-0.5 sm:mt-1 text-[10px] sm:text-xs text-slate-500">
               {profitShareLabel} % vom Umsatz
             </p>
-            <div className="mt-1 flex items-center gap-1 text-xs text-slate-500">
+            <div className="mt-0.5 sm:mt-1 flex items-center gap-1 text-[10px] sm:text-xs text-slate-500">
               <span>
                 Ziel: {profitTargetValue > 0 ? formatCurrency(profitTargetValue) : '—'}
               </span>
               {showSuccess ? (
-                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                <CheckCircle2 className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-emerald-500" />
               ) : null}
             </div>
             {showSuccess ? (
-              <p className="mt-1 text-xs text-emerald-600">Glückwunsch. Sie haben Ihr Ziel erreicht.</p>
+              <p className="mt-0.5 text-[10px] sm:text-xs text-emerald-600">Ziel erreicht!</p>
             ) : showFailure ? (
-              <p className="mt-1 text-xs text-red-600">
-                Sie haben Ihr Ziel dieses Monats leider nicht erreicht.
+              <p className="mt-0.5 text-[10px] sm:text-xs text-red-600">
+                Ziel nicht erreicht.
               </p>
             ) : null}
-            <Coins className="mt-2 h-4 w-4 text-blue-500" />
+            <Coins className="mt-1 sm:mt-2 h-4 w-4 text-blue-500" />
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="p-5 space-y-2">
-            <p className="text-xs text-slate-500">Monatliches Gewinnziel</p>
+        <Card className="col-span-2 sm:col-span-1">
+          <CardContent className="p-3 sm:p-5 space-y-2">
+            <p className="text-[10px] sm:text-xs text-slate-500">Monatliches Gewinnziel</p>
             <Select value={targetMonth} onValueChange={setTargetMonth}>
               <SelectTrigger className="w-full">
-                <SelectValue placeholder="Monat auswählen" />
+                <SelectValue placeholder="Monat" />
               </SelectTrigger>
               <SelectContent>
                 {monthOptions.map((month) => (
@@ -864,35 +875,35 @@ export default function Statistics() {
                 </Button>
               </div>
             ) : null}
-            <p className="text-xs text-slate-500">
-              Monatsergebnis: <span className="font-medium text-slate-700">{formatCurrency(selectedMonthProfit)}</span>
+            <p className="text-[10px] sm:text-xs text-slate-500">
+              Ergebnis: <span className="font-medium text-slate-700">{formatCurrency(selectedMonthProfit)}</span>
             </p>
           </CardContent>
         </Card>
-        <Card><CardContent className="p-5"><p className="text-xs text-slate-500">Getankt (Vorkasse)</p><p className="mt-2 text-2xl font-semibold">{formatCurrency(totals.fuelAdvance)}</p><Fuel className="mt-2 h-4 w-4 text-slate-500" /></CardContent></Card>
+        <Card><CardContent className="p-3 sm:p-5"><p className="text-[10px] sm:text-xs text-slate-500">Getankt</p><p className="mt-1 sm:mt-2 text-lg sm:text-2xl font-semibold">{formatCurrency(totals.fuelAdvance)}</p><Fuel className="mt-1 sm:mt-2 h-4 w-4 text-slate-500" /></CardContent></Card>
       </div>
 
       <Card className="border border-slate-200/80 bg-white/90">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-lg">Verlauf</CardTitle>
+        <CardHeader className="px-3 sm:px-6 pb-2">
+          <CardTitle className="text-base sm:text-lg">Verlauf</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex flex-wrap items-center gap-4 text-sm">
-            <label className="flex items-center gap-2">
+        <CardContent className="space-y-3 sm:space-y-4 px-3 sm:px-6">
+          <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs sm:text-sm">
+            <label className="flex items-center gap-1.5 sm:gap-2">
               <Checkbox checked={seriesVisible.revenue} onCheckedChange={(checked) => setSeriesVisible((prev) => ({ ...prev, revenue: Boolean(checked) }))} />
               Umsatz
             </label>
-            <label className="flex items-center gap-2">
+            <label className="flex items-center gap-1.5 sm:gap-2">
               <Checkbox checked={seriesVisible.cost} onCheckedChange={(checked) => setSeriesVisible((prev) => ({ ...prev, cost: Boolean(checked) }))} />
               Kosten
             </label>
-            <label className="flex items-center gap-2">
+            <label className="flex items-center gap-1.5 sm:gap-2">
               <Checkbox checked={seriesVisible.profit} onCheckedChange={(checked) => setSeriesVisible((prev) => ({ ...prev, profit: Boolean(checked) }))} />
               Gewinn
             </label>
           </div>
 
-          <div className="h-80">
+          <div className="h-52 sm:h-80">
             {!Recharts ? (
               <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50 text-sm text-slate-500">
                 Diagramm wird geladen...
@@ -903,20 +914,21 @@ export default function Statistics() {
               </div>
             ) : (
               <Recharts.ResponsiveContainer width="100%" height="100%">
-                <Recharts.LineChart data={chartConfig.data} margin={{ top: 8, right: 16, left: 8, bottom: 8 }}>
+                <Recharts.LineChart data={chartConfig.data} margin={{ top: 8, right: 8, left: -10, bottom: 8 }}>
                   <Recharts.CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                   <Recharts.XAxis
                     dataKey="key"
                     stroke="#64748b"
-                    tick={{ fontSize: 12 }}
+                    tick={{ fontSize: 10 }}
                     tickFormatter={(value) => chartConfig.labelMap.get(value) || value}
+                    interval="preserveStartEnd"
                   />
-                  <Recharts.YAxis stroke="#64748b" tickFormatter={(value) => `${Math.round(value)}€`} tick={{ fontSize: 12 }} />
+                  <Recharts.YAxis stroke="#64748b" tickFormatter={(value) => `${Math.round(value)}€`} tick={{ fontSize: 10 }} width={50} />
                   <Recharts.Tooltip
                     labelFormatter={(value) => chartConfig.labelMap.get(value) || value}
                     formatter={(value) => formatCurrency(Number(value || 0))}
                   />
-                  <Recharts.Legend />
+                  <Recharts.Legend wrapperStyle={{ fontSize: 11 }} />
                   {chartConfig.monthSeparators.map((separator) => (
                     <Recharts.ReferenceLine
                       key={separator.key}
@@ -927,7 +939,7 @@ export default function Statistics() {
                         value: separator.label,
                         position: 'top',
                         fill: '#94a3b8',
-                        fontSize: 11,
+                        fontSize: 10,
                       }}
                     />
                   ))}
@@ -940,13 +952,13 @@ export default function Statistics() {
                         value: "Ziel",
                         position: "right",
                         fill: "#16a34a",
-                        fontSize: 11,
+                        fontSize: 10,
                       }}
                     />
                   ) : null}
-                  {seriesVisible.revenue ? <Recharts.Line type="monotone" dataKey="revenue" name="Umsatz" stroke="#10b981" strokeWidth={2.5} dot={false} /> : null}
-                  {seriesVisible.cost ? <Recharts.Line type="monotone" dataKey="cost" name="Kosten" stroke="#f59e0b" strokeWidth={2.5} dot={false} /> : null}
-                  {seriesVisible.profit ? <Recharts.Line type="monotone" dataKey="profit" name="Gewinn" stroke="#2563eb" strokeWidth={2.5} dot={false} /> : null}
+                  {seriesVisible.revenue ? <Recharts.Line type="monotone" dataKey="revenue" name="Umsatz" stroke="#10b981" strokeWidth={2} dot={false} /> : null}
+                  {seriesVisible.cost ? <Recharts.Line type="monotone" dataKey="cost" name="Kosten" stroke="#f59e0b" strokeWidth={2} dot={false} /> : null}
+                  {seriesVisible.profit ? <Recharts.Line type="monotone" dataKey="profit" name="Gewinn" stroke="#2563eb" strokeWidth={2} dot={false} /> : null}
                 </Recharts.LineChart>
               </Recharts.ResponsiveContainer>
             )}
@@ -955,9 +967,9 @@ export default function Statistics() {
       </Card>
 
       <Card className="border border-slate-200/80 bg-white/90">
-        <CardHeader className="pb-2">
-          <div className="flex items-center justify-between gap-4">
-            <CardTitle className="text-lg">Aufträge im Zeitraum</CardTitle>
+        <CardHeader className="px-3 sm:px-6 pb-2">
+          <div className="flex items-center justify-between gap-2">
+            <CardTitle className="text-base sm:text-lg">Aufträge im Zeitraum</CardTitle>
             <Button
               type="button"
               variant="ghost"
@@ -972,12 +984,12 @@ export default function Statistics() {
           </div>
         </CardHeader>
         {ordersOpen && (
-        <CardContent className="space-y-4">
-          <div className="relative max-w-md">
+        <CardContent className="space-y-3 sm:space-y-4 px-3 sm:px-6">
+          <div className="relative w-full sm:max-w-md">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <Input
               className="pl-9"
-              placeholder="Auftrag, Kennzeichen, Kunde oder Route suchen"
+              placeholder="Suchen..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -1085,9 +1097,9 @@ export default function Statistics() {
       </Card>
 
       <Card className="border border-slate-200/80 bg-white/90">
-        <CardHeader className="pb-2">
-          <div className="flex items-center justify-between gap-4">
-            <CardTitle className="text-lg">Fahrer-Kosten im Zeitraum</CardTitle>
+        <CardHeader className="px-3 sm:px-6 pb-2">
+          <div className="flex items-center justify-between gap-2">
+            <CardTitle className="text-base sm:text-lg">Fahrer-Kosten im Zeitraum</CardTitle>
             <Button
               type="button"
               variant="ghost"
@@ -1102,7 +1114,7 @@ export default function Statistics() {
           </div>
         </CardHeader>
         {driverCostsOpen && (
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-3 sm:space-y-4 px-3 sm:px-6">
           {loading ? (
             <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
               Fahrer-Kosten werden geladen...
