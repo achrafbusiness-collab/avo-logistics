@@ -669,13 +669,13 @@ export default function OrderDetails({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 orders-list-zoom">
       {/* Header */}
       <Card>
-        <CardHeader className="flex flex-row items-start justify-between">
+        <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <div className="flex items-center gap-3 mb-2">
-              <CardTitle className="text-2xl">{order.order_number}</CardTitle>
+              <CardTitle className="text-xl sm:text-2xl">{order.order_number}</CardTitle>
               <StatusBadge status={order.status} />
             </div>
             <p className="text-gray-500">
@@ -687,7 +687,7 @@ export default function OrderDetails({
               </p>
             )}
           </div>
-          <div className="flex flex-wrap justify-end gap-2">
+          <div className="flex flex-wrap gap-2">
             <Dialog open={protocolDialogOpen} onOpenChange={setProtocolDialogOpen}>
               <DialogTrigger asChild>
                 <Button size="sm" className="bg-[#1e3a5f] hover:bg-[#2d5a8a]" disabled={!protocolChecklistId}>
@@ -1010,7 +1010,7 @@ export default function OrderDetails({
                 </div>
 
                 {distanceKm !== null && (
-                  <div className="flex items-center justify-center">
+                  <div className="flex items-center justify-center py-2 md:py-0">
                     <div className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-center">
                       <p className="text-xs uppercase tracking-wide text-slate-500">Strecke</p>
                       <p className="text-lg font-semibold text-[#1e3a5f]">{distanceKm} km</p>
@@ -1062,7 +1062,7 @@ export default function OrderDetails({
                   Kunde
                 </CardTitle>
               </CardHeader>
-              <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <CardContent className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                 <InfoRow label="Name" value={order.customer_name} icon={User} />
                 <InfoRow label="Telefon" value={order.customer_phone} icon={Phone} />
                 <InfoRow label="E-Mail" value={order.customer_email} icon={Mail} />
