@@ -143,6 +143,9 @@ export const sendCustomerProtocolInBackground = ({
 
       // Senden — nutze die alte send-driver-assignment API die funktioniert
       emit({ id: `cp-send-${Date.now()}`, type: "info", message: `Sende an ${targetEmail}...` });
+      // Logo aus Finance-Settings für PDF mitschicken
+      const logoDataUrl = getFinanceSettings()?.invoiceProfile?.logoDataUrl || "";
+
       const res = await fetch("/api/admin/send-driver-assignment", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -152,6 +155,7 @@ export const sendCustomerProtocolInBackground = ({
           protocolChecklistId,
           customerProtocolEmail: targetEmail,
           customerProtocolQuality: "normal",
+          companyLogoDataUrl: logoDataUrl,
           // Fallback: Wenn Server-PDF fehlschlaegt, sende HTML
           htmlFallback: htmlBody,
         }),

@@ -227,7 +227,7 @@ const getProtocolQualityFallbackOrder = (quality) => {
   return fallbackOrder;
 };
 
-const renderProtocolPdfWithFallback = async ({ siteUrl, checklistId, authToken, quality }) => {
+const renderProtocolPdfWithFallback = async ({ siteUrl, checklistId, authToken, quality, logoDataUrl }) => {
   const qualityAttempts = getProtocolQualityFallbackOrder(quality);
   const renderErrors = [];
   for (const nextQuality of qualityAttempts) {
@@ -237,6 +237,7 @@ const renderProtocolPdfWithFallback = async ({ siteUrl, checklistId, authToken, 
         checklistId,
         authToken,
         quality: nextQuality,
+        logoDataUrl,
       });
       return attachment;
     } catch (error) {
@@ -491,7 +492,7 @@ const waitForProtocolPageReady = async (page, { waitForImages }) => {
   });
 };
 
-const generateProtocolPdfFromPage = async ({ siteUrl, checklistId, authToken, quality }) => {
+const generateProtocolPdfFromPage = async ({ siteUrl, checklistId, authToken, quality, logoDataUrl }) => {
   const qualityPreset = getProtocolQualityPreset(quality);
   const renderPlans = [
     { id: "full", waitUntil: "load", waitForImages: true, optimizeImages: true },
@@ -520,6 +521,13 @@ const generateProtocolPdfFromPage = async ({ siteUrl, checklistId, authToken, qu
         });
         await applyAuthFetchOverride(page, authToken);
         await page.goto(url, { waitUntil: plan.waitUntil, timeout: 120000 });
+        // Inject company logo if provided
+        if (logoDataUrl) {
+          await page.evaluate((src) => {
+            const logo = document.querySelector('.pdf-logo');
+            if (logo) logo.src = src;
+          }, logoDataUrl).catch(() => {});
+        }
         await waitForProtocolPageReady(page, { waitForImages: plan.waitForImages });
         if (plan.optimizeImages) {
           await optimizeProtocolImagesForPdf(page, qualityPreset).catch((error) => {
@@ -769,6 +777,7 @@ ${contactHtmlBlock}
       customerContactWebsite,
       invoiceFileName,
       invoicePdfBase64,
+      companyLogoDataUrl,
     } = body || {};
 
     if (testEmail) {
@@ -1219,6 +1228,7 @@ ${companyName}`;
           checklistId: selectedChecklistId,
           authToken: serviceRoleKey,
           quality: customerProtocolQuality,
+          logoDataUrl: companyLogoDataUrl || "",
         });
       } catch (renderError) {
         res.status(500).json({
