@@ -1018,6 +1018,23 @@ export default function Drivers() {
           <CheckSquare className="w-4 h-4 mr-1.5" />
           {selectionMode ? 'Fertig' : 'Auswählen'}
         </Button>
+        {selectionMode && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              const allIds = filteredDrivers.map((d) => d.id);
+              const allSelected = allIds.length > 0 && allIds.every((id) => selectedDriverIds.includes(id));
+              if (allSelected) {
+                setSelectedDriverIds([]);
+              } else {
+                setSelectedDriverIds(allIds);
+              }
+            }}
+          >
+            {filteredDrivers.length > 0 && filteredDrivers.every((d) => selectedDriverIds.includes(d.id)) ? 'Alle abwählen' : 'Alle auswählen'}
+          </Button>
+        )}
         {selectionMode && selectedDriverIds.length > 0 && (
           <span className="text-sm text-slate-500">{selectedDriverIds.length} ausgewählt</span>
         )}
