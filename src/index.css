@@ -158,6 +158,15 @@ button:focus-visible {
   }
 }
 
+/* ── Hide scrollbar utility ── */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
 /* ── Micro-interaction animations ── */
 
 /* Copy button pop: scale up briefly when copy succeeds */

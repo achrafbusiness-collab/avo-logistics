@@ -783,9 +783,9 @@ export default function Statistics() {
 
           <div className="flex flex-wrap items-center gap-3">
             <span className="text-xs uppercase tracking-wide text-slate-500">Zeitraum</span>
-            <Input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} className="w-44" />
+            <Input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} className="w-full sm:w-44" />
             <span className="text-slate-500">bis</span>
-            <Input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} className="w-44" />
+            <Input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} className="w-full sm:w-44" />
           </div>
         </CardContent>
       </Card>
@@ -992,45 +992,93 @@ export default function Statistics() {
               Keine passenden Aufträge gefunden.
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-sm">
-                <thead>
-                  <tr className="border-b border-slate-200 text-left text-slate-500">
-                    <th className="px-3 py-2 font-medium">Auftrag</th>
-                    <th className="px-3 py-2 font-medium">Datum</th>
-                    <th className="px-3 py-2 font-medium">Strecke</th>
-                    <th className="px-3 py-2 font-medium">Auftragspreis</th>
-                    <th className="px-3 py-2 font-medium">Fahrer-Kosten</th>
-                    <th className="px-3 py-2 font-medium">Gewinn</th>
-                    <th className="px-3 py-2 font-medium">Getankt (Vorkasse)</th>
-                    <th className="px-3 py-2 font-medium"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredRows.map((row) => (
-                    <tr
-                      key={row.id}
-                      className="cursor-pointer border-b border-slate-100 hover:bg-slate-50"
-                      onClick={() => setSelectedOrder(row)}
-                    >
-                      <td className="px-3 py-3">
+            <>
+              {/* Mobile: Card Layout */}
+              <div className="space-y-3 md:hidden">
+                {filteredRows.map((row) => (
+                  <div
+                    key={row.id}
+                    className="cursor-pointer rounded-lg border border-slate-200 bg-white p-4 shadow-sm active:bg-slate-50"
+                    onClick={() => setSelectedOrder(row)}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
                         <p className="font-semibold text-slate-900">{row.orderNumber}</p>
-                        <p className="text-xs text-slate-500">{row.route}</p>
-                      </td>
-                      <td className="px-3 py-3 text-slate-600">{format(row.date, 'dd.MM.yyyy')}</td>
-                      <td className="px-3 py-3 text-slate-600">{row.distanceKm ? `${row.distanceKm} km` : '-'}</td>
-                      <td className="px-3 py-3 font-medium text-emerald-700">{formatCurrency(row.revenue)}</td>
-                      <td className="px-3 py-3 font-medium text-amber-700">{formatCurrency(row.cost)}</td>
-                      <td className="px-3 py-3 font-medium text-blue-700">{formatCurrency(row.profit)}</td>
-                      <td className="px-3 py-3 text-slate-700">{formatCurrency(row.fuelAdvance)}</td>
-                      <td className="px-3 py-3 text-right">
-                        <ArrowRight className="h-4 w-4 text-slate-400" />
-                      </td>
+                        <p className="truncate text-xs text-slate-500">{row.route}</p>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1 text-xs text-slate-500">
+                        {format(row.date, 'dd.MM.yy')}
+                        <ArrowRight className="h-3.5 w-3.5 text-slate-400" />
+                      </div>
+                    </div>
+                    <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                      <div>
+                        <p className="text-xs text-slate-500">Auftragspreis</p>
+                        <p className="font-medium text-emerald-700">{formatCurrency(row.revenue)}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-500">Fahrer-Kosten</p>
+                        <p className="font-medium text-amber-700">{formatCurrency(row.cost)}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-500">Gewinn</p>
+                        <p className="font-medium text-blue-700">{formatCurrency(row.profit)}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-500">Strecke</p>
+                        <p className="font-medium text-slate-700">{row.distanceKm ? `${row.distanceKm} km` : '-'}</p>
+                      </div>
+                    </div>
+                    {row.fuelAdvance > 0 && (
+                      <div className="mt-2 text-xs text-slate-500">
+                        Getankt: <span className="font-medium text-slate-700">{formatCurrency(row.fuelAdvance)}</span>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop: Table Layout */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="min-w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-left text-slate-500">
+                      <th className="px-3 py-2 font-medium">Auftrag</th>
+                      <th className="px-3 py-2 font-medium">Datum</th>
+                      <th className="px-3 py-2 font-medium">Strecke</th>
+                      <th className="px-3 py-2 font-medium">Auftragspreis</th>
+                      <th className="px-3 py-2 font-medium">Fahrer-Kosten</th>
+                      <th className="px-3 py-2 font-medium">Gewinn</th>
+                      <th className="px-3 py-2 font-medium">Getankt (Vorkasse)</th>
+                      <th className="px-3 py-2 font-medium"></th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {filteredRows.map((row) => (
+                      <tr
+                        key={row.id}
+                        className="cursor-pointer border-b border-slate-100 hover:bg-slate-50"
+                        onClick={() => setSelectedOrder(row)}
+                      >
+                        <td className="px-3 py-3">
+                          <p className="font-semibold text-slate-900">{row.orderNumber}</p>
+                          <p className="text-xs text-slate-500">{row.route}</p>
+                        </td>
+                        <td className="px-3 py-3 text-slate-600">{format(row.date, 'dd.MM.yyyy')}</td>
+                        <td className="px-3 py-3 text-slate-600">{row.distanceKm ? `${row.distanceKm} km` : '-'}</td>
+                        <td className="px-3 py-3 font-medium text-emerald-700">{formatCurrency(row.revenue)}</td>
+                        <td className="px-3 py-3 font-medium text-amber-700">{formatCurrency(row.cost)}</td>
+                        <td className="px-3 py-3 font-medium text-blue-700">{formatCurrency(row.profit)}</td>
+                        <td className="px-3 py-3 text-slate-700">{formatCurrency(row.fuelAdvance)}</td>
+                        <td className="px-3 py-3 text-right">
+                          <ArrowRight className="h-4 w-4 text-slate-400" />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </CardContent>
         )}
@@ -1064,7 +1112,41 @@ export default function Statistics() {
               Keine Fahrer-Kosten im ausgewählten Zeitraum.
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <>
+              {/* Mobile: Card Layout */}
+              <div className="space-y-3 md:hidden">
+                {driverCostRows.map((row) => (
+                  <div
+                    key={row.id}
+                    className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-semibold text-slate-800">{row.driverName}</p>
+                        <p className="truncate text-xs text-slate-500">{row.route}</p>
+                      </div>
+                      <span className="shrink-0 text-xs text-slate-500">{format(row.date, 'dd.MM.yy')}</span>
+                    </div>
+                    <div className="mt-3 grid grid-cols-3 gap-2 text-sm">
+                      <div>
+                        <p className="text-xs text-slate-500">Kennzeichen</p>
+                        <p className="font-medium text-slate-700">{row.licensePlate}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-500">Strecke</p>
+                        <p className="font-medium text-slate-700">{row.distanceKm ? `${row.distanceKm} km` : '-'}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-500">Kosten</p>
+                        <p className="font-medium text-amber-700">{formatCurrency(row.cost)}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop: Table Layout */}
+              <div className="hidden md:block overflow-x-auto">
               <table className="min-w-full text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 text-left text-slate-500">
@@ -1095,7 +1177,8 @@ export default function Statistics() {
                   ))}
                 </tbody>
               </table>
-            </div>
+              </div>
+            </>
           )}
         </CardContent>
         )}

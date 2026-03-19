@@ -308,28 +308,29 @@ export default function Settings() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 rounded-lg bg-slate-100 p-1 overflow-x-auto">
+      <div className="flex gap-1 rounded-lg bg-slate-100 p-1 overflow-x-auto scrollbar-hide -mx-1 px-1">
         {TABS.map((tab) => {
           const Icon = tab.icon;
           return (
             <button
               key={tab.key}
               onClick={() => handleTabChange(tab.key)}
-              className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium whitespace-nowrap transition-all ${
+              className={`flex items-center gap-1.5 sm:gap-2 rounded-md px-3 sm:px-4 py-2.5 sm:py-2 text-xs sm:text-sm font-medium whitespace-nowrap transition-all ${
                 activeTab === tab.key
                   ? 'bg-white text-slate-900 shadow-sm'
                   : 'text-slate-500 hover:text-slate-700'
               }`}
             >
-              <Icon className="w-4 h-4" />
-              {tab.label}
+              <Icon className="w-4 h-4 shrink-0" />
+              <span className="hidden sm:inline">{tab.label}</span>
+              <span className="sm:hidden">{tab.key === 'company' ? 'Firma' : tab.key === 'billing' ? 'Rechnung' : tab.key === 'imap' ? 'IMAP' : 'Recht'}</span>
             </button>
           );
         })}
       </div>
 
       <Card>
-        <CardContent className="p-6 space-y-6">
+        <CardContent className="p-4 sm:p-6 space-y-6">
 
           {/* === FIRMA === */}
           {activeTab === 'company' && (
@@ -396,8 +397,8 @@ export default function Settings() {
               </Button>
 
               {showPreview && (
-                <div className="rounded-lg border-2 border-slate-200 bg-white p-6 text-sm space-y-4 shadow-inner">
-                  <div className="flex items-start justify-between">
+                <div className="rounded-lg border-2 border-slate-200 bg-white p-4 sm:p-6 text-sm space-y-4 shadow-inner">
+                  <div className="flex flex-col sm:flex-row items-start gap-3 sm:justify-between">
                     <div>
                       {billing.logoDataUrl && <img src={billing.logoDataUrl} alt="Logo" className="h-10 mb-2" />}
                       <p className="font-bold text-base">{billing.companyName || 'Firmenname'}{billing.companySuffix ? ` ${billing.companySuffix}` : ''}</p>
@@ -406,7 +407,7 @@ export default function Settings() {
                       {billing.phone && <p className="text-slate-500 text-xs">Tel: {billing.phone}</p>}
                       {billing.email && <p className="text-slate-500 text-xs">{billing.email}</p>}
                     </div>
-                    <div className="text-right">
+                    <div className="text-left sm:text-right">
                       <p className="font-bold text-lg text-[#1e3a5f]">RECHNUNG</p>
                       <p className="text-xs text-slate-400">Nr. {billing.invoicePrefix || 'TF'}-{billing.nextInvoiceNumber || '1000'}</p>
                       <p className="text-xs text-slate-400">Datum: {new Date().toLocaleDateString('de-DE')}</p>
@@ -433,7 +434,7 @@ export default function Settings() {
                       <span>Gesamt</span><span>{(370 * (1 + (billing.defaultVatRate || 19) / 100)).toFixed(2)} €</span>
                     </div>
                   </div>
-                  <div className="border-t pt-3 text-[10px] text-slate-400 grid grid-cols-3 gap-4">
+                  <div className="border-t pt-3 text-[10px] text-slate-400 grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4">
                     <div>
                       {billing.taxNumber && <p>St-Nr: {billing.taxNumber}</p>}
                       {billing.vatId && <p>USt-ID: {billing.vatId}</p>}
@@ -453,20 +454,20 @@ export default function Settings() {
               )}
 
               {/* Logo */}
-              <div className="flex items-center gap-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
                 {billing.logoDataUrl ? (
                   <img src={billing.logoDataUrl} alt="Logo" className="h-16 max-w-[200px] object-contain rounded border p-1" />
                 ) : (
                   <div className="h-16 w-32 rounded border-2 border-dashed border-slate-200 flex items-center justify-center text-xs text-slate-400">Kein Logo</div>
                 )}
-                <div>
+                <div className="flex flex-wrap items-center gap-2">
                   <input ref={logoInputRef} type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
                   <Button variant="outline" size="sm" onClick={() => logoInputRef.current?.click()} disabled={logoUploading}>
                     <Image className="w-4 h-4 mr-1.5" />
                     {logoUploading ? 'Lädt...' : billing.logoDataUrl ? 'Logo ändern' : 'Logo hochladen'}
                   </Button>
                   {billing.logoDataUrl && (
-                    <Button variant="ghost" size="sm" className="ml-2 text-red-500" onClick={() => setBilling((p) => ({ ...p, logoDataUrl: '' }))}>
+                    <Button variant="ghost" size="sm" className="text-red-500" onClick={() => setBilling((p) => ({ ...p, logoDataUrl: '' }))}>
                       Entfernen
                     </Button>
                   )}
@@ -555,7 +556,7 @@ export default function Settings() {
 
               <Separator />
               <h3 className="font-semibold text-slate-700">Rechnungseinstellungen</h3>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <div>
                   <Label>Rechnungspräfix</Label>
                   <Input value={billing.invoicePrefix || ''} onChange={(e) => setBilling((p) => ({ ...p, invoicePrefix: e.target.value }))} placeholder="TF" />
@@ -641,7 +642,7 @@ export default function Settings() {
 
           {/* Save Bar */}
           <Separator />
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-3">
             <div>
               {saved && (
                 <span className="flex items-center gap-1.5 text-sm text-green-600">
@@ -654,7 +655,7 @@ export default function Settings() {
                 </span>
               )}
             </div>
-            <Button onClick={handleSave} disabled={saving} className="bg-[#1e3a5f] hover:bg-[#2d5a8a]">
+            <Button onClick={handleSave} disabled={saving} className="bg-[#1e3a5f] hover:bg-[#2d5a8a] w-full sm:w-auto">
               {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
               Alle Einstellungen speichern
             </Button>
