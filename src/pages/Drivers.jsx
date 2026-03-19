@@ -64,6 +64,19 @@ export default function Drivers() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [selectedDriverIds, setSelectedDriverIds] = useState([]);
+  const [selectionMode, setSelectionMode] = useState(false);
+
+  // Listen for selection mode toggle from Layout header
+  useEffect(() => {
+    const handleSelectionMode = (e) => setSelectionMode(e.detail);
+    const handleClearSelection = () => { setSelectedDriverIds([]); setSelectionMode(false); };
+    window.addEventListener('tf:selectionMode', handleSelectionMode);
+    window.addEventListener('tf:clearSelection', handleClearSelection);
+    return () => {
+      window.removeEventListener('tf:selectionMode', handleSelectionMode);
+      window.removeEventListener('tf:clearSelection', handleClearSelection);
+    };
+  }, []);
   const [billingRange, setBillingRange] = useState(() => {
     const now = new Date();
     const start = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -1037,24 +1050,25 @@ export default function Drivers() {
             return (
               <Card 
                 key={driver.id}
-                className="cursor-pointer hover:shadow-lg transition-shadow relative"
+                className={`cursor-pointer hover:shadow-lg transition-shadow relative ${selectionMode && isSelected ? 'ring-2 ring-[#1e3a5f]' : ''}`}
                 onClick={() => {
-                  setSelectedDriver(driver);
-                  setView('details');
-                  window.history.pushState({}, '', createPageUrl('Drivers') + `?id=${driver.id}`);
+                  if (selectionMode) {
+                    toggleDriverSelection(driver.id);
+                  } else {
+                    setSelectedDriver(driver);
+                    setView('details');
+                    window.history.pushState({}, '', createPageUrl('Drivers') + `?id=${driver.id}`);
+                  }
                 }}
               >
                 <CardContent className="p-6">
-                  <div className="absolute top-3 right-3">
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      onChange={() => toggleDriverSelection(driver.id)}
-                      onClick={(event) => event.stopPropagation()}
-                      className="h-4 w-4 accent-[#1e3a5f]"
-                      aria-label="Fahrer auswählen"
-                    />
-                  </div>
+                  {selectionMode && (
+                    <div className="absolute top-3 right-3">
+                      <div className={`w-6 h-6 rounded border-2 flex items-center justify-center ${isSelected ? 'bg-[#1e3a5f] border-[#1e3a5f] text-white' : 'border-slate-300 bg-white'}`}>
+                        {isSelected && <span className="text-xs font-bold">✓</span>}
+                      </div>
+                    </div>
+                  )}
                   <div className="flex items-start gap-4">
                     <div className="w-12 h-12 bg-[#1e3a5f] text-white rounded-full flex items-center justify-center font-bold text-lg flex-shrink-0">
                       {driver.first_name?.charAt(0) || 'F'}

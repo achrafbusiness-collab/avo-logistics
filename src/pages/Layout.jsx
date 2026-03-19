@@ -19,6 +19,7 @@ import {
   Search,
   Moon,
   Sun,
+  CheckSquare,
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import {
@@ -61,6 +62,21 @@ export default function Layout({ children, currentPageName }) {
     if (saved !== null) return JSON.parse(saved);
     return true;
   });
+  const [selectionMode, setSelectionMode] = useState(false);
+
+  const showSelectButton = ['Orders', 'Drivers'].includes(currentPageName);
+
+  // Reset selection mode when navigating away from Orders/Drivers
+  useEffect(() => {
+    if (!showSelectButton) {
+      setSelectionMode(false);
+    }
+  }, [currentPageName, showSelectButton]);
+
+  // Broadcast selection mode changes to child pages
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent('tf:selectionMode', { detail: selectionMode }));
+  }, [selectionMode]);
 
   useEffect(() => {
     localStorage.setItem('tf-dark-mode', JSON.stringify(darkMode));
@@ -350,6 +366,27 @@ export default function Layout({ children, currentPageName }) {
               <span>Suchen…</span>
               <kbd className={`font-mono text-[10px] px-1 py-0.5 rounded ${darkMode ? 'bg-white/15 text-white' : 'bg-slate-100 text-slate-500'}`}>⌘K</kbd>
             </Button>
+
+            {showSelectButton && (
+              <Button
+                variant={selectionMode ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => {
+                  const next = !selectionMode;
+                  setSelectionMode(next);
+                  if (!next) {
+                    window.dispatchEvent(new CustomEvent('tf:clearSelection'));
+                  }
+                }}
+                className={selectionMode
+                  ? 'bg-[#1e3a5f] hover:bg-[#2d5a8a] text-white'
+                  : darkMode ? 'text-white/70 hover:bg-white/10 hover:text-white' : 'text-slate-500 hover:bg-gray-100'
+                }
+              >
+                <CheckSquare className="w-4 h-4 mr-1.5" />
+                <span className="hidden sm:inline">{selectionMode ? 'Fertig' : 'Auswählen'}</span>
+              </Button>
+            )}
 
             <NotificationBell />
 

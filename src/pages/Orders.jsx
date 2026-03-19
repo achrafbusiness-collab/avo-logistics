@@ -66,6 +66,7 @@ import {
   Download,
   Trash2,
   RotateCcw,
+  CheckSquare,
 } from 'lucide-react';
 
 const DELIVERY_MAIN_STATUS = 'in_transit';
@@ -247,6 +248,19 @@ export default function Orders() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]);
+  const [selectionMode, setSelectionMode] = useState(false);
+
+  // Listen for selection mode toggle from Layout header
+  useEffect(() => {
+    const handleSelectionMode = (e) => setSelectionMode(e.detail);
+    const handleClearSelection = () => { setSelectedIds([]); setSelectionMode(false); };
+    window.addEventListener('tf:selectionMode', handleSelectionMode);
+    window.addEventListener('tf:clearSelection', handleClearSelection);
+    return () => {
+      window.removeEventListener('tf:selectionMode', handleSelectionMode);
+      window.removeEventListener('tf:clearSelection', handleClearSelection);
+    };
+  }, []);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [bulkAssignCustomerOpen, setBulkAssignCustomerOpen] = useState(false);
   const [bulkCustomerBillingOpen, setBulkCustomerBillingOpen] = useState(false);
@@ -2467,8 +2481,14 @@ export default function Orders() {
                     return (
                       <div
                         key={order.id}
-                        className={`p-4 ${rowTone} cursor-pointer`}
-                        onClick={() => openOrderDetails(order)}
+                        className={`p-4 ${rowTone} cursor-pointer ${selectionMode && selectedIds.includes(order.id) ? 'ring-2 ring-[#1e3a5f] ring-inset' : ''}`}
+                        onClick={() => {
+                          if (selectionMode) {
+                            toggleSelect(order.id, !selectedIds.includes(order.id));
+                          } else {
+                            openOrderDetails(order);
+                          }
+                        }}
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div>
@@ -2483,12 +2503,11 @@ export default function Orders() {
                             ) : null}
                             <p className="text-sm text-slate-500">{order.license_plate}</p>
                           </div>
-                          <div onClick={(event) => event.stopPropagation()}>
-                            <Checkbox
-                              checked={selectedIds.includes(order.id)}
-                              onCheckedChange={(checked) => toggleSelect(order.id, Boolean(checked))}
-                            />
-                          </div>
+                          {selectionMode && (
+                            <div className={`w-6 h-6 rounded border-2 flex items-center justify-center shrink-0 ${selectedIds.includes(order.id) ? 'bg-[#1e3a5f] border-[#1e3a5f] text-white' : 'border-slate-300 bg-white'}`}>
+                              {selectedIds.includes(order.id) && <CheckSquare className="w-4 h-4" />}
+                            </div>
+                          )}
                         </div>
 
                         <div className="mt-3 grid grid-cols-2 gap-3 text-sm text-slate-600">
@@ -2597,13 +2616,15 @@ export default function Orders() {
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-gray-50 hover:bg-gray-50 cursor-default select-none">
-                      <TableHead className="w-12">
-                        <Checkbox
-                          checked={allSelected || (someSelected ? "indeterminate" : false)}
-                          onCheckedChange={(checked) => toggleSelectAll(Boolean(checked))}
-                          onClick={(event) => event.stopPropagation()}
-                        />
-                      </TableHead>
+                      {selectionMode && (
+                        <TableHead className="w-12">
+                          <Checkbox
+                            checked={allSelected || (someSelected ? "indeterminate" : false)}
+                            onCheckedChange={(checked) => toggleSelectAll(Boolean(checked))}
+                            onClick={(event) => event.stopPropagation()}
+                          />
+                        </TableHead>
+                      )}
                       <TableHead>Auftrag</TableHead>
                       <TableHead>Fahrzeug</TableHead>
                       <TableHead>Route</TableHead>
@@ -2640,17 +2661,25 @@ export default function Orders() {
                         : 'bg-green-50 hover:bg-green-100';
                       const dueDetail = isCompleted || isCancelled ? null : dueStatus.detail;
                       return (
-                        <TableRow 
+                        <TableRow
                           key={order.id}
-                          className={`cursor-pointer ${rowTone}`}
-                          onClick={() => openOrderDetails(order)}
+                          className={`cursor-pointer ${rowTone} ${selectionMode && selectedIds.includes(order.id) ? 'ring-2 ring-[#1e3a5f] ring-inset' : ''}`}
+                          onClick={() => {
+                            if (selectionMode) {
+                              toggleSelect(order.id, !selectedIds.includes(order.id));
+                            } else {
+                              openOrderDetails(order);
+                            }
+                          }}
                         >
-                          <TableCell onClick={(event) => event.stopPropagation()}>
-                            <Checkbox
-                              checked={selectedIds.includes(order.id)}
-                              onCheckedChange={(checked) => toggleSelect(order.id, Boolean(checked))}
-                            />
-                          </TableCell>
+                          {selectionMode && (
+                            <TableCell onClick={(event) => event.stopPropagation()}>
+                              <Checkbox
+                                checked={selectedIds.includes(order.id)}
+                                onCheckedChange={(checked) => toggleSelect(order.id, Boolean(checked))}
+                              />
+                            </TableCell>
+                          )}
                           <TableCell>
                             <div>
                               <p className="font-semibold text-[#1e3a5f]">{order.order_number}</p>
