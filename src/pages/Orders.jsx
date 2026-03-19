@@ -331,6 +331,7 @@ export default function Orders() {
   useEffect(() => {
     if (view === 'list') {
       restoreListScroll();
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
     }
   }, [view]);
 
@@ -431,7 +432,9 @@ export default function Orders() {
       if (error) return [];
       return data || [];
     },
-    staleTime: 5 * 60 * 1000,
+    staleTime: 30 * 1000,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
   });
 
   const { data: trashedOrders = [] } = useQuery({
