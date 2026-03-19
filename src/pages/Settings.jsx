@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { appClient } from '@/api/appClient';
 import { supabase } from '@/lib/supabaseClient';
-import { getFinanceSettings, saveFinanceSettings } from '@/utils/invoiceStorage';
+import { getFinanceSettings, saveFinanceSettings, setActiveCompanyId } from '@/utils/invoiceStorage';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,7 +38,19 @@ export default function Settings() {
   const [error, setError] = useState('');
   const logoInputRef = useRef(null);
 
-  // App settings from Supabase
+  // Current user's company_id for data scoping
+  const [companyId, setCompanyId] = useState(null);
+
+  useEffect(() => {
+    appClient.auth.getCurrentUser().then((user) => {
+      if (user?.company_id) {
+        setCompanyId(user.company_id);
+        setActiveCompanyId(user.company_id);
+      }
+    });
+  }, []);
+
+  // App settings from Supabase (RLS filters by company_id automatically)
   const { data: appSettingsList = [], isLoading } = useQuery({
     queryKey: ['appSettings'],
     queryFn: () => appClient.entities.AppSettings.list('-created_date', 1),
@@ -93,6 +105,19 @@ export default function Settings() {
       ...(fs.invoiceProfile || {}),
     };
   });
+
+  // Reload billing from company-scoped localStorage once companyId is known
+  useEffect(() => {
+    if (!companyId) return;
+    const fs = getFinanceSettings();
+    setBilling({
+      invoicePrefix: fs.invoicePrefix || 'TF',
+      defaultVatRate: fs.defaultVatRate ?? 19,
+      defaultPaymentDays: fs.defaultPaymentDays ?? 14,
+      nextInvoiceNumber: fs.nextInvoiceNumber ?? 1000,
+      ...(fs.invoiceProfile || {}),
+    });
+  }, [companyId]);
   const [logoUploading, setLogoUploading] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
 
@@ -172,7 +197,7 @@ export default function Settings() {
       if (appSettingsList.length > 0) {
         await appClient.entities.AppSettings.update(appSettingsList[0].id, payload);
       } else {
-        await appClient.entities.AppSettings.create(payload);
+        await appClient.entities.AppSettings.create({ ...payload, company_id: companyId });
       }
 
       // Save billing to localStorage (used by invoice generation)

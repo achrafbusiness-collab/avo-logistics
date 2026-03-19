@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Route, Routes, useLocation, Navigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { appClient } from '@/api/appClient';
+import { setActiveCompanyId } from '@/utils/invoiceStorage';
 import { useEffect, useState } from 'react';
 import { hasPageAccess } from "@/lib/accessControl";
 import { Loader2 } from "lucide-react";
@@ -130,6 +131,9 @@ function PagesContent() {
             if (isMounted) {
                 setCurrentUser(user);
                 setAuthChecked(true);
+                if (user?.company_id) {
+                    setActiveCompanyId(user.company_id);
+                }
             }
         };
         loadUser();

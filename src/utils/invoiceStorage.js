@@ -4,6 +4,32 @@ const SETTINGS_KEY = 'tf:finance:settings:v1';
 const TRASH_KEY = 'tf:finance:invoice-trash:v1';
 const TRASH_RETENTION_DAYS = 14;
 
+// --- Company-scoped localStorage ---
+let _activeCompanyId = null;
+
+export const setActiveCompanyId = (id) => {
+  _activeCompanyId = id || null;
+};
+
+export const getActiveCompanyId = () => _activeCompanyId;
+
+const scopedKey = (baseKey) => {
+  if (_activeCompanyId) return `${baseKey}:${_activeCompanyId}`;
+  return baseKey;
+};
+
+// Migrate unscoped data to company-scoped key (one-time per company)
+const migrateToScoped = (baseKey) => {
+  if (typeof window === 'undefined' || !_activeCompanyId) return;
+  const scoped = `${baseKey}:${_activeCompanyId}`;
+  if (!window.localStorage.getItem(scoped)) {
+    const old = window.localStorage.getItem(baseKey);
+    if (old) {
+      window.localStorage.setItem(scoped, old);
+    }
+  }
+};
+
 // Migrate data from old avo: keys to new tf: keys (one-time)
 if (typeof window !== 'undefined') {
   const migrations = [
@@ -72,7 +98,8 @@ const writeJson = (key, value) => {
 const normalizeArray = (value) => (Array.isArray(value) ? value : []);
 
 export const listInvoiceDrafts = () => {
-  const drafts = normalizeArray(readJson(DRAFTS_KEY, []));
+  migrateToScoped(DRAFTS_KEY);
+  const drafts = normalizeArray(readJson(scopedKey(DRAFTS_KEY), []));
   return drafts.sort((a, b) => {
     const aTime = new Date(a.updatedAt || a.createdAt || 0).getTime();
     const bTime = new Date(b.updatedAt || b.createdAt || 0).getTime();
@@ -101,18 +128,19 @@ export const upsertInvoiceDraft = (draft) => {
   } else {
     drafts.unshift(payload);
   }
-  writeJson(DRAFTS_KEY, drafts);
+  writeJson(scopedKey(DRAFTS_KEY), drafts);
   return payload;
 };
 
 export const deleteInvoiceDraft = (draftId) => {
   if (!draftId) return;
   const drafts = listInvoiceDrafts().filter((draft) => draft.id !== draftId);
-  writeJson(DRAFTS_KEY, drafts);
+  writeJson(scopedKey(DRAFTS_KEY), drafts);
 };
 
 export const listInvoices = () => {
-  const invoices = normalizeArray(readJson(INVOICES_KEY, []));
+  migrateToScoped(INVOICES_KEY);
+  const invoices = normalizeArray(readJson(scopedKey(INVOICES_KEY), []));
   return invoices.sort((a, b) => {
     const aTime = new Date(a.updatedAt || a.createdAt || 0).getTime();
     const bTime = new Date(b.updatedAt || b.createdAt || 0).getTime();
@@ -141,7 +169,7 @@ export const upsertInvoice = (invoice) => {
   } else {
     invoices.unshift(payload);
   }
-  writeJson(INVOICES_KEY, invoices);
+  writeJson(scopedKey(INVOICES_KEY), invoices);
   return payload;
 };
 
@@ -170,7 +198,7 @@ export const updateInvoiceStatus = (invoiceId, status, options = {}) => {
     paidAt,
     updatedAt: new Date().toISOString(),
   };
-  writeJson(INVOICES_KEY, invoices);
+  writeJson(scopedKey(INVOICES_KEY), invoices);
   return invoices[index];
 };
 
@@ -189,21 +217,22 @@ export const deleteInvoice = (invoiceId) => {
     writeJson(TRASH_KEY, trash);
   }
   const remaining = invoices.filter((inv) => inv.id !== invoiceId);
-  writeJson(INVOICES_KEY, remaining);
+  writeJson(scopedKey(INVOICES_KEY), remaining);
 };
 
 // Trash management
 export const listTrashedInvoices = () => {
   const now = Date.now();
   const cutoff = TRASH_RETENTION_DAYS * 24 * 60 * 60 * 1000;
-  const trash = normalizeArray(readJson(TRASH_KEY, []));
+  migrateToScoped(TRASH_KEY);
+  const trash = normalizeArray(readJson(scopedKey(TRASH_KEY), []));
   // Auto-purge invoices older than 14 days
   const valid = trash.filter((inv) => {
     const deletedAt = new Date(inv.deletedAt || 0).getTime();
     return now - deletedAt < cutoff;
   });
   if (valid.length !== trash.length) {
-    writeJson(TRASH_KEY, valid);
+    writeJson(scopedKey(TRASH_KEY), valid);
   }
   return valid.sort((a, b) => {
     const aTime = new Date(b.deletedAt || 0).getTime();
@@ -221,14 +250,14 @@ export const restoreInvoice = (invoiceId) => {
   const { deletedAt, ...restored } = invoice;
   upsertInvoice(restored);
   const remaining = trash.filter((inv) => inv.id !== invoiceId);
-  writeJson(TRASH_KEY, remaining);
+  writeJson(scopedKey(TRASH_KEY), remaining);
   return restored;
 };
 
 export const permanentlyDeleteInvoice = (invoiceId) => {
   if (!invoiceId) return;
   const trash = listTrashedInvoices().filter((inv) => inv.id !== invoiceId);
-  writeJson(TRASH_KEY, trash);
+  writeJson(scopedKey(TRASH_KEY), trash);
 };
 
 export const finalizeDraftToInvoice = (draftId, data = {}) => {
@@ -249,7 +278,8 @@ export const finalizeDraftToInvoice = (draftId, data = {}) => {
 };
 
 export const getFinanceSettings = () => {
-  const raw = readJson(SETTINGS_KEY, {});
+  migrateToScoped(SETTINGS_KEY);
+  const raw = readJson(scopedKey(SETTINGS_KEY), {});
   return {
     ...DEFAULT_FINANCE_SETTINGS,
     ...raw,
@@ -265,7 +295,7 @@ export const saveFinanceSettings = (settings) => {
     ...getFinanceSettings(),
     ...settings,
   };
-  writeJson(SETTINGS_KEY, payload);
+  writeJson(scopedKey(SETTINGS_KEY), payload);
   return payload;
 };
 
