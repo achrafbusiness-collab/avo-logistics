@@ -692,195 +692,150 @@ export default function Statistics() {
       </div>
 
       <Card className="border border-slate-200/80 bg-white/90">
-        <CardContent className="space-y-3 sm:space-y-4 p-3 sm:p-4">
-          <div className="flex flex-wrap gap-1.5 sm:gap-2">
+        <CardContent className="space-y-3 p-3 sm:p-4">
+          {/* Perioden-Auswahl: Dropdown auf Mobile, Buttons auf Desktop */}
+          <div className="sm:hidden">
+            <Select value={period} onValueChange={setPeriod}>
+              <SelectTrigger className="w-full">
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4" />
+                  <SelectValue />
+                </div>
+              </SelectTrigger>
+              <SelectContent>
+                {PERIODS.map((item) => (
+                  <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="hidden sm:flex flex-wrap gap-2">
             {PERIODS.map((item) => (
               <Button
                 key={item.value}
                 size="sm"
                 variant={period === item.value ? 'default' : 'outline'}
-                className={`text-xs sm:text-sm px-2.5 sm:px-3 ${period === item.value ? 'bg-[#1e3a5f] hover:bg-[#2d5a8a]' : ''}`}
+                className={period === item.value ? 'bg-[#1e3a5f] hover:bg-[#2d5a8a]' : ''}
                 onClick={() => setPeriod(item.value)}
               >
-                <Calendar className="mr-1.5 h-3.5 w-3.5 hidden sm:inline-block" />
+                <Calendar className="mr-2 h-4 w-4" />
                 {item.label}
               </Button>
             ))}
           </div>
 
-          <div className="grid grid-cols-3 sm:flex sm:flex-wrap gap-1.5 sm:gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              className="text-xs sm:text-sm px-2 sm:px-3"
-              onClick={() => {
-                const today = new Date();
-                applyQuickRange(startOfDay(today), endOfDay(today));
-              }}
-            >
-              Heute
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              className="text-xs sm:text-sm px-2 sm:px-3"
-              onClick={() => {
-                const yesterday = subDays(new Date(), 1);
-                applyQuickRange(startOfDay(yesterday), endOfDay(yesterday));
-              }}
-            >
-              Gestern
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              className="text-xs sm:text-sm px-2 sm:px-3"
-              onClick={() => {
-                const dayBefore = subDays(new Date(), 2);
-                applyQuickRange(startOfDay(dayBefore), endOfDay(dayBefore));
-              }}
-            >
-              Vorgestern
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              className="text-xs sm:text-sm px-2 sm:px-3"
-              onClick={() => {
-                const now = new Date();
-                applyQuickRange(startOfWeek(now, { weekStartsOn: 1 }), endOfWeek(now, { weekStartsOn: 1 }));
-              }}
-            >
-              Diese Wo.
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              className="text-xs sm:text-sm px-2 sm:px-3"
-              onClick={() => {
-                const now = new Date();
-                const lastWeek = subDays(now, 7);
-                applyQuickRange(startOfWeek(lastWeek, { weekStartsOn: 1 }), endOfWeek(lastWeek, { weekStartsOn: 1 }));
-              }}
-            >
-              Letzte Wo.
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              className="text-xs sm:text-sm px-2 sm:px-3"
-              onClick={() => {
-                const now = new Date();
-                applyQuickRange(startOfMonth(now), endOfMonth(now));
-                setTargetMonth(format(now, 'yyyy-MM'));
-              }}
-            >
-              Dieser Mo.
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              className="col-span-2 sm:col-span-1 text-xs sm:text-sm px-2 sm:px-3"
-              onClick={() => {
-                const now = new Date();
-                const lastMonth = subDays(startOfMonth(now), 1);
-                applyQuickRange(startOfMonth(lastMonth), endOfMonth(lastMonth));
-                setTargetMonth(format(lastMonth, 'yyyy-MM'));
-              }}
-            >
-              Letzter Mo.
-            </Button>
+          {/* Schnellauswahl: horizontal scrollbar auf Mobile */}
+          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide -mx-3 px-3 sm:mx-0 sm:px-0 sm:flex-wrap sm:overflow-visible sm:pb-0">
+            {[
+              { label: 'Heute', fn: () => { const t = new Date(); applyQuickRange(startOfDay(t), endOfDay(t)); } },
+              { label: 'Gestern', fn: () => { const y = subDays(new Date(), 1); applyQuickRange(startOfDay(y), endOfDay(y)); } },
+              { label: 'Vorgestern', fn: () => { const d = subDays(new Date(), 2); applyQuickRange(startOfDay(d), endOfDay(d)); } },
+              { label: 'Diese Woche', fn: () => { const n = new Date(); applyQuickRange(startOfWeek(n, { weekStartsOn: 1 }), endOfWeek(n, { weekStartsOn: 1 })); } },
+              { label: 'Letzte Woche', fn: () => { const n = new Date(); const l = subDays(n, 7); applyQuickRange(startOfWeek(l, { weekStartsOn: 1 }), endOfWeek(l, { weekStartsOn: 1 })); } },
+              { label: 'Dieser Monat', fn: () => { const n = new Date(); applyQuickRange(startOfMonth(n), endOfMonth(n)); setTargetMonth(format(n, 'yyyy-MM')); } },
+              { label: 'Letzter Monat', fn: () => { const n = new Date(); const l = subDays(startOfMonth(n), 1); applyQuickRange(startOfMonth(l), endOfMonth(l)); setTargetMonth(format(l, 'yyyy-MM')); } },
+            ].map((item) => (
+              <Button
+                key={item.label}
+                size="sm"
+                variant="outline"
+                className="shrink-0 text-xs"
+                onClick={item.fn}
+              >
+                {item.label}
+              </Button>
+            ))}
           </div>
 
-          <div className="grid grid-cols-[auto_1fr_auto_1fr] sm:flex sm:flex-wrap items-center gap-2 sm:gap-3">
-            <span className="text-xs uppercase tracking-wide text-slate-500">Von</span>
-            <Input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} className="sm:w-44" />
-            <span className="text-xs uppercase tracking-wide text-slate-500">Bis</span>
-            <Input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} className="sm:w-44" />
+          {/* Datumseingaben: gestapelt auf Mobile */}
+          <div className="space-y-2 sm:space-y-0 sm:flex sm:flex-wrap sm:items-center sm:gap-3">
+            <div className="flex items-center gap-2">
+              <span className="text-xs uppercase tracking-wide text-slate-500 w-8 shrink-0">Von</span>
+              <Input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} className="flex-1 sm:w-44 sm:flex-none" />
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs uppercase tracking-wide text-slate-500 w-8 shrink-0">Bis</span>
+              <Input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} className="flex-1 sm:w-44 sm:flex-none" />
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-2 gap-2 sm:gap-4 sm:grid-cols-3 lg:grid-cols-6">
-        <Card><CardContent className="p-3 sm:p-5"><p className="text-[10px] sm:text-xs text-slate-500">Touren</p><p className="mt-1 sm:mt-2 text-lg sm:text-2xl font-semibold">{rows.length}</p><Truck className="mt-1 sm:mt-2 h-4 w-4 text-slate-400" /></CardContent></Card>
-        <Card><CardContent className="p-3 sm:p-5"><p className="text-[10px] sm:text-xs text-slate-500">Umsatz</p><p className="mt-1 sm:mt-2 text-lg sm:text-2xl font-semibold">{formatCurrency(totals.revenue)}</p><TrendingUp className="mt-1 sm:mt-2 h-4 w-4 text-emerald-500" /></CardContent></Card>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-4 lg:grid-cols-6">
         <Card>
           <CardContent className="p-3 sm:p-5">
-            <p className="text-[10px] sm:text-xs text-slate-500">Fahrer-Kosten</p>
-            <p className="mt-1 sm:mt-2 text-lg sm:text-2xl font-semibold">{formatCurrency(totals.cost)}</p>
-            <p className="mt-0.5 sm:mt-1 text-[10px] sm:text-xs text-slate-500">
-              {costShareLabel} % vom Umsatz
-            </p>
-            <Wallet className="mt-1 sm:mt-2 h-4 w-4 text-amber-500" />
+            <p className="text-[11px] text-slate-500">Touren</p>
+            <p className="mt-1 text-base sm:text-2xl font-semibold">{rows.length}</p>
+            <Truck className="mt-1 h-4 w-4 text-slate-400" />
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-3 sm:p-5">
-            <p className="text-[10px] sm:text-xs text-slate-500">Gewinn</p>
-            <p className="mt-1 sm:mt-2 text-lg sm:text-2xl font-semibold">{formatCurrency(totals.profit)}</p>
-            <p className="mt-0.5 sm:mt-1 text-[10px] sm:text-xs text-slate-500">
-              {profitShareLabel} % vom Umsatz
-            </p>
-            <div className="mt-0.5 sm:mt-1 flex items-center gap-1 text-[10px] sm:text-xs text-slate-500">
-              <span>
-                Ziel: {profitTargetValue > 0 ? formatCurrency(profitTargetValue) : '—'}
-              </span>
-              {showSuccess ? (
-                <CheckCircle2 className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-emerald-500" />
-              ) : null}
-            </div>
-            {showSuccess ? (
-              <p className="mt-0.5 text-[10px] sm:text-xs text-emerald-600">Ziel erreicht!</p>
-            ) : showFailure ? (
-              <p className="mt-0.5 text-[10px] sm:text-xs text-red-600">
-                Ziel nicht erreicht.
-              </p>
-            ) : null}
-            <Coins className="mt-1 sm:mt-2 h-4 w-4 text-blue-500" />
+            <p className="text-[11px] text-slate-500">Umsatz</p>
+            <p className="mt-1 text-base sm:text-2xl font-semibold truncate">{formatCurrency(totals.revenue)}</p>
+            <TrendingUp className="mt-1 h-4 w-4 text-emerald-500" />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-3 sm:p-5">
+            <p className="text-[11px] text-slate-500">Fahrer-Kosten</p>
+            <p className="mt-1 text-base sm:text-2xl font-semibold truncate">{formatCurrency(totals.cost)}</p>
+            <p className="mt-0.5 text-[11px] text-slate-500">{costShareLabel} %</p>
+            <Wallet className="mt-1 h-4 w-4 text-amber-500" />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-3 sm:p-5">
+            <p className="text-[11px] text-slate-500">Gewinn</p>
+            <p className="mt-1 text-base sm:text-2xl font-semibold truncate">{formatCurrency(totals.profit)}</p>
+            <p className="mt-0.5 text-[11px] text-slate-500">{profitShareLabel} %</p>
+            {showSuccess && <p className="text-[10px] text-emerald-600">Ziel erreicht</p>}
+            {showFailure && <p className="text-[10px] text-red-600">Ziel verfehlt</p>}
+            <Coins className="mt-1 h-4 w-4 text-blue-500" />
           </CardContent>
         </Card>
         <Card className="col-span-2 sm:col-span-1">
           <CardContent className="p-3 sm:p-5 space-y-2">
-            <p className="text-[10px] sm:text-xs text-slate-500">Monatliches Gewinnziel</p>
-            <Select value={targetMonth} onValueChange={setTargetMonth}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Monat" />
-              </SelectTrigger>
-              <SelectContent>
-                {monthOptions.map((month) => (
-                  <SelectItem key={month.value} value={month.value}>
-                    {month.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Input
-              type="number"
-              step="0.01"
-              value={profitTargetInput}
-              onChange={(e) => setProfitTargetInput(e.target.value)}
-              placeholder="z. B. 5000"
-            />
-            {showTargetActions ? (
-              <div className="flex flex-wrap items-center gap-2">
-                <Button
-                  size="sm"
-                  className="bg-[#1e3a5f] hover:bg-[#2d5a8a]"
-                  onClick={handleConfirmTarget}
-                >
-                  Bestätigen
-                </Button>
-                <Button size="sm" variant="outline" onClick={handleDeleteTarget}>
-                  Löschen
-                </Button>
+            <p className="text-[11px] text-slate-500">Gewinnziel</p>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-1">
+              <Select value={targetMonth} onValueChange={setTargetMonth}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Monat" />
+                </SelectTrigger>
+                <SelectContent>
+                  {monthOptions.map((month) => (
+                    <SelectItem key={month.value} value={month.value}>
+                      {month.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Input
+                type="number"
+                step="0.01"
+                value={profitTargetInput}
+                onChange={(e) => setProfitTargetInput(e.target.value)}
+                placeholder="z. B. 5000"
+              />
+            </div>
+            {showTargetActions && (
+              <div className="flex items-center gap-2">
+                <Button size="sm" className="flex-1 bg-[#1e3a5f] hover:bg-[#2d5a8a]" onClick={handleConfirmTarget}>OK</Button>
+                <Button size="sm" variant="outline" className="flex-1" onClick={handleDeleteTarget}>Löschen</Button>
               </div>
-            ) : null}
-            <p className="text-[10px] sm:text-xs text-slate-500">
+            )}
+            <p className="text-[11px] text-slate-500">
               Ergebnis: <span className="font-medium text-slate-700">{formatCurrency(selectedMonthProfit)}</span>
             </p>
           </CardContent>
         </Card>
-        <Card><CardContent className="p-3 sm:p-5"><p className="text-[10px] sm:text-xs text-slate-500">Getankt</p><p className="mt-1 sm:mt-2 text-lg sm:text-2xl font-semibold">{formatCurrency(totals.fuelAdvance)}</p><Fuel className="mt-1 sm:mt-2 h-4 w-4 text-slate-500" /></CardContent></Card>
+        <Card>
+          <CardContent className="p-3 sm:p-5">
+            <p className="text-[11px] text-slate-500">Getankt</p>
+            <p className="mt-1 text-base sm:text-2xl font-semibold truncate">{formatCurrency(totals.fuelAdvance)}</p>
+            <Fuel className="mt-1 h-4 w-4 text-slate-500" />
+          </CardContent>
+        </Card>
       </div>
 
       <Card className="border border-slate-200/80 bg-white/90">
@@ -1006,52 +961,47 @@ export default function Statistics() {
           ) : (
             <>
               {/* Mobile: Card Layout */}
-              <div className="space-y-3 md:hidden">
+              <div className="space-y-2 sm:hidden">
                 {filteredRows.map((row) => (
                   <div
                     key={row.id}
-                    className="cursor-pointer rounded-lg border border-slate-200 bg-white p-4 shadow-sm active:bg-slate-50"
+                    className="cursor-pointer rounded-lg border border-slate-200 bg-white p-3 shadow-sm active:bg-slate-50"
                     onClick={() => setSelectedOrder(row)}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
-                        <p className="font-semibold text-slate-900">{row.orderNumber}</p>
-                        <p className="truncate text-xs text-slate-500">{row.route}</p>
+                        <p className="text-sm font-semibold text-slate-900">{row.orderNumber}</p>
+                        <p className="truncate text-[11px] text-slate-500">{row.route}</p>
                       </div>
-                      <div className="flex shrink-0 items-center gap-1 text-xs text-slate-500">
+                      <div className="flex shrink-0 items-center gap-1 text-[11px] text-slate-500">
                         {format(row.date, 'dd.MM.yy')}
-                        <ArrowRight className="h-3.5 w-3.5 text-slate-400" />
+                        <ArrowRight className="h-3 w-3 text-slate-400" />
                       </div>
                     </div>
-                    <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                    <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
                       <div>
-                        <p className="text-xs text-slate-500">Auftragspreis</p>
-                        <p className="font-medium text-emerald-700">{formatCurrency(row.revenue)}</p>
+                        <p className="text-[10px] text-slate-400">Preis</p>
+                        <p className="font-semibold text-emerald-700">{formatCurrency(row.revenue)}</p>
                       </div>
                       <div>
-                        <p className="text-xs text-slate-500">Fahrer-Kosten</p>
-                        <p className="font-medium text-amber-700">{formatCurrency(row.cost)}</p>
+                        <p className="text-[10px] text-slate-400">Kosten</p>
+                        <p className="font-semibold text-amber-700">{formatCurrency(row.cost)}</p>
                       </div>
                       <div>
-                        <p className="text-xs text-slate-500">Gewinn</p>
-                        <p className="font-medium text-blue-700">{formatCurrency(row.profit)}</p>
+                        <p className="text-[10px] text-slate-400">Gewinn</p>
+                        <p className="font-semibold text-blue-700">{formatCurrency(row.profit)}</p>
                       </div>
                       <div>
-                        <p className="text-xs text-slate-500">Strecke</p>
-                        <p className="font-medium text-slate-700">{row.distanceKm ? `${row.distanceKm} km` : '-'}</p>
+                        <p className="text-[10px] text-slate-400">km</p>
+                        <p className="font-medium text-slate-700">{row.distanceKm || '-'}</p>
                       </div>
                     </div>
-                    {row.fuelAdvance > 0 && (
-                      <div className="mt-2 text-xs text-slate-500">
-                        Getankt: <span className="font-medium text-slate-700">{formatCurrency(row.fuelAdvance)}</span>
-                      </div>
-                    )}
                   </div>
                 ))}
               </div>
 
               {/* Desktop: Table Layout */}
-              <div className="hidden md:block overflow-x-auto">
+              <div className="hidden sm:block overflow-x-auto">
                 <table className="min-w-full text-sm">
                   <thead>
                     <tr className="border-b border-slate-200 text-left text-slate-500">
@@ -1126,31 +1076,31 @@ export default function Statistics() {
           ) : (
             <>
               {/* Mobile: Card Layout */}
-              <div className="space-y-3 md:hidden">
+              <div className="space-y-2 sm:hidden">
                 {driverCostRows.map((row) => (
                   <div
                     key={row.id}
-                    className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm"
+                    className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm"
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
-                        <p className="font-semibold text-slate-800">{row.driverName}</p>
-                        <p className="truncate text-xs text-slate-500">{row.route}</p>
+                        <p className="text-sm font-semibold text-slate-800">{row.driverName}</p>
+                        <p className="truncate text-[11px] text-slate-500">{row.route}</p>
                       </div>
-                      <span className="shrink-0 text-xs text-slate-500">{format(row.date, 'dd.MM.yy')}</span>
+                      <span className="shrink-0 text-[11px] text-slate-500">{format(row.date, 'dd.MM.yy')}</span>
                     </div>
-                    <div className="mt-3 grid grid-cols-3 gap-2 text-sm">
+                    <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
                       <div>
-                        <p className="text-xs text-slate-500">Kennzeichen</p>
+                        <p className="text-[10px] text-slate-400">Kennz.</p>
                         <p className="font-medium text-slate-700">{row.licensePlate}</p>
                       </div>
                       <div>
-                        <p className="text-xs text-slate-500">Strecke</p>
-                        <p className="font-medium text-slate-700">{row.distanceKm ? `${row.distanceKm} km` : '-'}</p>
+                        <p className="text-[10px] text-slate-400">km</p>
+                        <p className="font-medium text-slate-700">{row.distanceKm || '-'}</p>
                       </div>
                       <div>
-                        <p className="text-xs text-slate-500">Kosten</p>
-                        <p className="font-medium text-amber-700">{formatCurrency(row.cost)}</p>
+                        <p className="text-[10px] text-slate-400">Kosten</p>
+                        <p className="font-semibold text-amber-700">{formatCurrency(row.cost)}</p>
                       </div>
                     </div>
                   </div>
@@ -1158,7 +1108,7 @@ export default function Statistics() {
               </div>
 
               {/* Desktop: Table Layout */}
-              <div className="hidden md:block overflow-x-auto">
+              <div className="hidden sm:block overflow-x-auto">
               <table className="min-w-full text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 text-left text-slate-500">
