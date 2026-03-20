@@ -301,19 +301,25 @@ export default function ResetPassword() {
                       <FormLabel>Neues Passwort</FormLabel>
                       <div className="relative">
                         <FormControl>
-                          <Input
-                            {...field}
+                          <input
+                            name={field.name}
+                            ref={field.ref}
+                            value={field.value}
+                            onChange={(e) => field.onChange(e.target.value)}
+                            onBlur={field.onBlur}
                             type={showPassword ? "text" : "password"}
                             placeholder="Mindestens 8 Zeichen"
-                            autoComplete="new-password"
-                            className="pr-10"
-                            autoFocus
+                            autoComplete="off"
+                            data-lpignore="true"
+                            data-1p-ignore
+                            className="flex h-11 md:h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 md:py-1 text-base shadow-sm transition-all duration-200 placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b82f6]/20 focus-visible:border-[#1e3a5f] hover:border-[#1e3a5f]/40 md:text-sm pr-10"
                           />
                         </FormControl>
                         <button
                           type="button"
                           tabIndex={-1}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 z-10"
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 pointer-events-auto"
+                          style={{ width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                           onClick={() => setShowPassword((v) => !v)}
                         >
                           {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -332,18 +338,25 @@ export default function ResetPassword() {
                       <FormLabel>Neues Passwort bestätigen</FormLabel>
                       <div className="relative">
                         <FormControl>
-                          <Input
-                            {...field}
+                          <input
+                            name={field.name}
+                            ref={field.ref}
+                            value={field.value}
+                            onChange={(e) => field.onChange(e.target.value)}
+                            onBlur={field.onBlur}
                             type={showConfirm ? "text" : "password"}
                             placeholder="Passwort wiederholen"
-                            autoComplete="new-password"
-                            className="pr-10"
+                            autoComplete="off"
+                            data-lpignore="true"
+                            data-1p-ignore
+                            className="flex h-11 md:h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 md:py-1 text-base shadow-sm transition-all duration-200 placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b82f6]/20 focus-visible:border-[#1e3a5f] hover:border-[#1e3a5f]/40 md:text-sm pr-10"
                           />
                         </FormControl>
                         <button
                           type="button"
                           tabIndex={-1}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 z-10"
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 pointer-events-auto"
+                          style={{ width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                           onClick={() => setShowConfirm((v) => !v)}
                         >
                           {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
