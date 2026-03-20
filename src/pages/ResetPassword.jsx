@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { passwordWithConfirmSchema, emailSchema } from "@/lib/schemas";
@@ -14,7 +14,7 @@ import {
   FormControl,
   FormMessage,
 } from "@/components/ui/form";
-import { Lock, Loader2, Mail, Eye, EyeOff } from "lucide-react";
+import { Lock, Loader2, Mail, Eye, EyeOff, Check, X, ShieldCheck, ShieldAlert, Shield } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 
 const getPublicResetUrl = () => {
@@ -24,6 +24,69 @@ const getPublicResetUrl = () => {
   }
   return `${window.location.origin}/reset-password`;
 };
+
+const passwordRules = [
+  { key: "length", label: "Mindestens 8 Zeichen", test: (pw) => pw.length >= 8 },
+  { key: "upper", label: "Ein Großbuchstabe (A–Z)", test: (pw) => /[A-Z]/.test(pw) },
+  { key: "lower", label: "Ein Kleinbuchstabe (a–z)", test: (pw) => /[a-z]/.test(pw) },
+  { key: "number", label: "Eine Zahl (0–9)", test: (pw) => /[0-9]/.test(pw) },
+  { key: "special", label: "Ein Sonderzeichen (!@#$…)", test: (pw) => /[^A-Za-z0-9]/.test(pw) },
+];
+
+function getPasswordStrength(password) {
+  if (!password) return { score: 0, label: "", color: "" };
+  const passed = passwordRules.filter((r) => r.test(password)).length;
+  if (passed <= 2) return { score: passed, label: "Schwach", color: "#ef4444" };
+  if (passed <= 3) return { score: passed, label: "Mittel", color: "#f59e0b" };
+  if (passed === 4) return { score: passed, label: "Gut", color: "#3b82f6" };
+  return { score: passed, label: "Stark", color: "#22c55e" };
+}
+
+function PasswordRequirements({ password }) {
+  const strength = getPasswordStrength(password);
+  if (!password) return null;
+  return (
+    <div className="mt-3 space-y-3">
+      {/* Strength Bar */}
+      <div>
+        <div className="flex items-center justify-between mb-1.5">
+          <span className="text-xs font-medium text-slate-500">Passwortstärke</span>
+          <span className="text-xs font-semibold flex items-center gap-1" style={{ color: strength.color }}>
+            {strength.label === "Stark" && <ShieldCheck className="w-3.5 h-3.5" />}
+            {strength.label === "Gut" && <Shield className="w-3.5 h-3.5" />}
+            {(strength.label === "Schwach" || strength.label === "Mittel") && <ShieldAlert className="w-3.5 h-3.5" />}
+            {strength.label}
+          </span>
+        </div>
+        <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+          <div
+            className="h-full rounded-full transition-all duration-300"
+            style={{
+              width: `${(strength.score / 5) * 100}%`,
+              backgroundColor: strength.color,
+            }}
+          />
+        </div>
+      </div>
+      {/* Requirements Checklist */}
+      <div className="grid gap-1">
+        {passwordRules.map((rule) => {
+          const ok = rule.test(password);
+          return (
+            <div key={rule.key} className="flex items-center gap-1.5 text-xs">
+              {ok ? (
+                <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+              ) : (
+                <X className="w-3.5 h-3.5 text-slate-300 shrink-0" />
+              )}
+              <span className={ok ? "text-emerald-600" : "text-slate-400"}>{rule.label}</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 export default function ResetPassword() {
   const navigate = useNavigate();
@@ -236,26 +299,28 @@ export default function ResetPassword() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Neues Passwort</FormLabel>
-                      <FormControl>
-                        <div className="relative">
+                      <div className="relative">
+                        <FormControl>
                           <Input
                             {...field}
                             type={showPassword ? "text" : "password"}
                             placeholder="Mindestens 8 Zeichen"
                             autoComplete="new-password"
+                            className="pr-10"
                             autoFocus
                           />
-                          <button
-                            type="button"
-                            tabIndex={-1}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                            onClick={() => setShowPassword((v) => !v)}
-                          >
-                            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                          </button>
-                        </div>
-                      </FormControl>
+                        </FormControl>
+                        <button
+                          type="button"
+                          tabIndex={-1}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 z-10"
+                          onClick={() => setShowPassword((v) => !v)}
+                        >
+                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
                       <FormMessage />
+                      <PasswordRequirements password={field.value} />
                     </FormItem>
                   )}
                 />
@@ -265,23 +330,25 @@ export default function ResetPassword() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Neues Passwort bestätigen</FormLabel>
-                      <FormControl>
-                        <div className="relative">
+                      <div className="relative">
+                        <FormControl>
                           <Input
                             {...field}
                             type={showConfirm ? "text" : "password"}
+                            placeholder="Passwort wiederholen"
                             autoComplete="new-password"
+                            className="pr-10"
                           />
-                          <button
-                            type="button"
-                            tabIndex={-1}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                            onClick={() => setShowConfirm((v) => !v)}
-                          >
-                            {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                          </button>
-                        </div>
-                      </FormControl>
+                        </FormControl>
+                        <button
+                          type="button"
+                          tabIndex={-1}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 z-10"
+                          onClick={() => setShowConfirm((v) => !v)}
+                        >
+                          {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
                       <FormMessage />
                     </FormItem>
                   )}
